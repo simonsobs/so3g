@@ -1,3 +1,11 @@
+## Local config files.
+local.cmake
+
+## Common backup / temporary files.
+*~
+
+## github's default C++ stuff.
+
 # Prerequisites
 *.d
 
