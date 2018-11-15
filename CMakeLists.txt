@@ -39,6 +39,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY so3g)
 add_library(so3g SHARED
+  src/main.cxx
   src/test.cxx
   src/G3IndexedReader.cxx
   src/SampleFlags.cxx

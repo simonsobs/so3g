@@ -17,7 +17,7 @@ Compilation and Installation
 ============================
 
 The installation system is a bit different from spt3g in that there is
-a separate "install" target defined.  The "install" target is
+a separate "install" target defined.  The "install" step is
 optional, and the install destination is customizable through the
 local.cmake file; see below.
 

@@ -35,19 +35,16 @@ template <class A> void HKInfo::serialize(A &ar, unsigned v)
 	ar & make_nvp("session_id", session_id);
 }
 
-//G3_SERIALIZABLE_CODE(HKInfo);
-
 void greet() {
     cout << "test 1 complete." << endl;
 }
 
-using namespace boost::python;
-
-//BOOST_PYTHON_MODULE(libso3g)
+namespace bp = boost::python;
 
 PYBINDINGS("so3g")
 {
-    class_<TestClass>("TestClass")
+    bp::def("greet", greet);
+    bp::class_<TestClass>("TestClass")
         .def("runme", &TestClass::runme);
 
     EXPORT_FRAMEOBJECT(HKInfo, init<>(),
@@ -65,9 +62,4 @@ PYBINDINGS("so3g")
     //	   "logical detector ID string (same as used in timestreams) to wiring "
     //	   "information (the board, module, and channel to which a given "
     //	   "detector is connected)");
-}
-
-BOOST_PYTHON_MODULE(so3g) {
-    def("greet", greet);
-    G3ModuleRegistrator::CallRegistrarsFor("so3g");
 }
