@@ -13,7 +13,16 @@ enum HKFrameType {
      data = 2,
 };
 
+
+
+
 class IrregBlockDouble : public G3FrameObject {
+    // Stores a block of timestamped data.  This consists of named
+    // vectors in .data, and a vector of timestamps in .t.  The user
+    // should assure that all these vectors are the same length.
+    //
+    // In the present version, all data vectors as well as the
+    // timestamps are doubles.
 public:
     string prefix;
     G3MapVectorDouble data;

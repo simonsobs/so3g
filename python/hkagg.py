@@ -64,8 +64,8 @@ class HKSession:
         """
         Return a Data frame template.  The prov_id must match the prov_id
         in one of the Provider blocks in the preceding status frame.
-        The session manager should add HKData objects to the 'blocks'
-        list.
+        The session manager should create and add IrregBlockDouble items
+        to the 'blocks' list.
         """
         if timestamp is None:
             timestamp = time.time()
