@@ -12,26 +12,25 @@ void TestClass::runme() {
 }
 
 
-
-std::string HKInfo::Description() const
+std::string TestFrame::Description() const
 {
 	std::ostringstream s;
-	s << "hk_source '" << hk_source << "' @session_id:" << session_id;
+	s << "data_source '" << data_source << "' @session_id:" << session_id;
 	return s.str();
 }
 
-std::string HKInfo::Summary() const
+std::string TestFrame::Summary() const
 {
     return Description();
 }
 
-template <class A> void HKInfo::serialize(A &ar, unsigned v)
+template <class A> void TestFrame::serialize(A &ar, unsigned v)
 {
 	using namespace cereal;
         // v is the version code!
 
 	ar & make_nvp("G3FrameObject", base_class<G3FrameObject>(this));
-	ar & make_nvp("hk_source", hk_source);
+	ar & make_nvp("data_source", data_source);
 	ar & make_nvp("session_id", session_id);
 }
 
@@ -47,15 +46,12 @@ PYBINDINGS("so3g")
     bp::class_<TestClass>("TestClass")
         .def("runme", &TestClass::runme);
 
-    EXPORT_FRAMEOBJECT(HKInfo, init<>(),
-    "Bolometer wiring information. Module and channel IDs are stored "
-    "zero-indexed, but be aware that they often printed one-indexed "
-    "for compatibility with pydfmux.")
-    .def_readwrite("session_id", &HKInfo::session_id,
-    "IP Address of the board, encoded as an int using struct")
-    .def_readwrite("hk_source", &HKInfo::hk_source,
-    "Serial number of the readout board to which this channel is "
-    "attached.")
+    EXPORT_FRAMEOBJECT(TestFrame, init<>(),
+    "TestFrame for demonstration.")
+    .def_readwrite("session_id", &TestFrame::session_id,
+    "Example integer.")
+    .def_readwrite("data_source", &TestFrame::data_source,
+    "Example string.")
     ;
 
     //	register_g3map<DfMuxWiringMap>("DfMuxWiringMap", "Mapping from "
