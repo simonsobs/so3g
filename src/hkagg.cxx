@@ -4,40 +4,57 @@
 #include <boost/python.hpp>
 
 #include <container_pybindings.h>
-#include <test.h>
+#include <hkagg.h>
 
-std::string HKInfo::Description() const
+
+/* IrregBlockDouble */
+
+std::string IrregBlockDouble::Description() const
 {
 	std::ostringstream s;
-	s << "hk_source '" << hk_source << "' @session_id:" << session_id;
+	s << "Double data (" << data.size() << " vectors) with timestamp.";
 	return s.str();
 }
 
-std::string HKInfo::Summary() const
+std::string IrregBlockDouble::Summary() const
 {
     return Description();
 }
 
-template <class A> void HKInfo::serialize(A &ar, unsigned v)
+template <class A> void IrregBlockDouble::serialize(A &ar, unsigned v)
 {
 	using namespace cereal;
         // v is the version code!
 
 	ar & make_nvp("G3FrameObject", base_class<G3FrameObject>(this));
-	ar & make_nvp("hk_source", hk_source);
-	ar & make_nvp("session_id", session_id);
+	ar & make_nvp("prefix", prefix);
+	ar & make_nvp("t", t);
+	ar & make_nvp("data", data);
 }
+
+
+G3_SERIALIZABLE_CODE(IrregBlockDouble);
+
 
 namespace bp = boost::python;
 
 PYBINDINGS("so3g")
 {
-    EXPORT_FRAMEOBJECT(HKInfo, init<>(),
-    "Housekeeping Info Frame.  Carries session description information.  "
-    "Subsequent Housekeeping Data Frames carry a matching session_id.")
-    .def_readwrite("session_id", &HKInfo::session_id,
-    "Identifier associated with aggregation software session.")
-    .def_readwrite("hk_source", &HKInfo::hk_source,
-    "Source name, or something.")
+    EXPORT_FRAMEOBJECT(IrregBlockDouble, init<>(),
+    "Data block for irregularly sampled data.")
+    .def_readwrite("prefix", &IrregBlockDouble::prefix,
+    "Prefix for field names.")
+    .def_readwrite("data", &IrregBlockDouble::data,
+    "Map to HK data vectors.")
+    .def_readwrite("t", &IrregBlockDouble::t,
+    "Timestamp vector.")
     ;
+
+    bp::enum_<HKFrameType>("HKFrameType",
+                           "Identifier for generic HK streams.")
+        .value("session", HKFrameType::session)
+        .value("status",  HKFrameType::status)
+        .value("data",    HKFrameType::data)
+        ;
+
 }

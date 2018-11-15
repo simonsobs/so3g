@@ -7,14 +7,22 @@
 
 using namespace std;
 
-class HKInfo : public G3FrameObject {
+enum HKFrameType {
+     session = 0,
+     status = 1,
+     data = 2,
+};
+
+class IrregBlockDouble : public G3FrameObject {
 public:
-    int32_t session_id;
-    string hk_source;
-    
+    string prefix;
+    G3MapVectorDouble data;
+    G3VectorDouble t;
+
     string Description() const;
     string Summary() const;
     template <class A> void serialize(A &ar, unsigned v);
 };
 
-G3_SERIALIZABLE(HKInfo, 0);
+
+G3_SERIALIZABLE(IrregBlockDouble, 0);

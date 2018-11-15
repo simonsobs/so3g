@@ -4,13 +4,10 @@ from spt3g import core
 ss.TestClass().runme()
 ss.greet()
 
-print('Writing an HKInfo... maybe.')
-
 w = core.G3Writer('out.g3')
 f = core.G3Frame()
-hk = ss.HKInfo()
-hk.hk_source = 'hwp'
-hk.session_id = 1324098
-f['hk'] = hk
+f.type = core.G3FrameType.Scan
+f['testv'] = core.G3VectorDouble([1., 2., 3., ])
 w.Process(f)
+
 
