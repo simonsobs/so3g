@@ -6,6 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 find_package(Spt3g REQUIRED)
 find_package(PythonInterp)
@@ -15,6 +16,7 @@ find_package(PythonLibs)
 execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set(Boost_PYTHON_TYPE python)
+set(Boost_NUMPY_TYPE numpy3)
 if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
 	# Handle possible naming of the Boost python library as
 	# libboost_python3.so
@@ -26,7 +28,8 @@ if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
 else()
         message("FYI: ${PYTHON_LIBRARIES}")
 endif()
-find_package(Boost COMPONENTS system iostreams filesystem ${Boost_PYTHON_TYPE} REQUIRED)
+find_package(Boost COMPONENTS system iostreams filesystem ${Boost_NUMPY_TYPE}
+                   ${Boost_PYTHON_TYPE} REQUIRED)
 
 include_directories(${SPT3G_INCLUDES})
 include_directories(${Boost_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS} ${PYTHON_INCLUDE_PATH})
@@ -44,6 +47,7 @@ add_library(so3g SHARED
   src/hkagg.cxx
   src/G3IndexedReader.cxx
   src/SampleFlags.cxx
+  src/Butterworth.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.
