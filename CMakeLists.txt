@@ -46,7 +46,7 @@ add_library(so3g SHARED
   src/test.cxx
   src/hkagg.cxx
   src/G3IndexedReader.cxx
-  src/SampleFlags.cxx
+  src/Intervals.cxx
   src/Butterworth.cxx
 )
 
