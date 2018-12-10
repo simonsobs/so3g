@@ -9,8 +9,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 find_package(Spt3g REQUIRED)
-find_package(PythonInterp)
-find_package(PythonLibs)
+find_package(PythonInterp 3)
+find_package(PythonLibs 3)
 
 # Determine the location of site-packages.
 execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
