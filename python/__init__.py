@@ -8,4 +8,4 @@ load_pybindings([__path__[0] + '/libso3g'], name='so3g')
 
 # And python stuff.
 from . import hkagg
-
+from . import coords
