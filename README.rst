@@ -11,6 +11,9 @@ Requirements
 ============
 
 - spt3g_software and its dependencies.
+- (Optional) ``environment-modules`` - Load ``spt3g`` environment automatically. For details see the README in `modules/`_
+
+.. _modules/: ./modules
 
 
 Compilation and Installation
