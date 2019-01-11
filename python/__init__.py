@@ -6,6 +6,9 @@ from spt3g import core as spt3g_core
 from .load_pybindings import load_pybindings
 load_pybindings([__path__[0] + '/libso3g'], name='so3g')
 
+__version__ = version()
+
 # And python stuff.
 from . import hkagg
 from . import coords
+

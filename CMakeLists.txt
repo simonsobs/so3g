@@ -33,7 +33,7 @@ find_package(Boost COMPONENTS system iostreams filesystem ${Boost_NUMPY_TYPE}
 
 include_directories(${SPT3G_INCLUDES})
 include_directories(${Boost_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS} ${PYTHON_INCLUDE_PATH})
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 
 
 #
@@ -59,12 +59,15 @@ file(GLOB MY_PYTHONS "${CMAKE_CURRENT_SOURCE_DIR}/python/*.py")
 # Provide list of libs to link against.
 target_link_libraries(so3g pthread ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${SPT3G_LIBRARIES})
 
-# Just prior to linking the library, symlink in the python code.
-add_custom_command(TARGET so3g
-                   PRE_BUILD
-                   COMMAND mkdir -p so3g/
-                   COMMAND ln -fsn ${MY_PYTHONS} so3g/
-                   COMMENT Symlinking in the .py bits.)
+# This custom target generates _version.h, in the build tree.  That is all.
+add_custom_target(so3g-version
+                  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/version_h.py
+                    SO3G_VERSION_STRING ${CMAKE_CURRENT_BINARY_DIR}/_version.h
+                  SOURCES version_h.py
+                   )
+
+add_dependencies(so3g so3g-version)
+                   
 
 #
 # Define the install rules.
