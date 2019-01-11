@@ -32,7 +32,7 @@ with ``spt3g_softare`` in their home directory it will look like this::
 Once you have updated this, add the following lines to your ``.bashrc`` file::
 
     # load spt3g using environment modules
-    module use --append /vagrant/modules
+    module use --append /home/vagrant/modules
     module load spt3g_shared
 
 Replace ``/vagrant/modules`` with the location you have copied this directory
