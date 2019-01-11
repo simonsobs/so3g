@@ -1,0 +1,12 @@
+#%Module 1.0
+#
+# spt3g shared
+#
+set g3root /home/vagrant/spt3g_software
+
+setenv          SPT3G_SOFTWARE_PATH $g3root
+setenv          SPT3G_SOFTWARE_BUILD_PATH $g3root/build
+
+prepend-path            PATH            $g3root/build/bin
+prepend-path            LD_LIBRARY_PATH $g3root/build/spt3g
+prepend-path            PYTHONPATH      $g3root/build
