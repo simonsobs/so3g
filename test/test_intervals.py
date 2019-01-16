@@ -1,9 +1,19 @@
 import so3g
 import spt3g.core as core
 
-print(so3g.__version__)
+print('so3g version', so3g.__version__)
 
 iv = so3g.IntervalsFloat() #-100.,100.)
+iv.add_interval(1., 2.)
+iv.add_interval(5., 9.)
+
+x = iv.array()
+print(x)
+
+iv2 = so3g.IntervalsFloat.from_array(x)
+print(iv2)
+print(iv2.array())
+import sys
 
 for xx in [(0., 1.),
            (2., 3.),
@@ -30,7 +40,14 @@ print(-iv1)
 print('Time version')
 
 ti = so3g.IntervalsTime()
+ti.add_interval(core.G3Time(), core.G3Time(1))
 print(ti)
+x = ti.array()
+print(' -array read/write:')
+print(x)
+y = so3g.IntervalsTime.from_array(x)
+print(y.array())
+
 
 tmap = so3g.MapIntervalsTime()
 tmap['a'] = ti

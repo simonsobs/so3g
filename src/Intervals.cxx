@@ -4,6 +4,7 @@
 #include <Intervals.h>
 
 #include <boost/python.hpp>
+#include <boost/python/numpy.hpp>
 
 #include <container_pybindings.h>
 // Need cereal utility.hpp to encode pair<int,int>.
@@ -134,11 +135,43 @@ Intervals<T>& Intervals<T>::merge(const Intervals<T> &src)
 }
 
 template <typename T>
+inline
+pair<T,T> interval_pair(char *p1, char *p2) {
+    return make_pair(*reinterpret_cast<T*>(p1),
+                     *reinterpret_cast<T*>(p2));
+}
+
+template <>
+inline
+pair<G3Time,G3Time> interval_pair(char *p1, char *p2) {
+    return make_pair(G3Time(*reinterpret_cast<G3TimeStamp*>(p1)),
+                     G3Time(*reinterpret_cast<G3TimeStamp*>(p2)));
+}
+
+
+template <typename T>
+Intervals<T> Intervals<T>::from_array(const bp::numpy::ndarray &src)
+{
+    Intervals<T> output;
+    assert(output.get_dtype() == src.get_dtype());
+
+    char* d = src.get_data();
+    auto strides = src.get_strides();
+    auto shape = src.get_shape();
+    assert(src.get_nd() == 2);
+    for (int i=0; i < shape[0]; ++i) {
+        output.segments.push_back(interval_pair<T>(d, d+strides[1]));
+        d += strides[0];
+    }
+    return output;
+}
+
+template <typename T>
 Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
 {
     auto output = -(*this);
     output -= src;
-    *this = output.get_complement();
+    *this = output.complement();
     return *this;
 }
     
@@ -168,7 +201,7 @@ void Intervals<T>::trim_to(T start, T end)
 }
 
 template <typename T>
-Intervals<T> Intervals<T>::get_complement() const
+Intervals<T> Intervals<T>::complement() const
 {
     Intervals<T> output(domain.first, domain.second);
 
@@ -182,6 +215,50 @@ Intervals<T> Intervals<T>::get_complement() const
     return output;
 }
 
+// Expose
+
+template <typename T>
+bp::numpy::dtype Intervals<T>::get_dtype() const
+{
+    return bp::numpy::dtype::get_builtin<T>();
+}
+
+template <>
+bp::numpy::dtype Intervals<G3Time>::get_dtype() const
+{
+    return bp::numpy::dtype::get_builtin<G3TimeStamp>();
+}
+
+
+template <typename T>
+bp::numpy::ndarray Intervals<T>::array() const
+{
+    bp::tuple shape = bp::make_tuple(segments.size(), 2);
+    bp::numpy::dtype dt = get_dtype();
+    bp::numpy::ndarray v = bp::numpy::empty(shape,dt);
+    T* d = reinterpret_cast<T*>(v.get_data());
+    for (auto p = segments.begin(); p != segments.end(); ++p) {
+        *(d++) = p->first;
+        *(d++) = p->second;
+    }
+    return v;
+}
+
+template <>
+bp::numpy::ndarray Intervals<G3Time>::array() const
+{
+    bp::tuple shape = bp::make_tuple(segments.size(), 2);
+    bp::numpy::dtype dt = get_dtype();
+    bp::numpy::ndarray v = bp::numpy::empty(shape,dt);
+    G3TimeStamp* d = reinterpret_cast<G3TimeStamp*>(v.get_data());
+    for (auto p = segments.begin(); p != segments.end(); ++p) {
+        *(d++) = p->first.time;
+        *(d++) = p->second.time;
+    }
+    return v;
+}
+
+
 //
 // Operators
 //
@@ -189,7 +266,7 @@ Intervals<T> Intervals<T>::get_complement() const
 template <typename T>
 Intervals<T> Intervals<T>::operator-() const
 {
-    return get_complement();
+    return complement();
 }
 
 template <typename T>
@@ -238,19 +315,24 @@ using namespace boost::python;
     EXPORT_FRAMEOBJECT(CLASSNAME, init<>(), \
    "A finite series of non-overlapping semi-open intervals on a domain " \
    "of type: " #DOMAIN_TYPE ".") \
-    .def("add_interval", &IntervalsFloat::add_interval, \
+    .def("add_interval", &CLASSNAME::add_interval, \
          return_internal_reference<>(), \
          "Merge an interval into the set.") \
-    .def("merge", &IntervalsFloat::merge, \
+    .def("merge", &CLASSNAME::merge, \
          return_internal_reference<>(), \
          "Merge an Intervals into the set.") \
-    .def("intersect", &IntervalsFloat::intersect, \
+    .def("intersect", &CLASSNAME::intersect, \
          return_internal_reference<>(), \
          "Intersect another " #DOMAIN_TYPE "with this one.") \
-    .def("trim_to", &IntervalsFloat::trim_to, \
+    .def("trim_to", &CLASSNAME::trim_to, \
          "Trim content to the specified range.") \
-    .def("get_complement", &IntervalsFloat::get_complement, \
-         "Get the complement (over domain).") \
+    .def("complement", &CLASSNAME::complement, \
+         "Return the complement (over domain).") \
+    .def("array", &CLASSNAME::array, \
+         "Return the intervals as a 2-d numpy array.") \
+    .def("from_array", &CLASSNAME::from_array, \
+         "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
+    .staticmethod("from_array") \
     .def(-self) \
     .def(self += self) \
     .def(self -= self) \

@@ -6,7 +6,10 @@
 
 #include <stdint.h>
 
+#include <boost/python/numpy.hpp>
+
 using namespace std;
+namespace bp = boost::python;
 
 // Template class for working with intervals -- pairs of objects of
 // the same (well-ordered) type, with operations defined that support
@@ -23,15 +26,20 @@ public:
     Intervals(pair<T,T> domain) : domain{domain} {}
     Intervals(T start, T end) { Intervals(make_pair(start, end)); }
 
+    static Intervals<T> from_array(const bp::numpy::ndarray &src);
+
     // Basic ops
     Intervals<T>& merge(const Intervals<T> &src);
     Intervals<T>& intersect(const Intervals<T> &src);
     Intervals<T>& add_interval(const T start, const T end);
-    Intervals<T> get_complement() const;
+    Intervals<T> complement() const;
 
     void trim_to(T start, T end);
     void cleanup();
 
+    bp::numpy::ndarray array() const;
+    bp::numpy::dtype get_dtype() const;
+ 
     // Operators.
     Intervals<T> operator-() const;
     void operator+=(const Intervals<T> &src);
