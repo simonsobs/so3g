@@ -24,8 +24,10 @@ BFilterBank& BFilterBank::init(int n_chan) {
     assert(n_chan == 1); // Implementation assumes shape = (n_samp).
     // Populate accumulators based on filter bank.
     w.clear();
-    for (auto bp: par)
-        w.push_back(vector<int64_t[2]>(n_chan));
+    for (auto bp: par) {
+        auto v = vector<array<int64_t,2>>(n_chan);
+        w.push_back(v);
+    }
     return *this;
 }
 
@@ -70,7 +72,7 @@ void BFilterBank::apply(int32_t* input, int32_t* output, int n_samp)
             int32_t x = input[i];
             for (int ib=0; ib<n_filt; ib++) {
                 const BFilterParams &_p = par[ib];
-                int64_t (&_w)[2] = w[ib][ic];
+                auto &_w = w[ib][ic];
                 int64_t c = (-_w[1] * _p.b0 + _w[0] * _p.b1) >> _p.b_bits;
                 int64_t W = (x << _p.p_bits) - c;
                 _w[0] = _w[1];
@@ -96,7 +98,7 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
             int32_t x = roundf(*(src++) / unit);
             for (int ib=0; ib<n_filt; ib++) {
                 const BFilterParams &_p = par[ib];
-                int64_t (&_w)[2] = w[ib][ic];
+                auto &_w = w[ib][ic];
                 int64_t c = (-_w[1] * _p.b0 + _w[0] * _p.b1) >> _p.b_bits;
                 int64_t W = (x << _p.p_bits) - c;
                 _w[0] = _w[1];

@@ -31,7 +31,7 @@ public:
 
     void apply_numpy(np::ndarray& input, np::ndarray& output);
 
-    std::vector<vector<int64_t[2]>> w;  // (n_bank,n_chan,2)
+    std::vector<vector<array<int64_t,2>>> w;  // (n_bank,n_chan,2)
     std::vector<BFilterParams> par;
 };
 
