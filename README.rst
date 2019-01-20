@@ -11,7 +11,8 @@ Requirements
 ============
 
 - spt3g_software and its dependencies.
-- (Optional) ``environment-modules`` - Load ``spt3g`` environment automatically. For details see the README in `modules/`_
+- (Optional) ``environment-modules`` - Load ``spt3g`` environment
+  automatically. For details see the README in `modules/`_
 
 .. _modules/: ./modules
 
@@ -20,9 +21,9 @@ Compilation and Installation
 ============================
 
 The installation system is a bit different from spt3g in that there is
-a separate "install" target defined.  The "install" step is
-optional, and the install destination is customizable through the
-local.cmake file; see below.
+a separate "install" target defined.  The "install" step is required;
+the install destination is customizable through the local.cmake file;
+see below.
 
 To compile the library run::
 
@@ -30,11 +31,14 @@ To compile the library run::
   cd build
   cmake ..
   make
+  make install
 
 The build process will try to find boost, python, and spt3g.  For
-spt3g, environment variable SPT3G_SOFTWARE_PATH should give the path
-to the spt3g_software source tree (or, possibly, anywhere where the
-relevants headers and libraries could plausibly be found after digging).
+spt3g, environment variable SPT3G_SOFTWARE_PATH and
+SPT3G_SOFTWARE_BUILD_PATH must both be defined.  The first variable
+should point to the root of spt3g repository, for finding header
+files.  The second variable should point to the cmake build directory,
+for finding libraries.
 
 
 Local configuration through local.cmake
