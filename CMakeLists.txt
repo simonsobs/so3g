@@ -41,6 +41,8 @@ include_directories(${SPT3G_INCLUDES})
 include_directories(${Boost_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS} ${PYTHON_INCLUDE_PATH})
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 
+include_directories("/usr/lib/python3.7/site-packages/numpy/core/include")
+
 
 #
 # Define the so3g build target.  This is a shared library.
@@ -51,6 +53,7 @@ add_library(so3g SHARED
   src/main.cxx
   src/test.cxx
   src/hkagg.cxx
+  src/G3Ndarray.cxx
   src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
