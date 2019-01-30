@@ -54,6 +54,8 @@ add_library(so3g SHARED
   src/test.cxx
   src/hkagg.cxx
   src/G3Ndarray.cxx
+  src/G3WCS.cxx
+  src/G3Ndmap.cxx
   src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
@@ -76,11 +78,8 @@ add_custom_target(so3g-version
                    )
 
 add_dependencies(so3g so3g-version)
-                   
 
-#
 # Define the install rules.
-#
 
 include(local.cmake OPTIONAL)
 if(DEFINED PYTHON_INSTALL_DEST)
