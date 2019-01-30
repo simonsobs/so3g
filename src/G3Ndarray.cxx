@@ -51,9 +51,9 @@ template <class A> void G3Ndarray::save(A &ar, unsigned v) const // v is the ver
     // SKN: I think this returns the type char (for example 'f'), which does not uniquely identify the
     // array type. There's something else called type_int (for example 7) which does uniquely identify
     // it. I think this is what simple_new wants.
-    npy_intp dtype = PyArray_TYPE(data);
-    ar & make_nvp("ndim",  ndim);
-    ar & make_nvp("dtype", dtype);
+    npy_intp type_num = PyArray_TYPE(data);
+    ar & make_nvp("ndim", ndim);
+    ar & make_nvp("type_num", type_num);
     auto dims = PyArray_DIMS(data);
     ar & make_nvp("shape", binary_data(dims, PyArray_NDIM(data)*sizeof(*dims)));
     long int size = 1;
@@ -70,16 +70,16 @@ template <class A> void G3Ndarray::load(A &ar, unsigned v) {
     // Load the basic frame object
     ar & make_nvp("G3FrameObject", base_class<G3FrameObject>(this));
     // Load the information necessary to reconstruct numpy array
-    npy_intp ndim, typenum;
-    ar & make_nvp("ndim",  ndim);
-    ar & make_nvp("dtype", typenum);
+    npy_intp ndim, type_num;
+    ar & make_nvp("ndim", ndim);
+    ar & make_nvp("type_num", type_num);
     vector<npy_intp> shape(ndim);
     ar & make_nvp("shape", cereal::binary_data(&shape[0], ndim*sizeof(npy_intp)));
     long int size = 1;
     for(int i = 0; i < ndim; i++) size *= shape[i];
     // Make a new PyArrayObject with these properties
     Py_XDECREF(data);
-    data = (PyArrayObject*) PyArray_SimpleNew(ndim, &shape[0], typenum);
+    data = (PyArrayObject*) PyArray_SimpleNew(ndim, &shape[0], type_num);
     ar & make_nvp("data", binary_data((char*)PyArray_DATA(data), size*PyArray_DESCR(data)->elsize));
 }
 
