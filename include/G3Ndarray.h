@@ -11,14 +11,15 @@ namespace bp = boost::python;
 
 class G3Ndarray : public G3FrameObject {
 public:
-       G3Ndarray();
-       G3Ndarray(const G3Ndarray &);
-       G3Ndarray(bp::numpy::ndarray &);
-       ~G3Ndarray();
-       template <class A> void save(A &ar, unsigned v) const;
-       template <class A> void load(A &ar, unsigned v);
-       std::string Description() const;
-       PyArrayObject *data;
+    G3Ndarray();
+    G3Ndarray(const G3Ndarray &);
+    G3Ndarray(const bp::numpy::ndarray &);
+    ~G3Ndarray();
+    template <class A> void save(A &ar, unsigned v) const;
+    template <class A> void load(A &ar, unsigned v);
+    std::string Description() const;
+    bp::numpy::ndarray to_array() const;
+    PyArrayObject *data;
 };
 
 namespace cereal {
@@ -26,5 +27,4 @@ namespace cereal {
 }
 
 G3_SERIALIZABLE(G3Ndarray, 0);
-
 G3_POINTERS(G3Ndarray);
