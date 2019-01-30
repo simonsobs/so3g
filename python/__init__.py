@@ -12,3 +12,7 @@ __version__ = version()
 from . import hkagg
 from . import coords
 
+import numpy as np
+from .soframe import SOFrame
+SOFrame.setitem_converters[np.ndarray]  = lambda a: G3Ndarray(a)
+SOFrame.getitem_converters[G3Ndarray] = lambda a: a.to_array()

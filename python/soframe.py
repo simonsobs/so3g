@@ -23,11 +23,11 @@ class SOFrame(core.G3Frame):
 	getitem_converters = {}
 	setitem_converters = {}
 	def __getitem__(self, key):
-		val = G3Frame.__getitem__(self, key)
+		val = core.G3Frame.__getitem__(self, key)
 		try: val = SOFrame.getitem_converters[type(val)](val)
 		except KeyError: pass
 		return val
 	def __setitem__(self, key, val):
 		try: val = SOFrame.setitem_converters[type(val)](val)
 		except KeyError: pass
-		G3Frame.__setitem__(self, key, val)
+		core.G3Frame.__setitem__(self, key, val)

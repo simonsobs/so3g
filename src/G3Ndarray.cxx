@@ -83,6 +83,11 @@ template <class A> void G3Ndarray::load(A &ar, unsigned v) {
     ar & make_nvp("data", binary_data((char*)PyArray_DATA(data), size*PyArray_DESCR(data)->elsize));
 }
 
+bp::numpy::ndarray G3Ndarray::to_array() const {
+   Py_INCREF(data);
+   return bp::numpy::ndarray(bp::detail::new_reference(data));
+}
+
 G3_SPLIT_SERIALIZABLE_CODE(G3Ndarray);
 
 using namespace boost::python;
