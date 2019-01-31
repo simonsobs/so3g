@@ -12,16 +12,36 @@ __version__ = version()
 from . import hkagg
 from . import coords
 
-from .soframe import SOFrame
+from spt3g.core import G3Frame
+G3Frame.__doc__ = "Monkey patched in so3g.__init__ to add support for numpy arrays etc.\n\n" + G3Frame.__doc__
+orig_getitem = G3Frame.__getitem__
+orig_setitem = G3Frame.__setitem__
+
+G3Frame.getitem_converters = {}
+G3Frame.setitem_converters = {}
+
+def patched_getitem(self, key):
+	val = orig_getitem(self, key)
+	try: val = G3Frame.getitem_converters[type(val)](val)
+	except KeyError: pass
+	return val
+def patched_setitem(self, key, val):
+	try: val = G3Frame.setitem_converters[type(val)](val)
+	except KeyError: pass
+	orig_setitem(self, key, val)
+
+G3Frame.__getitem__ = patched_getitem
+G3Frame.__setitem__ = patched_setitem
+
 # Numpy arrays in frames
 import numpy as np
-SOFrame.setitem_converters[np.ndarray] = lambda a: G3Ndarray(a)
-SOFrame.getitem_converters[G3Ndarray]  = lambda a: a.to_array()
+G3Frame.setitem_converters[np.ndarray] = lambda a: G3Ndarray(a)
+G3Frame.getitem_converters[G3Ndarray]  = lambda a: a.to_array()
 # Astropy wcs in frames
 import astropy.wcs
-SOFrame.setitem_converters[astropy.wcs.WCS] = lambda a: G3WCS(a.to_header_string())
-SOFrame.getitem_converters[G3WCS]           = lambda a: astropy.wcs.WCS(a.header)
+G3Frame.setitem_converters[astropy.wcs.WCS] = lambda a: G3WCS(a.to_header_string())
+G3Frame.getitem_converters[G3WCS]           = lambda a: astropy.wcs.WCS(a.header)
 # Enmaps
 from pixell import enmap
-SOFrame.setitem_converters[enmap.ndmap] = lambda a: G3Ndmap(a, a.wcs.to_header_string())
-SOFrame.getitem_converters[G3Ndmap]     = lambda a: enmap.ndmap(a.data.to_array(), astropy.wcs.WCS(a.wcs.header))
+G3Frame.setitem_converters[enmap.ndmap] = lambda a: G3Ndmap(a, a.wcs.to_header_string())
+G3Frame.getitem_converters[G3Ndmap]     = lambda a: enmap.ndmap(a.data.to_array(), astropy.wcs.WCS(a.wcs.header))
