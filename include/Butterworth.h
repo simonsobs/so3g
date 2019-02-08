@@ -2,12 +2,6 @@
 #include <cstdint>
 
 #include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
-
-namespace bp = boost::python;
-namespace np = boost::python::numpy;
-
-using namespace std;
 
 class BFilterParams {
 public:
@@ -29,9 +23,10 @@ public:
     void apply(int32_t* input, int32_t* output, int n_samp);
     void apply_to_float(float *input, float *output, float unit, int n_samp);
 
-    void apply_numpy(np::ndarray& input, np::ndarray& output);
+    void apply_buffer(boost::python::object input,
+                      boost::python::object output);
 
-    std::vector<vector<array<int64_t,2>>> w;  // (n_bank,n_chan,2)
+    std::vector<std::vector<std::array<std::int64_t,2>>> w;  // (n_bank,n_chan,2)
     std::vector<BFilterParams> par;
 };
 

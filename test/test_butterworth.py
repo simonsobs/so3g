@@ -1,3 +1,5 @@
+import pytest
+
 import so3g
 import numpy as np
 
@@ -22,3 +24,37 @@ bank.init(1)
 bank.apply(a2, b2)
 
 assert np.all(b1 == b2)
+
+# Fail if arrays not contiguous?
+with pytest.raises(TypeError) as einfo:
+    bank.apply(a2[::2], b2[::2])
+
+print('Successul exception:', einfo)    
+
+
+# Fail if arrays not same type?
+with pytest.raises(RuntimeError) as einfo:
+    bank.apply(a2, b2.astype('float64'))
+    
+print('Successful exception:', einfo)
+
+
+# Fail if arrays not an eligible type?
+with pytest.raises(ValueError) as einfo:
+    bank.apply(a2.astype('float64'), b2.astype('float64'))
+    
+print('Successful exception:', einfo)
+
+
+# Fail if arrays not right shape?
+with pytest.raises(RuntimeError) as einfo:
+    bank.apply(a2[None,:], b2[None,:])
+    
+print('Successful exception:', einfo)
+
+
+# Fail if arrays not same shape?
+with pytest.raises(RuntimeError) as einfo:
+    bank.apply(a2, b2[:-1])
+    
+print('Successful exception:', einfo)

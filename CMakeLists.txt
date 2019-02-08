@@ -59,6 +59,7 @@ add_library(so3g SHARED
   src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
+  src/exceptions.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.

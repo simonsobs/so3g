@@ -5,6 +5,9 @@
 #include <container_pybindings.h>
 
 #include "Butterworth.h"
+#include "exceptions.h"
+
+using namespace std;
 
 BFilterBank::BFilterBank(const BFilterBank& a) {
     // Copy the parameters but reset the accumulators... that's probably evil.
@@ -31,31 +34,61 @@ BFilterBank& BFilterBank::init(int n_chan) {
     return *this;
 }
 
-void BFilterBank::apply_numpy(np::ndarray& input, np::ndarray& output)
-{
-    // Record the type and shape, then check that input and output
-    // match and are acceptable.
-    np::dtype dtype = input.get_dtype();
-    int n_dims = input.get_nd();
-    int n_samp = input.shape(0);
+// Wrap a Py_buffer view with a destructor that releases the buffer.
+// This allows us to do RAII; without it we'd have to explicitly
+// cleanup any successful buffer views before throwing exceptions
+// related to the content of the buffer.
 
-    assert(output.get_flags() & np::ndarray::C_CONTIGUOUS);
-    assert(input.get_flags() & np::ndarray::C_CONTIGUOUS);
-    
-    assert(output.get_nd() == n_dims);
-    assert(output.shape(0) == n_samp);
-    assert(output.get_dtype() == dtype);
-    
-    if (dtype == np::dtype::get_builtin<int32_t>()) {
-        int32_t *in = reinterpret_cast<int32_t*>(input.get_data());
-        int32_t *out = reinterpret_cast<int32_t*>(output.get_data());
+class BufferWrapper {
+public:
+    Py_buffer view;
+    BufferWrapper() {
+        view.obj = NULL;
+    }
+    ~BufferWrapper() {
+        PyBuffer_Release(&view);
+    }
+};
+
+void BFilterBank::apply_buffer(boost::python::object input,
+                               boost::python::object output)
+{
+    // User wrappers so we can throw exceptions and the view will be
+    // Check same dtypereleased in destructor.
+    BufferWrapper inbuf;
+    BufferWrapper outbuf;
+
+    if (PyObject_GetBuffer(input.ptr(), &inbuf.view,
+                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("input");
+    } 
+    if (PyObject_GetBuffer(output.ptr(), &outbuf.view,
+                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("output");
+    } 
+
+    if (strcmp(inbuf.view.format, outbuf.view.format) != 0)
+        throw agreement_exception("input", "output", "data type");
+
+    if (inbuf.view.ndim != 1)
+        throw shape_exception("input", "must be 1-d");
+
+    if (inbuf.view.shape[0] != outbuf.view.shape[0])
+        throw agreement_exception("input", "output", "shape");
+
+    int n_samp = inbuf.view.shape[0];
+    if (strcmp(inbuf.view.format, "i")==0) {
+        int *in = reinterpret_cast<int*>(inbuf.view.buf);
+        int *out = reinterpret_cast<int*>(outbuf.view.buf);
         apply(in, out, n_samp);
-    } else if (dtype == np::dtype::get_builtin<float>()) {
-        float *in = reinterpret_cast<float*>(input.get_data());
-        float *out = reinterpret_cast<float*>(output.get_data());
+    } else if (strcmp(inbuf.view.format, "f") == 0) {
+        float *in = reinterpret_cast<float*>(inbuf.view.buf);
+        float *out = reinterpret_cast<float*>(outbuf.view.buf);
         apply_to_float(in, out, 1., n_samp);
     } else {
-        assert(0); // dtype unknown.
+        throw dtype_exception("input", "int or float32");
     }
 }
 
@@ -121,6 +154,6 @@ PYBINDINGS("so3g")
              bp::return_internal_reference<>() )
         .def("init", &BFilterBank::init,
              bp::return_internal_reference<>() )
-        .def("apply", &BFilterBank::apply_numpy);
+        .def("apply", &BFilterBank::apply_buffer);
 }
 
