@@ -19,7 +19,7 @@ public:
     G3Ndmap();
     G3Ndmap(const G3Ndmap &);
     G3Ndmap(const G3Ndarray &, const G3WCS &);
-    G3Ndmap(const bp::numpy::ndarray &, const string &);
+    G3Ndmap(const bp::object &, const string &);
     // Required for G3FrameObjects.
     string Description() const;
     template <class A> void serialize(A &ar, unsigned v);

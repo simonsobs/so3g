@@ -1,22 +1,8 @@
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 
-// Some macro defines are necessary when working with numpy C api
-// across multiple translation units (i.e. source files):
-//
-// - https://sourceforge.net/p/numpy/mailman/message/5700519/
-// - https://stackoverflow.com/questions/38003707/trouble-with-numpy-c-api
-//
-// As a result, independently of the boost numpy stuff, we need to
-// tell numpy to drop in a single copy of the initialized API function
-// pointers.  All files using the API should define the
-// PY_ARRAY_UNIQUE_SYMBOL variable to the same value.  Then we call
-// import_array() in one of those source files (this one), and define
-// NO_IMPORT_ARRAY in the others (both of these before including
-// arrayobject.h).
-
-#define PY_ARRAY_UNIQUE_SYMBOL Py_Array_API_SO3G
-#include <numpy/arrayobject.h>
+// See this header file for discussion of numpy compilation issues.
+#include "so3g_numpy.h"
 
 #include <container_pybindings.h>
 

@@ -1,9 +1,9 @@
 #pragma once
 
+#include "so3g_numpy.h"
 #include <G3Frame.h>
 #include <G3Map.h>
 #include <G3TimeStamp.h>
-#include <numpy/arrayobject.h>
 
 using namespace std;
 namespace bp = boost::python;

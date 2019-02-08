@@ -1,3 +1,5 @@
+#define NO_IMPORT_ARRAY
+
 #include <pybindings.h>
 
 #include <iostream>
@@ -5,13 +7,11 @@
 #include <cereal/types/utility.hpp>
 #include <container_pybindings.h>
 
+#include "so3g_numpy.h"
+
 #include "Intervals.h"
 #include "exceptions.h"
 
-#define PY_ARRAY_UNIQUE_SYMBOL Py_Array_API_SO3G
-#define NO_IMPORT_ARRAY
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include <numpy/arrayobject.h>
 //
 // Default constructors, explicitly defined for each type, to set a
 // sensible (perhaps) default domain.

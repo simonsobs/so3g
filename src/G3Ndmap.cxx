@@ -1,3 +1,5 @@
+#define NO_IMPORT_ARRAY
+
 #include <pybindings.h>
 #include <G3Ndmap.h>
 #include <boost/python.hpp>
@@ -6,7 +8,7 @@
 G3Ndmap::G3Ndmap() {}
 G3Ndmap::G3Ndmap(const G3Ndmap & other):data(other.data),wcs(other.wcs) {}
 G3Ndmap::G3Ndmap(const G3Ndarray & data_, const G3WCS & wcs_):data(data_), wcs(wcs_) {}
-G3Ndmap::G3Ndmap(const bp::numpy::ndarray & barray, const string & header):data(barray), wcs(header) {}
+G3Ndmap::G3Ndmap(const bp::object & barray, const string & header):data(barray), wcs(header) {}
 
 string G3Ndmap::Description() const
 {
@@ -29,7 +31,7 @@ PYBINDINGS("so3g")
 {
     EXPORT_FRAMEOBJECT(G3Ndmap, init<>(), "G3Ndmap default constructor")
     .def(init<const G3Ndarray &, const G3WCS &>("Construct G3Nmap from a G3Ndarray and G3WCS"))
-    .def(init<const bp::numpy::ndarray &, const string &>("Construct G3Nmap from a numpy array and a header string"))
+    .def(init<const bp::object &, const string &>("Construct G3Nmap from a numpy array and a header string"))
     .def_readwrite("data", &G3Ndmap::data)
     .def_readwrite("wcs", &G3Ndmap::wcs)
     ;
