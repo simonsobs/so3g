@@ -1,6 +1,4 @@
-#include <boost/python.hpp>
 #include <boost/python/exception_translator.hpp>
-#include <exception>
 
 #include <container_pybindings.h>
 #include "exceptions.h"

@@ -34,22 +34,6 @@ BFilterBank& BFilterBank::init(int n_chan) {
     return *this;
 }
 
-// Wrap a Py_buffer view with a destructor that releases the buffer.
-// This allows us to do RAII; without it we'd have to explicitly
-// cleanup any successful buffer views before throwing exceptions
-// related to the content of the buffer.
-
-class BufferWrapper {
-public:
-    Py_buffer view;
-    BufferWrapper() {
-        view.obj = NULL;
-    }
-    ~BufferWrapper() {
-        PyBuffer_Release(&view);
-    }
-};
-
 void BFilterBank::apply_buffer(boost::python::object input,
                                boost::python::object output)
 {
