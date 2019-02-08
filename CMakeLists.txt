@@ -26,7 +26,6 @@ execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_i
                  OUTPUT_VARIABLE NUMPY_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set(Boost_PYTHON_TYPE python)
-set(Boost_NUMPY_TYPE numpy3)
 if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
 	# Handle possible naming of the Boost python library as
 	# libboost_python3.so
@@ -38,7 +37,7 @@ if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
 else()
         message("FYI: ${PYTHON_LIBRARIES}")
 endif()
-find_package(Boost COMPONENTS system iostreams filesystem ${Boost_NUMPY_TYPE}
+find_package(Boost COMPONENTS system iostreams filesystem
                    ${Boost_PYTHON_TYPE} REQUIRED)
 
 include_directories(${SPT3G_INCLUDES})
