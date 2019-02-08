@@ -1,11 +1,11 @@
 #define NO_IMPORT_ARRAY
 #define PY_ARRAY_UNIQUE_SYMBOL Py_Array_API_SO3G
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <pybindings.h>
 #include <iostream>
 #include <G3Ndarray.h>
 #include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
 #include <numpy/arrayobject.h>
 #include <container_pybindings.h>
 #include <cereal/types/utility.hpp>
@@ -15,10 +15,14 @@ G3Ndarray::G3Ndarray(const G3Ndarray & src) {
     data = (PyArrayObject*) PyArray_FromAny((PyObject*)src.data, NULL, 0, 0, NPY_ARRAY_ENSUREARRAY, NULL);
 }
 
-G3Ndarray::G3Ndarray(const bp::numpy::ndarray & barray)
+// Construct G3Ndarray based on an array-like object.
+G3Ndarray::G3Ndarray(const bp::object &bobject)
 {
-    data = (PyArrayObject*) barray.ptr();
-    Py_INCREF(data);
+    PyObject *ob = PyArray_FromAny(bobject.ptr(), NULL, 0, 0, 0, NULL);
+    if (ob == NULL)
+        throw exception();
+
+    data = reinterpret_cast<PyArrayObject*>(ob);
 }
 
 G3Ndarray::~G3Ndarray() {
@@ -31,8 +35,13 @@ std::string G3Ndarray::Description() const
         return "G3Ndarray()";
     else {
         std::ostringstream s;
-        double *x = reinterpret_cast<double*>(PyArray_DATA(data));
-        s << "G3Ndarray(" << PyArray_NDIM(data) << ":" << x[0] <<  ")";
+        s << "G3Ndarray(shape=(";
+        for (auto i=0; i<PyArray_NDIM(data); i++) {
+            if (i!=0)
+                s << ",";
+            s << PyArray_DIMS(data)[i];
+        }
+        s << "))";
         return s.str();
     }
 }
@@ -83,9 +92,8 @@ template <class A> void G3Ndarray::load(A &ar, unsigned v) {
     ar & make_nvp("data", binary_data((char*)PyArray_DATA(data), size*PyArray_DESCR(data)->elsize));
 }
 
-bp::numpy::ndarray G3Ndarray::to_array() const {
-   Py_INCREF(data);
-   return bp::numpy::ndarray(bp::detail::new_reference(data));
+bp::object G3Ndarray::to_array() const {
+    return bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(data))));
 }
 
 G3_SPLIT_SERIALIZABLE_CODE(G3Ndarray);
@@ -95,7 +103,7 @@ using namespace boost::python;
 PYBINDINGS("so3g")
 {
     EXPORT_FRAMEOBJECT(G3Ndarray, init<>(), "G3Ndarray default constructor")
-    .def(init<const numpy::ndarray&>("Construct G3Ndarray from numpy array"))
+    .def(init<const bp::object&>("Construct G3Ndarray from numpy array"))
     .def("to_array", &G3Ndarray::to_array, "Get the wrapped numpy array")
     ;
 }

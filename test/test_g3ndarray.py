@@ -17,7 +17,7 @@ f['x'] = x
 w.Process(f)
 
 # And the autoconverter?
-f = core.G3Frame()
+f = so3g.SOFrame()
 f['y'] = 1
 f['x'] = np.arange(1000.)
 w.Process(f)

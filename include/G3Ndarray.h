@@ -3,7 +3,6 @@
 #include <G3Frame.h>
 #include <G3Map.h>
 #include <G3TimeStamp.h>
-#include <boost/python/numpy.hpp>
 #include <numpy/arrayobject.h>
 
 using namespace std;
@@ -13,12 +12,12 @@ class G3Ndarray : public G3FrameObject {
 public:
     G3Ndarray();
     G3Ndarray(const G3Ndarray &);
-    G3Ndarray(const bp::numpy::ndarray &);
+    G3Ndarray(const bp::object &);
     ~G3Ndarray();
     template <class A> void save(A &ar, unsigned v) const;
     template <class A> void load(A &ar, unsigned v);
     std::string Description() const;
-    bp::numpy::ndarray to_array() const;
+    bp::object to_array() const;
     PyArrayObject *data;
 };
 
