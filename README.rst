@@ -51,9 +51,16 @@ Local configuration through local.cmake
 =======================================
 
 Optional, site-specific parameters may be set in the file local.cmake.
+Lines declaring set(VARIABLE, value) should have the same effect as
+passing -DVARIABLE=value to the cmake invocation.
 
 To change the destination directory for the installation, add a line
 like this one::
 
   set(PYTHON_INSTALL_DEST $ENV{HOME}/.local/lib/python3.7/site-packages/)
+
+If you need to hard-code the boost python package name, add a line
+like this one::
+
+  set(Boost_PYTHON_TYPE python-py35)
 

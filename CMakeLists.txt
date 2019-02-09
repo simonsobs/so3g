@@ -25,18 +25,22 @@ execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig impo
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
                  OUTPUT_VARIABLE NUMPY_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-set(Boost_PYTHON_TYPE python)
-if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
-	# Handle possible naming of the Boost python library as
-	# libboost_python3.so
-	set(_Boost_PYTHON3_HEADERS "boost/python.hpp")
-	find_package(Boost COMPONENTS python3)
-	if (${Boost_PYTHON3_FOUND})
-		set(Boost_PYTHON_TYPE python3)
-	endif()
-else()
-        message("FYI: ${PYTHON_LIBRARIES}")
-endif()
+foreach(candidate
+    python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}
+    python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}
+    python${PYTHON_VERSION_MAJOR}
+    python
+    )
+  if (NOT DEFINED Boost_PYTHON_TYPE)
+    message(STATUS "Searching for boost-" ${candidate})
+    find_package(Boost COMPONENTS ${candidate})
+    if (${Boost_FOUND})
+      message(STATUS "Using boost-" ${candidate})
+      set(Boost_PYTHON_TYPE ${candidate})
+    endif()
+  endif()
+endforeach(candidate)
+
 find_package(Boost COMPONENTS system iostreams filesystem
                    ${Boost_PYTHON_TYPE} REQUIRED)
 
