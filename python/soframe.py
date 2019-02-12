@@ -1,3 +1,4 @@
+import so3g
 from spt3g import core
 
 
@@ -43,3 +44,46 @@ class SOFrame(core.G3Frame):
         except KeyError:
             pass
         core.G3Frame.__setitem__(self, key, val)
+
+
+def _try_import(module_name, insistance):
+    """Maybe import a module and maybe raise an error if the import fails.
+    """
+    if insistance in [False, 'no', 'false', 'False']:
+        return None
+    module = None
+    try:
+        module = __import__(module_name)
+    except ImportError as e:
+        if insistance in [True, 'yes', 'true', 'True']:
+            raise(e)
+    return module
+
+
+def set_frame_hooks(config={}):
+    if not config.get('patch_g3frame', True):
+        return
+
+    # Always do numpy.
+    import numpy as np
+    # Numpy arrays in frames
+    SOFrame.setitem_converters[np.ndarray] = lambda a: so3g.G3Ndarray(a)
+    SOFrame.getitem_converters[so3g.G3Ndarray] = lambda a: a.to_array()
+
+    has_astropy = False
+    use_astropy = config.get('use_astropy', 'try')
+    astropy = _try_import('astropy.wcs', use_astropy)
+    if astropy is not None:
+        SOFrame.setitem_converters[astropy.wcs.WCS] = \
+            lambda a: so3g.G3WCS(a.to_header_string())
+        SOFrame.getitem_converters[so3g.G3WCS] = \
+            lambda a: astropy.wcs.WCS(a.header)
+
+    use_pixell = config.get('use_pixell', 'try')
+    pixell = _try_import('pixell.enmap', use_pixell)
+    if pixell is not None and has_astropy:
+        SOFrame.setitem_converters[pixell.enmap.ndmap] = \
+            lambda a: so3g.G3Ndmap(a, a.wcs.to_header_string())
+        SOFrame.getitem_converters[so3g.G3Ndmap] = \
+            lambda a: pixell.enmap.ndmap(a.data.to_array(),
+                                         astropy.wcs.WCS(a.wcs.header))
