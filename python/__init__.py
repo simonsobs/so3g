@@ -16,7 +16,7 @@ del get_config
 
 # Get the SOFrame object, and possibly enable transparent get/set of
 # our G3-compatible objects.
-from .soframe import SOFrame, set_frame_hooks
+from .soframe import set_frame_hooks
 set_frame_hooks(instance_config)
 del set_frame_hooks
 

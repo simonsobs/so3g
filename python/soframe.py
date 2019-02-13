@@ -1,49 +1,45 @@
-import so3g
-from spt3g import core
+"""The code in this file helps to extend the automatic conversions
+between G3 types and python types when getting/setting objects a
+G3Frame.  This permits seamless assignment and retrieval of, for
+example, numpy arrays, which will automatically be encoded to or
+decoded from the C++ type, G3Ndarray.
 
+For example:
 
-class SOFrame(core.G3Frame):
-    """Convenience wrapper for G3Frame. It's purpose is to allow storage
-    for non-C++-based objects in a G3Frame, such as numpy arrays or
-    enmaps. Classes must still be defined on the C++ side, but they
-    don't have to be the same as the corresponding classes on the
-    python side. This is handled by defining a set of converters that
-    transparently convert between the python and C++
-    representation. Types not handled by converters are handled as
-    before.
-
-    Conversion is controlled via the static getitem_converters and
-    setitem_converters members of the SOFrame class. Here's an example
-    of how to register a new type:
-
-    SOFrame.setitem_converters[np.ndarray] = lambda a: G3Ndarray(a)
-    SOFrame.getitem_converters[G3Ndarray]  = lambda a: a.get_array()
-
-    With this set, one can now assign the given type (in this case a
-    numpy array) to a frame like this::
-
-      frame = SOFrame()
+      frame = core.G3Frame()
       frame["data"] = np.arange(10.)
       print(frame["data"])
 
-    """
-    getitem_converters = {}
-    setitem_converters = {}
+This is "monkey patching" because it changes the behavior of objects
+originally defined in spt3g library.  The behavior can be disabled
+with the config variable patch_g3frame.
+"""
 
-    def __getitem__(self, key):
-        val = core.G3Frame.__getitem__(self, key)
-        try:
-            val = SOFrame.getitem_converters[type(val)](val)
-        except KeyError:
-            pass
-        return val
+import so3g
+from spt3g.core import G3Frame
 
-    def __setitem__(self, key, val):
-        try:
-            val = SOFrame.setitem_converters[type(val)](val)
-        except KeyError:
-            pass
-        core.G3Frame.__setitem__(self, key, val)
+orig_getitem = G3Frame.__getitem__
+orig_setitem = G3Frame.__setitem__
+
+G3Frame.getitem_converters = {}
+G3Frame.setitem_converters = {}
+
+
+def patched_getitem(self, key):
+    val = orig_getitem(self, key)
+    try:
+        val = G3Frame.getitem_converters[type(val)](val)
+    except KeyError:
+        pass
+    return val
+
+
+def patched_setitem(self, key, val):
+    try:
+        val = G3Frame.setitem_converters[type(val)](val)
+    except KeyError:
+        pass
+    orig_setitem(self, key, val)
 
 
 def _try_import(module_name, insistance):
@@ -64,26 +60,31 @@ def set_frame_hooks(config={}):
     if not config.get('patch_g3frame', True):
         return
 
+    G3Frame.__doc__ = ("Monkey patched by so3g to add support for numpy "
+                       "arrays etc.\n\n" + G3Frame.__doc__)
+    G3Frame.__getitem__ = patched_getitem
+    G3Frame.__setitem__ = patched_setitem
+
     # Always do numpy.
     import numpy as np
     # Numpy arrays in frames
-    SOFrame.setitem_converters[np.ndarray] = lambda a: so3g.G3Ndarray(a)
-    SOFrame.getitem_converters[so3g.G3Ndarray] = lambda a: a.to_array()
+    G3Frame.setitem_converters[np.ndarray] = lambda a: so3g.G3Ndarray(a)
+    G3Frame.getitem_converters[so3g.G3Ndarray] = lambda a: a.to_array()
 
     has_astropy = False
     use_astropy = config.get('use_astropy', 'try')
     astropy = _try_import('astropy.wcs', use_astropy)
     if astropy is not None:
-        SOFrame.setitem_converters[astropy.wcs.WCS] = \
+        G3Frame.setitem_converters[astropy.wcs.WCS] = \
             lambda a: so3g.G3WCS(a.to_header_string())
-        SOFrame.getitem_converters[so3g.G3WCS] = \
+        G3Frame.getitem_converters[so3g.G3WCS] = \
             lambda a: astropy.wcs.WCS(a.header)
 
     use_pixell = config.get('use_pixell', 'try')
     pixell = _try_import('pixell.enmap', use_pixell)
     if pixell is not None and has_astropy:
-        SOFrame.setitem_converters[pixell.enmap.ndmap] = \
+        G3Frame.setitem_converters[pixell.enmap.ndmap] = \
             lambda a: so3g.G3Ndmap(a, a.wcs.to_header_string())
-        SOFrame.getitem_converters[so3g.G3Ndmap] = \
+        G3Frame.getitem_converters[so3g.G3Ndmap] = \
             lambda a: pixell.enmap.ndmap(a.data.to_array(),
                                          astropy.wcs.WCS(a.wcs.header))
