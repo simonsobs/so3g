@@ -1,5 +1,7 @@
 #include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
+
+// See this header file for discussion of numpy compilation issues.
+#include "so3g_numpy.h"
 
 #include <container_pybindings.h>
 
@@ -12,7 +14,6 @@
 #include "_version.h"
 
 namespace bp = boost::python;
-namespace np = boost::python::numpy;
 
 const std::string version()
 {
@@ -23,7 +24,12 @@ PYBINDINGS("so3g") {
     bp::def("version", version);
 }
 
+static void* _so3g_import_array() {
+    import_array();
+    return NULL;
+}
+
 BOOST_PYTHON_MODULE(so3g) {
-    np::initialize();
+    _so3g_import_array();
     G3ModuleRegistrator::CallRegistrarsFor("so3g");
 }

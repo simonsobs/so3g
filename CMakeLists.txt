@@ -21,8 +21,11 @@ endif()
 # Determine the location of site-packages.
 execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+# Numpy include directory?
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
+                 OUTPUT_VARIABLE NUMPY_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 set(Boost_PYTHON_TYPE python)
-set(Boost_NUMPY_TYPE numpy3)
 if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
 	# Handle possible naming of the Boost python library as
 	# libboost_python3.so
@@ -34,13 +37,13 @@ if(${PYTHON_LIBRARIES} MATCHES "libpython3.*\\.so")
 else()
         message("FYI: ${PYTHON_LIBRARIES}")
 endif()
-find_package(Boost COMPONENTS system iostreams filesystem ${Boost_NUMPY_TYPE}
+find_package(Boost COMPONENTS system iostreams filesystem
                    ${Boost_PYTHON_TYPE} REQUIRED)
 
 include_directories(${SPT3G_INCLUDES})
 include_directories(${Boost_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS} ${PYTHON_INCLUDE_PATH})
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
-
+include_directories(${NUMPY_INCLUDE_DIR})
 
 #
 # Define the so3g build target.  This is a shared library.
@@ -51,9 +54,13 @@ add_library(so3g SHARED
   src/main.cxx
   src/test.cxx
   src/hkagg.cxx
+  src/G3Ndarray.cxx
+  src/G3WCS.cxx
+  src/G3Ndmap.cxx
   src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
+  src/exceptions.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.
@@ -73,11 +80,8 @@ add_custom_target(so3g-version
                    )
 
 add_dependencies(so3g so3g-version)
-                   
 
-#
 # Define the install rules.
-#
 
 include(local.cmake OPTIONAL)
 if(DEFINED PYTHON_INSTALL_DEST)

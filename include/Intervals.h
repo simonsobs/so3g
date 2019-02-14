@@ -6,8 +6,6 @@
 
 #include <stdint.h>
 
-#include <boost/python/numpy.hpp>
-
 using namespace std;
 namespace bp = boost::python;
 
@@ -26,7 +24,8 @@ public:
     Intervals(pair<T,T> domain) : domain{domain} {}
     Intervals(T start, T end) { Intervals(make_pair(start, end)); }
 
-    static Intervals<T> from_array(const bp::numpy::ndarray &src);
+    //static Intervals<T> from_array(const bp::numpy::ndarray &src);
+    static Intervals<T> from_array(const bp::object &src);
 
     // Basic ops
     Intervals<T>& merge(const Intervals<T> &src);
@@ -37,8 +36,7 @@ public:
     void trim_to(T start, T end);
     void cleanup();
 
-    bp::numpy::ndarray array() const;
-    bp::numpy::dtype get_dtype() const;
+    bp::object array() const;
  
     // Operators.
     Intervals<T> operator-() const;

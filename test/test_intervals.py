@@ -23,7 +23,7 @@ for xx in [(0., 1.),
 ]:
     print(xx)
     iv.add_interval(*xx)
-    print(iv.Summary())
+    print(iv.array())
 
 iv1 = so3g.IntervalsFloat()\
           .add_interval(0., 1.)\

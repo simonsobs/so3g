@@ -1,14 +1,16 @@
+#define NO_IMPORT_ARRAY
+
 #include <pybindings.h>
 
 #include <iostream>
-#include <Intervals.h>
-
 #include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
-
-#include <container_pybindings.h>
-// Need cereal utility.hpp to encode pair<int,int>.
 #include <cereal/types/utility.hpp>
+#include <container_pybindings.h>
+
+#include "so3g_numpy.h"
+
+#include "Intervals.h"
+#include "exceptions.h"
 
 //
 // Default constructors, explicitly defined for each type, to set a
@@ -134,6 +136,11 @@ Intervals<T>& Intervals<T>::merge(const Intervals<T> &src)
     return *this;
 }
 
+//
+// Machinery for converting between Interval vector<pair>
+// representation and buffers (such as numpy arrays).
+//
+
 template <typename T>
 inline
 pair<T,T> interval_pair(char *p1, char *p2) {
@@ -150,22 +157,139 @@ pair<G3Time,G3Time> interval_pair(char *p1, char *p2) {
 
 
 template <typename T>
-Intervals<T> Intervals<T>::from_array(const bp::numpy::ndarray &src)
+inline
+int interval_extract(const std::pair<T,T> *src, char *dest) {
+    auto Tdest = reinterpret_cast<T*>(dest);
+    *(Tdest) = src->first;
+    *(Tdest+1) = src->second;
+    return 2 * sizeof(*Tdest);
+}
+
+template <>
+inline
+int interval_extract(const std::pair<G3Time,G3Time> *src, char *dest) {
+    auto Tdest = reinterpret_cast<G3TimeStamp*>(dest);
+    *(Tdest) = src->first;
+    *(Tdest+1) = src->second;
+    return 2 * sizeof(*Tdest);
+}
+
+template <typename T>
+inline int get_dtype() {
+    return NPY_NOTYPE;
+}
+
+template <>
+inline int get_dtype<std::int64_t>() {
+    return NPY_INT64;
+}
+
+template <>
+inline int get_dtype<double>() {
+    return NPY_FLOAT64;
+}
+
+template <>
+inline int get_dtype<G3Time>() {
+    return NPY_INT64;
+}
+
+static int format_to_dtype(const Py_buffer &view)
+{
+    if (strcmp(view.format, "b") == 0 ||
+        strcmp(view.format, "h") == 0 ||
+        strcmp(view.format, "i") == 0 ||
+        strcmp(view.format, "l") == 0 ||
+        strcmp(view.format, "q") == 0) {
+        switch(view.itemsize) {
+        case 1:
+            return NPY_INT8;
+        case 2:
+            return NPY_INT16;
+        case 4:
+            return NPY_INT32;
+        case 8:
+            return NPY_INT64;
+        }
+    } else if (strcmp(view.format, "c") == 0 ||
+               strcmp(view.format, "B") == 0 ||
+               strcmp(view.format, "H") == 0 ||
+               strcmp(view.format, "I") == 0 ||
+               strcmp(view.format, "L") == 0 ||
+               strcmp(view.format, "Q") == 0) {
+        switch(view.itemsize) {
+        case 1:
+            return NPY_UINT8;
+        case 2:
+            return NPY_UINT16;
+        case 4:
+            return NPY_UINT32;
+        case 8:
+            return NPY_UINT64;
+        }
+    } else if (strcmp(view.format, "f") == 0 ||
+               strcmp(view.format, "d") == 0) {
+        switch(view.itemsize) {
+        case 4:
+            return NPY_FLOAT32;
+        case 8:
+            return NPY_FLOAT64;
+        }
+    } 
+
+    return NPY_NOTYPE;
+}
+
+
+template <typename T>
+Intervals<T> Intervals<T>::from_array(const bp::object &src)
 {
     Intervals<T> output;
-    assert(output.get_dtype() == src.get_dtype());
 
-    char* d = src.get_data();
-    auto strides = src.get_strides();
-    auto shape = src.get_shape();
-    assert(src.get_nd() == 2);
-    for (int i=0; i < shape[0]; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+strides[1]));
-        d += strides[0];
+    // Get a view...
+    BufferWrapper buf;
+    if (PyObject_GetBuffer(src.ptr(), &buf.view,
+                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("src");
+    } 
+
+    if (buf.view.ndim != 2 || buf.view.shape[1] != 2)
+        throw shape_exception("src", "must have shape (n,2)");
+
+    int dtype = format_to_dtype(buf.view);
+    if (dtype != get_dtype<T>())
+        throw dtype_exception("src", "matching Interval class");
+
+    char *d = (char*)buf.view.buf;
+    int n_seg = buf.view.shape[0];
+    for (int i=0; i<n_seg; ++i) {
+        output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
+        d += buf.view.strides[0];
     }
+    
     return output;
 }
 
+template <typename T>
+bp::object Intervals<T>::array() const
+{
+    npy_intp dims[2] = {0, 2};
+    dims[0] = (npy_intp)segments.size();
+    int dtype = get_dtype<T>();
+    PyObject *v = PyArray_SimpleNew(2, dims, dtype);
+    char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
+    for (auto p = segments.begin(); p != segments.end(); ++p) {
+        ptr += interval_extract((&*p), ptr);
+    }
+    return bp::object(bp::handle<>(v));
+}
+
+
+//
+// Implementation of the algebra
+//
+ 
 template <typename T>
 Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
 {
@@ -213,49 +337,6 @@ Intervals<T> Intervals<T>::complement() const
     output.segments.push_back(make_pair(next_start, domain.second));
     output.cleanup();
     return output;
-}
-
-// Expose
-
-template <typename T>
-bp::numpy::dtype Intervals<T>::get_dtype() const
-{
-    return bp::numpy::dtype::get_builtin<T>();
-}
-
-template <>
-bp::numpy::dtype Intervals<G3Time>::get_dtype() const
-{
-    return bp::numpy::dtype::get_builtin<G3TimeStamp>();
-}
-
-
-template <typename T>
-bp::numpy::ndarray Intervals<T>::array() const
-{
-    bp::tuple shape = bp::make_tuple(segments.size(), 2);
-    bp::numpy::dtype dt = get_dtype();
-    bp::numpy::ndarray v = bp::numpy::empty(shape,dt);
-    T* d = reinterpret_cast<T*>(v.get_data());
-    for (auto p = segments.begin(); p != segments.end(); ++p) {
-        *(d++) = p->first;
-        *(d++) = p->second;
-    }
-    return v;
-}
-
-template <>
-bp::numpy::ndarray Intervals<G3Time>::array() const
-{
-    bp::tuple shape = bp::make_tuple(segments.size(), 2);
-    bp::numpy::dtype dt = get_dtype();
-    bp::numpy::ndarray v = bp::numpy::empty(shape,dt);
-    G3TimeStamp* d = reinterpret_cast<G3TimeStamp*>(v.get_data());
-    for (auto p = segments.begin(); p != segments.end(); ++p) {
-        *(d++) = p->first.time;
-        *(d++) = p->second.time;
-    }
-    return v;
 }
 
 
@@ -330,7 +411,7 @@ using namespace boost::python;
          "Return the complement (over domain).") \
     .def("array", &CLASSNAME::array, \
          "Return the intervals as a 2-d numpy array.") \
-    .def("from_array", &CLASSNAME::from_array, \
+    .def("from_array", &CLASSNAME::from_array,              \
          "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
     .staticmethod("from_array") \
     .def(-self) \
@@ -340,7 +421,6 @@ using namespace boost::python;
     .def(self - self); \
     register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from " \
         "strings to Intervals over " #DOMAIN_TYPE ".")
-
 
 G3_SERIALIZABLE_CODE(IntervalsFloat);
 G3_SERIALIZABLE_CODE(IntervalsInt);
