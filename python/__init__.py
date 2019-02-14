@@ -14,8 +14,8 @@ from .config import get_config
 instance_config = get_config()
 del get_config
 
-# Get the SOFrame object, and possibly enable transparent get/set of
-# our G3-compatible objects.
+# (Possibly) monkey patch the G3Frame object with hooks for
+# so3g data types.
 from .soframe import set_frame_hooks
 set_frame_hooks(instance_config)
 del set_frame_hooks
