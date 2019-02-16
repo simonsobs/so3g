@@ -18,11 +18,8 @@ with the config variable patch_g3frame.
 import so3g
 from spt3g.core import G3Frame
 
-orig_getitem = G3Frame.__getitem__
-orig_setitem = G3Frame.__setitem__
-
-G3Frame.getitem_converters = {}
-G3Frame.setitem_converters = {}
+orig_getitem = None
+orig_setitem = None
 
 
 def patched_getitem(self, key):
@@ -62,6 +59,17 @@ def set_frame_hooks(config={}):
 
     G3Frame.__doc__ = ("Monkey patched by so3g to add support for numpy "
                        "arrays etc.\n\n" + G3Frame.__doc__)
+
+    # Do not trash orig_* if we've been here before.
+    if not hasattr(G3Frame, 'getitem_converters'):
+        global orig_getitem, orig_setitem
+        orig_getitem = G3Frame.__getitem__
+        orig_setitem = G3Frame.__setitem__
+
+    # But do reset the converters.
+    G3Frame.getitem_converters = {}
+    G3Frame.setitem_converters = {}
+
     G3Frame.__getitem__ = patched_getitem
     G3Frame.__setitem__ = patched_setitem
 
