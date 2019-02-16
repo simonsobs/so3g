@@ -11,6 +11,7 @@ Requirements
 ============
 
 - spt3g_software and its dependencies.
+ - N.B. When compiling ``spt3g_software``, you may have to explicitly tell it to use python3 via ``cmake`` in order for it to run properly with `so3g`. The invocation is: ``cmake .. -DPYTHON_EXECUTABLE=`which python3```
 - (Optional) ``environment-modules`` - Load ``spt3g`` environment
   automatically. For details see the README in `modules/`_
 
