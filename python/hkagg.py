@@ -14,10 +14,17 @@ class HKSession:
         self.session_id = session_id
         self.start_time = start_time
         self.description = description
-        self.provs = []
+        self.provs = {}
+        self.next_prov_id = 0
 
-    def add_provider(self, prov_id, description='No provider description... provided'):
-        self.provs.append((prov_id, description))
+    def add_provider(self, description='No provider description... provided'):
+        prov_id = self.next_prov_id
+        self.next_prov_id += 1
+        self.provs[prov_id] = {'description': description}
+        return prov_id
+
+    def remove_provider(self, prov_id):
+        del self.provs[prov_id]
 
     """
     Frame generators.
@@ -52,15 +59,16 @@ class HKSession:
         f['session_id'] = self.session_id
         f['timestamp'] = timestamp
         provs = core.G3VectorFrameObject()
-        for prov_id, desc in self.provs:
+        for prov_id in sorted(self.provs.keys()):
             prov = core.G3MapFrameObject()
             prov['prov_id'] = core.G3Int(prov_id)
-            prov['description'] = core.G3String(desc)
+            prov['description'] = core.G3String(
+                self.provs[prov_id]['description'])
             provs.append(prov)
         f['providers'] = provs
         return f
     
-    def data_frame(self, prov_id=0, timestamp=None):
+    def data_frame(self, prov_id, timestamp=None):
         """
         Return a Data frame template.  The prov_id must match the prov_id
         in one of the Provider blocks in the preceding status frame.

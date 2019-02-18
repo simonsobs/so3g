@@ -14,8 +14,8 @@ hksess = so3g.hkagg.HKSession(session_id=1234,
                               description="Test HK data.")
 
 # Register a data provider.
-prov_id = 999
-hksess.add_provider(prov_id)
+prov_id = hksess.add_provider(
+    description='Fake data for the real world.')
 
 # Start the stream -- write the initial session and status frames.
 f = hksess.session_frame()
