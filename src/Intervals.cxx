@@ -169,8 +169,8 @@ template <>
 inline
 int interval_extract(const std::pair<G3Time,G3Time> *src, char *dest) {
     auto Tdest = reinterpret_cast<G3TimeStamp*>(dest);
-    *(Tdest) = src->first;
-    *(Tdest+1) = src->second;
+    *(Tdest) = src->first.time;
+    *(Tdest+1) = src->second.time;
     return 2 * sizeof(*Tdest);
 }
 
