@@ -3,6 +3,8 @@
 #include <pybindings.h>
 
 #include <iostream>
+#include <limits>
+
 #include <boost/python.hpp>
 #include <cereal/types/utility.hpp>
 #include <container_pybindings.h>
@@ -17,23 +19,27 @@
 // sensible (perhaps) default domain.
 //
 
-// The G3Time internal encoding is an int64 with the number of 100 MHz
-// ticks since the unix epoch.  Therefore...
-#define THE_FUTURE_INT (4000000000L * 100000000L) // Sometime in the year 2096, in G3Time.
-
 template <>
 Intervals<double>::Intervals() {
-    domain = make_pair(0., (double)THE_FUTURE_INT);
+    domain = make_pair(-std::numeric_limits<double>::infinity(),
+                       +std::numeric_limits<double>::infinity());
 }
 
 template <>
 Intervals<int64_t>::Intervals() {
-    domain = make_pair(0, THE_FUTURE_INT);
+    domain = make_pair(INT64_MIN, INT64_MAX);
 }
+
+// The G3Time internal encoding is an int64 with the number of 100 MHz
+// ticks since the unix epoch.  Make our default domain span from a
+// while ago to a while from now.
+
+#define G3TIME_LO                   0LL  // Jan 1 1970
+#define G3TIME_HI  725811840000000000LL  // Jan 1 2200
 
 template <>
 Intervals<G3Time>::Intervals() {
-    domain = make_pair(G3Time(0), G3Time(THE_FUTURE_INT));
+    domain = make_pair(G3Time(G3TIME_LO), G3Time(G3TIME_HI));
 }
 
 
