@@ -3,14 +3,14 @@ import spt3g.core as core
 
 print('so3g version', so3g.__version__)
 
-iv = so3g.IntervalsFloat() #-100.,100.)
+iv = so3g.IntervalsDouble() #-100.,100.)
 iv.add_interval(1., 2.)
 iv.add_interval(5., 9.)
 
 x = iv.array()
 print(x)
 
-iv2 = so3g.IntervalsFloat.from_array(x)
+iv2 = so3g.IntervalsDouble.from_array(x)
 print(iv2)
 print(iv2.array())
 import sys
@@ -25,12 +25,12 @@ for xx in [(0., 1.),
     iv.add_interval(*xx)
     print(iv.array())
 
-iv1 = so3g.IntervalsFloat()\
+iv1 = so3g.IntervalsDouble()\
           .add_interval(0., 1.)\
           .add_interval(2., 3.)\
           .add_interval(4., 5.)
 
-iv2 = so3g.IntervalsFloat()\
+iv2 = so3g.IntervalsDouble()\
           .add_interval(1., 2.5)
 
 print(iv1 + iv2)

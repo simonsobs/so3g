@@ -428,17 +428,17 @@ using namespace boost::python;
     register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from " \
         "strings to Intervals over " #DOMAIN_TYPE ".")
 
-G3_SERIALIZABLE_CODE(IntervalsFloat);
+G3_SERIALIZABLE_CODE(IntervalsDouble);
 G3_SERIALIZABLE_CODE(IntervalsInt);
 G3_SERIALIZABLE_CODE(IntervalsTime);
 
-G3_SERIALIZABLE_CODE(MapIntervalsFloat);
+G3_SERIALIZABLE_CODE(MapIntervalsDouble);
 G3_SERIALIZABLE_CODE(MapIntervalsInt);
 G3_SERIALIZABLE_CODE(MapIntervalsTime);
 
 PYBINDINGS("so3g")
 {
-    EXPORT_INTERVALS(double,  IntervalsFloat);
+    EXPORT_INTERVALS(double,  IntervalsDouble);
     EXPORT_INTERVALS(int64_t, IntervalsInt);
     EXPORT_INTERVALS(G3Time,  IntervalsTime);
 }
