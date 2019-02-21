@@ -22,7 +22,7 @@ public:
     // Construction
     Intervals();
     Intervals(pair<T,T> domain) : domain{domain} {}
-    Intervals(T start, T end) { Intervals(make_pair(start, end)); }
+    Intervals(T start, T end) : Intervals(make_pair(start,end)) {}
 
     //static Intervals<T> from_array(const bp::numpy::ndarray &src);
     static Intervals<T> from_array(const bp::object &src);
@@ -33,12 +33,15 @@ public:
     Intervals<T>& add_interval(const T start, const T end);
     Intervals<T> complement() const;
 
-    void trim_to(T start, T end);
+    void set_domain(T start, T end);
+    pair<T,T> get_domain();
+
     void cleanup();
 
     bp::object array() const;
  
     // Operators.
+    Intervals<T> operator~() const;
     Intervals<T> operator-() const;
     void operator+=(const Intervals<T> &src);
     void operator-=(const Intervals<T> &src);
@@ -52,15 +55,15 @@ public:
 };
 
 
-typedef Intervals<double> IntervalsFloat;
+typedef Intervals<double> IntervalsDouble;
 typedef Intervals<int64_t> IntervalsInt;
 typedef Intervals<G3Time> IntervalsTime;
 
-G3_SERIALIZABLE(IntervalsFloat, 0);
+G3_SERIALIZABLE(IntervalsDouble, 0);
 G3_SERIALIZABLE(IntervalsInt, 0);
 G3_SERIALIZABLE(IntervalsTime, 0);
 
-G3MAP_OF(std::string, IntervalsFloat, MapIntervalsFloat);
-G3MAP_OF(std::string, IntervalsInt,   MapIntervalsInt);
-G3MAP_OF(std::string, IntervalsTime,  MapIntervalsTime);
+G3MAP_OF(std::string, IntervalsDouble, MapIntervalsDouble);
+G3MAP_OF(std::string, IntervalsInt, MapIntervalsInt);
+G3MAP_OF(std::string, IntervalsTime, MapIntervalsTime);
 
