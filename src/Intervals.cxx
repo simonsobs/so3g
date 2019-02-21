@@ -68,6 +68,11 @@ void Intervals<T>::cleanup()
 {
     auto p = segments.begin();
     while (p != segments.end()) {
+        // Truncate intervals that cross the domain boundary.
+        if (p->first < domain.first)
+            p->first = domain.first;
+        if (p->second > domain.second)
+            p->second = domain.second;
         // Delete empty or negative intervals.
         if (p->first >= p->second) {
             segments.erase(p);
@@ -88,10 +93,6 @@ void Intervals<T>::cleanup()
 template <typename T>
 Intervals<T>& Intervals<T>::add_interval(const T start, const T end)
 {
-    // Expand the global domain, perhaps.
-    domain.first  = min(domain.first,  start);
-    domain.second = max(domain.second, end  );
-
     // We can optimize this later.  For now just do something that is
     // obviously correct.
     auto p = lower_bound(segments.begin(), segments.end(), make_pair(start, end));
@@ -104,41 +105,31 @@ Intervals<T>& Intervals<T>::add_interval(const T start, const T end)
 template <typename T>
 Intervals<T>& Intervals<T>::merge(const Intervals<T> &src)
 {
+    domain.first = max(domain.first, src.domain.first);
+    domain.second = min(domain.second, src.domain.second);
+    domain.second = max(domain.first, domain.second); // enforce first <= second.
+
     auto p0 = this->segments.begin();
     auto p1 = src.segments.begin();
     while (p0 != this->segments.end() && p1 != src.segments.end()) {
-        // Which interval starts first?
-        if (p0->first <= p1->first) {
-            // p0 starts first.  Do they overlap?
-            if (p1->first <= p0->second) {
-                // Yes.  Increment p0 until we find the end of overlap.
-                auto p0seg = p0+1;
-                while (p0seg != segments.end() && p0seg->first <= p1->second)
-                    ++p0seg;
-                // Erase all but one of the overlapping intervals;
-                // modify the remaining one.
-                segments.erase(p0+1, p0seg);
-                p0->second = max(p0->second, p1->second);
-                ++p1;
-            } else {
-                // No. Move on, looking for the insertion point.
-                ++p0;
-            }
+        if (p1->second < p0->first) {
+            // p1 is entirely before p0.  Insert it and advance both iters.
+            p0 = segments.insert(p0, *(p1++)) + 1;
+        } else if (p0->second < p1->first) {
+            // p0 is entirely before p1.
+            p0++;
         } else {
-            // p1 starts first.  Do they overlap?
-            if (p0->first <= p1->second) {
-                // Yes.
-                p0->first = p1->first;
-                p0->second = max(p0->second, p1->second);
-            } else {
-                // No.
-                this->segments.insert(p0++, *(p1++));
-            }
+            // The two intervals overlap, so merge them into p0.
+            p0->first = min(p0->first, p1->first);
+            p0->second = max(p0->second, p1->second);
+            p1++;
         }
     }
+    // Any trailing intervals in p1?
     while (p1 != src.segments.end())
         this->segments.push_back(*(p1++));
 
+    cleanup();
     return *this;
 }
 
@@ -306,28 +297,17 @@ Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
 }
     
 template <typename T>
-void Intervals<T>::trim_to(T start, T end)
+void Intervals<T>::set_domain(T start, T end)
 {
-    // Once again, just be correct here... optimize later.
-    auto p0 = segments.begin();
-    while (p0 != segments.end()) {
-        if (p0->second < start)
-            p0->first = max(p0->first, start);
-        p0++;
-    }
+    domain.first = start;
+    domain.second = max(start, end);
+    cleanup();
+}
 
-    auto p1 = p0;
-    while (p1 != segments.end()) {
-        if (p1->second > end) {
-            if (p1->first > end)
-                break;
-            (p1++)->second = end;
-            break;
-        }
-    }
-
-    segments.erase(p1, segments.end());
-    segments.erase(segments.begin(), p0);
+template <typename T>
+pair<T,T> Intervals<T>::get_domain()
+{
+    return make_pair(domain.first, domain.second);
 }
 
 template <typename T>
@@ -349,6 +329,12 @@ Intervals<T> Intervals<T>::complement() const
 //
 // Operators
 //
+
+template <typename T>
+Intervals<T> Intervals<T>::operator~() const
+{
+    return complement();
+}
 
 template <typename T>
 Intervals<T> Intervals<T>::operator-() const
@@ -388,7 +374,7 @@ template <typename T>
 Intervals<T> Intervals<T>::operator*(const Intervals<T> &src) const
 {
     auto output = *this;
-    output.intersection(src);
+    output.intersect(src);
     return output;
 }
 
@@ -402,6 +388,7 @@ using namespace boost::python;
     EXPORT_FRAMEOBJECT(CLASSNAME, init<>(), \
    "A finite series of non-overlapping semi-open intervals on a domain " \
    "of type: " #DOMAIN_TYPE ".") \
+    .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with domain.")) \
     .def("add_interval", &CLASSNAME::add_interval, \
          return_internal_reference<>(), \
          "Merge an interval into the set.") \
@@ -411,21 +398,36 @@ using namespace boost::python;
     .def("intersect", &CLASSNAME::intersect, \
          return_internal_reference<>(), \
          "Intersect another " #DOMAIN_TYPE "with this one.") \
-    .def("trim_to", &CLASSNAME::trim_to, \
-         "Trim content to the specified range.") \
+    .add_property(                                                 \
+        "domain",                                                  \
+        +[](const CLASSNAME& A) {                                  \
+             return make_tuple( A.domain.first, A.domain.second ); \
+         },                                                        \
+        +[](CLASSNAME& A, object _domain) {                        \
+             A.set_domain(extract<DOMAIN_TYPE>(_domain[0]),        \
+                          extract<DOMAIN_TYPE>(_domain[1]));       \
+         },                                                        \
+        "Interval set domain (settable, with consequences).")      \
     .def("complement", &CLASSNAME::complement, \
          "Return the complement (over domain).") \
     .def("array", &CLASSNAME::array, \
          "Return the intervals as a 2-d numpy array.") \
     .def("from_array", &CLASSNAME::from_array,              \
          "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
+    .def("copy", \
+         +[](CLASSNAME& A) { \
+              return CLASSNAME(A); \
+          }, \
+         "Get a new object with a copy of the data.") \
     .staticmethod("from_array") \
     .def(-self) \
+    .def(~self) \
     .def(self += self) \
     .def(self -= self) \
     .def(self + self) \
-    .def(self - self); \
-    register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from " \
+    .def(self - self) \
+    .def(self * self); \
+    register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from "  \
         "strings to Intervals over " #DOMAIN_TYPE ".")
 
 G3_SERIALIZABLE_CODE(IntervalsDouble);
