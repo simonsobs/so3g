@@ -71,7 +71,10 @@ add_library(so3g SHARED
 #set_target_properties(so3g PROPERTIES PREFIX "")
 
 # Make a list of .py files for the library.
-file(GLOB MY_PYTHONS "${CMAKE_CURRENT_SOURCE_DIR}/python/*.py")
+file(GLOB MY_PYTHONS
+  "${CMAKE_CURRENT_SOURCE_DIR}/python/*.py")
+file(GLOB MY_PYTHONS_HK
+  "${CMAKE_CURRENT_SOURCE_DIR}/python/hk/*.py")
 
 # Provide list of libs to link against.
 target_link_libraries(so3g pthread ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${SPT3G_LIBRARIES})
@@ -98,5 +101,8 @@ endif()
 
 install(TARGETS so3g
         DESTINATION ${INSTALL_DEST})
+
 install(FILES ${MY_PYTHONS}
         DESTINATION ${INSTALL_DEST})
+install(FILES ${MY_PYTHONS_HK}
+        DESTINATION ${INSTALL_DEST}/hk)
