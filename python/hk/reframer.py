@@ -53,7 +53,7 @@ class _HKProvBundle:
 
     def add(self, f):
         if self.sess is None:
-            self.sess = so3g.hkagg.HKSession(f['session_id'])
+            self.sess = so3g.hk.HKSessionHelper(f['session_id'])
             self.prov_id = f['prov_id']
         for b in f['blocks']:
             chans = b.data.keys()
