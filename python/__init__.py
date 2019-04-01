@@ -21,6 +21,8 @@ set_frame_hooks(instance_config)
 del set_frame_hooks
 
 # Other python modules.
-from . import hkagg
+from . import hk
 from . import coords
 
+# Deprecated:
+from . import hkagg
