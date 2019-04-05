@@ -13,6 +13,7 @@
 
 #include "Intervals.h"
 #include "exceptions.h"
+#include <exception>
 
 //
 // Default constructors, explicitly defined for each type, to set a
@@ -284,6 +285,82 @@ bp::object Intervals<T>::array() const
 
 
 //
+// Bit-mask conversion - create list<IntervalsInt> from ndarray bit-masks.
+//
+
+template <typename T>
+bp::object Intervals<T>::from_mask(const bp::object &src, int n_bits)
+{
+     throw "Not implemented for non-index Intervals types.";
+     bp::list bits;
+     Intervals<T> output;
+     bits.append(output);
+     return bits;
+}
+
+template <>
+bp::object Intervals<int64_t>::from_mask(const bp::object &src, int n_bits)
+{
+    // Get a view...
+    BufferWrapper buf;
+    if (PyObject_GetBuffer(src.ptr(), &buf.view,
+                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("src");
+    }
+
+    if (buf.view.ndim != 1)
+        throw shape_exception("src", "must be 1-d");
+
+    int dtype = format_to_dtype(buf.view);
+    if (dtype != NPY_UINT8)
+        throw dtype_exception("src", "uint8");
+
+    int64_t n = buf.view.shape[0];
+
+    if (n_bits < 0)
+        n_bits = 8*sizeof(uint8_t);
+
+    vector<Intervals<int64_t>> output;;
+    vector<int64_t> start;
+    for (int i=0; i<n_bits; i++) {
+        output.push_back(Intervals<int64_t>(0, n));
+        start.push_back(-1);
+    }
+
+    uint8_t *p = (uint8_t*)buf.view.buf;
+
+    uint8_t last = 0;
+    for (int64_t i=0; i<n; i++) {
+        uint8_t d = p[i] ^ last;
+        for (int bit=0; bit<n_bits; ++bit) {
+            if (d & (1 << bit)) {
+                if (start[bit] >= 0) {
+                    output[bit].segments.push_back(
+                        interval_pair<int64_t>((char*)&start[bit], (char*)&i));
+                    start[bit] = -1;
+                } else {
+                    start[bit] = i;
+                }
+            }
+        }
+        last = p[i];
+    }
+    for (int bit=0; bit<n_bits; ++bit) {
+        if (start[bit] >= 0)
+            output[bit].segments.push_back(
+                interval_pair<int64_t>((char*)&start[bit], (char*)&n));
+    }
+
+    // Once added to the list, we can't modify further.
+    bp::list bits;
+    for (auto i: output)
+        bits.append(i);
+    return bits;
+}
+
+
+//
 // Implementation of the algebra
 //
  
@@ -414,12 +491,15 @@ using namespace boost::python;
          "Return the intervals as a 2-d numpy array.") \
     .def("from_array", &CLASSNAME::from_array,              \
          "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
+    .staticmethod("from_array")                                  \
+    .def("from_mask", &CLASSNAME::from_mask,                     \
+         "Return a " #DOMAIN_TYPE " based on an ndarray of uint8.") \
+    .staticmethod("from_mask")                                   \
     .def("copy", \
          +[](CLASSNAME& A) { \
               return CLASSNAME(A); \
           }, \
          "Get a new object with a copy of the data.") \
-    .staticmethod("from_array") \
     .def(-self) \
     .def(~self) \
     .def(self += self) \

@@ -104,6 +104,24 @@ print('    ', ti)
 print('    ', ti.array())
 print('    ', (-ti).array())
 
+print()
+print('Interval <-> mask testing')
+mask = np.zeros(20, 'uint8')
+n_bit, target_bit = 3, 1
+for ikill, nint in [(None, 0),
+                    (19,   1),
+                    ( 0,   2),
+                    (10,   3),
+                    (11,   3)]:
+    if ikill is not None:
+        mask[ikill] = (1<<target_bit)
+    iv = so3g.IntervalsInt.from_mask(mask, n_bit)
+    assert(len(iv) == n_bit)
+    for i in range(n_bit):
+        if i == target_bit:
+            assert(len(iv[i].array()) == nint)
+        else:
+            assert(len(iv[i].array()) == 0)
 
 print()
 print('Map test')

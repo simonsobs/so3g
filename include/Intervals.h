@@ -49,6 +49,9 @@ public:
     Intervals<T> operator-(const Intervals<T> &src) const;
     Intervals<T> operator*(const Intervals<T> &src) const;
 
+    // Special conversions.
+    static bp::object from_mask(const bp::object &src, int n_bits);
+
     // Required for G3FrameObjects.
     string Description() const;
     template <class A> void serialize(A &ar, unsigned v);
