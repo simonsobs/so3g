@@ -63,6 +63,13 @@ template <class A> void Intervals<T>::serialize(A &ar, unsigned v)
 	ar & make_nvp("segments", segments);
 }
 
+template <typename T>
+pair<T,T> merge_pair(pair<T,T> a, pair<T,T> b) {
+    pair<T,T> out = a;
+    out.first = min(out.first, b.first);
+    out.second = max(out.second, b.second);
+    return out;
+}
 
 template <typename T>
 void Intervals<T>::cleanup()
@@ -360,6 +367,53 @@ bp::object Intervals<int64_t>::from_mask(const bp::object &src, int n_bits)
 }
 
 
+// Convert a list of Intervals<T> to a ndarray bitmask vector.
+
+template <typename T>
+bp::object Intervals<T>::mask(const bp::list &ivlist, int n_bits)
+{
+    npy_intp dims[1] = {0};
+    int dtype = get_dtype<T>();
+    PyObject *v = PyArray_SimpleNew(1, dims, NPY_UINT8);
+    return bp::object(bp::handle<>(v));
+}
+
+template <>
+bp::object Intervals<int64_t>::mask(const bp::list &ivlist, int n_bits)
+{
+    assert(n_bits == 8);
+    vector<Intervals<int64_t>> ivals;
+    vector<int> indexes;
+
+    pair<int64_t,int64_t> domain;
+
+    for (long i=0; i<bp::len(ivlist); i++) {
+        indexes.push_back(0);
+        ivals.push_back(bp::extract<Intervals<int64_t>>(ivlist[i]));
+        if (i==0) {
+            domain = ivals[i].domain;
+        } else if (domain != ivals[i].domain) {
+            throw agreement_exception("ivlist[0]", "all other ivlist[i]", "domain");
+        }
+    }
+
+    int n = domain.second - domain.first;
+    npy_intp dims[1] = {n};
+    PyObject *v = PyArray_SimpleNew(1, dims, NPY_UINT8);
+
+    uint8_t *ptr = reinterpret_cast<uint8_t*>((PyArray_DATA((PyArrayObject*)v)));
+    memset(ptr, 0, n);
+    for (long bit=0; bit<ivals.size(); ++bit) {
+        for (auto p: ivals[bit].segments) {
+            for (int i=p.first - domain.first; i<p.second - domain.first; i++)
+                ptr[i] |= (1<<bit);
+        }
+    }
+
+    return bp::object(bp::handle<>(v));
+}
+
+
 //
 // Implementation of the algebra
 //
@@ -492,6 +546,9 @@ using namespace boost::python;
     .def("from_array", &CLASSNAME::from_array,              \
          "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
     .staticmethod("from_array")                                  \
+    .def("mask", &CLASSNAME::mask,                     \
+         "Return an ndarray bitmask from a list of " #DOMAIN_TYPE ".") \
+    .staticmethod("mask")                                        \
     .def("from_mask", &CLASSNAME::from_mask,                     \
          "Return a " #DOMAIN_TYPE " based on an ndarray of uint8.") \
     .staticmethod("from_mask")                                   \

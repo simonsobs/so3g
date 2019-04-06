@@ -51,6 +51,7 @@ public:
 
     // Special conversions.
     static bp::object from_mask(const bp::object &src, int n_bits);
+    static bp::object mask(const bp::list &ivlist, int n_bits);
 
     // Required for G3FrameObjects.
     string Description() const;

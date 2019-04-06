@@ -123,6 +123,18 @@ for ikill, nint in [(None, 0),
         else:
             assert(len(iv[i].array()) == 0)
 
+print('... to mask.')
+mask1 = so3g.IntervalsInt.mask(iv,8)
+assert(np.all(mask == mask1))
+
+# Domain checking works?  Inconsistent domain should throw agreement_error.
+iv.append(so3g.IntervalsInt(-2,20))
+try:
+    mask3 = so3g.IntervalsInt.mask(iv,8)
+except RuntimeError:
+    mask3 = None
+assert(mask3 == None)
+
 print()
 print('Map test')
 tmap = so3g.MapIntervalsTime()
