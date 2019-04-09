@@ -93,3 +93,14 @@ public:
     }
 };
 
+class general_agreement_exception : public so3g_exception
+{
+public:
+    std::string text;
+    general_agreement_exception(std::string text) :
+        text{text} {}
+
+    std::string msg_for_python() const throw() {
+	return text;
+    }
+};

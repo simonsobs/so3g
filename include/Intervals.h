@@ -61,13 +61,16 @@ public:
 
 typedef Intervals<double> IntervalsDouble;
 typedef Intervals<int64_t> IntervalsInt;
+typedef Intervals<int32_t> IntervalsInt32;
 typedef Intervals<G3Time> IntervalsTime;
 
 G3_SERIALIZABLE(IntervalsDouble, 0);
 G3_SERIALIZABLE(IntervalsInt, 0);
+G3_SERIALIZABLE(IntervalsInt32, 0);
 G3_SERIALIZABLE(IntervalsTime, 0);
 
 G3MAP_OF(std::string, IntervalsDouble, MapIntervalsDouble);
 G3MAP_OF(std::string, IntervalsInt, MapIntervalsInt);
+G3MAP_OF(std::string, IntervalsInt32, MapIntervalsInt32);
 G3MAP_OF(std::string, IntervalsTime, MapIntervalsTime);
 

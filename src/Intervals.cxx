@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <limits>
+#include <type_traits>
 
 #include <boost/python.hpp>
 #include <cereal/types/utility.hpp>
@@ -29,6 +30,11 @@ Intervals<double>::Intervals() {
 template <>
 Intervals<int64_t>::Intervals() {
     domain = make_pair(INT64_MIN, INT64_MAX);
+}
+
+template <>
+Intervals<int32_t>::Intervals() {
+    domain = make_pair(INT32_MIN, INT32_MAX);
 }
 
 // The G3Time internal encoding is an int64 with the number of 100 MHz
@@ -190,6 +196,11 @@ inline int get_dtype<std::int64_t>() {
 }
 
 template <>
+inline int get_dtype<std::int32_t>() {
+    return NPY_INT32;
+}
+
+template <>
 inline int get_dtype<double>() {
     return NPY_FLOAT64;
 }
@@ -282,6 +293,9 @@ bp::object Intervals<T>::array() const
     npy_intp dims[2] = {0, 2};
     dims[0] = (npy_intp)segments.size();
     int dtype = get_dtype<T>();
+    if (dtype == NPY_NOTYPE)
+        throw general_agreement_exception("array() not implemented for this domain dtype.");
+
     PyObject *v = PyArray_SimpleNew(2, dims, dtype);
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
@@ -291,60 +305,60 @@ bp::object Intervals<T>::array() const
 }
 
 
-//
-// Bit-mask conversion - create list<IntervalsInt> from ndarray bit-masks.
-//
+/**
+ * Bit-mask conversion - convert between list<IntervalsInt> and
+ * ndarray bit-masks.
+ *
+ * Uses SFINAE of templates in order to have separate implementations
+ * for integer and non-integer types.  (Templating the class member
+ * function directly is a lot more difficult.)  The .from_mask(...)
+ * call is implemented in the inline function from_mask_.  The
+ * .mask(...) call is implemented in the inline function mask_.
+ */
 
-template <typename T>
-bp::object Intervals<T>::from_mask(const bp::object &src, int n_bits)
+// from_mask_() definitions, for .from_mask().
+//
+// intType is the type of the Interval, which should be a simple
+// signed integer type (e.g. int64_t).  numpyType is a simple unsigned
+// type carried in the ndarray (e.g. uint8_t).  The n_bits argument is
+// used to specify how many of the LSBs should be processed; if
+// negative this will default to match the numpyType (e.g. 8 for
+// uint8_t).
+
+template <typename intType, typename numpyType,
+          typename std::enable_if<!std::is_integral<intType>::value,
+                                  int>::type* = nullptr>
+inline bp::object from_mask_(void *buf, intType count, int n_bits)
 {
-     throw "Not implemented for non-index Intervals types.";
-     bp::list bits;
-     Intervals<T> output;
-     bits.append(output);
-     return bits;
+    throw dtype_exception("target", "Interval<> over integral type.");
+    return bp::object();
 }
 
-template <>
-bp::object Intervals<int64_t>::from_mask(const bp::object &src, int n_bits)
+template <typename intType, typename numpyType,
+          typename std::enable_if<std::is_integral<intType>::value,
+                                  int>::type* = nullptr>
+inline bp::object from_mask_(void *buf, intType count, int n_bits)
 {
-    // Get a view...
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(src.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
-
-    if (buf.view.ndim != 1)
-        throw shape_exception("src", "must be 1-d");
-
-    int dtype = format_to_dtype(buf.view);
-    if (dtype != NPY_UINT8)
-        throw dtype_exception("src", "uint8");
-
-    int64_t n = buf.view.shape[0];
-
     if (n_bits < 0)
-        n_bits = 8*sizeof(uint8_t);
+        n_bits = 8*sizeof(numpyType);
 
-    vector<Intervals<int64_t>> output;;
-    vector<int64_t> start;
-    for (int i=0; i<n_bits; i++) {
-        output.push_back(Intervals<int64_t>(0, n));
+    auto p = (numpyType*)buf;
+
+    vector<Intervals<intType>> output;;
+    vector<intType> start;
+    for (int bit=0; bit<n_bits; ++bit) {
+        output.push_back(Intervals<intType>(0, count));
         start.push_back(-1);
     }
 
-    uint8_t *p = (uint8_t*)buf.view.buf;
-
-    uint8_t last = 0;
-    for (int64_t i=0; i<n; i++) {
-        uint8_t d = p[i] ^ last;
+    numpyType last = 0;
+    for (intType i=0; i<count; i++) {
+        numpyType d = p[i] ^ last;
         for (int bit=0; bit<n_bits; ++bit) {
             if (d & (1 << bit)) {
                 if (start[bit] >= 0) {
                     output[bit].segments.push_back(
-                        interval_pair<int64_t>((char*)&start[bit], (char*)&i));
+                        interval_pair<intType>((char*)&start[bit], (char*)&i));
                     start[bit] = -1;
                 } else {
                     start[bit] = i;
@@ -356,7 +370,7 @@ bp::object Intervals<int64_t>::from_mask(const bp::object &src, int n_bits)
     for (int bit=0; bit<n_bits; ++bit) {
         if (start[bit] >= 0)
             output[bit].segments.push_back(
-                interval_pair<int64_t>((char*)&start[bit], (char*)&n));
+                interval_pair<intType>((char*)&start[bit], (char*)&count));
     }
 
     // Once added to the list, we can't modify further.
@@ -366,30 +380,73 @@ bp::object Intervals<int64_t>::from_mask(const bp::object &src, int n_bits)
     return bits;
 }
 
-
-// Convert a list of Intervals<T> to a ndarray bitmask vector.
-
 template <typename T>
-bp::object Intervals<T>::mask(const bp::list &ivlist, int n_bits)
+bp::object Intervals<T>::from_mask(const bp::object &src, int n_bits)
 {
-    npy_intp dims[1] = {0};
-    int dtype = get_dtype<T>();
-    PyObject *v = PyArray_SimpleNew(1, dims, NPY_UINT8);
-    return bp::object(bp::handle<>(v));
+    BufferWrapper buf;
+    if (PyObject_GetBuffer(src.ptr(), &buf.view,
+                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("src");
+    }
+
+    if (buf.view.ndim != 1)
+        throw shape_exception("src", "must be 1-d");
+
+    int p_count = buf.view.shape[0];
+    void *p = buf.view.buf;
+
+    int dtype = format_to_dtype(buf.view);
+    switch(dtype) {
+    case NPY_UINT8:
+    case NPY_INT8:
+        return from_mask_<T,uint8_t>(p, p_count, n_bits);
+    case NPY_UINT16:
+    case NPY_INT16:
+        return from_mask_<T,uint16_t>(p, p_count, n_bits);
+    case NPY_UINT32:
+    case NPY_INT32:
+        return from_mask_<T,uint32_t>(p, p_count, n_bits);
+    case NPY_UINT64:
+    case NPY_INT64:
+        return from_mask_<T,uint64_t>(p, p_count, n_bits);
+    }
+
+    throw dtype_exception("src", "integer type");
+    return bp::object();
 }
 
-template <>
-bp::object Intervals<int64_t>::mask(const bp::list &ivlist, int n_bits)
+
+// mask_() definitions, for .mask().
+//
+// intType is the type of the Interval, which should be a simple
+// signed integer type (e.g. int64_t).  The numpy array data type is
+// determined based on the number of bits requested, either explicitly
+// through the n_bits argument (which must be large enough to handle
+// the list) or implicitly through the length of the list of
+// Interval<T> objects.
+
+template <typename intType,typename std::enable_if<!std::is_integral<intType>::value,
+                                                   int>::type* = nullptr>
+inline bp::object mask_(const bp::list &ivlist, int n_bits)
 {
-    assert(n_bits == 8);
-    vector<Intervals<int64_t>> ivals;
+    intType x;
+    throw dtype_exception("ivlist", "Interval<> over integral type.");
+    return bp::object();
+}
+
+template <typename intType, typename std::enable_if<std::is_integral<intType>::value,
+                                                    int>::type* = nullptr>
+inline bp::object mask_(const bp::list &ivlist, int n_bits)
+{
+    vector<Intervals<intType>> ivals;
     vector<int> indexes;
 
-    pair<int64_t,int64_t> domain;
+    pair<intType,intType> domain;
 
     for (long i=0; i<bp::len(ivlist); i++) {
         indexes.push_back(0);
-        ivals.push_back(bp::extract<Intervals<int64_t>>(ivlist[i]));
+        ivals.push_back(bp::extract<Intervals<intType>>(ivlist[i]));
         if (i==0) {
             domain = ivals[i].domain;
         } else if (domain != ivals[i].domain) {
@@ -397,20 +454,51 @@ bp::object Intervals<int64_t>::mask(const bp::list &ivlist, int n_bits)
         }
     }
 
+    // Determine the output mask size based on n_bits... which may be unspecified.
+    int npy_type = NPY_UINT8;
+    if (n_bits < 0)
+        n_bits = ivals.size();
+    else if (n_bits < ivals.size())
+        throw general_agreement_exception("Input list has more items than the "
+                                          "output mask size (n_bits).");
+
+    if (n_bits <= 8)
+        npy_type = NPY_UINT8;
+    else if (n_bits <= 16)
+        npy_type = NPY_UINT16;
+    else if (n_bits <= 32)
+        npy_type = NPY_UINT32;
+    else if (n_bits <= 64)
+        npy_type = NPY_UINT64;
+    else {
+	std::ostringstream err;
+        err << "No integer type is available to host the " << n_bits
+            << " requested to encode this mask.";
+        throw general_agreement_exception(err.str());
+    }
+
     int n = domain.second - domain.first;
     npy_intp dims[1] = {n};
-    PyObject *v = PyArray_SimpleNew(1, dims, NPY_UINT8);
+    PyObject *v = PyArray_SimpleNew(1, dims, npy_type);
 
+    // Assumes little-endian.
+    int n_byte = PyArray_ITEMSIZE((PyArrayObject*)v);
     uint8_t *ptr = reinterpret_cast<uint8_t*>((PyArray_DATA((PyArrayObject*)v)));
-    memset(ptr, 0, n);
+    memset(ptr, 0, n*n_byte);
     for (long bit=0; bit<ivals.size(); ++bit) {
         for (auto p: ivals[bit].segments) {
             for (int i=p.first - domain.first; i<p.second - domain.first; i++)
-                ptr[i] |= (1<<bit);
+                ptr[i*n_byte + bit/8] |= (1<<(bit%8));
         }
     }
 
     return bp::object(bp::handle<>(v));
+}
+
+template <typename T>
+bp::object Intervals<T>::mask(const bp::list &ivlist, int n_bits)
+{
+    return mask_<T>(ivlist, n_bits);
 }
 
 
@@ -546,12 +634,12 @@ using namespace boost::python;
     .def("from_array", &CLASSNAME::from_array,              \
          "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
     .staticmethod("from_array")                                  \
-    .def("mask", &CLASSNAME::mask,                     \
-         "Return an ndarray bitmask from a list of " #DOMAIN_TYPE ".") \
-    .staticmethod("mask")                                        \
     .def("from_mask", &CLASSNAME::from_mask,                     \
-         "Return a " #DOMAIN_TYPE " based on an ndarray of uint8.") \
+         "Return a list of " #CLASSNAME " extracted from an ndarray encoding a bitmask.") \
     .staticmethod("from_mask")                                   \
+    .def("mask", &CLASSNAME::mask,                                      \
+         "Return an ndarray bitmask from a list of" #CLASSNAME ".") \
+    .staticmethod("mask")                                               \
     .def("copy", \
          +[](CLASSNAME& A) { \
               return CLASSNAME(A); \
@@ -567,17 +655,21 @@ using namespace boost::python;
     register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from "  \
         "strings to Intervals over " #DOMAIN_TYPE ".")
 
+
 G3_SERIALIZABLE_CODE(IntervalsDouble);
 G3_SERIALIZABLE_CODE(IntervalsInt);
+G3_SERIALIZABLE_CODE(IntervalsInt32);
 G3_SERIALIZABLE_CODE(IntervalsTime);
 
 G3_SERIALIZABLE_CODE(MapIntervalsDouble);
 G3_SERIALIZABLE_CODE(MapIntervalsInt);
+G3_SERIALIZABLE_CODE(MapIntervalsInt32);
 G3_SERIALIZABLE_CODE(MapIntervalsTime);
 
 PYBINDINGS("so3g")
 {
     EXPORT_INTERVALS(double,  IntervalsDouble);
     EXPORT_INTERVALS(int64_t, IntervalsInt);
+    EXPORT_INTERVALS(int32_t, IntervalsInt32);
     EXPORT_INTERVALS(G3Time,  IntervalsTime);
 }

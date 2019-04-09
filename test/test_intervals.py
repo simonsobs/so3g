@@ -106,8 +106,8 @@ print('    ', (-ti).array())
 
 print()
 print('Interval <-> mask testing')
-mask = np.zeros(20, 'uint8')
-n_bit, target_bit = 3, 1
+mask = np.zeros(20, 'uint16')
+n_bit, target_bit = 16, 12
 for ikill, nint in [(None, 0),
                     (19,   1),
                     ( 0,   2),
@@ -124,16 +124,32 @@ for ikill, nint in [(None, 0),
             assert(len(iv[i].array()) == 0)
 
 print('... to mask.')
-mask1 = so3g.IntervalsInt.mask(iv,8)
+mask1 = so3g.IntervalsInt.mask(iv,-1)
 assert(np.all(mask == mask1))
 
-# Domain checking works?  Inconsistent domain should throw agreement_error.
-iv.append(so3g.IntervalsInt(-2,20))
+print('...bit-width checking works?')
 try:
     mask3 = so3g.IntervalsInt.mask(iv,8)
-except RuntimeError:
-    mask3 = None
-assert(mask3 == None)
+except ValueError as e:
+    mask3 = 'failed'
+    print(' -> ', e)
+assert(mask3 == 'failed')
+
+print('...domain checking works?')
+iv.append(so3g.IntervalsInt(-2,20))
+try:
+    mask3 = so3g.IntervalsInt.mask(iv,-1)
+except RuntimeError as e:
+    mask3 = 'failed'
+    print(' -> ', e)
+assert(mask3 == 'failed')
+
+# Type failing works?  Can't create mask from non-integer Intervals.
+try:
+    mask3 = so3g.IntervalsDouble.mask([], 8)
+except ValueError:
+    mask3 = 'failed'
+assert(mask3 == 'failed')
 
 print()
 print('Map test')
