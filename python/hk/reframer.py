@@ -140,11 +140,14 @@ class HKReframer:
             if self.session_id is not None:
                 if self.session_id != session_id:
                     output += self.flush()  # this clears self.session._id.
+                    output.append(f)
+                else:
+                    pass # Don't re-emit an on-going session frame.
             if self.session_id is None:
                 core.log_info('New HK Session id = %i, timestamp = %i' %
                               (session_id, f['start_time']), unit='HKReframer')
                 self.session_id = session_id
-            output.append(f)
+                output.append(f)
 
         elif f['hkagg_type'] == so3g.HKFrameType.status:
             # Only issue status if something has changed.
