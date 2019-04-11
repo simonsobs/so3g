@@ -38,7 +38,7 @@ class _HKBlockBundle:
         self.t = self.t[idx:]
         for k in self.chans.keys():
             out.data[k] = np.array(self.chans[k][:idx])
-            self.chans[k] = self.chans[k][:idx]
+            self.chans[k] = self.chans[k][idx:]
         return out
 
 
