@@ -101,6 +101,10 @@ class HKScanner:
                         info['span'] = min(b.t[0], t0), max(b.t[-1], t1)
                     t_check.append(b.t[0])
                 info['ticks'] += len(b.t)
+                for k,v in b.data.items():
+                    if len(v) != len(b.t):
+                        core.log_error('Field "%s" has %i samples but .t has %i samples.' %
+                                       (k, len(v), len(b.t)))
             if len(t_check) and abs(min(t_check) - t_this) > 60:
                 core.log_warn('data frame timestamp (%.1f) does not correspond to '
                               'data timestamp vectors (%s) .' % (t_this, t_check),
