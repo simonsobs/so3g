@@ -103,7 +103,7 @@ class HKScanner:
                 info['ticks'] += len(b.t)
             if len(t_check) and abs(min(t_check) - t_this) > 60:
                 core.log_warn('data frame timestamp (%.1f) does not correspond to '
-                              'data timestamp vectors (%.1f) .' % (t_this, t_check),
+                              'data timestamp vectors (%s) .' % (t_this, t_check),
                               unit='HKScanner')
                 
         else:
