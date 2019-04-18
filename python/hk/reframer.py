@@ -180,24 +180,17 @@ class HKReframer:
 
 
 if __name__ == '__main__':
-    from scan import HKScanner
+    from so3g.hk import HKScanner, HKReframer
+    import sys
 
     core.set_log_level(core.G3LogLevel.LOG_INFO)
 
-    X = []
-    def cache(f):
-        X.append(f)
-
+    files = sys.argv[1:]
     p = core.G3Pipeline()
-    p.Add(core.G3Reader([
-        '15521/2019-03-09-11-14-51.g3',
-        '15521/2019-03-09-11-24-51.g3',
-        '15521/2019-03-09-11-34-52.g3',
-    ]))
+    p.Add(core.G3Reader(files))
     p.Add(HKScanner())
     rf = HKReframer()
     p.Add(rf)
     p.Add(HKScanner())
     p.Add(core.G3Writer, filename='out.g3')
-    p.Add(cache)
     p.Run()
