@@ -467,6 +467,146 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     return map;
 }
 
+template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::coords(
+    bp::object qbore, bp::object qofs, bp::object coord)
+{
+    BufferWrapper qborebuf;
+    if (PyObject_GetBuffer(qbore.ptr(), &qborebuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("qbore");
+    }
+
+    if (qborebuf.view.ndim != 2)
+        throw shape_exception("qbore", "must have shape (n_t,n_coord)");
+
+    BufferWrapper qofsbuf;
+    if (PyObject_GetBuffer(qofs.ptr(), &qofsbuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("qofs");
+    }
+
+    if (qofsbuf.view.ndim != 2)
+        throw shape_exception("qofs", "must have shape (n_det,n_coord)");
+
+    BufferWrapper coordbuf;
+    if (PyObject_GetBuffer(coord.ptr(), &coordbuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("coord");
+    }
+
+    if (coordbuf.view.ndim != 3)
+        throw shape_exception("qofs", "must have shape (n_det,n_t,n_coord)");
+
+    int nt = qborebuf.view.shape[0];
+    int ncoord = qborebuf.view.shape[1];
+    int ndet = qofsbuf.view.shape[0];
+
+    //Instantiate the weight-computing class.
+    auto pointer = P();
+
+    BufferWrapper inline_weightbuf;
+    pointer.Init(qborebuf, qofsbuf);
+
+    double coords[4];
+    auto coords_out = (char*)coordbuf.view.buf;
+
+    for (int idet=0; idet<ndet; ++idet) {
+        pointer.InitPerDet(idet);
+        for (int it=0; it<nt; ++it) {
+            pointer.GetCoords(idet, it, (double*)coords);
+            for (int ic=0; ic<4; ic++) {
+                *(double*)(coords_out
+                  + coordbuf.view.strides[0] * idet
+                  + coordbuf.view.strides[1] * it
+                  + coordbuf.view.strides[2] * ic) = coords[ic];
+            }
+        }
+    }
+
+    return coord;
+}
+
+template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::pixels(
+    bp::object map, bp::object qbore, bp::object qofs, bp::object pixel)
+{
+    BufferWrapper mapbuf;
+    if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("map");
+    }
+
+    if (mapbuf.view.ndim != 3)
+        throw shape_exception("map", "must have shape (n_y,n_x,n_map)");
+
+    BufferWrapper qborebuf;
+    if (PyObject_GetBuffer(qbore.ptr(), &qborebuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("qbore");
+    }
+
+    if (qborebuf.view.ndim != 2)
+        throw shape_exception("qbore", "must have shape (n_t,n_coord)");
+
+    BufferWrapper qofsbuf;
+    if (PyObject_GetBuffer(qofs.ptr(), &qofsbuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("qofs");
+    }
+
+    if (qofsbuf.view.ndim != 2)
+        throw shape_exception("qofs", "must have shape (n_det,n_coord)");
+
+    BufferWrapper pixelbuf;
+    if (PyObject_GetBuffer(pixel.ptr(), &pixelbuf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("pixel");
+    }
+
+    if (pixelbuf.view.ndim != 2)
+        throw shape_exception("pixel", "must have shape (n_det,n_t)");
+
+    int ny = mapbuf.view.shape[0];
+    int nx = mapbuf.view.shape[1];
+    int nmap = mapbuf.view.shape[2];
+    int nt = qborebuf.view.shape[0];
+    int ncoord = qborebuf.view.shape[1];
+    int ndet = qofsbuf.view.shape[0];
+
+    //Instantiate the weight-computing class.
+    auto pointer = P();
+    auto pixelizor = Z();
+
+    BufferWrapper inline_weightbuf;
+    pointer.Init(qborebuf, qofsbuf);
+    pixelizor.Init(mapbuf);
+
+    double coords[4];
+    auto pix = (char*)pixelbuf.view.buf;
+
+    for (int idet=0; idet<ndet; ++idet) {
+        pointer.InitPerDet(idet);
+        for (int it=0; it<nt; ++it) {
+            pointer.GetCoords(idet, it, (double*)coords);
+            int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+
+            *(int*)(pix
+                    + pixelbuf.view.strides[0] * idet
+                    + pixelbuf.view.strides[1] * it) = pixel_offset;
+        }
+    }
+
+    return pixel;
+}
+
 typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
 typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
 
@@ -475,9 +615,13 @@ PYBINDINGS("so3g")
     bp::class_<ProjectionEngine0>("ProjectionEngine")
         .def("zeros", &ProjectionEngine0::zeros)
         .def("to_map", &ProjectionEngine0::to_map)
-        .def("from_map", &ProjectionEngine0::from_map);
+        .def("from_map", &ProjectionEngine0::from_map)
+        .def("coords", &ProjectionEngine0::coords)
+        .def("pixels", &ProjectionEngine0::pixels);
     bp::class_<ProjectionEngine2>("ProjectionEngine2")
         .def("zeros", &ProjectionEngine2::zeros)
         .def("to_map", &ProjectionEngine2::to_map)
-        .def("from_map", &ProjectionEngine2::from_map);
+        .def("from_map", &ProjectionEngine2::from_map)
+        .def("coords", &ProjectionEngine2::coords)
+        .def("pixels", &ProjectionEngine2::pixels);
 }

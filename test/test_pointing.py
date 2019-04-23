@@ -38,13 +38,31 @@ map0 = np.zeros(map0.shape + (3,), map0.dtype)
 #map0 = np.zeros((3,) + map0.shape, map0.dtype).transpose((1,2,0))
 print(map0.shape)
 
+coo = np.empty(sig.shape[1:] + (4,), 'double')
+print('Compute and return coordinates only.')
+with Timer() as T:
+    pe.coords(ptg,ofs,coo)
+
+del coo
+
+print('Compute coords and pixels and return pixels.')
+pix = np.empty(sig.shape[1:], 'int32')
+with Timer() as T:
+    pe.pixels(map0,ptg,ofs,pix)
+
+del pix
+
+
+print('Forward projection (TQU)')
 with Timer() as T:
     map1 = pe.to_map(map0,ptg,ofs,sig,wts)
 
+print('Reverse projection (TQU)')
 sig[:] = 0
 with Timer() as T:
     pe.from_map(map1, ptg, ofs, sig, wts)
 
+print('Plotting...')
 for axi,ax in enumerate(pl.subplots(1,3)[1]):
     ax.imshow(map1[...,axi])
     ax.set_title('TQU'[axi])

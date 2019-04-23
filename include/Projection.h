@@ -134,5 +134,9 @@ public:
                       bp::object signal, bp::object weights);
     bp::object from_map(bp::object map, bp::object qbore, bp::object qofs,
                         bp::object signal, bp::object weights);
+    bp::object coords(bp::object qbore, bp::object qofs,
+                      bp::object coord);
+    bp::object pixels(bp::object map, bp::object qbore, bp::object qofs,
+                      bp::object pixel);
 };
 
