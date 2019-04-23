@@ -41,8 +41,16 @@ print(map0.shape)
 with Timer() as T:
     map1 = pe.to_map(map0,ptg,ofs,sig,wts)
 
+sig[:] = 0
+with Timer() as T:
+    pe.from_map(map1, ptg, ofs, sig, wts)
+
 for axi,ax in enumerate(pl.subplots(1,3)[1]):
     ax.imshow(map1[...,axi])
     ax.set_title('TQU'[axi])
 
+pl.show()
+
+pl.clf()
+pl.plot(sig[0,0])
 pl.show()

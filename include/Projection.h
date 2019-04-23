@@ -77,6 +77,13 @@ public:
                  const int it,
                  const double* coords,
                  const int pixel_index) {};
+    void Reverse(const BufferWrapper &inline_weightbuf,
+                 BufferWrapper &signalbuf,
+                 const BufferWrapper &mapbuf,
+                 const int idet,
+                 const int it,
+                 const double* coords,
+                 const int pixel_index) {};
 };
 
 class AccumulatorSpin0 : public Accumulator {
@@ -85,6 +92,13 @@ public:
     void Forward(const BufferWrapper &inline_weightbuf,
                  const BufferWrapper &signalbuf,
                  BufferWrapper &mapbuf,
+                 const int idet,
+                 const int it,
+                 const double* coords,
+                 const int pixel_index);
+    void Reverse(const BufferWrapper &inline_weightbuf,
+                 BufferWrapper &signalbuf,
+                 const BufferWrapper &mapbuf,
                  const int idet,
                  const int it,
                  const double* coords,
@@ -102,6 +116,13 @@ public:
                  const int it,
                  const double* coords,
                  const int pixel_index);
+    void Reverse(const BufferWrapper &inline_weightbuf,
+                 BufferWrapper &signalbuf,
+                 const BufferWrapper &mapbuf,
+                 const int idet,
+                 const int it,
+                 const double* coords,
+                 const int pixel_index);
 };
 
 
@@ -111,5 +132,7 @@ public:
     bp::object zeros(bp::object shape);
     bp::object to_map(bp::object map, bp::object qbore, bp::object qofs,
                       bp::object signal, bp::object weights);
+    bp::object from_map(bp::object map, bp::object qbore, bp::object qofs,
+                        bp::object signal, bp::object weights);
 };
 
