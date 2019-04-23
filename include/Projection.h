@@ -49,9 +49,13 @@ private:
 class Pixelizor : public ProjectionOptimizer {
 public:
     Pixelizor();
+    Pixelizor(int nx, int ny,
+              double dx=1., double dy=1.,
+              double x0=0., double y0=0.,
+              double ix0=0., double iy0=0.);
     ~Pixelizor() {};
     //bool TestInputs(bp::object map, bp::object weight) {return false;};
-    bp::object zeros(bp::object shape);
+    bp::object zeros(int count);
     void Init(BufferWrapper &mapbuf);
     int GetPixel(int i_det, int i_t, const double *coords);
 private:
@@ -129,7 +133,8 @@ private:
 template<typename P, typename Z, typename A>
 class ProjectionEngine {
 public:
-    bp::object zeros(bp::object shape);
+    ProjectionEngine(Z pixelizor);
+    bp::object zeros(int count);
     bp::object to_map(bp::object map, bp::object qbore, bp::object qofs,
                       bp::object signal, bp::object weights);
     bp::object from_map(bp::object map, bp::object qbore, bp::object qofs,
@@ -138,5 +143,7 @@ public:
                       bp::object coord);
     bp::object pixels(bp::object map, bp::object qbore, bp::object qofs,
                       bp::object pixel);
+private:
+    Z _pixelizor;
 };
 

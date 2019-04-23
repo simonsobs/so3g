@@ -7,8 +7,9 @@ from pixell import enmap
 
 from test_utils import Timer
 
-pe = so3g.ProjectionEngine0()
-map0 = pe.zeros(None)[:,:,None]
+pxz = so3g.Pixelizor(300,250,0.00005,0.00005,0,0,0,0)
+pe = so3g.ProjectionEngine0(pxz)
+map0 = pxz.zeros(1)
 
 n_det = 2000
 n_t = 25000
@@ -31,9 +32,8 @@ sig = np.ones((1,n_det,n_t))
 #
 #print('%i out of %i' % (map1.sum(), n_det*n_t))
 #
-pe = so3g.ProjectionEngine2()
-map0 = pe.zeros(None)
-map0 = np.zeros(map0.shape + (3,), map0.dtype)
+pe = so3g.ProjectionEngine2(pxz)
+map0 = pe.zeros(3)
 #map0 = np.zeros((3,) + map0.shape, map0.dtype).transpose((1,2,0))
 print(map0.shape)
 
@@ -66,7 +66,7 @@ gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
 
 for axi in range(3):
     ax = pl.subplot(gs1[0,axi])
-    ax.imshow(map1[...,axi], cmap='gray')
+    ax.imshow(map1[axi], cmap='gray')
     ax.set_title('TQU'[axi])
 
 ax = pl.subplot(gs1[1,:])

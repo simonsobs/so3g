@@ -59,15 +59,22 @@ void PointerFlat::GetCoords(int idet, int it, double *coords)
     coords[3] = _cos_phi * s + _sin_phi * c;
 }
 
+Pixelizor::Pixelizor() {};
 
-Pixelizor::Pixelizor()
+Pixelizor::Pixelizor(
+    int nx, int ny,
+    double dx, double dy,
+    double x0, double y0,
+    double ix0, double iy0)
 {
-    for (int i=0; i<2; ++i) {
-        naxis[i] = 256;
-        crpix[i] = 0;
-        crval[i] = 0; 
-        cdelt[i] = .0001;
-    }
+    naxis[0] = ny;
+    naxis[1] = nx;
+    cdelt[0] = dy;
+    cdelt[1] = dx;
+    crval[0] = y0;
+    crval[1] = x0;
+    crpix[0] = iy0;
+    crpix[1] = ix0;
 }
 
 void Pixelizor::Init(BufferWrapper &mapbuf)
@@ -75,21 +82,26 @@ void Pixelizor::Init(BufferWrapper &mapbuf)
     _mapbuf = &mapbuf;
 }
 
-bp::object Pixelizor::zeros(bp::object shape)
+bp::object Pixelizor::zeros(int count)
 {
     int size = 1;
     int dimi = 0;
     npy_intp dims[32];
-    if (shape == bp::object()) {
-    } else {
-        // add shape...
+
+    if (count >= 0) {
+        dims[dimi++] = count;
+        size *= count;
     }
+
     dims[dimi++] = naxis[1];
     dims[dimi++] = naxis[0];
     size *= naxis[0] * naxis[1];
+
     int dtype = NPY_FLOAT64;
     PyObject *v = PyArray_SimpleNew(dimi, dims, dtype);
-    memset(PyArray_DATA((PyArrayObject*)v), 0, size * PyArray_ITEMSIZE((PyArrayObject*)v));
+    if (size > 0)
+        memset(PyArray_DATA((PyArrayObject*)v), 0,
+               size * PyArray_ITEMSIZE((PyArrayObject*)v));
     return bp::object(bp::handle<>(v));
 }
 
@@ -105,8 +117,8 @@ int Pixelizor::GetPixel(int i_det, int i_t, const double *coords)
     if (iy < 0 || iy >= naxis[0])
         return -1;
             
-    int pixel_offset = _mapbuf->view.strides[0]*int(iy) +
-        _mapbuf->view.strides[1]*int(ix);
+    int pixel_offset = _mapbuf->view.strides[1]*int(iy) +
+        _mapbuf->view.strides[2]*int(ix);
 
     return pixel_offset;
 }
@@ -129,8 +141,8 @@ bool AccumulatorSpin0::TestInputs(bp::object map, bp::object signal,
     if (mapbuf.view.ndim != 3)
         throw shape_exception("map", "must have shape (n_y,n_x,n_map)");
 
-    if (mapbuf.view.shape[2] != 1)
-        throw shape_exception("map", "must have shape (n_y,n_x,1)");
+    if (mapbuf.view.shape[0] != 1)
+        throw shape_exception("map", "must have shape (1,n_y,n_x)");
     
     // Insist that user passed in None for the weights.
     if (!isNone(weight)) {
@@ -187,8 +199,8 @@ bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
     if (mapbuf.view.ndim != 3)
         throw shape_exception("map", "must have shape (n_y,n_x,n_map)");
     
-    if (mapbuf.view.shape[2] != 3)
-        throw shape_exception("map", "must have shape (n_y,n_x,3)");
+    if (mapbuf.view.shape[0] != 3)
+        throw shape_exception("map", "must have shape (3,n_y,n_x)");
 
     // Insist that user passed in None for the weights.
     if (weight.ptr() != Py_None) {
@@ -221,7 +233,7 @@ void AccumulatorSpin2::Forward(const int idet,
     const double wt[3] = {1, c*c - s*s, 2*c*s};
     for (int imap=0; imap<3; ++imap) {
         *(double*)((char*)_mapbuf.view.buf +
-                   _mapbuf.view.strides[2]*imap +
+                   _mapbuf.view.strides[0]*imap +
                    pixel_offset) += sig * wt[imap];
     }
 }
@@ -239,7 +251,7 @@ void AccumulatorSpin2::Reverse(const int idet,
     double _sig = 0.;
     for (int imap=0; imap<3; ++imap) {
         _sig += *(double*)((char*)_mapbuf.view.buf +
-                           _mapbuf.view.strides[2]*imap +
+                           _mapbuf.view.strides[0]*imap +
                            pixel_offset) * wt[imap];
     }
     double *sig = (double*)((char*)_signalbuf.view.buf +
@@ -249,18 +261,17 @@ void AccumulatorSpin2::Reverse(const int idet,
 }
 
 template<typename P, typename Z, typename A>
-bp::object ProjectionEngine<P,Z,A>::zeros(
-    bp::object shape)
+bp::object ProjectionEngine<P,Z,A>::zeros(int count)
 {
-    Pixelizor p;
-    return p.zeros(shape);
+    return _pixelizor.zeros(count);
 }
 
 
 /** to_map(map, qpoint, qofs, signal, weights)
  *
  *  Each argument is an ndarray.  In the general case the dimensionalities are:
- *     map:      (ny, nx, n_map)
+// *     map:      (ny, nx, n_map)
+ *     map:      (n_map, ny, nx, ...)
  *     qbore:    (n_t, n_coord)
  *     qofs:     (n_det, n_coord)
  *     signal:   (n_det, n_t)
@@ -271,6 +282,12 @@ bp::object ProjectionEngine<P,Z,A>::zeros(
  *  - Quaternion coords.
  *  - Quaternion boresight + offsets
  */
+
+template<typename P, typename Z, typename A>
+ProjectionEngine<P,Z,A>::ProjectionEngine(Z pixelizor)
+{
+    _pixelizor = pixelizor;
+}
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_map(
@@ -326,25 +343,21 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
     // if (weightbuf.view.ndim != 3)
     //     throw shape_exception("weightbuf", "must have shape (n_sig,n_det,n_map)");
 
-    int ny = mapbuf.view.shape[0];
-    int nx = mapbuf.view.shape[1];
-    int nmap = mapbuf.view.shape[2];
     int nt = qborebuf.view.shape[0];
     int ncoord = qborebuf.view.shape[1];
     int ndet = qofsbuf.view.shape[0];
     int nsig = signalbuf.view.shape[0];
     
     auto pointer = P();
-    auto pixelizor = Z();
     auto accumulator = A();
 
     //Initialize it / check inputs.
     //pointer.TestInputs(...);
-    //pixelizor.TestInputs(...);
+    //_pixelizor.TestInputs(...);
     accumulator.TestInputs(map, signal, weight);
     
     pointer.Init(qborebuf, qofsbuf);
-    pixelizor.Init(mapbuf);
+    _pixelizor.Init(mapbuf);
     accumulator.Init(map, signal);
     
     // Update the map...
@@ -355,7 +368,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
         pointer.InitPerDet(idet);
         for (int it=0; it<nt; ++it) {
             pointer.GetCoords(idet, it, (double*)coords);
-            const int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+            const int pixel_offset = _pixelizor.GetPixel(idet, it, (double*)coords);
             if (pixel_offset < 0)
                 continue;
             accumulator.Forward(idet, it, pixel_offset, coords, weights);
@@ -419,25 +432,21 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     // if (weightbuf.view.ndim != 3)
     //     throw shape_exception("weightbuf", "must have shape (n_sig,n_det,n_map)");
 
-    int ny = mapbuf.view.shape[0];
-    int nx = mapbuf.view.shape[1];
-    int nmap = mapbuf.view.shape[2];
     int nt = qborebuf.view.shape[0];
     int ncoord = qborebuf.view.shape[1];
     int ndet = qofsbuf.view.shape[0];
     int nsig = signalbuf.view.shape[0];
     
     auto pointer = P();
-    auto pixelizor = Z();
     auto accumulator = A();
 
     //Initialize it / check inputs.
     //pointer.TestInputs(...);
-    //pixelizor.TestInputs(...);
+    //_pixelizor.TestInputs(...);
     accumulator.TestInputs(map, signal, weight);
     
     pointer.Init(qborebuf, qofsbuf);
-    pixelizor.Init(mapbuf);
+    _pixelizor.Init(mapbuf);
     accumulator.Init(map, signal);
     
     // Update the map...
@@ -448,7 +457,7 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
         pointer.InitPerDet(idet);
         for (int it=0; it<nt; ++it) {
             pointer.GetCoords(idet, it, (double*)coords);
-            const int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+            const int pixel_offset = _pixelizor.GetPixel(idet, it, (double*)coords);
             if (pixel_offset < 0)
                 continue;
             accumulator.Reverse(idet, it, pixel_offset, coords, weights);
@@ -563,18 +572,14 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     if (pixelbuf.view.ndim != 2)
         throw shape_exception("pixel", "must have shape (n_det,n_t)");
 
-    int ny = mapbuf.view.shape[0];
-    int nx = mapbuf.view.shape[1];
-    int nmap = mapbuf.view.shape[2];
     int nt = qborebuf.view.shape[0];
     int ncoord = qborebuf.view.shape[1];
     int ndet = qofsbuf.view.shape[0];
 
     auto pointer = P();
-    auto pixelizor = Z();
 
     pointer.Init(qborebuf, qofsbuf);
-    pixelizor.Init(mapbuf);
+    _pixelizor.Init(mapbuf);
 
     double coords[4];
     auto pix = (char*)pixelbuf.view.buf;
@@ -583,7 +588,7 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
         pointer.InitPerDet(idet);
         for (int it=0; it<nt; ++it) {
             pointer.GetCoords(idet, it, (double*)coords);
-            int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+            int pixel_offset = _pixelizor.GetPixel(idet, it, (double*)coords);
 
             *(int*)(pix
                     + pixelbuf.view.strides[0] * idet
@@ -597,8 +602,8 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
 typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
 typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
 
-#define EXPORT_INTERVALS(CLASSNAME)                                     \
-    bp::class_<CLASSNAME>(#CLASSNAME)                                   \
+#define EXPORT_ENGINE(CLASSNAME)                                        \
+    bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor>())            \
     .def("zeros", &CLASSNAME::zeros)                                    \
     .def("to_map", &CLASSNAME::to_map)                                  \
     .def("from_map", &CLASSNAME::from_map)                              \
@@ -607,6 +612,9 @@ typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin2> ProjectionEngin
 
 PYBINDINGS("so3g")
 {
-    EXPORT_INTERVALS(ProjectionEngine0);
-    EXPORT_INTERVALS(ProjectionEngine2);
+    EXPORT_ENGINE(ProjectionEngine0);
+    EXPORT_ENGINE(ProjectionEngine2);
+    bp::class_<Pixelizor>("Pixelizor", bp::init<int,int,double,double,
+                          double,double,double,double>())
+        .def("zeros", &Pixelizor::zeros);
 }
