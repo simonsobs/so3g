@@ -1,49 +1,120 @@
-#include <vector>
-#include <cstdint>
-
 #include <boost/python.hpp>
 
 namespace bp = boost::python;
 
 class BufferWrapper;
 
-/* To-do -- can we make this a properly abstract base class?  Initial
- * efforts on this lead to run-time symbol errors, because it somehow
- * is still trying to find Weightor even if only Spin0Weightor is in
- * use, through a python export.  */
+/** ProjectionOptimizer is the base class for our optimization model.
+ *
+ *  Though what we get from this is quite unclear, since interface
+ *  definitions don't seem to work well with boost::python in the mix.
+ */
 
-class Weightor {
+class ProjectionOptimizer {
 public:
-    Weightor() {};
-    ~Weightor() {};
-    bool TestInputs(bp::object map, bp::object weight) {return false;};
-    bool GetWeights(BufferWrapper &inline_weightbuf, double x, double y, double phi)
-        { return false; };
+    ProjectionOptimizer() {};
+    ~ProjectionOptimizer() {};
+    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
+                    bp::object &signal, bp::object &weight);
+    inline
+    void InitPerDet(int idet) {};
+    inline
+    void InitPerSample() {};
 };
 
-class Spin0Weightor : public Weightor {
+
+    
+class Pointer : public ProjectionOptimizer {
 public:
-    Spin0Weightor() {_handle = nullptr; };
-    ~Spin0Weightor();
-    bool TestInputs(bp::object map, bp::object weight);
-    bool GetWeights(BufferWrapper &inline_weightbuf, double x, double y, double phi);
+    //Pointer();
+    //~Pointer() {};
+    void Init(BufferWrapper &qborebuf, BufferWrapper &qofsbuf);
+    void InitPerDet(int idet);
+    void GetCoords(int i_det, int i_t, double *coords);
 private:
-    PyObject *_handle;
+    double _dx;
+    double _dy;
+    BufferWrapper *_qborebuf;
+    BufferWrapper *_qofsbuf;
 };
 
-template<typename W>
-class GnomonicGridder {
+
+    
+class Pixelizor : public ProjectionOptimizer {
 public:
+    Pixelizor();
+    ~Pixelizor() {};
+    //bool TestInputs(bp::object map, bp::object weight) {return false;};
+    bp::object zeros(bp::object shape);
+    void Init(BufferWrapper &mapbuf);
+    int GetPixel(int i_det, int i_t, const double *coords);
+private:
     int crpix[2];
     double crval[2];
     double cdelt[2];
     int naxis[2];
+    BufferWrapper *_mapbuf;
+};
 
-    GnomonicGridder();
+
+/* Accumulator classes. */
+
+class Accumulator : public ProjectionOptimizer {
+public:
+    Accumulator() {};
+    ~Accumulator() {};
+//    bool TestInputs(bp::object map, bp::object signal) {return false;};
+    void Init(BufferWrapper &inline_weightbuf) {};
+    void Forward(const BufferWrapper &inline_weightbuf,
+                 const BufferWrapper &signalbuf,
+                 BufferWrapper &mapbuf,
+                 const int idet,
+                 const int it,
+                 const double* coords,
+                 const int pixel_index) {};
+};
+
+class AccumulatorSpin0 : public Accumulator {
+public:
+    AccumulatorSpin0() {_handle = nullptr; };
+    ~AccumulatorSpin0();
+    bool TestInputs(bp::object map, bp::object signal, bp::object weight);
+    void Init(BufferWrapper &inline_weightbuf);
+    void Forward(const BufferWrapper &inline_weightbuf,
+                 const BufferWrapper &signalbuf,
+                 BufferWrapper &mapbuf,
+                 const int idet,
+                 const int it,
+                 const double* coords,
+                 const int pixel_index);
+private:
+    PyObject *_handle;
+};
+
+
+class AccumulatorSpin2 : public Accumulator {
+public:
+    AccumulatorSpin2() {_handle = nullptr; };
+    ~AccumulatorSpin2();
+    bool TestInputs(bp::object map, bp::object signal, bp::object weight);
+    void Init(BufferWrapper &inline_weightbuf);
+    void Forward(const BufferWrapper &inline_weightbuf,
+                 const BufferWrapper &signalbuf,
+                 BufferWrapper &mapbuf,
+                 const int idet,
+                 const int it,
+                 const double* coords,
+                 const int pixel_index);
+private:
+    PyObject *_handle;
+};
+
+
+template<typename P, typename Z, typename A>
+class ProjectionEngine {
+public:
     bp::object zeros(bp::object shape);
-    bp::object to_map(bp::object map, bp::object qpoint,
-                      bp::object signal, bp::object weights);
-    bp::object to_map2(bp::object map, bp::object qbore, bp::object qofs,
+    bp::object to_map(bp::object map, bp::object qbore, bp::object qofs,
                       bp::object signal, bp::object weights);
 };
 

@@ -17,60 +17,39 @@ using namespace std;
 #include <Projection.h>
 #include "exceptions.h"
 
-Spin0Weightor::~Spin0Weightor() {
-    if (_handle != nullptr)
-        Py_DecRef(_handle);
+inline bool isNone(bp::object &pyo)
+{
+    return (pyo.ptr() == Py_None);
 }
 
-bool Spin0Weightor::TestInputs(bp::object map, bp::object weight)
+void Pointer::Init(BufferWrapper &qborebuf, BufferWrapper &qofsbuf)
 {
-    // Weights are always 1.  Map must be simple.
-    BufferWrapper mapbuf;
-    if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    } 
-    if (mapbuf.view.ndim != 3)
-        throw shape_exception("map", "must have shape (n_y,n_x,n_map)");
-    
-    if (mapbuf.view.shape[2] != 1)
-        throw shape_exception("map", "must have shape (n_y,n_x,1)");
-
-    // Insist that user passed in None for the weights.
-    if (weight.ptr() != Py_None) {
-        throw shape_exception("weight", "must be None");
-    }
-    // The fully abstracted weights are shape (n_det n_time, n_map).
-    // But in this specialization, we know n_map = 1, and the all
-    // other elements should answer with weight 1.
-    
-    return true;
+    _qborebuf = &qborebuf;
+    _qofsbuf = &qofsbuf;
 }
 
 inline
-bool Spin0Weightor::GetWeights(
-    BufferWrapper &inline_weightbuf, double x, double y, double phi)
+void Pointer::InitPerDet(int idet)
 {
-    if (_handle == nullptr) {
-        // This is sketch-town.
-        npy_intp dims[3] = {1,1,1};
-        int dtype = NPY_FLOAT64;
-        PyObject *v = PyArray_SimpleNew(3, dims, dtype);
-        cout << "buffer: " << PyArray_DATA((PyArrayObject*)v) << endl;
-        double *d = (double*)PyArray_DATA((PyArrayObject*)v);
-        *d = 1.;
-        PyObject_GetBuffer(v, &inline_weightbuf.view, PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS);
-        _handle = v;
-        inline_weightbuf.view.strides[0] = 0;
-        inline_weightbuf.view.strides[1] = 0;
-        inline_weightbuf.view.strides[2] = 0;
-    }
-    return true;
+    _dx = *(double*)((char*)_qofsbuf->view.buf +
+                                 _qofsbuf->view.strides[0] * idet);
+    _dy = *(double*)((char*)_qofsbuf->view.buf +
+                                 _qofsbuf->view.strides[0] * idet + 
+                                 _qofsbuf->view.strides[1]);
 }
 
-template<typename W>
-GnomonicGridder<W>::GnomonicGridder()
+inline
+void Pointer::GetCoords(int idet, int it, double *coords)
+{
+    coords[0] = _dx + *(double*)((char*)_qborebuf->view.buf +
+                                 _qborebuf->view.strides[0] * it);
+    coords[1] = _dy + *(double*)((char*)_qborebuf->view.buf +
+                                 _qborebuf->view.strides[0] * it +
+                                 _qborebuf->view.strides[1]);
+}
+
+
+Pixelizor::Pixelizor()
 {
     for (int i=0; i<2; ++i) {
         naxis[i] = 256;
@@ -80,9 +59,13 @@ GnomonicGridder<W>::GnomonicGridder()
     }
 }
 
-template<typename W>
-bp::object GnomonicGridder<W>::zeros(
-    bp::object shape)
+void Pixelizor::Init(BufferWrapper &mapbuf)
+{
+    _mapbuf = &mapbuf;
+}
+
+
+bp::object Pixelizor::zeros(bp::object shape)
 {
     int size = 1;
     int dimi = 0;
@@ -100,118 +83,175 @@ bp::object GnomonicGridder<W>::zeros(
     return bp::object(bp::handle<>(v));
 }
 
-/** to_map(map, qpoint, signal, weights)
+
+inline
+int Pixelizor::GetPixel(int i_det, int i_t, const double *coords)
+{
+    double ix = (coords[0] - crval[1]) / cdelt[1] + crpix[1] + 0.5;
+    if (ix < 0 || ix >= naxis[1])
+        return -1;
+
+    double iy = (coords[1] - crval[0]) / cdelt[0] + crpix[0] + 0.5;
+    if (iy < 0 || iy >= naxis[0])
+        return -1;
+            
+    int pixel_offset = _mapbuf->view.strides[0]*int(iy) +
+        _mapbuf->view.strides[1]*int(ix);
+
+    return pixel_offset;
+}
+
+
+/** Accumulator - transfer signal from map domain to time domain.
  *
- *  Full dimensionalities are:
- *     map:      (ny, nx, n_map)
- *     qpoint:   (n_det, n_t, n_coord)
- *     signal:   (n_sig, n_det, n_t)
- *     weight:   (n_sig, n_det, n_map)
- *
- *  Template over classes:
- *
- *  - Quaternion coords.
- *  - Quaternion boresight + offsets
  */
 
-template<typename W>
-bp::object GnomonicGridder<W>::to_map(
-    bp::object map, bp::object qpoint, bp::object signal, bp::object weight)
+AccumulatorSpin0::~AccumulatorSpin0() {
+    if (_handle != nullptr)
+        Py_DecRef(_handle);
+}
+
+bool AccumulatorSpin0::TestInputs(bp::object map, bp::object signal,
+                                  bp::object weight)
 {
+    // Check that map and signal have 1d output.
     BufferWrapper mapbuf;
     if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
                            PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
         PyErr_Clear();
         throw buffer_exception("map");
     } 
-
     if (mapbuf.view.ndim != 3)
         throw shape_exception("map", "must have shape (n_y,n_x,n_map)");
 
-    BufferWrapper qpointbuf;
-    if (PyObject_GetBuffer(qpoint.ptr(), &qpointbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("qpoint");
-    } 
-
-    if (qpointbuf.view.ndim != 3)
-        throw shape_exception("qpoint", "must have shape (n_det,n_t,n_coord)");
-
-    BufferWrapper signalbuf;
-    if (PyObject_GetBuffer(signal.ptr(), &signalbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("signal");
-    } 
-
-    if (signalbuf.view.ndim != 3)
-        throw shape_exception("signalbuf", "must have shape (n_sig,n_det,n_t)");
-
-    BufferWrapper weightbuf;
-    if (PyObject_GetBuffer(weight.ptr(), &weightbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("weight");
-    } 
-
-    if (weightbuf.view.ndim != 3)
-        throw shape_exception("weightbuf", "must have shape (n_sig,n_det,n_map)");
-
-    int ny = mapbuf.view.shape[0];
-    int nx = mapbuf.view.shape[1];
-    int nmap = mapbuf.view.shape[2];
-    int ndet = qpointbuf.view.shape[0];
-    int nt = qpointbuf.view.shape[1];
-    int ncoord = qpointbuf.view.shape[2];
-    int nsig = signalbuf.view.shape[0];
+    if (mapbuf.view.shape[2] != 1)
+        throw shape_exception("map", "must have shape (n_y,n_x,1)");
     
-    // Check that everything agrees...
-    // ...
-    
-    // Update the map...
-    double *mapd = (double*)mapbuf.view.buf;
-    for (int idet=0; idet<ndet; ++idet) {
-        const void *xy = ((char*)qpointbuf.view.buf + qpointbuf.view.strides[0] * idet);
-        for (int it=0; it<nt; ++it) {
-            double *x = (double*)((char*)xy + qpointbuf.view.strides[1] * it);
-            double *y = (double*)((char*)xy + qpointbuf.view.strides[1] * it + qpointbuf.view.strides[2]);
+    // Insist that user passed in None for the weights.
+    if (!isNone(weight)) {
+        throw shape_exception("weight", "must be None");
+    }
+    // The fully abstracted weights are shape (n_det n_time, n_map).
+    // But in this specialization, we know n_map = 1, and the all
+    // other elements should answer with weight 1.
+    return true;
+}
 
-            // Compute map pixel.
-            double ix = (*x - crval[1]) / cdelt[1] + crpix[1] + 0.5;
-            if (ix < 0 || ix >= naxis[1])
-                continue;
-            double iy = (*y - crval[0]) / cdelt[0] + crpix[0] + 0.5;
-            if (iy < 0 || iy >= naxis[0])
-                continue;
-            
-            int pix = int(ix);
-            int piy = int(iy);
-            for (int imap=0; imap<nmap; ++imap) {
-                for (int isig=0; isig<nsig; ++isig) {
-                    double sig = *(double*)((char*)signalbuf.view.buf +
-                                            signalbuf.view.strides[0]*isig +
-                                            signalbuf.view.strides[1]*idet +
-                                            signalbuf.view.strides[2]*it);
-                    double wt = *(double*)((char*)weightbuf.view.buf +
-                                           weightbuf.view.strides[0]*isig +
-                                           weightbuf.view.strides[1]*idet +
-                                           weightbuf.view.strides[2]*imap);
-                    //cout << pix << " " << piy << " " << sig << " " << wt << endl;
-                    *(double*)((char*)mapbuf.view.buf +
-                               mapbuf.view.strides[0]*piy +
-                               mapbuf.view.strides[1]*pix +
-                               mapbuf.view.strides[2]*imap) = sig*wt;
-                }
-            }
-        }
+void AccumulatorSpin0::Init(BufferWrapper &inline_weightbuf)
+{
+    // This is sketch-town.
+    npy_intp dims[3] = {1,1,1};
+    int dtype = NPY_FLOAT64;
+    PyObject *v = PyArray_SimpleNew(3, dims, dtype);
+    cout << "buffer: " << PyArray_DATA((PyArrayObject*)v) << endl;
+    double *d = (double*)PyArray_DATA((PyArrayObject*)v);
+    *d = 1.;
+    PyObject_GetBuffer(v, &inline_weightbuf.view, PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS);
+    _handle = v;
+    inline_weightbuf.view.strides[0] = 0;
+    inline_weightbuf.view.strides[1] = 0; 
+    inline_weightbuf.view.strides[2] = 0;
+}
+
+inline
+void AccumulatorSpin0::Forward(const BufferWrapper &inline_weightbuf,
+                               const BufferWrapper &signalbuf,
+                               BufferWrapper &mapbuf,
+                               const int idet,
+                               const int it,
+                               const double* coords,
+                               const int pixel_offset)
+{
+    // double wt = *(double*)((char*)inline_weightbuf.view.buf +
+    //                        inline_weightbuf.view.strides[1]*idet);
+    double sig = *(double*)((char*)signalbuf.view.buf +
+                            signalbuf.view.strides[1]*idet +
+                            signalbuf.view.strides[2]*it);
+    *(double*)((char*)mapbuf.view.buf + pixel_offset) += sig;
+}
+
+AccumulatorSpin2::~AccumulatorSpin2() {
+    if (_handle != nullptr)
+        Py_DecRef(_handle);
+}
+
+bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
+                                  bp::object weight)
+{
+    // Weights are always 1.  Map must be simple.
+    BufferWrapper mapbuf;
+    if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
+                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("map");
+    } 
+    if (mapbuf.view.ndim != 3)
+        throw shape_exception("map", "must have shape (n_y,n_x,n_map)");
+    
+    if (mapbuf.view.shape[2] != 3)
+        throw shape_exception("map", "must have shape (n_y,n_x,3)");
+
+    // Insist that user passed in None for the weights.
+    if (weight.ptr() != Py_None) {
+        throw shape_exception("weight", "must be None");
     }
 
-    return map;
+    // Weights will be computed from input coordinates, esp 2phi.
+    
+    return true;
+}
+
+void AccumulatorSpin2::Init(BufferWrapper &inline_weightbuf)
+{
+    if (_handle == nullptr) {
+        // This is sketch-town.
+        npy_intp dims[3] = {1,1,3};
+        int dtype = NPY_FLOAT64;
+        PyObject *v = PyArray_SimpleNew(3, dims, dtype);
+        cout << "buffer: " << PyArray_DATA((PyArrayObject*)v) << endl;
+        double *d = (double*)PyArray_DATA((PyArrayObject*)v);
+        d[0] = 1.;
+        PyObject_GetBuffer(v, &inline_weightbuf.view, PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS);
+        _handle = v;
+        inline_weightbuf.view.strides[0] = 0;
+        inline_weightbuf.view.strides[1] = 0;
+        inline_weightbuf.view.strides[2] = sizeof(*d);
+    }
+}
+
+inline
+void AccumulatorSpin2::Forward(const BufferWrapper &inline_weightbuf,
+                               const BufferWrapper &signalbuf,
+                               BufferWrapper &mapbuf,
+                               const int idet,
+                               const int it,
+                               const double* coords,
+                               const int pixel_offset)
+{
+    double sig = *(double*)((char*)signalbuf.view.buf +
+                            signalbuf.view.strides[1]*idet +
+                            signalbuf.view.strides[2]*it);
+    for (int imap=0; imap<3; ++imap) {
+        const double wt = *(double*)((char*)inline_weightbuf.view.buf +
+                               inline_weightbuf.view.strides[1]*idet +
+                               inline_weightbuf.view.strides[2]*imap);
+        *(double*)((char*)mapbuf.view.buf +
+            mapbuf.view.strides[2]*imap +
+            pixel_offset) += sig * wt;
+    }
 }
 
 
-/** to_map2(map, qpoint, qofs, signal, weights)
+template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::zeros(
+    bp::object shape)
+{
+    Pixelizor p;
+    return p.zeros(shape);
+}
+
+
+/** to_map(map, qpoint, qofs, signal, weights)
  *
  *  Full dimensionalities are:
  *     map:      (ny, nx, n_map)
@@ -226,8 +266,8 @@ bp::object GnomonicGridder<W>::to_map(
  *  - Quaternion boresight + offsets
  */
 
-template<typename W>
-bp::object GnomonicGridder<W>::to_map2(
+template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::to_map(
     bp::object map, bp::object qbore, bp::object qofs, bp::object signal, bp::object weight)
 {
     BufferWrapper mapbuf;
@@ -292,79 +332,50 @@ bp::object GnomonicGridder<W>::to_map2(
     // ...
 
     //Instantiate the weight-computing class.
-    auto weightor = W();
-    
-    //Initialize it / check inputs.
-    weightor.TestInputs(map, weight);
+    auto pointer = P();
+    auto pixelizor = Z();
+    auto accumulator = A();
 
+    //Initialize it / check inputs.
+    //pointer.TestInputs(...);
+    //pixelizor.TestInputs(...);
+    accumulator.TestInputs(map, signal, weight);
+    
     BufferWrapper inline_weightbuf;
+    pointer.Init(qborebuf, qofsbuf);
+    pixelizor.Init(mapbuf);
+    accumulator.Init(inline_weightbuf);
     
     // Update the map...
     double *mapd = (double*)mapbuf.view.buf;
-    for (int idet=0; idet<ndet; ++idet) {
-        const double dx = *(double*)((char*)qofsbuf.view.buf +
-                                     qofsbuf.view.strides[0] * idet);
-        const double dy = *(double*)((char*)qofsbuf.view.buf +
-                                     qofsbuf.view.strides[0] * idet + 
-                                     qofsbuf.view.strides[1]);
-        for (int it=0; it<nt; ++it) {
-            double *x = (double*)((char*)qborebuf.view.buf +
-                                  qborebuf.view.strides[0] * it);
-            double *y = (double*)((char*)qborebuf.view.buf +
-                                  qborebuf.view.strides[0] * it +
-                                  qborebuf.view.strides[1]);
+    double coords[4];
 
-            // Compute map pixel.
-            double ix = (*x + dx - crval[1]) / cdelt[1] + crpix[1] + 0.5;
-            if (ix < 0 || ix >= naxis[1])
+    for (int idet=0; idet<ndet; ++idet) {
+        pointer.InitPerDet(idet);
+        for (int it=0; it<nt; ++it) {
+            pointer.GetCoords(idet, it, (double*)coords);
+            int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+            if (pixel_offset < 0)
                 continue;
-            double iy = (*y + dy - crval[0]) / cdelt[0] + crpix[0] + 0.5;
-            if (iy < 0 || iy >= naxis[0])
-                continue;
-            
-            int pix = int(ix);
-            int piy = int(iy);
 
             // Now the Weightor class will give us the right weights to use.
-            weightor.GetWeights(inline_weightbuf, ix, iy, 0.);
-            
-            for (int imap=0; imap<nmap; ++imap) {
-                for (int isig=0; isig<nsig; ++isig) {
-                    double sig = *(double*)((char*)signalbuf.view.buf +
-                                            signalbuf.view.strides[0]*isig +
-                                            signalbuf.view.strides[1]*idet +
-                                            signalbuf.view.strides[2]*it);
-                    // hot-wire simple case.
-                    //double wt = *(double*)((char*)inline_weightbuf.view.buf);
-                    // if (it == 0) {
-                    //     cout << "bufferX: " << inline_weightbuf.view.buf << endl;
-                    //     cout << wt << endl;
-                    // }
-                    double wt = *(double*)((char*)inline_weightbuf.view.buf +
-                                           inline_weightbuf.view.strides[0]*isig +
-                                           inline_weightbuf.view.strides[1]*idet +
-                                           inline_weightbuf.view.strides[2]*imap);
-                    //cout << pix << " " << piy << " " << sig << " " << wt << endl;
-                    *(double*)((char*)mapbuf.view.buf +
-                               mapbuf.view.strides[0]*piy +
-                               mapbuf.view.strides[1]*pix +
-                               mapbuf.view.strides[2]*imap) = sig*wt;
-                }
-            }
+            accumulator.Forward(inline_weightbuf, signalbuf, mapbuf,
+                                idet, it, coords, pixel_offset);
         }
     }
 
     return map;
 }
 
-typedef GnomonicGridder<Weightor> GnomonicGridderX;
-typedef GnomonicGridder<Spin0Weightor> GnomonicGridder0;
+typedef ProjectionEngine<Pointer,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
+typedef ProjectionEngine<Pointer,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
 
 PYBINDINGS("so3g")
 {
-    bp::class_<GnomonicGridderX>("GnomonicGridderBase");
-    bp::class_<GnomonicGridder0>("GnomonicGridder")
-        .def("zeros", &GnomonicGridder0::zeros)
-        .def("to_map", &GnomonicGridder0::to_map)
-        .def("to_map2", &GnomonicGridder0::to_map2);
+    bp::class_<ProjectionEngine0>("ProjectionEngine")
+        .def("zeros", &ProjectionEngine0::zeros)
+        .def("to_map", &ProjectionEngine0::to_map);
+    bp::class_<ProjectionEngine2>("ProjectionEngine2")
+        .def("zeros", &ProjectionEngine2::zeros)
+        .def("to_map", &ProjectionEngine2::to_map);
 }
