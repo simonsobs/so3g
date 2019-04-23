@@ -1,4 +1,5 @@
 #include <boost/python.hpp>
+#include "exceptions.h"
 
 namespace bp = boost::python;
 
@@ -69,60 +70,59 @@ public:
     Accumulator() {};
     ~Accumulator() {};
 //    bool TestInputs(bp::object map, bp::object signal) {return false;};
-    void Init(BufferWrapper &inline_weightbuf) {};
-    void Forward(const BufferWrapper &inline_weightbuf,
-                 const BufferWrapper &signalbuf,
-                 BufferWrapper &mapbuf,
-                 const int idet,
+    //void Init(BufferWrapper &mapbuf, BufferWrapper &signalbuf) {};
+    void Init(bp::object map, bp::object signal);
+    void Forward(const int idet,
                  const int it,
+                 const int pixel_index,
                  const double* coords,
-                 const int pixel_index) {};
-    void Reverse(const BufferWrapper &inline_weightbuf,
-                 BufferWrapper &signalbuf,
-                 const BufferWrapper &mapbuf,
-                 const int idet,
+                 const double* weights) {};
+    void Reverse(const int idet,
                  const int it,
+                 const int pixel_index,
                  const double* coords,
-                 const int pixel_index) {};
+                 const double* weights) {};
 };
 
 class AccumulatorSpin0 : public Accumulator {
 public:
     bool TestInputs(bp::object map, bp::object signal, bp::object weight);
-    void Forward(const BufferWrapper &inline_weightbuf,
-                 const BufferWrapper &signalbuf,
-                 BufferWrapper &mapbuf,
-                 const int idet,
+    //void Init(BufferWrapper &mapbuf, BufferWrapper &signalbuf);
+    void Init(bp::object map, bp::object signal);
+    void Forward(const int idet,
                  const int it,
+                 const int pixel_index,
                  const double* coords,
-                 const int pixel_index);
-    void Reverse(const BufferWrapper &inline_weightbuf,
-                 BufferWrapper &signalbuf,
-                 const BufferWrapper &mapbuf,
-                 const int idet,
+                 const double* weights);
+    void Reverse(const int idet,
                  const int it,
+                 const int pixel_index,
                  const double* coords,
-                 const int pixel_index);
+                 const double* weights);
+private:
+    BufferWrapper _mapbuf;
+    BufferWrapper _signalbuf;
 };
 
 
 class AccumulatorSpin2 : public Accumulator {
 public:
     bool TestInputs(bp::object map, bp::object signal, bp::object weight);
-    void Forward(const BufferWrapper &inline_weightbuf,
-                 const BufferWrapper &signalbuf,
-                 BufferWrapper &mapbuf,
-                 const int idet,
+    //void Init(BufferWrapper &mapbuf, BufferWrapper &signalbuf);
+    void Init(bp::object map, bp::object signal);
+    void Forward(const int idet,
                  const int it,
+                 const int pixel_index,
                  const double* coords,
-                 const int pixel_index);
-    void Reverse(const BufferWrapper &inline_weightbuf,
-                 BufferWrapper &signalbuf,
-                 const BufferWrapper &mapbuf,
-                 const int idet,
+                 const double* weights);
+    void Reverse(const int idet,
                  const int it,
+                 const int pixel_index,
                  const double* coords,
-                 const int pixel_index);
+                 const double* weights);
+private:
+    BufferWrapper _mapbuf;
+    BufferWrapper _signalbuf;
 };
 
 

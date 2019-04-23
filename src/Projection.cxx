@@ -75,7 +75,6 @@ void Pixelizor::Init(BufferWrapper &mapbuf)
     _mapbuf = &mapbuf;
 }
 
-
 bp::object Pixelizor::zeros(bp::object shape)
 {
     int size = 1;
@@ -143,34 +142,36 @@ bool AccumulatorSpin0::TestInputs(bp::object map, bp::object signal,
     return true;
 }
 
-inline
-void AccumulatorSpin0::Forward(const BufferWrapper &inline_weightbuf,
-                               const BufferWrapper &signalbuf,
-                               BufferWrapper &mapbuf,
-                               const int idet,
-                               const int it,
-                               const double* coords,
-                               const int pixel_offset)
+void AccumulatorSpin0::Init(bp::object map, bp::object signal)
 {
-    double sig = *(double*)((char*)signalbuf.view.buf +
-                            signalbuf.view.strides[1]*idet +
-                            signalbuf.view.strides[2]*it);
-    *(double*)((char*)mapbuf.view.buf + pixel_offset) += sig;
+    PyObject_GetBuffer(map.ptr(), &_mapbuf.view, PyBUF_RECORDS);
+    PyObject_GetBuffer(signal.ptr(), &_signalbuf.view, PyBUF_RECORDS);
 }
 
 inline
-void AccumulatorSpin0::Reverse(const BufferWrapper &inline_weightbuf,
-                               BufferWrapper &signalbuf,
-                               const BufferWrapper &mapbuf,
-                               const int idet,
+void AccumulatorSpin0::Forward(const int idet,
                                const int it,
+                               const int pixel_offset,
                                const double* coords,
-                               const int pixel_offset)
+                               const double* weights)
 {
-    double *sig = (double*)((char*)signalbuf.view.buf +
-                            signalbuf.view.strides[1]*idet +
-                            signalbuf.view.strides[2]*it);
-    *sig += *(double*)((char*)mapbuf.view.buf + pixel_offset);
+    double sig = *(double*)((char*)_signalbuf.view.buf +
+                            _signalbuf.view.strides[1]*idet +
+                            _signalbuf.view.strides[2]*it);
+    *(double*)((char*)_mapbuf.view.buf + pixel_offset) += sig;
+}
+
+inline
+void AccumulatorSpin0::Reverse(const int idet,
+                               const int it,
+                               const int pixel_offset,
+                               const double* coords,
+                               const double* weights)
+{
+    double *sig = (double*)((char*)_signalbuf.view.buf +
+                            _signalbuf.view.strides[1]*idet +
+                            _signalbuf.view.strides[2]*it);
+    *sig += *(double*)((char*)_mapbuf.view.buf + pixel_offset);
 }
 
 bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
@@ -199,49 +200,51 @@ bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
     return true;
 }
 
-inline
-void AccumulatorSpin2::Forward(const BufferWrapper &inline_weightbuf,
-                               const BufferWrapper &signalbuf,
-                               BufferWrapper &mapbuf,
-                               const int idet,
-                               const int it,
-                               const double* coords,
-                               const int pixel_offset)
+void AccumulatorSpin2::Init(bp::object map, bp::object signal)
 {
-    double sig = *(double*)((char*)signalbuf.view.buf +
-                            signalbuf.view.strides[1]*idet +
-                            signalbuf.view.strides[2]*it);
+    PyObject_GetBuffer(map.ptr(), &_mapbuf.view, PyBUF_RECORDS);
+    PyObject_GetBuffer(signal.ptr(), &_signalbuf.view, PyBUF_RECORDS);
+}
+
+inline
+void AccumulatorSpin2::Forward(const int idet,
+                               const int it,
+                               const int pixel_offset,
+                               const double* coords,
+                               const double* weights)
+{
+    double sig = *(double*)((char*)_signalbuf.view.buf +
+                            _signalbuf.view.strides[1]*idet +
+                            _signalbuf.view.strides[2]*it);
     const double c = coords[2];
     const double s = coords[3];
     const double wt[3] = {1, c*c - s*s, 2*c*s};
     for (int imap=0; imap<3; ++imap) {
-        *(double*)((char*)mapbuf.view.buf +
-            mapbuf.view.strides[2]*imap +
-            pixel_offset) += sig * wt[imap];
+        *(double*)((char*)_mapbuf.view.buf +
+                   _mapbuf.view.strides[2]*imap +
+                   pixel_offset) += sig * wt[imap];
     }
 }
 
 inline
-void AccumulatorSpin2::Reverse(const BufferWrapper &inline_weightbuf,
-                               BufferWrapper &signalbuf,
-                               const BufferWrapper &mapbuf,
-                               const int idet,
+void AccumulatorSpin2::Reverse(const int idet,
                                const int it,
+                               const int pixel_offset,
                                const double* coords,
-                               const int pixel_offset)
+                               const double* weights)
 {
     const double c = coords[2];
     const double s = coords[3];
     const double wt[3] = {1, c*c - s*s, 2*c*s};
     double _sig = 0.;
     for (int imap=0; imap<3; ++imap) {
-        _sig += *(double*)((char*)mapbuf.view.buf +
-                           mapbuf.view.strides[2]*imap +
+        _sig += *(double*)((char*)_mapbuf.view.buf +
+                           _mapbuf.view.strides[2]*imap +
                            pixel_offset) * wt[imap];
     }
-    double *sig = (double*)((char*)signalbuf.view.buf +
-                            signalbuf.view.strides[1]*idet +
-                            signalbuf.view.strides[2]*it);
+    double *sig = (double*)((char*)_signalbuf.view.buf +
+                            _signalbuf.view.strides[1]*idet +
+                            _signalbuf.view.strides[2]*it);
     *sig += _sig;
 }
 
@@ -331,10 +334,6 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
     int ndet = qofsbuf.view.shape[0];
     int nsig = signalbuf.view.shape[0];
     
-    // Check that everything agrees...
-    // ...
-
-    //Instantiate the weight-computing class.
     auto pointer = P();
     auto pixelizor = Z();
     auto accumulator = A();
@@ -344,24 +343,22 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
     //pixelizor.TestInputs(...);
     accumulator.TestInputs(map, signal, weight);
     
-    BufferWrapper inline_weightbuf;
     pointer.Init(qborebuf, qofsbuf);
     pixelizor.Init(mapbuf);
-    accumulator.Init(inline_weightbuf);
+    accumulator.Init(map, signal);
     
     // Update the map...
     double coords[4];
+    double weights[4];
 
     for (int idet=0; idet<ndet; ++idet) {
         pointer.InitPerDet(idet);
         for (int it=0; it<nt; ++it) {
             pointer.GetCoords(idet, it, (double*)coords);
-            int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+            const int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
             if (pixel_offset < 0)
                 continue;
-
-            accumulator.Forward(inline_weightbuf, signalbuf, mapbuf,
-                                idet, it, coords, pixel_offset);
+            accumulator.Forward(idet, it, pixel_offset, coords, weights);
         }
     }
 
@@ -430,10 +427,6 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     int ndet = qofsbuf.view.shape[0];
     int nsig = signalbuf.view.shape[0];
     
-    // Check that everything agrees...
-    // ...
-
-    //Instantiate the weight-computing class.
     auto pointer = P();
     auto pixelizor = Z();
     auto accumulator = A();
@@ -443,24 +436,22 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     //pixelizor.TestInputs(...);
     accumulator.TestInputs(map, signal, weight);
     
-    BufferWrapper inline_weightbuf;
     pointer.Init(qborebuf, qofsbuf);
     pixelizor.Init(mapbuf);
-    accumulator.Init(inline_weightbuf);
+    accumulator.Init(map, signal);
     
     // Update the map...
     double coords[4];
+    double weights[4];
 
     for (int idet=0; idet<ndet; ++idet) {
         pointer.InitPerDet(idet);
         for (int it=0; it<nt; ++it) {
             pointer.GetCoords(idet, it, (double*)coords);
-            int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
+            const int pixel_offset = pixelizor.GetPixel(idet, it, (double*)coords);
             if (pixel_offset < 0)
                 continue;
-
-            accumulator.Reverse(inline_weightbuf, signalbuf, mapbuf,
-                                idet, it, coords, pixel_offset);
+            accumulator.Reverse(idet, it, pixel_offset, coords, weights);
         }
     }
 
@@ -505,10 +496,8 @@ bp::object ProjectionEngine<P,Z,A>::coords(
     int ncoord = qborebuf.view.shape[1];
     int ndet = qofsbuf.view.shape[0];
 
-    //Instantiate the weight-computing class.
     auto pointer = P();
 
-    BufferWrapper inline_weightbuf;
     pointer.Init(qborebuf, qofsbuf);
 
     double coords[4];
@@ -581,11 +570,9 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     int ncoord = qborebuf.view.shape[1];
     int ndet = qofsbuf.view.shape[0];
 
-    //Instantiate the weight-computing class.
     auto pointer = P();
     auto pixelizor = Z();
 
-    BufferWrapper inline_weightbuf;
     pointer.Init(qborebuf, qofsbuf);
     pixelizor.Init(mapbuf);
 
@@ -610,18 +597,16 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
 typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
 typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
 
+#define EXPORT_INTERVALS(CLASSNAME)                                     \
+    bp::class_<CLASSNAME>(#CLASSNAME)                                   \
+    .def("zeros", &CLASSNAME::zeros)                                    \
+    .def("to_map", &CLASSNAME::to_map)                                  \
+    .def("from_map", &CLASSNAME::from_map)                              \
+    .def("coords", &CLASSNAME::coords)                                  \
+    .def("pixels", &CLASSNAME::pixels);
+
 PYBINDINGS("so3g")
 {
-    bp::class_<ProjectionEngine0>("ProjectionEngine")
-        .def("zeros", &ProjectionEngine0::zeros)
-        .def("to_map", &ProjectionEngine0::to_map)
-        .def("from_map", &ProjectionEngine0::from_map)
-        .def("coords", &ProjectionEngine0::coords)
-        .def("pixels", &ProjectionEngine0::pixels);
-    bp::class_<ProjectionEngine2>("ProjectionEngine2")
-        .def("zeros", &ProjectionEngine2::zeros)
-        .def("to_map", &ProjectionEngine2::to_map)
-        .def("from_map", &ProjectionEngine2::from_map)
-        .def("coords", &ProjectionEngine2::coords)
-        .def("pixels", &ProjectionEngine2::pixels);
+    EXPORT_INTERVALS(ProjectionEngine0);
+    EXPORT_INTERVALS(ProjectionEngine2);
 }

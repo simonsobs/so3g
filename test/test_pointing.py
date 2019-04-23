@@ -2,13 +2,12 @@ import so3g
 import so3g.proj as SP
 from spt3g import core
 import numpy as np
-import pylab as pl
 
 from pixell import enmap
 
 from test_utils import Timer
 
-pe = so3g.ProjectionEngine()
+pe = so3g.ProjectionEngine0()
 map0 = pe.zeros(None)[:,:,None]
 
 n_det = 2000
@@ -27,11 +26,11 @@ ofs = .001 * np.transpose([np.cos(ophi), np.sin(ophi)])
 wts = None
 sig = np.ones((1,n_det,n_t))
 
-with Timer() as T:
-    map1 = pe.to_map(map0,ptg,ofs,sig,wts)
-
-print('%i out of %i' % (map1.sum(), n_det*n_t))
-
+#with Timer() as T:
+#    map1 = pe.to_map(map0,ptg,ofs,sig,wts)
+#
+#print('%i out of %i' % (map1.sum(), n_det*n_t))
+#
 pe = so3g.ProjectionEngine2()
 map0 = pe.zeros(None)
 map0 = np.zeros(map0.shape + (3,), map0.dtype)
@@ -39,36 +38,37 @@ map0 = np.zeros(map0.shape + (3,), map0.dtype)
 print(map0.shape)
 
 coo = np.empty(sig.shape[1:] + (4,), 'double')
-print('Compute and return coordinates only.')
+print('Compute and return coordinates only.', end='\n ... ')
 with Timer() as T:
     pe.coords(ptg,ofs,coo)
 
 del coo
 
-print('Compute coords and pixels and return pixels.')
+print('Compute coords and pixels and return pixels.', end='\n ... ')
 pix = np.empty(sig.shape[1:], 'int32')
 with Timer() as T:
     pe.pixels(map0,ptg,ofs,pix)
 
 del pix
 
-
-print('Forward projection (TQU)')
+print('Forward projection (TQU)', end='\n ... ')
 with Timer() as T:
     map1 = pe.to_map(map0,ptg,ofs,sig,wts)
 
-print('Reverse projection (TQU)')
+print('Reverse projection (TQU)', end='\n ... ')
 sig[:] = 0
 with Timer() as T:
     pe.from_map(map1, ptg, ofs, sig, wts)
 
 print('Plotting...')
-for axi,ax in enumerate(pl.subplots(1,3)[1]):
-    ax.imshow(map1[...,axi])
+import pylab as pl
+gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
+
+for axi in range(3):
+    ax = pl.subplot(gs1[0,axi])
+    ax.imshow(map1[...,axi], cmap='gray')
     ax.set_title('TQU'[axi])
 
-pl.show()
-
-pl.clf()
-pl.plot(sig[0,0])
+ax = pl.subplot(gs1[1,:])
+ax.plot(sig[0,0])
 pl.show()
