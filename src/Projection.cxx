@@ -12,8 +12,6 @@ using namespace std;
 #include <container_pybindings.h>
 
 #include "so3g_numpy.h"
-//#include "Python.h"
-
 #include <Projection.h>
 #include "exceptions.h"
 
@@ -22,30 +20,43 @@ inline bool isNone(bp::object &pyo)
     return (pyo.ptr() == Py_None);
 }
 
-void Pointer::Init(BufferWrapper &qborebuf, BufferWrapper &qofsbuf)
+void PointerFlat::Init(BufferWrapper &qborebuf, BufferWrapper &qofsbuf)
 {
     _qborebuf = &qborebuf;
     _qofsbuf = &qofsbuf;
 }
 
 inline
-void Pointer::InitPerDet(int idet)
+void PointerFlat::InitPerDet(int idet)
 {
     _dx = *(double*)((char*)_qofsbuf->view.buf +
                                  _qofsbuf->view.strides[0] * idet);
     _dy = *(double*)((char*)_qofsbuf->view.buf +
                                  _qofsbuf->view.strides[0] * idet + 
                                  _qofsbuf->view.strides[1]);
+    double phi = *(double*)((char*)_qofsbuf->view.buf +
+                                 _qofsbuf->view.strides[0] * idet + 
+                                 _qofsbuf->view.strides[1] * 2);
+    _cos_phi = cos(phi);
+    _sin_phi = sin(phi);
 }
 
 inline
-void Pointer::GetCoords(int idet, int it, double *coords)
+void PointerFlat::GetCoords(int idet, int it, double *coords)
 {
     coords[0] = _dx + *(double*)((char*)_qborebuf->view.buf +
                                  _qborebuf->view.strides[0] * it);
     coords[1] = _dy + *(double*)((char*)_qborebuf->view.buf +
                                  _qborebuf->view.strides[0] * it +
                                  _qborebuf->view.strides[1]);
+    double c = *(double*)((char*)_qborebuf->view.buf +
+                                  _qborebuf->view.strides[0] * it +
+                                  _qborebuf->view.strides[1] * 2);
+    double s = *(double*)((char*)_qborebuf->view.buf +
+                                  _qborebuf->view.strides[0] * it +
+                                  _qborebuf->view.strides[1] * 3);
+    coords[2] = _cos_phi * c - _sin_phi * s;
+    coords[3] = _cos_phi * s + _sin_phi * c;
 }
 
 
@@ -106,18 +117,13 @@ int Pixelizor::GetPixel(int i_det, int i_t, const double *coords)
  *
  */
 
-AccumulatorSpin0::~AccumulatorSpin0() {
-    if (_handle != nullptr)
-        Py_DecRef(_handle);
-}
-
 bool AccumulatorSpin0::TestInputs(bp::object map, bp::object signal,
                                   bp::object weight)
 {
     // Check that map and signal have 1d output.
     BufferWrapper mapbuf;
     if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+                           PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("map");
     } 
@@ -137,22 +143,6 @@ bool AccumulatorSpin0::TestInputs(bp::object map, bp::object signal,
     return true;
 }
 
-void AccumulatorSpin0::Init(BufferWrapper &inline_weightbuf)
-{
-    // This is sketch-town.
-    npy_intp dims[3] = {1,1,1};
-    int dtype = NPY_FLOAT64;
-    PyObject *v = PyArray_SimpleNew(3, dims, dtype);
-    cout << "buffer: " << PyArray_DATA((PyArrayObject*)v) << endl;
-    double *d = (double*)PyArray_DATA((PyArrayObject*)v);
-    *d = 1.;
-    PyObject_GetBuffer(v, &inline_weightbuf.view, PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS);
-    _handle = v;
-    inline_weightbuf.view.strides[0] = 0;
-    inline_weightbuf.view.strides[1] = 0; 
-    inline_weightbuf.view.strides[2] = 0;
-}
-
 inline
 void AccumulatorSpin0::Forward(const BufferWrapper &inline_weightbuf,
                                const BufferWrapper &signalbuf,
@@ -162,17 +152,10 @@ void AccumulatorSpin0::Forward(const BufferWrapper &inline_weightbuf,
                                const double* coords,
                                const int pixel_offset)
 {
-    // double wt = *(double*)((char*)inline_weightbuf.view.buf +
-    //                        inline_weightbuf.view.strides[1]*idet);
     double sig = *(double*)((char*)signalbuf.view.buf +
                             signalbuf.view.strides[1]*idet +
                             signalbuf.view.strides[2]*it);
     *(double*)((char*)mapbuf.view.buf + pixel_offset) += sig;
-}
-
-AccumulatorSpin2::~AccumulatorSpin2() {
-    if (_handle != nullptr)
-        Py_DecRef(_handle);
 }
 
 bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
@@ -181,7 +164,7 @@ bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
     // Weights are always 1.  Map must be simple.
     BufferWrapper mapbuf;
     if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+                           PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("map");
     } 
@@ -201,24 +184,6 @@ bool AccumulatorSpin2::TestInputs(bp::object map, bp::object signal,
     return true;
 }
 
-void AccumulatorSpin2::Init(BufferWrapper &inline_weightbuf)
-{
-    if (_handle == nullptr) {
-        // This is sketch-town.
-        npy_intp dims[3] = {1,1,3};
-        int dtype = NPY_FLOAT64;
-        PyObject *v = PyArray_SimpleNew(3, dims, dtype);
-        cout << "buffer: " << PyArray_DATA((PyArrayObject*)v) << endl;
-        double *d = (double*)PyArray_DATA((PyArrayObject*)v);
-        d[0] = 1.;
-        PyObject_GetBuffer(v, &inline_weightbuf.view, PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS);
-        _handle = v;
-        inline_weightbuf.view.strides[0] = 0;
-        inline_weightbuf.view.strides[1] = 0;
-        inline_weightbuf.view.strides[2] = sizeof(*d);
-    }
-}
-
 inline
 void AccumulatorSpin2::Forward(const BufferWrapper &inline_weightbuf,
                                const BufferWrapper &signalbuf,
@@ -231,13 +196,13 @@ void AccumulatorSpin2::Forward(const BufferWrapper &inline_weightbuf,
     double sig = *(double*)((char*)signalbuf.view.buf +
                             signalbuf.view.strides[1]*idet +
                             signalbuf.view.strides[2]*it);
+    const double c = coords[2];
+    const double s = coords[3];
+    const double wt[3] = {1, c*c - s*s, 2*c*s};
     for (int imap=0; imap<3; ++imap) {
-        const double wt = *(double*)((char*)inline_weightbuf.view.buf +
-                               inline_weightbuf.view.strides[1]*idet +
-                               inline_weightbuf.view.strides[2]*imap);
         *(double*)((char*)mapbuf.view.buf +
             mapbuf.view.strides[2]*imap +
-            pixel_offset) += sig * wt;
+            pixel_offset) += sig * wt[imap];
     }
 }
 
@@ -253,11 +218,11 @@ bp::object ProjectionEngine<P,Z,A>::zeros(
 
 /** to_map(map, qpoint, qofs, signal, weights)
  *
- *  Full dimensionalities are:
+ *  Each argument is an ndarray.  In the general case the dimensionalities are:
  *     map:      (ny, nx, n_map)
  *     qbore:    (n_t, n_coord)
  *     qofs:     (n_det, n_coord)
- *     signal:   (n_sig, n_det, n_t)
+ *     signal:   (n_det, n_t)
  *     weight:   (n_sig, n_det, n_map)
  *
  *  Template over classes:
@@ -272,7 +237,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 {
     BufferWrapper mapbuf;
     if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+                           PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("map");
     } 
@@ -282,7 +247,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 
     BufferWrapper qborebuf;
     if (PyObject_GetBuffer(qbore.ptr(), &qborebuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+                           PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("qbore");
     } 
@@ -292,7 +257,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 
     BufferWrapper qofsbuf;
     if (PyObject_GetBuffer(qofs.ptr(), &qofsbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+                           PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("qofs");
     } 
@@ -302,7 +267,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 
     BufferWrapper signalbuf;
     if (PyObject_GetBuffer(signal.ptr(), &signalbuf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+                           PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("map");
     } 
@@ -312,7 +277,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 
     // BufferWrapper weightbuf;
     // if (PyObject_GetBuffer(weight.ptr(), &weightbuf.view,
-    //                        PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
+    //                        PyBUF_RECORDS) == -1) {
     //     PyErr_Clear();
     //     throw buffer_exception("map");
     // } 
@@ -358,7 +323,6 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
             if (pixel_offset < 0)
                 continue;
 
-            // Now the Weightor class will give us the right weights to use.
             accumulator.Forward(inline_weightbuf, signalbuf, mapbuf,
                                 idet, it, coords, pixel_offset);
         }
@@ -367,8 +331,8 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
     return map;
 }
 
-typedef ProjectionEngine<Pointer,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
-typedef ProjectionEngine<Pointer,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
+typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
+typedef ProjectionEngine<PointerFlat,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
 
 PYBINDINGS("so3g")
 {

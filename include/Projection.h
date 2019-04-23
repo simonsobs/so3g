@@ -26,19 +26,24 @@ public:
     
 class Pointer : public ProjectionOptimizer {
 public:
-    //Pointer();
-    //~Pointer() {};
+    void Init(BufferWrapper &qborebuf, BufferWrapper &qofsbuf);
+    void InitPerDet(int idet);
+    void GetCoords(int i_det, int i_t, double *coords);
+};
+
+class PointerFlat : public Pointer {
+public:
     void Init(BufferWrapper &qborebuf, BufferWrapper &qofsbuf);
     void InitPerDet(int idet);
     void GetCoords(int i_det, int i_t, double *coords);
 private:
     double _dx;
     double _dy;
+    double _cos_phi;
+    double _sin_phi;
     BufferWrapper *_qborebuf;
     BufferWrapper *_qofsbuf;
 };
-
-
     
 class Pixelizor : public ProjectionOptimizer {
 public:
@@ -76,10 +81,7 @@ public:
 
 class AccumulatorSpin0 : public Accumulator {
 public:
-    AccumulatorSpin0() {_handle = nullptr; };
-    ~AccumulatorSpin0();
     bool TestInputs(bp::object map, bp::object signal, bp::object weight);
-    void Init(BufferWrapper &inline_weightbuf);
     void Forward(const BufferWrapper &inline_weightbuf,
                  const BufferWrapper &signalbuf,
                  BufferWrapper &mapbuf,
@@ -87,17 +89,12 @@ public:
                  const int it,
                  const double* coords,
                  const int pixel_index);
-private:
-    PyObject *_handle;
 };
 
 
 class AccumulatorSpin2 : public Accumulator {
 public:
-    AccumulatorSpin2() {_handle = nullptr; };
-    ~AccumulatorSpin2();
     bool TestInputs(bp::object map, bp::object signal, bp::object weight);
-    void Init(BufferWrapper &inline_weightbuf);
     void Forward(const BufferWrapper &inline_weightbuf,
                  const BufferWrapper &signalbuf,
                  BufferWrapper &mapbuf,
@@ -105,8 +102,6 @@ public:
                  const int it,
                  const double* coords,
                  const int pixel_index);
-private:
-    PyObject *_handle;
 };
 
 
