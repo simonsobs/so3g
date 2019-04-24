@@ -18,13 +18,13 @@ phi = np.arange(n_t) / n_t * 6.28 * 3
 r = np.arange(n_t) / n_t * .006
 ptg[...,0] = r*np.cos(phi) + .004 + .0005 * np.random.uniform(size=len(phi))
 ptg[...,1] = r*np.sin(phi) + .008 + .0005 * np.random.uniform(size=len(phi))
-ptg[...,2] = np.cos(phi)
-ptg[...,3] = np.sin(phi)
+ptg[...,2] = 1.
+ptg[...,3] = 0.
 
 ophi = 6.28 * np.arange(n_det) / n_det
-ofs = .001 * np.transpose([np.cos(ophi), np.sin(ophi)])
+ofs = np.transpose([np.cos(ophi), np.sin(ophi), np.cos(ophi), np.sin(ophi)])
+ofs[:,:2] *= 0.001
 
-wts = None
 sig = np.ones((1,n_det,n_t))
 
 #with Timer() as T:
@@ -33,32 +33,29 @@ sig = np.ones((1,n_det,n_t))
 #print('%i out of %i' % (map1.sum(), n_det*n_t))
 #
 pe = so3g.ProjectionEngine2(pxz)
-map0 = pe.zeros(3)
-#map0 = np.zeros((3,) + map0.shape, map0.dtype).transpose((1,2,0))
-print(map0.shape)
 
 coo = np.empty(sig.shape[1:] + (4,), 'double')
 print('Compute and return coordinates only.', end='\n ... ')
 with Timer() as T:
-    pe.coords(ptg,ofs,coo)
+    pe.coords(ptg,ofs[:,:],coo)
 
 del coo
 
 print('Compute coords and pixels and return pixels.', end='\n ... ')
 pix = np.empty(sig.shape[1:], 'int32')
 with Timer() as T:
-    pe.pixels(map0,ptg,ofs,pix)
+    pe.pixels(ptg,ofs,pix)
 
 del pix
 
 print('Forward projection (TQU)', end='\n ... ')
 with Timer() as T:
-    map1 = pe.to_map(map0,ptg,ofs,sig,wts)
+    map1 = pe.to_map(None,ptg,ofs,sig,None)
 
 print('Reverse projection (TQU)', end='\n ... ')
 sig[:] = 0
 with Timer() as T:
-    pe.from_map(map1, ptg, ofs, sig, wts)
+    pe.from_map(map1, ptg, ofs, sig, None)
 
 print('Plotting...')
 import pylab as pl
