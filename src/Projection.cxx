@@ -76,7 +76,7 @@ void PointerP_Simple_Flat::GetCoords(int i_det, int i_time, double *coords)
     coords[3] = coords[3] * _coords[2] + coords_2_ * _coords[3];
 }
 
-Pixelizor::Pixelizor(
+Pixelizor2_Flat::Pixelizor2_Flat(
     int ny, int nx,
     double dy, double dx,
     double y0, double x0,
@@ -96,7 +96,7 @@ Pixelizor::Pixelizor(
     strides[1] = 0;
 }
 
-bool Pixelizor::TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
+bool Pixelizor2_Flat::TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                              bp::object &signal, bp::object &weight)
 {
     // Flat pixelizor.  Requires:
@@ -130,7 +130,7 @@ bool Pixelizor::TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
     return true;
 }
 
-bp::object Pixelizor::zeros(int count)
+bp::object Pixelizor2_Flat::zeros(int count)
 {
     int size = 1;
     int dimi = 0;
@@ -152,7 +152,7 @@ bp::object Pixelizor::zeros(int count)
 
 
 inline
-int Pixelizor::GetPixel(int i_det, int i_time, const double *coords)
+int Pixelizor2_Flat::GetPixel(int i_det, int i_time, const double *coords)
 {
     double ix = (coords[0] - crval[1]) / cdelt[1] + crpix[1] + 0.5;
     if (ix < 0 || ix >= naxis[1])
@@ -498,11 +498,11 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel;
 }
 
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor,AccumulatorSpin0> ProjectionEngine0;
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor,AccumulatorSpin2> ProjectionEngine2;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorSpin0> ProjectionEngine0;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorSpin2> ProjectionEngine2;
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
-    bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor>())            \
+    bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())            \
     .def("to_map", &CLASSNAME::to_map)                                  \
     .def("from_map", &CLASSNAME::from_map)                              \
     .def("coords", &CLASSNAME::coords)                                  \
@@ -512,7 +512,7 @@ PYBINDINGS("so3g")
 {
     EXPORT_ENGINE(ProjectionEngine0);
     EXPORT_ENGINE(ProjectionEngine2);
-    bp::class_<Pixelizor>("Pixelizor", bp::init<int,int,double,double,
+    bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double,double,double>())
-        .def("zeros", &Pixelizor::zeros);
+        .def("zeros", &Pixelizor2_Flat::zeros);
 }

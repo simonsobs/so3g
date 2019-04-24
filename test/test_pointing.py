@@ -7,7 +7,7 @@ from pixell import enmap
 
 from test_utils import Timer
 
-pxz = so3g.Pixelizor(300,250,0.00005,0.00005,0,0,0,0)
+pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0,0,0)
 pe = so3g.ProjectionEngine0(pxz)
 map0 = pxz.zeros(1)
 
