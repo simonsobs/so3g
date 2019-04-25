@@ -110,16 +110,17 @@ bool Pixelizor2_Flat::TestInputs(bp::object &map, bp::object &pbore, bp::object 
             PyErr_Clear();
             throw buffer_exception("map");
         }
-        if (mapbuf.view.ndim != 3)
-            throw shape_exception("map", "must have shape (n_map,n_y,n_x)");
-        if (mapbuf.view.shape[1] != naxis[0])
-            throw shape_exception("map", "dimension 1 must match naxis[0]");
-        if (mapbuf.view.shape[2] != naxis[1])
-            throw shape_exception("map", "dimension 2 must match naxis[1]");
+        int ndim = mapbuf.view.ndim;
+        if (mapbuf.view.ndim < 2)
+            throw shape_exception("map", "must have shape (...,n_y,n_x)");
+        if (mapbuf.view.shape[ndim-2] != naxis[0])
+            throw shape_exception("map", "dimension -2 must match naxis[0]");
+        if (mapbuf.view.shape[ndim-1] != naxis[1])
+            throw shape_exception("map", "dimension -1 must match naxis[1]");
 
         // Note these are byte offsets, not index.
-        strides[0] = mapbuf.view.strides[1];
-        strides[1] = mapbuf.view.strides[2];
+        strides[0] = mapbuf.view.strides[ndim-2];
+        strides[1] = mapbuf.view.strides[ndim-1];
     } else {
         // Set it up to return naive C-ordered pixel indices.
         strides[0] = naxis[1];
@@ -172,7 +173,7 @@ int Pixelizor2_Flat::GetPixel(int i_det, int i_time, const double *coords)
  *
  */
 
-bool AccumulatorSpin0::TestInputs(
+bool AccumulatorT_Flat::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &weight)
 {
@@ -203,7 +204,7 @@ bool AccumulatorSpin0::TestInputs(
 }
 
 inline
-void AccumulatorSpin0::Forward(const int i_det,
+void AccumulatorT_Flat::Forward(const int i_det,
                                const int i_time,
                                const int pixel_offset,
                                const double* coords,
@@ -217,7 +218,19 @@ void AccumulatorSpin0::Forward(const int i_det,
 }
 
 inline
-void AccumulatorSpin0::Reverse(const int i_det,
+void AccumulatorT_Flat::ForwardWeight(const int i_det,
+                                      const int i_time,
+                                      const int pixel_offset,
+                                      const double* coords,
+                                      const double* weights)
+{
+    if (pixel_offset < 0) return;
+    const double wt = 1.;
+    *(double*)((char*)_mapbuf.view.buf + pixel_offset) += wt*wt;
+}
+
+inline
+void AccumulatorT_Flat::Reverse(const int i_det,
                                const int i_time,
                                const int pixel_offset,
                                const double* coords,
@@ -230,37 +243,53 @@ void AccumulatorSpin0::Reverse(const int i_det,
     *sig += *(double*)((char*)_mapbuf.view.buf + pixel_offset);
 }
 
-bool AccumulatorSpin2::TestInputs(
+bool AccumulatorTQU_Flat::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &weight)
 {
-    PyObject_GetBuffer(map.ptr(), &_mapbuf.view, PyBUF_RECORDS);
-    PyObject_GetBuffer(signal.ptr(), &_signalbuf.view, PyBUF_RECORDS);
+    if (need_map) {
+        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("map");
+        }
+        if (_mapbuf.view.ndim < 2)
+            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
 
-    BufferWrapper _mapbuf;
-    if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    } 
-    if (_mapbuf.view.ndim < 2)
-        throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
+        if (_mapbuf.view.shape[0] != 3)
+            throw shape_exception("map", "must have shape (3,n_axis0,...)");
+    } else if (need_weight_map) {
+        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("map");
+        }
+        if (_mapbuf.view.ndim < 3)
+            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
+        if (_mapbuf.view.shape[0] != 3 || _mapbuf.view.shape[1] != 3)
+            throw shape_exception("map", "must have shape (3,3,n_axis0,...)");
+    }
 
-    if (_mapbuf.view.shape[0] != 3)
-        throw shape_exception("map", "must have shape (3,n_axis0,...)");
+    if (need_signal) {
+        if (PyObject_GetBuffer(signal.ptr(), &_signalbuf.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("signal");
+        }
+        if (_signalbuf.view.ndim != 3)
+            throw shape_exception("signal", "must have shape (n_sig,n_det,n_t)");
+    }
 
     // Insist that user passed in None for the weights.
     if (weight.ptr() != Py_None) {
         throw shape_exception("weight", "must be None");
     }
 
-    // Weights will be computed from input coordinates, esp 2phi.
-    
     return true;
 }
 
 inline
-void AccumulatorSpin2::Forward(const int i_det,
+void AccumulatorTQU_Flat::Forward(const int i_det,
                                const int i_time,
                                const int pixel_offset,
                                const double* coords,
@@ -281,7 +310,28 @@ void AccumulatorSpin2::Forward(const int i_det,
 }
 
 inline
-void AccumulatorSpin2::Reverse(const int i_det,
+void AccumulatorTQU_Flat::ForwardWeight(const int i_det,
+                                        const int i_time,
+                                        const int pixel_offset,
+                                        const double* coords,
+                                        const double* weights)
+{
+    if (pixel_offset < 0) return;
+    const double c = coords[2];
+    const double s = coords[3];
+    const double wt[3] = {1, c*c - s*s, 2*c*s};
+    for (int imap=0; imap<3; ++imap) {
+        for (int jmap=imap; jmap<3; ++jmap) {
+            *(double*)((char*)_mapbuf.view.buf +
+                       _mapbuf.view.strides[0]*imap +
+                       _mapbuf.view.strides[1]*jmap +
+                       pixel_offset) += wt[imap] * wt[jmap];
+        }
+    }
+}
+
+inline
+void AccumulatorTQU_Flat::Reverse(const int i_det,
                                const int i_time,
                                const int pixel_offset,
                                const double* coords,
@@ -336,33 +386,22 @@ template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
-    BufferWrapper signalbuf;
-    if (PyObject_GetBuffer(signal.ptr(), &signalbuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    } 
-
-    if (signalbuf.view.ndim != 3)
-        throw shape_exception("signalbuf", "must have shape (n_sig,n_det,n_t)");
-
-    int n_det = signalbuf.view.shape[1];
-    int n_time = signalbuf.view.shape[2];
-    
     auto pointer = P();
-    auto accumulator = A();
+    auto accumulator = A(true, true, false);
+
+    //Initialize it / check inputs.
+    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
 
     //Do we need a map?  Now is the time.
     if (isNone(map)) {
         int n_comp = accumulator.ComponentCount();
         map = _pixelizor.zeros(n_comp);
     }
-    
-    //Initialize it / check inputs.
-    pointer.TestInputs(map, pbore, pofs, signal, weight);
+
     _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
-
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         pointer.InitPerDet(i_det);
@@ -380,15 +419,58 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 }
 
 template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::to_weight_map(
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
+{
+    auto pointer = P();
+    auto accumulator = A(false, false, true);
+
+    //Initialize it / check inputs.
+    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    //Do we need a map?  Now is the time.
+    if (isNone(map)) {
+        int n_comp = accumulator.ComponentCount();
+        map = _pixelizor.zeros(n_comp * n_comp);
+        auto v0 = (PyArrayObject*)map.ptr();
+        npy_intp dims[32] = {n_comp, n_comp};
+        int dimi = 2;
+        for (int d=1; d<PyArray_NDIM(v0); d++)
+            dims[dimi++] = PyArray_DIM(v0, d);
+        PyArray_Dims padims = {dims, dimi};
+        PyObject *v1 = PyArray_Newshape(v0, &padims,  NPY_ANYORDER);
+        map = bp::object(bp::handle<>(v1));
+    }
+
+    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
+    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        pointer.InitPerDet(i_det);
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            double weights[4];
+            int pixel_offset;
+            pointer.GetCoords(i_det, i_time, (double*)coords);
+            pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+            accumulator.ForwardWeight(i_det, i_time, pixel_offset, coords, weights);
+        }
+    }
+
+    return map;
+}
+
+template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::from_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
     auto pointer = P();
-    auto accumulator = A();
+    auto accumulator = A(true, true, false);
 
     // Initialize pointer and _pixelizor.
     pointer.TestInputs(map, pbore, pofs, signal, weight);
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
 
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -401,6 +483,7 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     }
 
     // Initialize accumulator.
+    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
     
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -498,12 +581,13 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel;
 }
 
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorSpin0> ProjectionEngine0;
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorSpin2> ProjectionEngine2;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorT_Flat> ProjectionEngine0;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorTQU_Flat> ProjectionEngine2;
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
-    bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())            \
+    bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
     .def("to_map", &CLASSNAME::to_map)                                  \
+    .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
     .def("from_map", &CLASSNAME::from_map)                              \
     .def("coords", &CLASSNAME::coords)                                  \
     .def("pixels", &CLASSNAME::pixels);

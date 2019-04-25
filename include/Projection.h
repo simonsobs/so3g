@@ -73,6 +73,9 @@ private:
 class Accumulator : public ProjectionOptimizer {
 public:
     Accumulator() {};
+    Accumulator(bool _need_map, bool _need_signal, bool _need_weight_map):
+        need_map(_need_map), need_signal(_need_signal),
+        need_weight_map(_need_weight_map) {};
     ~Accumulator() {};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &weight) { return false; };
@@ -87,10 +90,16 @@ public:
                  const int pixel_index,
                  const double* coords,
                  const double* weights) {};
+protected:
+    bool need_map = true;
+    bool need_signal = true;
+    bool need_weight_map = false;
 };
 
-class AccumulatorSpin0 : public Accumulator {
+class AccumulatorT_Flat : public Accumulator {
 public:
+    AccumulatorT_Flat(bool _need_map, bool _need_signal, bool _need_weight_map):
+        Accumulator(_need_map, _need_signal, _need_weight_map) {};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &weight);
     int ComponentCount() {return 1;}
@@ -99,6 +108,11 @@ public:
                  const int pixel_index,
                  const double* coords,
                  const double* weights);
+    void ForwardWeight(const int i_det,
+                       const int i_time,
+                       const int pixel_index,
+                       const double* coords,
+                       const double* weights);
     void Reverse(const int i_det,
                  const int i_time,
                  const int pixel_index,
@@ -109,8 +123,10 @@ private:
     BufferWrapper _signalbuf;
 };
 
-class AccumulatorSpin2 : public Accumulator {
+class AccumulatorTQU_Flat : public Accumulator {
 public:
+    AccumulatorTQU_Flat(bool _need_map, bool _need_signal, bool _need_weight_map):
+        Accumulator(_need_map, _need_signal, _need_weight_map) {};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &weight);
     int ComponentCount() {return 3;}
@@ -119,6 +135,11 @@ public:
                  const int pixel_index,
                  const double* coords,
                  const double* weights);
+    void ForwardWeight(const int i_det,
+                       const int i_time,
+                       const int pixel_index,
+                       const double* coords,
+                       const double* weights);
     void Reverse(const int i_det,
                  const int i_time,
                  const int pixel_index,
@@ -129,12 +150,15 @@ private:
     BufferWrapper _signalbuf;
 };
 
+
 template<typename P, typename Z, typename A>
 class ProjectionEngine {
 public:
     ProjectionEngine(Z pixelizor);
     bp::object to_map(bp::object map, bp::object pbore, bp::object pofs,
                       bp::object signal, bp::object weights);
+    bp::object to_weight_map(bp::object map, bp::object pbore, bp::object pofs,
+                             bp::object signal, bp::object weights);
     bp::object from_map(bp::object map, bp::object pbore, bp::object pofs,
                         bp::object signal, bp::object weights);
     bp::object coords(bp::object pbore, bp::object pofs,

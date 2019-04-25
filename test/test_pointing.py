@@ -23,9 +23,9 @@ ptg[...,3] = 0.
 
 ophi = 6.28 * np.arange(n_det) / n_det
 ofs = np.transpose([np.cos(ophi), np.sin(ophi), np.cos(ophi), np.sin(ophi)])
-ofs[:,:2] *= 0.001
+ofs[:,:2] *= 0.002
 
-sig = np.ones((1,n_det,n_t))
+sig = np.ones((1,n_det,n_t)) * .5
 
 #with Timer() as T:
 #    map1 = pe.to_map(map0,ptg,ofs,sig,wts)
@@ -34,28 +34,36 @@ sig = np.ones((1,n_det,n_t))
 #
 pe = so3g.ProjectionEngine2(pxz)
 
-coo = np.empty(sig.shape[1:] + (4,), 'double')
-print('Compute and return coordinates only.', end='\n ... ')
-with Timer() as T:
-    pe.coords(ptg,ofs[:,:],coo)
+if 1:
+    coo = np.empty(sig.shape[1:] + (4,), 'double')
+    print('Compute and return coordinates only.', end='\n ... ')
+    with Timer() as T:
+        pe.coords(ptg,ofs[:,:],coo)
 
-del coo
+    del coo
 
-print('Compute coords and pixels and return pixels.', end='\n ... ')
-pix = np.empty(sig.shape[1:], 'int32')
-with Timer() as T:
-    pe.pixels(ptg,ofs,pix)
+    print('Compute coords and pixels and return pixels.', end='\n ... ')
+    pix = np.empty(sig.shape[1:], 'int32')
+    with Timer() as T:
+        pe.pixels(ptg,ofs,pix)
 
-del pix
+    del pix
 
-print('Forward projection (TQU)', end='\n ... ')
-with Timer() as T:
-    map1 = pe.to_map(None,ptg,ofs,sig,None)
+if 1:
+    print('Forward projection (TQU)', end='\n ... ')
+    map0 = None #pxz.zeros(3)
+    with Timer() as T:
+        map1 = pe.to_map(None,ptg,ofs,sig,None)
 
-print('Reverse projection (TQU)', end='\n ... ')
-sig[:] = 0
-with Timer() as T:
-    pe.from_map(map1, ptg, ofs, sig, None)
+    print('Reverse projection (TQU)', end='\n ... ')
+    with Timer() as T:
+        sig1 = pe.from_map(map1, ptg, ofs, None, None)
+
+if 1:
+    print('Forward project weights (TQU)', end='\n ... ')
+    map0 = None #pxz.zeros(3)
+    with Timer() as T:
+        map2 = pe.to_weight_map(None,ptg,ofs,None,None)
 
 print('Plotting...')
 import pylab as pl
@@ -67,5 +75,5 @@ for axi in range(3):
     ax.set_title('TQU'[axi])
 
 ax = pl.subplot(gs1[1,:])
-ax.plot(sig[0,0])
+ax.plot(sig1[0,500])
 pl.show()
