@@ -173,11 +173,12 @@ int Pixelizor2_Flat::GetPixel(int i_det, int i_time, const double *coords)
  *
  */
 
-template <int N, typename SpinClass>
-bool Accumulator_Flat<N,SpinClass>::TestInputs(
+template <typename SpinClass>
+bool Accumulator<SpinClass>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &weight)
 {
+    const int N = SpinClass::comp_count;
     if (need_map) {
         if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
                                PyBUF_RECORDS) == -1) {
@@ -187,7 +188,7 @@ bool Accumulator_Flat<N,SpinClass>::TestInputs(
         if (_mapbuf.view.ndim < 2)
             throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
 
-        if (_mapbuf.view.shape[0] != ComponentCount())
+        if (_mapbuf.view.shape[0] != N)
             throw shape_exception("map", "must have shape (n_comp,n_axis0,...)");
     } else if (need_weight_map) {
         if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
@@ -197,8 +198,8 @@ bool Accumulator_Flat<N,SpinClass>::TestInputs(
         }
         if (_mapbuf.view.ndim < 3)
             throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
-        if (_mapbuf.view.shape[0] != ComponentCount() ||
-            _mapbuf.view.shape[1] != ComponentCount())
+        if (_mapbuf.view.shape[0] != N ||
+            _mapbuf.view.shape[1] != N)
             throw shape_exception("map", "must have shape (n_comp,n_comp,n_axis0,...)");
     }
 
@@ -222,15 +223,26 @@ bool Accumulator_Flat<N,SpinClass>::TestInputs(
 
 template <>
 inline
-void Accumulator_Flat<1,SpinT>::PixelWeights(
+void Accumulator<SpinT>::PixelWeight(
     const double* coords, double *pwt)
 {
     pwt[0] = 1;
 }
 
+template <>
+inline
+void Accumulator<SpinQU>::PixelWeight(
+    const double* coords, double *pwt)
+{
+    const double c = coords[2];
+    const double s = coords[3];
+    pwt[0] = c*c - s*s;
+    pwt[1] = 2*c*s;
+}
+
 template<>
 inline
-void Accumulator_Flat<3,SpinTQU>::PixelWeights(
+void Accumulator<SpinTQU>::PixelWeight(
     const double* coords, double *pwt)
 {
     const double c = coords[2];
@@ -240,63 +252,19 @@ void Accumulator_Flat<3,SpinTQU>::PixelWeights(
     pwt[2] = 2*c*s;
 }
 
-        
-// inline
-// void AccumulatorT_Flat::Forward(const int i_det,
-//                                const int i_time,
-//                                const int pixel_offset,
-//                                const double* coords,
-//                                const double* weights)
-// {
-//     if (pixel_offset < 0) return;
-//     double sig = *(double*)((char*)_signalbuf.view.buf +
-//                             _signalbuf.view.strides[1]*i_det +
-//                             _signalbuf.view.strides[2]*i_time);
-//     *(double*)((char*)_mapbuf.view.buf + pixel_offset) += sig;
-// }
-
+template <typename SpinClass>
 inline
-void AccumulatorT_Flat::ForwardWeight(const int i_det,
-                                      const int i_time,
-                                      const int pixel_offset,
-                                      const double* coords,
-                                      const double* weights)
-{
-    if (pixel_offset < 0) return;
-    const double wt = 1.;
-    *(double*)((char*)_mapbuf.view.buf + pixel_offset) += wt*wt;
-}
-
-inline
-void AccumulatorT_Flat::Reverse(const int i_det,
-                               const int i_time,
-                               const int pixel_offset,
-                               const double* coords,
-                               const double* weights)
-{
-    if (pixel_offset < 0) return;
-    double *sig = (double*)((char*)_signalbuf.view.buf +
-                            _signalbuf.view.strides[1]*i_det +
-                            _signalbuf.view.strides[2]*i_time);
-    *sig += *(double*)((char*)_mapbuf.view.buf + pixel_offset);
-}
-
-template <int N, typename SpinClass>
-inline
-void Accumulator_Flat<N,SpinClass>::Forward(
+void Accumulator<SpinClass>::Forward(
     const int i_det, const int i_time,
     const int pixel_offset, const double* coords, const double* weights)
 {
     if (pixel_offset < 0) return;
+    const int N = SpinClass::comp_count;
     double sig = *(double*)((char*)_signalbuf.view.buf +
                             _signalbuf.view.strides[1]*i_det +
                             _signalbuf.view.strides[2]*i_time);
-    //const double c = coords[2];
-    //const double s = coords[3];
     double wt[N];
-    PixelWeights(coords, wt);
-    //double wt[3] = {1, c*c - s*s, 2*c*s};
-    //const double wt[3] = {1, c*c - s*s, 2*c*s};
+    PixelWeight(coords, wt);
     for (int imap=0; imap<N; ++imap) {
         *(double*)((char*)_mapbuf.view.buf +
                    _mapbuf.view.strides[0]*imap +
@@ -304,19 +272,18 @@ void Accumulator_Flat<N,SpinClass>::Forward(
     }
 }
 
+template <typename SpinClass>
 inline
-void AccumulatorTQU_Flat::ForwardWeight(const int i_det,
-                                        const int i_time,
-                                        const int pixel_offset,
-                                        const double* coords,
-                                        const double* weights)
+void Accumulator<SpinClass>::ForwardWeight(
+    const int i_det, const int i_time,
+    const int pixel_offset, const double* coords, const double* weights)
 {
     if (pixel_offset < 0) return;
-    const double c = coords[2];
-    const double s = coords[3];
-    const double wt[3] = {1, c*c - s*s, 2*c*s};
-    for (int imap=0; imap<3; ++imap) {
-        for (int jmap=imap; jmap<3; ++jmap) {
+    const int N = SpinClass::comp_count;
+    double wt[N];
+    PixelWeight(coords, wt);
+    for (int imap=0; imap<N; ++imap) {
+        for (int jmap=imap; jmap<N; ++jmap) {
             *(double*)((char*)_mapbuf.view.buf +
                        _mapbuf.view.strides[0]*imap +
                        _mapbuf.view.strides[1]*jmap +
@@ -325,22 +292,18 @@ void AccumulatorTQU_Flat::ForwardWeight(const int i_det,
     }
 }
 
+template <typename SpinClass>
 inline
-void AccumulatorTQU_Flat::Reverse(const int i_det,
-                               const int i_time,
-                               const int pixel_offset,
-                               const double* coords,
-                               const double* weights)
+void Accumulator<SpinClass>::Reverse(
+    const int i_det, const int i_time,
+    const int pixel_offset, const double* coords, const double* weights)
 {
     if (pixel_offset < 0) return;
-    const double c = coords[2];
-    const double s = coords[3];
-    //const double wt[3] = {1, c*c - s*s, 2*c*s};
-    double wt[3];
-    PixelWeights(coords, wt);
-
+    const int N = SpinClass::comp_count;
+    double wt[N];
+    PixelWeight(coords, wt);
     double _sig = 0.;
-    for (int imap=0; imap<3; ++imap) {
+    for (int imap=0; imap<N; ++imap) {
         _sig += *(double*)((char*)_mapbuf.view.buf +
                            _mapbuf.view.strides[0]*imap +
                            pixel_offset) * wt[imap];
@@ -579,8 +542,12 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel;
 }
 
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorT_Flat> ProjectionEngine0;
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorTQU_Flat> ProjectionEngine2;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjectionEngine0;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjectionEngine1;
+typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjectionEngine2;
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
@@ -593,6 +560,7 @@ typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,AccumulatorTQU_Fla
 PYBINDINGS("so3g")
 {
     EXPORT_ENGINE(ProjectionEngine0);
+    EXPORT_ENGINE(ProjectionEngine1);
     EXPORT_ENGINE(ProjectionEngine2);
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double,double,double>())

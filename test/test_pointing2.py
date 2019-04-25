@@ -33,7 +33,7 @@ def get_pixelizor(emap):
 
 pxz = get_pixelizor(beam)
 
-n_det = 100
+n_det = 200
 n_t = 100000
 x = (20 * np.arange(n_t) / n_t) % 1. * 15 - 7.5
 y = np.arange(n_t) / n_t * 15 - 7.5
@@ -53,6 +53,11 @@ ofs = np.transpose([r*np.cos(ophi), r*np.sin(ophi), r*0, r*0])
 polphi = 6.28 * np.random.uniform(size=n_det)
 ofs[:,2] = np.cos(polphi)
 ofs[:,3] = np.sin(polphi)
+
+# Actually, make them orthogonal pairs.
+ofs[1::2] = ofs[0::2]
+ofs[1::2,2] = -ofs[0::2,3]
+ofs[1::2,3] =  ofs[0::2,2]
 
 # Project map into a signal.
 pe = so3g.ProjectionEngine2(pxz)
@@ -82,4 +87,27 @@ for comp in [0,1,2]:
     sps[0,1].imshow(map1[comp])
     sps[1,0].imshow(map2[comp])
     sps[1,1].imshow(map2[comp] - beam[comp])
+    pl.show()
+
+# Oh wait, we're a pair differencing experiment.  You didn't know that?
+pe = so3g.ProjectionEngine1(pxz)
+sigd = (sig1[:,0::2,:] - sig1[:,1::2,:]) / 2
+ofsd = (ofs[::2,...])
+
+map1d = pe.to_map(None, ptg, ofsd, sigd, None)
+
+# weights...
+wmap1d = pe.to_weight_map(None, ptg, ofsd, None, None)
+wmap1d[1,0] = wmap1d[0,1]
+# inverted...
+iwmap1d = np.linalg.pinv(wmap1d.transpose((2,3,0,1))).transpose((2,3,0,1))
+
+map2d = (iwmap1d * map1d[None,...]).sum(axis=1)
+
+for comp in [0,1]:
+    _, sps = pl.subplots(2, 2)
+    sps[0,0].imshow(beam[comp+1])
+    sps[0,1].imshow(map1d[comp])
+    sps[1,0].imshow(map2d[comp])
+    sps[1,1].imshow(map2d[comp] - beam[comp+1])
     pl.show()

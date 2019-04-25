@@ -68,28 +68,47 @@ private:
 };
 
 
-/* Accumulator classes. */
+/** Accumulator class templates.
+ *
+ * The SpinClass is used primarily to activate appropriate PixelWeight
+ * specializations depending on the map components.  For example,
+ * SpinT implies weight = 1, while SpinTQU implies weight triplet (1,
+ * cos(2 phi), sin(2 phi)).  SpinClass also provides the number of
+ * basic map components.
+ */
 
-class SpinT {};
-class SpinTQU {};
-
-template <int N, typename SpinClass>
-class Accumulator_Flat : public ProjectionOptimizer {
+template <int N>
+class SpinClass {
 public:
-    Accumulator_Flat<N,SpinClass>() {};
-    Accumulator_Flat<N,SpinClass>(bool _need_map, bool _need_signal, bool _need_weight_map):
+    static const int comp_count = N;
+};
+
+class SpinT : public SpinClass<1> {};
+class SpinQU : public SpinClass<2> {};
+class SpinTQU : public SpinClass<3> {};
+
+template <typename SpinClass>
+class Accumulator : public ProjectionOptimizer {
+public:
+    Accumulator<SpinClass>() {};
+    Accumulator<SpinClass>(bool _need_map, bool _need_signal, bool _need_weight_map):
         need_map(_need_map), need_signal(_need_signal),
         need_weight_map(_need_weight_map) {};
-    ~Accumulator_Flat<N,SpinClass>() {};
-    void PixelWeights(const double *coords, double *wt) {wt[0] = 1;};
+    ~Accumulator<SpinClass>() {};
+    inline int ComponentCount() {return SpinClass::comp_count;}
+    void PixelWeight(const double *coords, double *wt);
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &weight);
-    int ComponentCount() {return N;}
     void Forward(const int i_det,
                  const int i_time,
                  const int pixel_index,
                  const double* coords,
                  const double* weights);
+    void ForwardWeight(const int i_det,
+                       const int i_time,
+                       const int pixel_index,
+                       const double* coords,
+                       const double* weights);
     void Reverse(const int i_det,
                  const int i_time,
                  const int pixel_index,
@@ -102,51 +121,6 @@ protected:
     BufferWrapper _mapbuf;
     BufferWrapper _signalbuf;
 };
-
-class AccumulatorT_Flat : public Accumulator_Flat<1,SpinT> {
-public:
-    AccumulatorT_Flat(bool _need_map, bool _need_signal, bool _need_weight_map):
-        Accumulator_Flat<1,SpinT>(_need_map, _need_signal, _need_weight_map) {};
-    //void PixelWeights(const double *coords, double *wt);
-    // void Forward(const int i_det,
-    //              const int i_time,
-    //              const int pixel_index,
-    //              const double* coords,
-    //              const double* weights);
-    void ForwardWeight(const int i_det,
-                       const int i_time,
-                       const int pixel_index,
-                       const double* coords,
-                       const double* weights);
-    void Reverse(const int i_det,
-                 const int i_time,
-                 const int pixel_index,
-                 const double* coords,
-                 const double* weights);
-};
-
-class AccumulatorTQU_Flat : public Accumulator_Flat<3,SpinTQU> {
-public:
-    AccumulatorTQU_Flat(bool _need_map, bool _need_signal, bool _need_weight_map):
-        Accumulator_Flat<3,SpinTQU>(_need_map, _need_signal, _need_weight_map) {};
-    //void PixelWeights(const double *coords, double *wt);
-    // void Forward(const int i_det,
-    //              const int i_time,
-    //              const int pixel_index,
-    //              const double* coords,
-    //              const double* weights);
-    void ForwardWeight(const int i_det,
-                       const int i_time,
-                       const int pixel_index,
-                       const double* coords,
-                       const double* weights);
-    void Reverse(const int i_det,
-                 const int i_time,
-                 const int pixel_index,
-                 const double* coords,
-                 const double* weights);
-};
-
 
 template<typename P, typename Z, typename A>
 class ProjectionEngine {
