@@ -70,44 +70,49 @@ private:
 
 /* Accumulator classes. */
 
-class Accumulator : public ProjectionOptimizer {
+class SpinT {};
+class SpinTQU {};
+
+template <int N, typename SpinClass>
+class Accumulator_Flat : public ProjectionOptimizer {
 public:
-    Accumulator() {};
-    Accumulator(bool _need_map, bool _need_signal, bool _need_weight_map):
+    Accumulator_Flat<N,SpinClass>() {};
+    Accumulator_Flat<N,SpinClass>(bool _need_map, bool _need_signal, bool _need_weight_map):
         need_map(_need_map), need_signal(_need_signal),
         need_weight_map(_need_weight_map) {};
-    ~Accumulator() {};
+    ~Accumulator_Flat<N,SpinClass>() {};
+    void PixelWeights(const double *coords, double *wt) {wt[0] = 1;};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &weight) { return false; };
-    int ComponentCount() {return 0;}
+                    bp::object &signal, bp::object &weight);
+    int ComponentCount() {return N;}
     void Forward(const int i_det,
                  const int i_time,
                  const int pixel_index,
                  const double* coords,
-                 const double* weights) {};
+                 const double* weights);
     void Reverse(const int i_det,
                  const int i_time,
                  const int pixel_index,
                  const double* coords,
-                 const double* weights) {};
+                 const double* weights);
 protected:
     bool need_map = true;
     bool need_signal = true;
     bool need_weight_map = false;
+    BufferWrapper _mapbuf;
+    BufferWrapper _signalbuf;
 };
 
-class AccumulatorT_Flat : public Accumulator {
+class AccumulatorT_Flat : public Accumulator_Flat<1,SpinT> {
 public:
     AccumulatorT_Flat(bool _need_map, bool _need_signal, bool _need_weight_map):
-        Accumulator(_need_map, _need_signal, _need_weight_map) {};
-    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &weight);
-    int ComponentCount() {return 1;}
-    void Forward(const int i_det,
-                 const int i_time,
-                 const int pixel_index,
-                 const double* coords,
-                 const double* weights);
+        Accumulator_Flat<1,SpinT>(_need_map, _need_signal, _need_weight_map) {};
+    //void PixelWeights(const double *coords, double *wt);
+    // void Forward(const int i_det,
+    //              const int i_time,
+    //              const int pixel_index,
+    //              const double* coords,
+    //              const double* weights);
     void ForwardWeight(const int i_det,
                        const int i_time,
                        const int pixel_index,
@@ -118,23 +123,18 @@ public:
                  const int pixel_index,
                  const double* coords,
                  const double* weights);
-private:
-    BufferWrapper _mapbuf;
-    BufferWrapper _signalbuf;
 };
 
-class AccumulatorTQU_Flat : public Accumulator {
+class AccumulatorTQU_Flat : public Accumulator_Flat<3,SpinTQU> {
 public:
     AccumulatorTQU_Flat(bool _need_map, bool _need_signal, bool _need_weight_map):
-        Accumulator(_need_map, _need_signal, _need_weight_map) {};
-    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &weight);
-    int ComponentCount() {return 3;}
-    void Forward(const int i_det,
-                 const int i_time,
-                 const int pixel_index,
-                 const double* coords,
-                 const double* weights);
+        Accumulator_Flat<3,SpinTQU>(_need_map, _need_signal, _need_weight_map) {};
+    //void PixelWeights(const double *coords, double *wt);
+    // void Forward(const int i_det,
+    //              const int i_time,
+    //              const int pixel_index,
+    //              const double* coords,
+    //              const double* weights);
     void ForwardWeight(const int i_det,
                        const int i_time,
                        const int pixel_index,
@@ -145,9 +145,6 @@ public:
                  const int pixel_index,
                  const double* coords,
                  const double* weights);
-private:
-    BufferWrapper _mapbuf;
-    BufferWrapper _signalbuf;
 };
 
 

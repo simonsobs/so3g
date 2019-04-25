@@ -173,49 +173,87 @@ int Pixelizor2_Flat::GetPixel(int i_det, int i_time, const double *coords)
  *
  */
 
-bool AccumulatorT_Flat::TestInputs(
+template <int N, typename SpinClass>
+bool Accumulator_Flat<N,SpinClass>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &weight)
 {
-    PyObject_GetBuffer(map.ptr(), &_mapbuf.view, PyBUF_RECORDS);
-    PyObject_GetBuffer(signal.ptr(), &_signalbuf.view, PyBUF_RECORDS);
+    if (need_map) {
+        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("map");
+        }
+        if (_mapbuf.view.ndim < 2)
+            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
 
-    // Check that map and signal have 1d output.
-    BufferWrapper _mapbuf;
-    if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    } 
-    if (_mapbuf.view.ndim < 2)
-        throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
+        if (_mapbuf.view.shape[0] != ComponentCount())
+            throw shape_exception("map", "must have shape (n_comp,n_axis0,...)");
+    } else if (need_weight_map) {
+        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("map");
+        }
+        if (_mapbuf.view.ndim < 3)
+            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
+        if (_mapbuf.view.shape[0] != ComponentCount() ||
+            _mapbuf.view.shape[1] != ComponentCount())
+            throw shape_exception("map", "must have shape (n_comp,n_comp,n_axis0,...)");
+    }
 
-    if (_mapbuf.view.shape[0] != 1)
-        throw shape_exception("map", "must have shape (1,n_axis0,...)");
-    
+    if (need_signal) {
+        if (PyObject_GetBuffer(signal.ptr(), &_signalbuf.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("signal");
+        }
+        if (_signalbuf.view.ndim != 3)
+            throw shape_exception("signal", "must have shape (n_sig,n_det,n_t)");
+    }
+
     // Insist that user passed in None for the weights.
-    if (!isNone(weight)) {
+    if (weight.ptr() != Py_None) {
         throw shape_exception("weight", "must be None");
     }
-    // The fully abstracted weights are shape (n_det n_time, n_map).
-    // But in this specialization, we know n_map = 1, and the all
-    // other elements should answer with weight 1.
+
     return true;
 }
 
+template <>
 inline
-void AccumulatorT_Flat::Forward(const int i_det,
-                               const int i_time,
-                               const int pixel_offset,
-                               const double* coords,
-                               const double* weights)
+void Accumulator_Flat<1,SpinT>::PixelWeights(
+    const double* coords, double *pwt)
 {
-    if (pixel_offset < 0) return;
-    double sig = *(double*)((char*)_signalbuf.view.buf +
-                            _signalbuf.view.strides[1]*i_det +
-                            _signalbuf.view.strides[2]*i_time);
-    *(double*)((char*)_mapbuf.view.buf + pixel_offset) += sig;
+    pwt[0] = 1;
 }
+
+template<>
+inline
+void Accumulator_Flat<3,SpinTQU>::PixelWeights(
+    const double* coords, double *pwt)
+{
+    const double c = coords[2];
+    const double s = coords[3];
+    pwt[0] = 1.;
+    pwt[1] = c*c - s*s;
+    pwt[2] = 2*c*s;
+}
+
+        
+// inline
+// void AccumulatorT_Flat::Forward(const int i_det,
+//                                const int i_time,
+//                                const int pixel_offset,
+//                                const double* coords,
+//                                const double* weights)
+// {
+//     if (pixel_offset < 0) return;
+//     double sig = *(double*)((char*)_signalbuf.view.buf +
+//                             _signalbuf.view.strides[1]*i_det +
+//                             _signalbuf.view.strides[2]*i_time);
+//     *(double*)((char*)_mapbuf.view.buf + pixel_offset) += sig;
+// }
 
 inline
 void AccumulatorT_Flat::ForwardWeight(const int i_det,
@@ -243,66 +281,23 @@ void AccumulatorT_Flat::Reverse(const int i_det,
     *sig += *(double*)((char*)_mapbuf.view.buf + pixel_offset);
 }
 
-bool AccumulatorTQU_Flat::TestInputs(
-    bp::object &map, bp::object &pbore, bp::object &pdet,
-    bp::object &signal, bp::object &weight)
-{
-    if (need_map) {
-        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("map");
-        }
-        if (_mapbuf.view.ndim < 2)
-            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
-
-        if (_mapbuf.view.shape[0] != 3)
-            throw shape_exception("map", "must have shape (3,n_axis0,...)");
-    } else if (need_weight_map) {
-        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("map");
-        }
-        if (_mapbuf.view.ndim < 3)
-            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
-        if (_mapbuf.view.shape[0] != 3 || _mapbuf.view.shape[1] != 3)
-            throw shape_exception("map", "must have shape (3,3,n_axis0,...)");
-    }
-
-    if (need_signal) {
-        if (PyObject_GetBuffer(signal.ptr(), &_signalbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("signal");
-        }
-        if (_signalbuf.view.ndim != 3)
-            throw shape_exception("signal", "must have shape (n_sig,n_det,n_t)");
-    }
-
-    // Insist that user passed in None for the weights.
-    if (weight.ptr() != Py_None) {
-        throw shape_exception("weight", "must be None");
-    }
-
-    return true;
-}
-
+template <int N, typename SpinClass>
 inline
-void AccumulatorTQU_Flat::Forward(const int i_det,
-                               const int i_time,
-                               const int pixel_offset,
-                               const double* coords,
-                               const double* weights)
+void Accumulator_Flat<N,SpinClass>::Forward(
+    const int i_det, const int i_time,
+    const int pixel_offset, const double* coords, const double* weights)
 {
     if (pixel_offset < 0) return;
     double sig = *(double*)((char*)_signalbuf.view.buf +
                             _signalbuf.view.strides[1]*i_det +
                             _signalbuf.view.strides[2]*i_time);
-    const double c = coords[2];
-    const double s = coords[3];
-    const double wt[3] = {1, c*c - s*s, 2*c*s};
-    for (int imap=0; imap<3; ++imap) {
+    //const double c = coords[2];
+    //const double s = coords[3];
+    double wt[N];
+    PixelWeights(coords, wt);
+    //double wt[3] = {1, c*c - s*s, 2*c*s};
+    //const double wt[3] = {1, c*c - s*s, 2*c*s};
+    for (int imap=0; imap<N; ++imap) {
         *(double*)((char*)_mapbuf.view.buf +
                    _mapbuf.view.strides[0]*imap +
                    pixel_offset) += sig * wt[imap];
@@ -340,7 +335,10 @@ void AccumulatorTQU_Flat::Reverse(const int i_det,
     if (pixel_offset < 0) return;
     const double c = coords[2];
     const double s = coords[3];
-    const double wt[3] = {1, c*c - s*s, 2*c*s};
+    //const double wt[3] = {1, c*c - s*s, 2*c*s};
+    double wt[3];
+    PixelWeights(coords, wt);
+
     double _sig = 0.;
     for (int imap=0; imap<3; ++imap) {
         _sig += *(double*)((char*)_mapbuf.view.buf +
