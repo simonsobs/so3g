@@ -12,6 +12,8 @@ import so3g
 from spt3g import core
 import numpy as np
 
+SPAN_BUFFER_SECONDS = 1.0
+
 class HKArchive:
     """Contains information necessary to determine what data fields are
     present in a data archive at what times.  It also knows how to
@@ -246,7 +248,10 @@ class HKArchiveScanner:
                     blocks.append({'channels': channels,
                                    'start': b.t[0],
                                    'index_info': []})
-                blocks[block_index]['end'] = b.t[-1]
+                # To ensure that the last sample is actually included
+                # in the semi-open intervals we use to track frames,
+                # the "end" time has to be after the final sample.
+                blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
                 blocks[block_index]['index_info'].append(index_info)
                 
         else:
