@@ -55,7 +55,7 @@ class HKArchive:
         span.add_interval(start, end)
         field_map = {}
         for cg in self.channel_groups:
-            both = span.intersect(cg.cover)
+            both = span * cg.cover
             if len(both.array()) > 0:
                 for f in cg.channels:
                     if fields is not None and f not in fields:
