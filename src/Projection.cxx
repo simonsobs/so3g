@@ -15,12 +15,17 @@ using namespace std;
 #include <Projection.h>
 #include "exceptions.h"
 
+#include <boost/math/quaternion.hpp>
+
+typedef boost::math::quaternion<double> quatd;
+
 inline bool isNone(bp::object &pyo)
 {
     return (pyo.ptr() == Py_None);
 }
 
-bool PointerP_Simple_Flat::TestInputs(
+template <typename CoordSys>
+bool Pointer<CoordSys>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &weight)
 {
@@ -53,8 +58,9 @@ bool PointerP_Simple_Flat::TestInputs(
     return true;
 }
 
+template <typename CoordSys>
 inline
-void PointerP_Simple_Flat::InitPerDet(int i_det)
+void Pointer<CoordSys>::InitPerDet(int i_det)
 {
     const char *det = (char*)_pdetbuf.view.buf
         + _pdetbuf.view.strides[0] * i_det;
@@ -62,8 +68,9 @@ void PointerP_Simple_Flat::InitPerDet(int i_det)
         _coords[ic] = *(double*)(det + _pdetbuf.view.strides[1] * ic);
 }
 
+template <>
 inline
-void PointerP_Simple_Flat::GetCoords(int i_det, int i_time, double *coords)
+void Pointer<CoordFlat>::GetCoords(int i_det, int i_time, double *coords)
 {
     for (int ic=0; ic<4; ic++)
         coords[ic] = *(double*)((char*)_pborebuf.view.buf +
@@ -74,6 +81,110 @@ void PointerP_Simple_Flat::GetCoords(int i_det, int i_time, double *coords)
     const double coords_2_ = coords[2];
     coords[2] = coords[2] * _coords[2] - coords[3] * _coords[3];
     coords[3] = coords[3] * _coords[2] + coords_2_ * _coords[3];
+}
+
+/* Some short-hands for quaternion access... */
+#define qA(q) q.R_component_1()
+#define qB(q) q.R_component_2()
+#define qC(q) q.R_component_3()
+#define qD(q) q.R_component_4()
+
+
+/* CoordQuatZen: this system is appropriate for Zenith projections,
+ * such as tangent plane.  The tangent point is xyz = (0,0,1), and the
+ * axes are (x,y) -> (y,x).
+ *
+ * The QU system has Q parallel to the radial vector from (0,0) to
+ * (x,y), and U rotated by 45 degrees from there.  This is bad -- for
+ * one thing, Q and U can't be computed at (0,0).  As a bug-fix, we
+ * need un-rotate Q and U so that Q is paralell to x.
+ */
+
+template <>
+inline
+void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
+                            _pborebuf.view.strides[0] * i_time +
+                            _pborebuf.view.strides[1] * ic);
+
+    // What could possibly go wrong.
+    quatd *qbore = reinterpret_cast<quatd*>(_qbore);
+    quatd *qofs = reinterpret_cast<quatd*>(_coords);
+    quatd qdet = (*qbore) * (*qofs);
+
+    // The elevation angle.
+    double cos_2 = sqrt(qA(qdet)*qA(qdet) + qD(qdet)*qD(qdet));
+    double sin_2 = sqrt(qB(qdet)*qB(qdet) + qC(qdet)*qC(qdet));
+    double sin_lat = 2 * cos_2 * sin_2;
+
+    if (sin_lat == 0) {
+        coords[0] = 0.;
+        coords[1] = 0.;
+        coords[2] = 1.;
+        coords[0] = 0.;
+        return;
+    }
+
+    // The az and phi angles.
+    double r_cos_lon = (qA(qdet) * qC(qdet) + qB(qdet) * qD(qdet)) / (cos_2*sin_2);
+    double r_sin_lon = (qA(qdet) * qB(qdet) - qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+
+    double r_cos_phi = (qA(qdet) * qC(qdet) - qB(qdet) * qD(qdet)) / (cos_2*sin_2);
+    double r_sin_phi = (qA(qdet) * qB(qdet) + qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+
+    coords[0] = sin_lat * r_sin_lon;
+    coords[1] = sin_lat * r_cos_lon;
+    coords[2] = r_cos_phi;
+    coords[3] = r_sin_phi;
+}
+
+/* CoordQuatCyl: this system is appropriate for Cylindrical
+ * projections, such as CAR, CEA, Healpix.
+ *
+ * Currently the routine transfers positions (y,z) into map
+ * coordinates (x,y).  So that's not very cylindrical... either we
+ * need inverse trig functions (for CAR or CEA) or we need to transfer
+ * x,y,z (for Healpix).
+ *
+ * The QU system, at least, is done properly -- Q is parallel to
+ * increasing latitude.
+ */
+
+template <>
+inline
+void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
+                            _pborebuf.view.strides[0] * i_time +
+                            _pborebuf.view.strides[1] * ic);
+
+    // What could possibly go wrong.
+    quatd *qbore = reinterpret_cast<quatd*>(_qbore);
+    quatd *qofs = reinterpret_cast<quatd*>(_coords);
+    quatd qdet = (*qbore) * (*qofs);
+
+    // The elevation angle.
+    double cos_2 = sqrt(qA(qdet)*qA(qdet) + qD(qdet)*qD(qdet));
+    double sin_2 = sqrt(qB(qdet)*qB(qdet) + qC(qdet)*qC(qdet));
+    double cos_lat = cos_2 * cos_2 - sin_2 * sin_2;
+    double sin_lat = 2 * cos_2 * sin_2;
+
+    // The az and phi angles.
+    double r_cos_az = (qA(qdet) * qC(qdet) + qB(qdet) * qD(qdet)) / (cos_2*sin_2);
+    double r_sin_az = (qA(qdet) * qB(qdet) - qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+
+    double r_cos_phi = (qA(qdet) * qC(qdet) - qB(qdet) * qD(qdet)) / (cos_2*sin_2);
+    double r_sin_phi = (qA(qdet) * qB(qdet) + qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+
+    coords[0] = -sin_lat * r_sin_az; // -y.
+    coords[1] = cos_lat;             //  z.
+    coords[2] = r_cos_phi;
+    coords[3] = r_sin_phi;
 }
 
 Pixelizor2_Flat::Pixelizor2_Flat(
@@ -466,6 +577,19 @@ template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::coords(
     bp::object pbore, bp::object pofs, bp::object coord)
 {
+    auto pointer = P();
+    auto _none = bp::object();
+    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    // Do we have a coord array?  Now is the time.
+    if (isNone(coord)) {
+        npy_intp dims[3] = {n_det, n_time, 4};
+        PyObject *v = PyArray_ZEROS(3, dims, NPY_FLOAT64, 0);
+        coord = bp::object(bp::handle<>(v));
+    }
 
     BufferWrapper coordbuf;
     if (PyObject_GetBuffer(coord.ptr(), &coordbuf.view,
@@ -476,13 +600,6 @@ bp::object ProjectionEngine<P,Z,A>::coords(
 
     if (coordbuf.view.ndim != 3)
         throw shape_exception("coord", "must have shape (n_det,n_t,n_coord)");
-
-    int n_det = coordbuf.view.shape[0];
-    int n_time = coordbuf.view.shape[1];
-
-    auto pointer = P();
-    auto _none = bp::object();
-    pointer.TestInputs(_none, pbore, pofs, _none, _none);
 
     auto coords_out = (char*)coordbuf.view.buf;
 
@@ -507,24 +624,30 @@ template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::pixels(
     bp::object pbore, bp::object pofs, bp::object pixel)
 {
+    auto pointer = P();
+    auto _none = bp::object();
+
+    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+    _pixelizor.TestInputs(_none, _none, _none, _none, _none);
+
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    // Do we have a pixel array?  Now is the time.
+    if (isNone(pixel)) {
+        npy_intp dims[3] = {n_det, n_time};
+        PyObject *v = PyArray_ZEROS(2, dims, NPY_INT32, 0);
+        pixel = bp::object(bp::handle<>(v));
+    }
+
     BufferWrapper pixelbuf;
     if (PyObject_GetBuffer(pixel.ptr(), &pixelbuf.view,
                            PyBUF_RECORDS) == -1) {
         PyErr_Clear();
         throw buffer_exception("pixel");
     }
-
     if (pixelbuf.view.ndim != 2)
         throw shape_exception("pixel", "must have shape (n_det,n_t)");
-
-    int n_det = pixelbuf.view.shape[0];
-    int n_time = pixelbuf.view.shape[1];
-
-    auto pointer = P();
-    auto _none = bp::object();
-
-    pointer.TestInputs(_none, pbore, pofs, _none, _none);
-    _pixelizor.TestInputs(_none, _none, _none, _none, _none);
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         pointer.InitPerDet(i_det);
@@ -542,12 +665,24 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel;
 }
 
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,Accumulator<SpinT>>
+typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinT>>
   ProjectionEngine0;
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,Accumulator<SpinQU>>
+typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinQU>>
   ProjectionEngine1;
-typedef ProjectionEngine<PointerP_Simple_Flat,Pixelizor2_Flat,Accumulator<SpinTQU>>
+typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinTQU>>
   ProjectionEngine2;
+typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjectionEngine0QC;
+typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjectionEngine1QC;
+typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjectionEngine2QC;
+typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjectionEngine0QZ;
+typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjectionEngine1QZ;
+typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjectionEngine2QZ;
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
@@ -562,6 +697,12 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjectionEngine0);
     EXPORT_ENGINE(ProjectionEngine1);
     EXPORT_ENGINE(ProjectionEngine2);
+    EXPORT_ENGINE(ProjectionEngine0QC);
+    EXPORT_ENGINE(ProjectionEngine1QC);
+    EXPORT_ENGINE(ProjectionEngine2QC);
+    EXPORT_ENGINE(ProjectionEngine0QZ);
+    EXPORT_ENGINE(ProjectionEngine1QZ);
+    EXPORT_ENGINE(ProjectionEngine2QZ);
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double,double,double>())
         .def("zeros", &Pixelizor2_Flat::zeros);

@@ -135,7 +135,18 @@ if __name__ == '__main__':
     #
     # This demo is destined for unit-testing...
     #
+    phi, theta, gamma = -.1, 3.0, .3
+    q = q_euler(2, phi) * q_euler(1, theta) * q_euler(2, gamma)
+    c2 = (q.a**2 + q.d**2)**.5
+    s2 = (q.b**2 + q.c**2)**.5
+    print(np.arccos(c2)*2, np.arcsin(s2)*2)
+    # And
+    plus = np.arctan2(q.d, q.a)
+    minus = np.arctan2(q.b, q.c)
+    s2 = (q.b + q.c) / (q.a + q.d) * c2
+    print(plus + minus, plus - minus)
 
+if 0:
     # Check that our Euler operations are invertible, per axis.
     psi = .1
     for axis in [0,1,2]:
