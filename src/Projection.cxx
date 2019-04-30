@@ -86,12 +86,8 @@ void Pointer<CoordFlat>::GetCoords(int i_det, int i_time, double *coords)
 
 /* CoordQuatZen: this system is appropriate for Zenith projections,
  * such as tangent plane.  The tangent point is xyz = (0,0,1), and the
- * axes are (x,y) -> (y,x).
- *
- * The QU system has Q parallel to the radial vector from (0,0) to
- * (x,y), and U rotated by 45 degrees from there.  This is bad -- for
- * one thing, Q and U can't be computed at (0,0).  As a bug-fix, we
- * need un-rotate Q and U so that Q is paralell to x.
+ * axes are (X,Y) <- (y,x).  The QU system has Q parallel to x.  This
+ * will break down for points where z = 0.
  */
 
 template <>
@@ -114,30 +110,13 @@ void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
     const double c = qdet.R_component_3();
     const double d = qdet.R_component_4();
 
-    // Decomposition into trig of (phi,lat,lon) angles.
-    double cos_2 = sqrt(a*a + d*d);
-    double sin_2 = sqrt(b*b + c*c);
-    double sin_lat = 2 * cos_2 * sin_2;
+    // All we need is cos(lat/2)^2...
+    const double cos_lat2_sq = a*a + d*d;
 
-    if (sin_lat == 0) {
-        coords[0] = 0.;
-        coords[1] = 0.;
-        coords[2] = 1.;
-        coords[0] = 0.;
-        return;
-    }
-
-    // The az and phi angles.
-    double cos_lon = (a*c + b*d) / (cos_2*sin_2);
-    double sin_lon = (a*b - c*d) / (cos_2*sin_2);
-
-    double cos_phi = (a*c - b*d) / (cos_2*sin_2);
-    double sin_phi = (a*b + c*d) / (cos_2*sin_2);
-
-    coords[0] = sin_lat * sin_lon;
-    coords[1] = sin_lat * cos_lon;
-    coords[2] = cos_phi;
-    coords[3] = sin_phi;
+    coords[0] = 2 * (a*b - c*d);
+    coords[1] = 2 * (a*c + b*d);
+    coords[2] = (a*a - d*d) / cos_lat2_sq;
+    coords[3] = (2*a*d) / cos_lat2_sq;
 }
 
 /* CoordQuatCyl: this system is appropriate for Cylindrical
