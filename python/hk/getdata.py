@@ -65,8 +65,9 @@ class HKArchive:
                     else:
                         field_map[f].append(cg)
 
-        # Sort each list of channel_groups, for subsequent comparison.
-        [f.sort() for f in field_map.values()]
+        # Sort each list of channel_groups by object id -- all we care
+        # about is whether two fields have the same channel group set.
+        [f.sort(key=lambda obj: id(obj)) for f in field_map.values()]
 
         # Now group together fields if they have identical
         # channel_group lists (because when they do, they can share a
