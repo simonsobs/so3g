@@ -168,23 +168,23 @@ void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time, double *coords)
     quatd *qofs = reinterpret_cast<quatd*>(_coords);
     quatd qdet = (*qbore) * (*qofs);
 
-    // The elevation angle.
-    double cos_2 = sqrt(qA(qdet)*qA(qdet) + qD(qdet)*qD(qdet));
-    double sin_2 = sqrt(qB(qdet)*qB(qdet) + qC(qdet)*qC(qdet));
-    double cos_lat = cos_2 * cos_2 - sin_2 * sin_2;
-    double sin_lat = 2 * cos_2 * sin_2;
+    const double a = qdet.R_component_1();
+    const double b = qdet.R_component_2();
+    const double c = qdet.R_component_3();
+    const double d = qdet.R_component_4();
 
-    // The az and phi angles.
-    double r_cos_az = (qA(qdet) * qC(qdet) + qB(qdet) * qD(qdet)) / (cos_2*sin_2);
-    double r_sin_az = (qA(qdet) * qB(qdet) - qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+    // Decomposition into trig of (phi,lat,lon) angles.
+    const double cos_lat2_sq = a*a + d*d;     // cos^2(lat/2)
+    const double cos_lat = 2*cos_lat2_sq - 1;    // cos(lat)
+    const double CS = sqrt(1 - cos_lat*cos_lat) / 2;  // cos(lat/2) sin(lat/2)
 
-    double r_cos_phi = (qA(qdet) * qC(qdet) - qB(qdet) * qD(qdet)) / (cos_2*sin_2);
-    double r_sin_phi = (qA(qdet) * qB(qdet) + qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+    const double r_cos_phi = (a*c - b*d) / CS;
+    const double r_sin_phi = (a*b + c*d) / CS;
 
-    coords[0] = -sin_lat * r_sin_az; // -y.
-    coords[1] = cos_lat;             //  z.
-    coords[2] = r_cos_phi;
-    coords[3] = r_sin_phi;
+    coords[0] = -2 * (a*b - c*d);       // -y
+    coords[1] = cos_lat;                //  z
+    coords[2] = (a*c - b*d) / CS;       //  cos(phi)
+    coords[3] = (a*b + c*d) / CS;       //  sin(phi)
 }
 
 Pixelizor2_Flat::Pixelizor2_Flat(

@@ -43,7 +43,7 @@ x = (20 * np.arange(n_t) / n_t) % 1. * 15 - 7.5
 y = np.arange(n_t) / n_t * 15 - 7.5
 
 # At each time step, boresight is (x, y, cos(phi), sin(phi))
-system = 'qzen'
+system = 'qcyl'
 
 if system == 'flat':
     ptg = np.zeros((n_t, 4))
