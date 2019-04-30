@@ -83,12 +83,6 @@ void Pointer<CoordFlat>::GetCoords(int i_det, int i_time, double *coords)
     coords[3] = coords[3] * _coords[2] + coords_2_ * _coords[3];
 }
 
-/* Some short-hands for quaternion access... */
-#define qA(q) q.R_component_1()
-#define qB(q) q.R_component_2()
-#define qC(q) q.R_component_3()
-#define qD(q) q.R_component_4()
-
 
 /* CoordQuatZen: this system is appropriate for Zenith projections,
  * such as tangent plane.  The tangent point is xyz = (0,0,1), and the
@@ -115,9 +109,14 @@ void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
     quatd *qofs = reinterpret_cast<quatd*>(_coords);
     quatd qdet = (*qbore) * (*qofs);
 
-    // The elevation angle.
-    double cos_2 = sqrt(qA(qdet)*qA(qdet) + qD(qdet)*qD(qdet));
-    double sin_2 = sqrt(qB(qdet)*qB(qdet) + qC(qdet)*qC(qdet));
+    const double a = qdet.R_component_1();
+    const double b = qdet.R_component_2();
+    const double c = qdet.R_component_3();
+    const double d = qdet.R_component_4();
+
+    // Decomposition into trig of (phi,lat,lon) angles.
+    double cos_2 = sqrt(a*a + d*d);
+    double sin_2 = sqrt(b*b + c*c);
     double sin_lat = 2 * cos_2 * sin_2;
 
     if (sin_lat == 0) {
@@ -129,16 +128,16 @@ void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
     }
 
     // The az and phi angles.
-    double r_cos_lon = (qA(qdet) * qC(qdet) + qB(qdet) * qD(qdet)) / (cos_2*sin_2);
-    double r_sin_lon = (qA(qdet) * qB(qdet) - qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+    double cos_lon = (a*c + b*d) / (cos_2*sin_2);
+    double sin_lon = (a*b - c*d) / (cos_2*sin_2);
 
-    double r_cos_phi = (qA(qdet) * qC(qdet) - qB(qdet) * qD(qdet)) / (cos_2*sin_2);
-    double r_sin_phi = (qA(qdet) * qB(qdet) + qC(qdet) * qD(qdet)) / (cos_2*sin_2);
+    double cos_phi = (a*c - b*d) / (cos_2*sin_2);
+    double sin_phi = (a*b + c*d) / (cos_2*sin_2);
 
-    coords[0] = sin_lat * r_sin_lon;
-    coords[1] = sin_lat * r_cos_lon;
-    coords[2] = r_cos_phi;
-    coords[3] = r_sin_phi;
+    coords[0] = sin_lat * sin_lon;
+    coords[1] = sin_lat * cos_lon;
+    coords[2] = cos_phi;
+    coords[3] = sin_phi;
 }
 
 /* CoordQuatCyl: this system is appropriate for Cylindrical
