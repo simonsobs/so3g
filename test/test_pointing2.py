@@ -7,6 +7,18 @@ from astropy.wcs import WCS
 
 from test_utils import Timer, Qmul, Qroti
 
+# Command line option(s)...
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--system', '-s', choices=[
+    'flat',
+    'qcyl',
+    'qzen',
+], default='flat')
+args = parser.parse_args()
+system = args.system
+print('Using system: %s' % system)
+
 # Create a world coordinate system, with .1 deg pixels.
 wcs = WCS(naxis=2)
 naxis = (128,128)
@@ -42,10 +54,8 @@ n_t = 10000#0
 x = (20 * np.arange(n_t) / n_t) % 1. * 15 - 7.5
 y = np.arange(n_t) / n_t * 15 - 7.5
 
-# At each time step, boresight is (x, y, cos(phi), sin(phi))
-system = 'qcyl'
-
 if system == 'flat':
+    # At each time step, boresight is (x, y, cos(phi), sin(phi))
     ptg = np.zeros((n_t, 4))
     ptg[...,0] = x * np.pi/180
     ptg[...,1] = y * np.pi/180

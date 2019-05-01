@@ -1,12 +1,20 @@
 import so3g
-import so3g.proj as SP
-from spt3g import core
 import numpy as np
 import pylab as pl
 
-from pixell import enmap
-
 from test_utils import Timer, Qmul, Qroti
+
+# Command line option(s)...
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--system', '-s', choices=[
+    'flat',
+    'qcyl',
+    'qzen',
+], default='flat')
+args = parser.parse_args()
+system = args.system
+print('Using system: %s' % system)
 
 # Map space.
 pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0,0,0)
@@ -26,11 +34,9 @@ dr = .002
 polphi = 6.28 * np.arange(n_det) / n_det
 dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 
-# At each time step, boresight is (x, y, cos(phi), sin(phi))
-system = 'qcyl'
-
 if system == 'flat':
     pe = so3g.ProjectionEngine2(pxz)
+    # At each time step, boresight is (x, y, cos(phi), sin(phi))
     ptg = np.zeros((n_t, 4))
     ptg[...,0] = x
     ptg[...,1] = y
