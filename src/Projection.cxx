@@ -536,18 +536,24 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
     
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        pointer.InitPerDet(i_det);
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            double coords[4];
-            double weights[4];
-            int pixel_offset;
-            pointer.GetCoords(i_det, i_time, (double*)coords);
-            pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
-            accumulator.Reverse(i_det, i_time, pixel_offset, coords, weights);
+#pragma omp parallel
+    {
+        // Re-do this for each thread... fix me?
+        auto pointer_instance = P();
+        pointer_instance.TestInputs(map, pbore, pofs, signal, weight);
+#pragma omp for
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            pointer.InitPerDet(i_det);
+            for (int i_time = 0; i_time < n_time; ++i_time) {
+                double coords[4];
+                double weights[4];
+                int pixel_offset;
+                pointer.GetCoords(i_det, i_time, (double*)coords);
+                pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+                accumulator.Reverse(i_det, i_time, pixel_offset, coords, weights);
+            }
         }
     }
-
     return signal;
 }
 
@@ -581,16 +587,23 @@ bp::object ProjectionEngine<P,Z,A>::coords(
 
     auto coords_out = (char*)coordbuf.view.buf;
 
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        pointer.InitPerDet(i_det);
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            double coords[4];
-            pointer.GetCoords(i_det, i_time, (double*)coords);
-            for (int ic=0; ic<4; ic++) {
-                *(double*)(coords_out
-                  + coordbuf.view.strides[0] * i_det
-                  + coordbuf.view.strides[1] * i_time
-                  + coordbuf.view.strides[2] * ic) = coords[ic];
+#pragma omp parallel
+    {
+        // Re-do this for each thread... fix me?
+        auto pointer_instance = P();
+        pointer_instance.TestInputs(_none, pbore, pofs, _none, _none);
+#pragma omp for
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            pointer_instance.InitPerDet(i_det);
+            for (int i_time = 0; i_time < n_time; ++i_time) {
+                double coords[4];
+                pointer_instance.GetCoords(i_det, i_time, (double*)coords);
+                for (int ic=0; ic<4; ic++) {
+                    *(double*)(coords_out
+                               + coordbuf.view.strides[0] * i_det
+                               + coordbuf.view.strides[1] * i_time
+                               + coordbuf.view.strides[2] * ic) = coords[ic];
+                }
             }
         }
     }
@@ -627,16 +640,24 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     if (pixelbuf.view.ndim != 2)
         throw shape_exception("pixel", "must have shape (n_det,n_t)");
 
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        pointer.InitPerDet(i_det);
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            double coords[4];
-            pointer.GetCoords(i_det, i_time, (double*)coords);
-            int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+#pragma omp parallel
+    {
+        // Re-do this for each thread... fix me?
+        auto pointer_instance = P();
+        pointer_instance.TestInputs(_none, pbore, pofs, _none, _none);
 
-            *(int*)((char*)pixelbuf.view.buf
-                    + pixelbuf.view.strides[0] * i_det
-                    + pixelbuf.view.strides[1] * i_time) = pixel_offset;
+#pragma omp for
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            pointer_instance.InitPerDet(i_det);
+            for (int i_time = 0; i_time < n_time; ++i_time) {
+                double coords[4];
+                pointer_instance.GetCoords(i_det, i_time, (double*)coords);
+                int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+
+                *(int*)((char*)pixelbuf.view.buf
+                        + pixelbuf.view.strides[0] * i_det
+                        + pixelbuf.view.strides[1] * i_time) = pixel_offset;
+            }
         }
     }
 
