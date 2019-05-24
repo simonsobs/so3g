@@ -117,6 +117,14 @@ Intervals<T>& Intervals<T>::add_interval(const T start, const T end)
 }
 
 template <typename T>
+Intervals<T>& Intervals<T>::append_interval_no_check(const T start, const T end)
+{
+    segments.push_back(make_pair(start, end));
+
+    return *this;
+}
+
+template <typename T>
 Intervals<T>& Intervals<T>::merge(const Intervals<T> &src)
 {
     domain.first = max(domain.first, src.domain.first);
@@ -611,6 +619,9 @@ using namespace boost::python;
     .def("add_interval", &CLASSNAME::add_interval, \
          return_internal_reference<>(), \
          "Merge an interval into the set.") \
+    .def("append_interval_no_check", &CLASSNAME::append_interval_no_check, \
+         return_internal_reference<>(), \
+         "Append an interval to the set without checking for overlap or sequence.") \
     .def("merge", &CLASSNAME::merge, \
          return_internal_reference<>(), \
          "Merge an Intervals into the set.") \

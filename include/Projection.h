@@ -56,6 +56,7 @@ public:
                     bp::object &signal, bp::object &weight);
     bp::object zeros(int count);
     int GetPixel(int i_det, int i_time, const double *coords);
+    std::pair<int,int> IndexRange();
 private:
     int crpix[2];
     double crval[2];
@@ -125,13 +126,20 @@ public:
     ProjectionEngine(Z pixelizor);
     bp::object to_map(bp::object map, bp::object pbore, bp::object pofs,
                       bp::object signal, bp::object weights);
+    bp::object to_map_omp(bp::object map, bp::object pbore, bp::object pofs,
+                          bp::object signal, bp::object weights,
+                          bp::object thread_intervals);
     bp::object to_weight_map(bp::object map, bp::object pbore, bp::object pofs,
                              bp::object signal, bp::object weights);
+    bp::object to_weight_map_omp(bp::object map, bp::object pbore, bp::object pofs,
+                                 bp::object signal, bp::object weights,
+                                 bp::object thread_intervals);
     bp::object from_map(bp::object map, bp::object pbore, bp::object pofs,
                         bp::object signal, bp::object weights);
     bp::object coords(bp::object pbore, bp::object pofs,
                       bp::object coord);
     bp::object pixels(bp::object pbore, bp::object pofs, bp::object pixel);
+    bp::object pixel_ranges(bp::object pbore, bp::object pofs);
 private:
     Z _pixelizor;
 };

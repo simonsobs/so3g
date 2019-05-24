@@ -9,10 +9,13 @@ using namespace std;
 #include <assert.h>
 #include <math.h>
 
+#include <omp.h>
+
 #include <container_pybindings.h>
 
 #include "so3g_numpy.h"
 #include <Projection.h>
+#include <Intervals.h>
 #include "exceptions.h"
 
 #include <boost/math/quaternion.hpp>
@@ -257,6 +260,12 @@ int Pixelizor2_Flat::GetPixel(int i_det, int i_time, const double *coords)
     return pixel_offset;
 }
 
+std::pair<int,int> Pixelizor2_Flat::IndexRange()
+{
+    return make_pair(0,naxis[0]*naxis[1]);
+}
+
+
 
 /** Accumulator - transfer signal from map domain to time domain.
  *
@@ -469,6 +478,69 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 }
 
 template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::to_map_omp(
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight,
+    bp::object thread_intervals)
+{
+    auto pointer = P();
+    auto accumulator = A(true, true, false);
+    auto _none = bp::object();
+
+    //Initialize it / check inputs.
+    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    //Do we need a map?  Now is the time.
+    if (isNone(map)) {
+        int n_comp = accumulator.ComponentCount();
+        map = _pixelizor.zeros(n_comp);
+    }
+
+    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
+    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+
+    // Indexed by i_thread, i_det.
+    vector<vector<IntervalsInt32>> ivals;
+
+    auto ival_list_list = bp::extract<bp::list>(thread_intervals)();
+    for (int i=0; i<bp::len(ival_list_list); i++) {
+        auto ival_list =  bp::extract<bp::list>(ival_list_list[i])();
+        vector<IntervalsInt32> v(bp::len(ival_list));
+        for (int j=0; j<bp::len(ival_list); j++)
+            v[j] = bp::extract<IntervalsInt32>(ival_list[j])();
+        ivals.push_back(v);
+    }
+
+#pragma omp parallel
+    {
+        // The principle here is that all threads loop over all
+        // detectors, but the sample ranges encoded in ivals are
+        // disjoint.
+        const int n_thread = omp_get_num_threads();
+        const int i_thread = omp_get_thread_num();
+
+        auto pointer_instance = P();
+        pointer_instance.TestInputs(_none, pbore, pofs, _none, _none);
+
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            pointer_instance.InitPerDet(i_det);
+            for (auto rng: ivals[i_thread][i_det].segments) {
+                for (int i_time = rng.first; i_time < rng.second; ++i_time) {
+                    double coords[4];
+                    double weights[4];
+                    int pixel_offset;
+                    pointer_instance.GetCoords(i_det, i_time, (double*)coords);
+                    pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+                    accumulator.Forward(i_det, i_time, pixel_offset, coords, weights);
+                }
+            }
+        }
+    }
+    return map;
+}
+
+template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_weight_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
@@ -513,6 +585,78 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map(
 }
 
 template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight,
+    bp::object thread_intervals)
+{
+    auto pointer = P();
+    auto accumulator = A(false, false, true);
+    auto _none = bp::object();
+
+    //Initialize it / check inputs.
+    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    //Do we need a map?  Now is the time.
+    if (isNone(map)) {
+        int n_comp = accumulator.ComponentCount();
+        map = _pixelizor.zeros(n_comp * n_comp);
+        auto v0 = (PyArrayObject*)map.ptr();
+        npy_intp dims[32] = {n_comp, n_comp};
+        int dimi = 2;
+        for (int d=1; d<PyArray_NDIM(v0); d++)
+            dims[dimi++] = PyArray_DIM(v0, d);
+        PyArray_Dims padims = {dims, dimi};
+        PyObject *v1 = PyArray_Newshape(v0, &padims,  NPY_ANYORDER);
+        map = bp::object(bp::handle<>(v1));
+    }
+
+    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
+    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+
+    // Indexed by i_thread, i_det.
+    vector<vector<IntervalsInt32>> ivals;
+
+    auto ival_list_list = bp::extract<bp::list>(thread_intervals)();
+    for (int i=0; i<bp::len(ival_list_list); i++) {
+        auto ival_list =  bp::extract<bp::list>(ival_list_list[i])();
+        vector<IntervalsInt32> v(bp::len(ival_list));
+        for (int j=0; j<bp::len(ival_list); j++)
+            v[j] = bp::extract<IntervalsInt32>(ival_list[j])();
+        ivals.push_back(v);
+    }
+
+#pragma omp parallel
+    {
+        // The principle here is that all threads loop over all
+        // detectors, but the sample ranges encoded in ivals are
+        // disjoint.
+        const int n_thread = omp_get_num_threads();
+        const int i_thread = omp_get_thread_num();
+
+        auto pointer_instance = P();
+        pointer_instance.TestInputs(_none, pbore, pofs, _none, _none);
+
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            pointer_instance.InitPerDet(i_det);
+            for (auto rng: ivals[i_thread][i_det].segments) {
+                for (int i_time = rng.first; i_time < rng.second; ++i_time) {
+                    double coords[4];
+                    double weights[4];
+                    int pixel_offset;
+                    pointer_instance.GetCoords(i_det, i_time, (double*)coords);
+                    pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+                    accumulator.ForwardWeight(i_det, i_time, pixel_offset, coords, weights);
+                }
+            }
+        }
+    }
+
+    return map;
+}
+
+template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::from_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
@@ -543,12 +687,12 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
         pointer_instance.TestInputs(map, pbore, pofs, signal, weight);
 #pragma omp for
         for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer.InitPerDet(i_det);
+            pointer_instance.InitPerDet(i_det);
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
                 double weights[4];
                 int pixel_offset;
-                pointer.GetCoords(i_det, i_time, (double*)coords);
+                pointer_instance.GetCoords(i_det, i_time, (double*)coords);
                 pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
                 accumulator.Reverse(i_det, i_time, pixel_offset, coords, weights);
             }
@@ -664,6 +808,82 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel;
 }
 
+
+template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
+    bp::object pbore, bp::object pofs)
+{
+    auto pointer = P();
+    auto _none = bp::object();
+
+    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+    _pixelizor.TestInputs(_none, _none, _none, _none, _none);
+
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    auto pix_range = _pixelizor.IndexRange();
+
+    vector<vector<IntervalsInt32>> ranges;
+
+#pragma omp parallel
+    {
+        int n_domain = omp_get_num_threads();
+#pragma omp single
+        {
+            for (int i=0; i<n_domain; ++i) {
+                vector<IntervalsInt32> v(n_det);
+                ranges.push_back(v);
+            }
+        }
+
+        // Re-do this for each thread... fix me?
+        auto pointer_instance = P();
+        pointer_instance.TestInputs(_none, pbore, pofs, _none, _none);
+
+        int pix_lo = pix_range.first;
+        int pix_step = (pix_range.second - pix_range.first +
+                        n_domain - 1) / n_domain;
+
+#pragma omp for
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            pointer_instance.InitPerDet(i_det);
+            int last_slice = -1;
+            int slice_start = 0;
+            for (int i_time = 0; i_time < n_time; ++i_time) {
+                double coords[4];
+                pointer_instance.GetCoords(i_det, i_time, (double*)coords);
+                int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+                int this_slice = -1;
+                if (pixel_offset >= 0)
+                    this_slice = (pixel_offset - pix_lo) / pix_step;
+                if (this_slice != last_slice) {
+                    if (last_slice >= 0)
+                        ranges[last_slice][i_det].append_interval_no_check(
+                            slice_start, i_time);
+                    slice_start = i_time;
+                    last_slice = this_slice;
+                }
+            }
+            if (last_slice >= 0)
+                ranges[last_slice][i_det].append_interval_no_check(
+                    slice_start, n_time);
+        }
+    }
+
+    // Convert super vector to a list and return
+    auto ivals_out = bp::list();
+    for (int j=0; j<ranges.size(); j++) {
+        auto ivals = bp::list();
+        for (int i_det=0; i_det<n_det; i_det++) {
+            auto iv = ranges[j][i_det];
+            ivals.append(bp::object(iv));
+        }
+        ivals_out.append(bp::extract<bp::object>(ivals)());
+    }
+    return bp::extract<bp::object>(ivals_out);
+}
+
 typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinT>>
   ProjectionEngine0;
 typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinQU>>
@@ -686,10 +906,13 @@ typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinT
 #define EXPORT_ENGINE(CLASSNAME)                                        \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
     .def("to_map", &CLASSNAME::to_map)                                  \
+    .def("to_map_omp", &CLASSNAME::to_map_omp)                          \
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
+    .def("to_weight_map_omp", &CLASSNAME::to_weight_map_omp)            \
     .def("from_map", &CLASSNAME::from_map)                              \
     .def("coords", &CLASSNAME::coords)                                  \
-    .def("pixels", &CLASSNAME::pixels);
+    .def("pixels", &CLASSNAME::pixels)                                  \
+    .def("pixel_ranges", &CLASSNAME::pixel_ranges);
 
 PYBINDINGS("so3g")
 {
