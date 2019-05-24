@@ -2,6 +2,7 @@
 #
 # spt3g shared
 #
+#set g3root /home/ahincks/code/spt3g_software
 set g3root /home/vagrant/spt3g_software
 
 setenv          SPT3G_SOFTWARE_PATH $g3root

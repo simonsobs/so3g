@@ -217,7 +217,8 @@ class HKArchiveScanner:
                 self.session_id = session_id
 
         elif f['hkagg_type'] == so3g.HKFrameType.status:
-            # If a provider has disappeared, flush its information into a ChannelGroup.
+            # If a provider has disappeared, flush its information into a
+            # ChannelGroup.
             now_prov_id = [p['prov_id'].value for p in f['providers']]
             to_flush = [p for p in self.providers
                         if not p in now_prov_id]
