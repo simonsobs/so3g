@@ -17,7 +17,7 @@ system = args.system
 print('Using system: %s' % system)
 
 # Map space.
-pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0,0,0)
+pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0)
 
 # Samples
 n_det = 2000

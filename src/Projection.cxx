@@ -171,15 +171,12 @@ void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time, double *coords)
 Pixelizor2_Flat::Pixelizor2_Flat(
     int ny, int nx,
     double dy, double dx,
-    double y0, double x0,
     double iy0, double ix0)
 {
     naxis[0] = ny;
     naxis[1] = nx;
     cdelt[0] = dy;
     cdelt[1] = dx;
-    crval[0] = y0;
-    crval[1] = x0;
     crpix[0] = iy0;
     crpix[1] = ix0;
 
@@ -247,11 +244,11 @@ bp::object Pixelizor2_Flat::zeros(int count)
 inline
 int Pixelizor2_Flat::GetPixel(int i_det, int i_time, const double *coords)
 {
-    double ix = (coords[0] - crval[1]) / cdelt[1] + crpix[1] + 0.5;
+    double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
     if (ix < 0 || ix >= naxis[1])
         return -1;
 
-    double iy = (coords[1] - crval[0]) / cdelt[0] + crpix[0] + 0.5;
+    double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
     if (iy < 0 || iy >= naxis[0])
         return -1;
             
@@ -926,6 +923,6 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjectionEngine1QZ);
     EXPORT_ENGINE(ProjectionEngine2QZ);
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
-                          double,double,double,double>())
+                          double,double>())
         .def("zeros", &Pixelizor2_Flat::zeros);
 }

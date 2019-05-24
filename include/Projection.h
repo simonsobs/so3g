@@ -49,7 +49,6 @@ public:
     Pixelizor2_Flat() {};
     Pixelizor2_Flat(int nx, int ny,
               double dx=1., double dy=1.,
-              double x0=0., double y0=0.,
               double ix0=0., double iy0=0.);
     ~Pixelizor2_Flat() {};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
@@ -59,7 +58,6 @@ public:
     std::pair<int,int> IndexRange();
 private:
     int crpix[2];
-    double crval[2];
     double cdelt[2];
     int naxis[2];
     int strides[2];

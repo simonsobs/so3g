@@ -39,9 +39,8 @@ def get_pixelizor(emap):
     # Returns a Pixelizor suitable for use with emap's wcs.
     ny, nx = emap.shape[1:]
     dy, dx = emap.wcs.wcs.cdelt * np.pi/180
-    y0, x0 = emap.wcs.wcs.crval * np.pi/180
     iy0, ix0 = emap.wcs.wcs.crpix
-    return so3g.Pixelizor2_Flat(ny, nx, dy, dx, y0, x0, iy0, ix0)
+    return so3g.Pixelizor2_Flat(ny, nx, dy, dx, iy0, ix0)
 
 # Use this pixelizor for projections.
 pxz = get_pixelizor(beam)
