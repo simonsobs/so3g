@@ -14,6 +14,7 @@ class BufferWrapper;
 class ProjectionOptimizer {
 public:
     ProjectionOptimizer() {};
+    virtual
     ~ProjectionOptimizer() {};
     virtual bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                             bp::object &signal, bp::object &weight) = 0;
@@ -35,7 +36,9 @@ public:
     void InitPerDet(int i_det);
     int DetCount() { return n_det; }
     int TimeCount() { return n_time; }
-    void GetCoords(int i_det, int i_timeime, double *coords);
+    void GetCoords(int i_det, int i_time, double *coords);
+    vector<Pointer<CoordSys>*> ThreadableBatch(
+        int count, bp::object pbore, bp::object pofs);
 private:
     double _coords[4];
     BufferWrapper _pborebuf;
