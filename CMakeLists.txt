@@ -64,6 +64,7 @@ add_library(so3g SHARED
   src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
+  src/Rebundler.cxx
   src/exceptions.cxx
 )
 
