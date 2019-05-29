@@ -2,6 +2,9 @@
 so3g
 ====
 
+.. image:: https://travis-ci.com/simonsobs/so3g.svg?branch=master
+    :target: https://travis-ci.com/simonsobs/so3g
+
 Glue functions and new classes for SO work in the spt3g paradigm.
 This might turn into a permanent part of the SO software stack... but
 for now let's treat it as an experimentation and development area for
