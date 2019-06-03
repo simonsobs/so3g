@@ -12,6 +12,8 @@ import so3g
 from spt3g import core
 import numpy as np
 
+SPAN_BUFFER_SECONDS = 1.0
+
 class HKArchive:
     """Contains information necessary to determine what data fields are
     present in a data archive at what times.  It also knows how to
@@ -53,7 +55,7 @@ class HKArchive:
         span.add_interval(start, end)
         field_map = {}
         for cg in self.channel_groups:
-            both = span.intersect(cg.cover)
+            both = span * cg.cover
             if len(both.array()) > 0:
                 for f in cg.channels:
                     if fields is not None and f not in fields:
@@ -63,8 +65,9 @@ class HKArchive:
                     else:
                         field_map[f].append(cg)
 
-        # Sort each list of channel_groups, for subsequent comparison.
-        [f.sort(key=lambda x: id(x)) for f in field_map.values()]
+        # Sort each list of channel_groups by object id -- all we care
+        # about is whether two fields have the same channel group set.
+        [f.sort(key=lambda obj: id(obj)) for f in field_map.values()]
 
         # Now group together fields if they have identical
         # channel_group lists (because when they do, they can share a
@@ -246,7 +249,10 @@ class HKArchiveScanner:
                     blocks.append({'channels': channels,
                                    'start': b.t[0],
                                    'index_info': []})
-                blocks[block_index]['end'] = b.t[-1]
+                # To ensure that the last sample is actually included
+                # in the semi-open intervals we use to track frames,
+                # the "end" time has to be after the final sample.
+                blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
                 blocks[block_index]['index_info'].append(index_info)
                 
         else:
