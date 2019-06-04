@@ -45,7 +45,7 @@ class _HKBlockBundle:
 class _HKProvBundle:
     def __init__(self, t0, dt):
         self.blocks = []
-        self.channel_map = {}
+        self.field_map = {}
         self.sess = None
         self.prov_id = None
         self.t0 = t0
@@ -59,12 +59,12 @@ class _HKProvBundle:
             chans = b.data.keys()
             if len(chans) == 0 or len(b.t) == 0:
                 continue
-            idx = self.channel_map.get(chans[0], None)
+            idx = self.field_map.get(chans[0], None)
             if idx is None:
                 idx = len(self.blocks)
                 self.blocks.append(_HKBlockBundle())
                 for k in chans:
-                    self.channel_map[k] = idx
+                    self.field_map[k] = idx
             self.blocks[idx].add(b)
 
     def ready(self):
