@@ -1,0 +1,41 @@
+dist: xenial
+
+services:
+  - docker
+
+language: python
+python:
+  - "3.6"
+
+stages:
+  - name: dockerize
+    if: |
+      branch = master AND \
+      type = push
+
+jobs:
+  include:
+    - stage: dockerize
+      install: true
+
+      before_script:
+        # Use the git tag to tag docker image
+        - export DOCKER_TAG=`git describe --tags --always`
+        # Login to docker
+        - echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" -u "${REGISTRY_USER}" --password-stdin;
+
+      script:
+        # Build the docker image
+        - docker build -t so3g .
+        # Test import within container
+        - docker run --rm so3g /usr/bin/python3 -c 'import so3g'
+
+      after_success:
+        # Tag all images for upload to the registry
+        - "docker tag so3g:latest ${REGISTRY_URL}/so3g:latest"
+        - "docker tag so3g:latest ${REGISTRY_URL}/so3g:${DOCKER_TAG}"
+
+        # Upload to docker registry
+        - "docker push ${REGISTRY_URL}/so3g:${DOCKER_TAG}"
+        - "docker push ${REGISTRY_URL}/so3g:latest"
+        - "echo ${REGISTRY_URL}/so3g:${DOCKER_TAG} pushed"

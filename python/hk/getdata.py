@@ -12,6 +12,8 @@ import so3g
 from spt3g import core
 import numpy as np
 
+SPAN_BUFFER_SECONDS = 1.0
+
 class HKArchive:
     """Contains information necessary to determine what data fields are
     present in a data archive at what times.  It also knows how to
@@ -38,10 +40,10 @@ class HKArchive:
               start but excludes end.
 
         Returns:
-            List of (group_name, group_fields, cgs).  The
+            List of (group_name, group_fields, fgs).  The
             ``group_name`` is internally generated... probably
             something like "group0".  ``group_fields`` is a list of
-            fields belonging to this group.  ``cgs`` is a list of
+            fields belonging to this group.  ``fgs`` is a list of
             _FieldGroup objects relevant to the fields in this
             group.
         """
@@ -52,19 +54,20 @@ class HKArchive:
             end = span.domain[1]
         span.add_interval(start, end)
         field_map = {}
-        for cg in self.field_groups:
-            both = span.intersect(cg.cover)
+        for fg in self.field_groups:
+            both = span * fg.cover
             if len(both.array()) > 0:
-                for f in cg.fields:
+                for f in fg.fields:
                     if fields is not None and f not in fields:
                         continue
                     if not f in field_map:
-                        field_map[f] = [cg]
+                        field_map[f] = [fg]
                     else:
-                        field_map[f].append(cg)
+                        field_map[f].append(fg)
 
-        # Sort each list of field_groups, for subsequent comparison.
-        [f.sort(key=lambda x: id(x)) for f in field_map.values()]
+        # Sort each list of field_groups by object id -- all we care
+        # about is whether two fields have the same field group set.
+        [f.sort(key=lambda obj: id(obj)) for f in field_map.values()]
 
         # Now group together fields if they have identical
         # field_group lists (because when they do, they can share a
@@ -132,10 +135,10 @@ class HKArchive:
         grouped = self._get_groups(field, start, end)
         handles = {}  # filename -> G3IndexedReader map.
         blocks_out = []
-        for group_name, fields, chgrps in grouped:
+        for group_name, fields, fgrps in grouped:
             blocks_in = []
-            for cg in chgrps:
-                for r in cg.index_info:
+            for fg in fgrps:
+                for r in fg.index_info:
                     fn,off = r['filename'], r['byte_offset']
                     if not fn in handles:
                         handles[fn] = so3g.G3IndexedReader(fn)
@@ -248,7 +251,10 @@ class HKArchiveScanner:
                     blocks.append({'fields': fields,
                                    'start': b.t[0],
                                    'index_info': []})
-                blocks[block_index]['end'] = b.t[-1]
+                # To ensure that the last sample is actually included
+                # in the semi-open intervals we use to track frames,
+                # the "end" time has to be after the final sample.
+                blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
                 blocks[block_index]['index_info'].append(index_info)
                 
         else:
@@ -276,9 +282,9 @@ class HKArchiveScanner:
         for p in provs:
             blocks = self.providers.pop(p)
             for info in blocks:
-                cg = _FieldGroup(info['fields'], info['start'],
+                fg = _FieldGroup(info['fields'], info['start'],
                                    info['end'], info['index_info'])
-                self.field_groups.append(cg)
+                self.field_groups.append(fg)
 
     def finalize(self):
         """Finalize the processing by calling flush(), then return an
