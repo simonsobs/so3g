@@ -911,23 +911,23 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
 }
 
 typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjectionEngine0;
+  ProjEng_Flat_T;
 typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjectionEngine1;
+  ProjEng_Flat_QU;
 typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjectionEngine2;
+  ProjEng_Flat_TQU;
 typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjectionEngine0QC;
+  ProjEng_QCyl_T;
 typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjectionEngine1QC;
+  ProjEng_QCyl_QU;
 typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjectionEngine2QC;
+  ProjEng_QCyl_TQU;
 typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjectionEngine0QZ;
+  ProjEng_QZen_T;
 typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjectionEngine1QZ;
+  ProjEng_QZen_QU;
 typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjectionEngine2QZ;
+  ProjEng_QZen_TQU;
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
@@ -942,15 +942,15 @@ typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinT
 
 PYBINDINGS("so3g")
 {
-    EXPORT_ENGINE(ProjectionEngine0);
-    EXPORT_ENGINE(ProjectionEngine1);
-    EXPORT_ENGINE(ProjectionEngine2);
-    EXPORT_ENGINE(ProjectionEngine0QC);
-    EXPORT_ENGINE(ProjectionEngine1QC);
-    EXPORT_ENGINE(ProjectionEngine2QC);
-    EXPORT_ENGINE(ProjectionEngine0QZ);
-    EXPORT_ENGINE(ProjectionEngine1QZ);
-    EXPORT_ENGINE(ProjectionEngine2QZ);
+    EXPORT_ENGINE(ProjEng_Flat_T);
+    EXPORT_ENGINE(ProjEng_Flat_QU);
+    EXPORT_ENGINE(ProjEng_Flat_TQU);
+    EXPORT_ENGINE(ProjEng_QCyl_T);
+    EXPORT_ENGINE(ProjEng_QCyl_QU);
+    EXPORT_ENGINE(ProjEng_QCyl_TQU);
+    EXPORT_ENGINE(ProjEng_QZen_T);
+    EXPORT_ENGINE(ProjEng_QZen_QU);
+    EXPORT_ENGINE(ProjEng_QZen_TQU);
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double>())
         .def("zeros", &Pixelizor2_Flat::zeros);

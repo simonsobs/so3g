@@ -101,11 +101,11 @@ elif system in ['qcyl', 'qzen']:
 #
 
 if system == 'flat':
-    pe = so3g.ProjectionEngine2(pxz)
+    pe = so3g.ProjEng_Flat_TQU(pxz)
 elif system == 'qcyl':
-    pe = so3g.ProjectionEngine2QC(pxz)
+    pe = so3g.ProjEng_QCyl_TQU(pxz)
 elif system == 'qzen':
-    pe = so3g.ProjectionEngine2QZ(pxz)
+    pe = so3g.ProjEng_QZen_TQU(pxz)
 
 # Project the map into time-domain.
 sig0 = pe.from_map(beam, ptg, ofs, None, None)
@@ -159,11 +159,11 @@ ofsd = (ofs[::2,...])
 
 # Use the QU projector.
 if system == 'flat':
-    pe = so3g.ProjectionEngine1(pxz)
+    pe = so3g.ProjEng_Flat_QU(pxz)
 elif system == 'qcyl':
-    pe = so3g.ProjectionEngine1QC(pxz)
+    pe = so3g.ProjEng_QCyl_QU(pxz)
 elif system == 'qzen':
-    pe = so3g.ProjectionEngine1QZ(pxz)
+    pe = so3g.ProjEng_QZen_QU(pxz)
 
 # Bin the map again...
 map1d = pe.to_map(None, ptg, ofsd, sigd, None)

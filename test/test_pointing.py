@@ -35,7 +35,7 @@ polphi = 6.28 * np.arange(n_det) / n_det
 dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 
 if system == 'flat':
-    pe = so3g.ProjectionEngine2(pxz)
+    pe = so3g.ProjEng_Flat_TQU(pxz)
     # At each time step, boresight is (x, y, cos(phi), sin(phi))
     ptg = np.zeros((n_t, 4))
     ptg[...,0] = x
@@ -45,7 +45,7 @@ if system == 'flat':
     ofs = np.transpose([dx, dy, np.cos(polphi), np.sin(polphi)])
 
 elif system == 'qcyl':
-    pe = so3g.ProjectionEngine2QC(pxz)
+    pe = so3g.ProjEng_QCyl_TQU(pxz)
     # boresight needs to point to equinox...
     ptg = Qmul(Qroti(2, x),
                Qroti(1, np.pi/2 - y),
@@ -55,7 +55,7 @@ elif system == 'qcyl':
                Qroti(2, polphi))
 
 elif system == 'qzen':
-    pe = so3g.ProjectionEngine2QZ(pxz)
+    pe = so3g.ProjEng_QZen_TQU(pxz)
     # boresight needs to point to pole...
     ptg = Qmul(Qroti(1, y),
                Qroti(0, x))
