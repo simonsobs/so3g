@@ -73,28 +73,55 @@ if 1:
     with Timer() as T:
         pe.coords(ptg,ofs[:,:],coo)
 
+    print('And again but with internal creation.', end='\n ... ')
+    with Timer() as T:
+        coo1 = pe.coords(ptg,ofs,None)
+    assert(np.all([(c == _c).all() for c,_c in zip(coo, coo1)]))
+
     pl.plot(coo[0,:,0],
             coo[0,:,1])
     pl.show()
 
-    del coo
+    del coo, coo1
 
     print('Compute coords and pixels and return pixels.', end='\n ... ')
     pix = np.empty(sig.shape[1:], 'int32')
     with Timer() as T:
         pe.pixels(ptg,ofs,pix)
 
-    del pix
+    pix[:] = 0
+    pix_list = [p for p in pix]  #listify...
+    print('And into a list.', end='\n ...')
+    with Timer() as T:
+        pe.pixels(ptg,ofs,pix_list)
+
+    print('And with no target array(s).', end='\n ...')
+    with Timer() as T:
+        pix3 = pe.pixels(ptg, ofs, None)
+
+    print('Check for failure...', end='\n ...')
+    pix_list[10] = np.empty(sig.shape[-1]*2, 'int32')[::2]
+    try:
+        pe.pixels(ptg,ofs,pix_list)
+        raise Exception('Failed to fail when given invalid data!')
+    except RuntimeError as e:
+        print('Failure successful.')
+
+    del pix, pix_list, pix3
 
 if 1:
     print('Forward projection (TQU)', end='\n ... ')
     map0 = None #pxz.zeros(3)
+    sig_list = [x for x in sig[0]]
     with Timer() as T:
-        map1 = pe.to_map(None,ptg,ofs,sig,None)
+        map1 = pe.to_map(None,ptg,ofs,sig_list,None)
 
     print('Reverse projection (TQU)', end='\n ... ')
+    sig1 = [x for x in np.zeros((n_det,n_t))]
+    sig1 = np.random.uniform(size=(n_det,n_t))
     with Timer() as T:
-        sig1 = pe.from_map(map1, ptg, ofs, None, None)
+        #sig1 =
+        pe.from_map(map1, ptg, ofs, sig1, None)
 
 if 1:
     print('Forward project weights (TQU)', end='\n ... ')

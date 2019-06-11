@@ -314,13 +314,8 @@ bool Accumulator<SpinClass>::TestInputs(
     }
 
     if (need_signal) {
-        if (PyObject_GetBuffer(signal.ptr(), &_signalbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("signal");
-        }
-        if (_signalbuf.view.ndim != 3)
-            throw shape_exception("signal", "must have shape (n_sig,n_det,n_t)");
+        _signalspace = new SignalSpace<double>(
+            signal, "signal", NPY_FLOAT64, n_det, n_time);
     }
 
     // Insist that user passed in None for the weights.
@@ -369,10 +364,9 @@ void Accumulator<SpinClass>::Forward(
     const int pixel_offset, const double* coords, const double* weights)
 {
     if (pixel_offset < 0) return;
+    const double sig = *(_signalspace->data_ptr[i_det] +
+                         _signalspace->steps[0]*i_time);
     const int N = SpinClass::comp_count;
-    double sig = *(double*)((char*)_signalbuf.view.buf +
-                            _signalbuf.view.strides[1]*i_det +
-                            _signalbuf.view.strides[2]*i_time);
     double wt[N];
     PixelWeight(coords, wt);
     for (int imap=0; imap<N; ++imap) {
@@ -418,10 +412,98 @@ void Accumulator<SpinClass>::Reverse(
                            _mapbuf.view.strides[0]*imap +
                            pixel_offset) * wt[imap];
     }
-    double *sig = (double*)((char*)_signalbuf.view.buf +
-                            _signalbuf.view.strides[1]*i_det +
-                            _signalbuf.view.strides[2]*i_time);
+    double *sig = (_signalspace->data_ptr[i_det] +
+                   _signalspace->steps[0]*i_time);
     *sig += _sig;
+}
+
+
+template <typename DTYPE>
+bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
+                                   int dtype, std::vector<int> dims)
+{
+    // The first axis is special; identify it with detector count.
+    int n_det = dims[0];
+
+    // We want a list of arrays here.
+    bp::list sig_list;
+    auto list_extractor = bp::extract<bp::list>(input);
+    if (isNone(input)) {
+        npy_intp _dims[dims.size()];
+        for (int d=0; d<dims.size(); ++d)
+            _dims[d] = dims[d];
+        for (int i=0; i<n_det; ++i) {
+            PyObject *v = PyArray_ZEROS(dims.size()-1, _dims+1, dtype, 0);
+            sig_list.append(bp::object(bp::handle<>(v)));
+        }
+    } else if (list_extractor.check()) {
+        sig_list = list_extractor();
+    } else {
+        // Probably an array... listify it.
+        for (int i=0; i<bp::len(input); ++i)
+            sig_list.append(input[i]);
+    }
+    ret_val = sig_list;
+
+    if (bp::len(sig_list) != n_det)
+        throw shape_exception(var_name, "must contain (n_det) vectors"); 
+
+    // Now extract each list member into our vector of BufferWrappers..
+    data_ptr = (DTYPE**)calloc(n_det, sizeof(*data_ptr));
+
+    bw.reserve(n_det);
+    for (int i=0; i<n_det; i++) {
+        bw.push_back(BufferWrapper());
+        BufferWrapper &_bw = bw[i];
+        bp::object item = bp::extract<bp::object>(sig_list[i])();
+        if (PyObject_GetBuffer(item.ptr(),
+                               &_bw.view, PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception(var_name);
+        }
+        if (_bw.view.ndim != dims.size() - 1)
+            throw shape_exception(var_name, "must have the right number of dimsons");
+        if (strcmp(bw[i].view.format, bw[0].view.format) != 0)
+            throw dtype_exception(var_name, "[all elements must have same type]");
+        for (int d=0; d<dims.size() - 1; ++d) {
+            if (bw[i].view.shape[d] != dims[d+1])
+                throw shape_exception(var_name, "must have right shape in all dimensions");
+            if (bw[i].view.strides[d] != bw[0].view.strides[d])
+                throw shape_exception(var_name, "[all elements must have same stride]");
+        }
+        data_ptr[i] = (DTYPE*)bw[i].view.buf;
+    }
+    // Check the dtype
+    // FIXME; this does not check the dtype, it only checks the sizes.
+    if (bw[0].view.itemsize != sizeof(DTYPE))
+        throw dtype_exception(var_name, "[itemsize does not match expectation]");
+
+    // Check the stride and store the step in units of the itemsize.
+    //steps.empty();
+    for (int d=0; d<dims.size()-1; d++) {
+        if (bw[0].view.strides[d] % bw[0].view.itemsize != 0)
+            throw shape_exception(var_name, "stride is non-integral; realign.");
+        //steps.push_back(bw[0].view.strides[d] / bw[0].view.itemsize);
+        steps[d] = bw[0].view.strides[d] / bw[0].view.itemsize;
+    }
+    return true;
+}
+
+template <typename DTYPE>
+SignalSpace<DTYPE>::SignalSpace(
+    bp::object input, std::string var_name, int dtype, int n_det, int n_time)
+{
+    vector<int> dims = {n_det, n_time};
+    _Validate(input, var_name, dtype, dims);
+}
+
+template <typename DTYPE>
+SignalSpace<DTYPE>::SignalSpace(
+    bp::object input, std::string var_name, int dtype, int n_det, int n_time,
+    int n_thirdaxis)
+{
+    vector<int> dims = {n_det, n_time, n_thirdaxis};
+    _Validate(input, var_name, dtype, dims);
 }
 
 
@@ -433,7 +515,7 @@ void Accumulator<SpinClass>::Reverse(
  *     pbore:    (n_t, n_coord)
  *     pofs:     (n_det, n_coord)
  *     signal:   (n_det, n_t)
- *     weight:   (n_sig, n_det, n_map)
+ *     weight:   (n_det, n_map)
  *
  *  Notes:
  *
@@ -457,13 +539,13 @@ template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
-    auto pointer = P();
-    auto accumulator = A(true, true, false);
-
     //Initialize it / check inputs.
+    auto pointer = P();
     pointer.TestInputs(map, pbore, pofs, signal, weight);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
+
+    auto accumulator = A(true, true, false, n_det, n_time);
 
     //Do we need a map?  Now is the time.
     if (isNone(map)) {
@@ -494,14 +576,15 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight,
     bp::object thread_intervals)
 {
-    auto pointer = P();
-    auto accumulator = A(true, true, false);
     auto _none = bp::object();
 
     //Initialize it / check inputs.
+    auto pointer = P();
     pointer.TestInputs(map, pbore, pofs, signal, weight);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
+
+    auto accumulator = A(true, true, false, n_det, n_time);
 
     //Do we need a map?  Now is the time.
     if (isNone(map)) {
@@ -563,13 +646,13 @@ template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_weight_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
-    auto pointer = P();
-    auto accumulator = A(false, false, true);
-
     //Initialize it / check inputs.
+    auto pointer = P();
     pointer.TestInputs(map, pbore, pofs, signal, weight);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
+
+    auto accumulator = A(false, false, true, n_det, n_time);
 
     //Do we need a map?  Now is the time.
     if (isNone(map)) {
@@ -608,14 +691,15 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight,
     bp::object thread_intervals)
 {
-    auto pointer = P();
-    auto accumulator = A(false, false, true);
     auto _none = bp::object();
 
     //Initialize it / check inputs.
+    auto pointer = P();
     pointer.TestInputs(map, pbore, pofs, signal, weight);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
+
+    auto accumulator = A(false, false, true, n_det, n_time);
 
     //Do we need a map?  Now is the time.
     if (isNone(map)) {
@@ -685,25 +769,17 @@ template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::from_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
 {
-    auto pointer = P();
-    auto accumulator = A(true, true, false);
-
     // Initialize pointer and _pixelizor.
+    auto pointer = P();
     pointer.TestInputs(map, pbore, pofs, signal, weight);
-
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
     
-    // Do we have a signal array?  Now is the time.
-    if (isNone(signal)) {
-        npy_intp dims[3] = {1, n_det, n_time};
-        PyObject *v = PyArray_ZEROS(3, dims, NPY_FLOAT64, 0);
-        signal = bp::object(bp::handle<>(v));
-    }
-
-    // Initialize accumulator.
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
+    // Initialize accumulator -- create signal if it DNE.
+    auto accumulator = A(true, true, false, n_det, n_time);
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
+
+    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
     
     vector<P*> pointers;
 
@@ -730,38 +806,23 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
     }
     for (auto p: pointers)
         delete p;
-    return signal;
+    return accumulator._signalspace->ret_val;
 }
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::coords(
     bp::object pbore, bp::object pofs, bp::object coord)
 {
-    auto pointer = P();
     auto _none = bp::object();
+    auto pointer = P();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
 
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
-    // Do we have a coord array?  Now is the time.
-    if (isNone(coord)) {
-        npy_intp dims[3] = {n_det, n_time, 4};
-        PyObject *v = PyArray_ZEROS(3, dims, NPY_FLOAT64, 0);
-        coord = bp::object(bp::handle<>(v));
-    }
-
-    BufferWrapper coordbuf;
-    if (PyObject_GetBuffer(coord.ptr(), &coordbuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("coord");
-    }
-
-    if (coordbuf.view.ndim != 3)
-        throw shape_exception("coord", "must have shape (n_det,n_t,n_coord)");
-
-    auto coords_out = (char*)coordbuf.view.buf;
+    const int n_coord = 4;
+    auto coord_buf_man = SignalSpace<double>(
+        coord, "coord", NPY_FLOAT64, n_det, n_time, n_coord);
 
     vector<P*> pointers;
 
@@ -777,52 +838,40 @@ bp::object ProjectionEngine<P,Z,A>::coords(
 #pragma omp for
         for (int i_det = 0; i_det < n_det; ++i_det) {
             pointer_instance->InitPerDet(i_det);
+
+            double* const coords_det = coord_buf_man.data_ptr[i_det];
+            const int step0 = coord_buf_man.steps[0];
+            const int step1 = coord_buf_man.steps[1];
+
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
                 pointer_instance->GetCoords(i_det, i_time, (double*)coords);
-                for (int ic=0; ic<4; ic++) {
-                    *(double*)(coords_out
-                               + coordbuf.view.strides[0] * i_det
-                               + coordbuf.view.strides[1] * i_time
-                               + coordbuf.view.strides[2] * ic) = coords[ic];
-                }
+                for (int ic=0; ic<4; ic++)
+                    *(coords_det + step0 * i_time + step1 * ic) = coords[ic];
             }
         }
     }
     for (auto p: pointers)
         delete p;
 
-    return coord;
+    return coord_buf_man.ret_val;
 }
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::pixels(
     bp::object pbore, bp::object pofs, bp::object pixel)
 {
-    auto pointer = P();
     auto _none = bp::object();
 
+    auto pointer = P();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     _pixelizor.TestInputs(_none, _none, _none, _none, _none);
 
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
-    // Do we have a pixel array?  Now is the time.
-    if (isNone(pixel)) {
-        npy_intp dims[3] = {n_det, n_time};
-        PyObject *v = PyArray_ZEROS(2, dims, NPY_INT32, 0);
-        pixel = bp::object(bp::handle<>(v));
-    }
-
-    BufferWrapper pixelbuf; //auto pixelbuf = new BufferWrapper();
-    if (PyObject_GetBuffer(pixel.ptr(), &pixelbuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("pixel");
-    }
-    if (pixelbuf.view.ndim != 2)
-        throw shape_exception("pixel", "must have shape (n_det,n_t)");
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel, "pixel", NPY_INT32, n_det, n_time);
 
     vector<P*> pointers;
 
@@ -838,20 +887,20 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
 #pragma omp for
         for (int i_det = 0; i_det < n_det; ++i_det) {
             pointer_instance->InitPerDet(i_det);
+            int* const pix_buf = pixel_buf_man.data_ptr[i_det];
+            const int step = pixel_buf_man.steps[0];
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
                 pointer_instance->GetCoords(i_det, i_time, (double*)coords);
                 int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
-
-                *(int*)((char*)pixelbuf.view.buf
-                        + pixelbuf.view.strides[0] * i_det
-                        + pixelbuf.view.strides[1] * i_time) = pixel_offset;
+                pix_buf[i_time * step] = pixel_offset;
+                // pix_buf[i_time * pixel_buf_man.steps[0]] = pixel_offset;
             }
         }
     }
     for (auto p: pointers)
         delete p;
-    return pixel;
+    return pixel_buf_man.ret_val;
 }
 
 

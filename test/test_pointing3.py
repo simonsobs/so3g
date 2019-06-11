@@ -65,8 +65,10 @@ elif system == 'qzen':
                Qroti(1,-dy),
                Qroti(2, polphi))
 
-sig = np.ones((1,n_det,n_t)) * .5
+sig = np.ones((n_det,n_t)) * .5
 
+print('Note the problem size is %i x %i = %.3fM samples.\n' %
+      (n_det, n_t, n_det*n_t/1e6))
 
 if 1:
     n_omp = int(os.getenv('OMP_NUM_THREADS'))
@@ -140,5 +142,5 @@ for axi in range(3):
     ax.set_title('TQU'[axi])
 
 ax = pl.subplot(gs1[1,:])
-ax.plot(sig1[0,500])
+ax.plot(sig1[500])
 pl.show()

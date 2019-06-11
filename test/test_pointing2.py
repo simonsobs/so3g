@@ -109,6 +109,7 @@ elif system == 'qzen':
 
 # Project the map into time-domain.
 sig0 = pe.from_map(beam, ptg, ofs, None, None)
+sig0 = np.array(sig0)
 
 # Add some noise...
 sig1 = sig0 + .0001*np.random.normal(0, 1, size=sig0.shape)
@@ -116,8 +117,8 @@ sig1 = sig0 + .0001*np.random.normal(0, 1, size=sig0.shape)
 # Show this...
 _, sps = pl.subplots(1, 2)
 DET = 0
-sps[0].plot(sig0[0,DET] - sig0[0,DET+1])
-sps[1].plot(sig1[0,DET] - sig1[0,DET+1])
+sps[0].plot(sig0[DET] - sig0[DET+1])
+sps[1].plot(sig1[DET] - sig1[DET+1])
 pl.show()
 
 # Then back to map.
@@ -153,7 +154,7 @@ for comp in [0,1,2]:
 # Do it again, but with "pair differencing".
 #
 
-sigd = (sig1[:,0::2,:] - sig1[:,1::2,:]) / 2
+sigd = (sig1[0::2,:] - sig1[1::2,:]) / 2
 ofsd = (ofs[::2,...])
 
 # Use the QU projector.

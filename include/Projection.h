@@ -67,6 +67,29 @@ private:
 };
 
 
+template <typename DTYPE>
+class SignalSpace {
+public:
+    SignalSpace(bp::object input, std::string var_name,
+                int dtype, int n_det, int n_time);
+    SignalSpace(bp::object input, std::string var_name,
+                int dtype, int n_det, int n_time, int n_thirdaxis);
+    ~SignalSpace() { if (data_ptr) free(data_ptr); };
+
+    // Use arrays rather than vectors for anything that will be in
+    // inner loop (even if it's inlined, the compiler might worry).
+    DTYPE **data_ptr = NULL;
+    int steps[64];
+
+    vector<BufferWrapper> bw;
+    bp::object ret_val;
+
+private:
+    bool _Validate(bp::object input, std::string var_name,
+                   int dtype, std::vector<int> dims);
+};
+
+
 /** Accumulator class templates.
  *
  * The SpinClass is used primarily to activate appropriate PixelWeight
@@ -90,10 +113,14 @@ template <typename SpinClass>
 class Accumulator : public ProjectionOptimizer {
 public:
     Accumulator<SpinClass>() {};
-    Accumulator<SpinClass>(bool _need_map, bool _need_signal, bool _need_weight_map):
+    Accumulator<SpinClass>(bool _need_map, bool _need_signal, bool _need_weight_map,
+                           int _n_det, int _n_time):
         need_map(_need_map), need_signal(_need_signal),
-        need_weight_map(_need_weight_map) {};
-    ~Accumulator<SpinClass>() {};
+        need_weight_map(_need_weight_map), n_det(_n_det), n_time(_n_time) {};
+    ~Accumulator<SpinClass>() {
+        if (_signalspace != nullptr)
+            delete _signalspace;
+    };
     inline int ComponentCount() {return SpinClass::comp_count;}
     void PixelWeight(const double *coords, double *wt);
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
@@ -113,12 +140,14 @@ public:
                  const int pixel_index,
                  const double* coords,
                  const double* weights);
+    SignalSpace<double> *_signalspace = nullptr;
 protected:
     bool need_map = true;
     bool need_signal = true;
     bool need_weight_map = false;
+    int n_det = 0;
+    int n_time = 0;
     BufferWrapper _mapbuf;
-    BufferWrapper _signalbuf;
 };
 
 template<typename P, typename Z, typename A>
