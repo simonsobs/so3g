@@ -63,42 +63,28 @@ bool Pointer<CoordSys>::TestInputs(
 
 template <typename CoordSys>
 inline
-vector<Pointer<CoordSys>*> Pointer<CoordSys>::ThreadableBatch(
-    int count, bp::object pbore, bp::object pofs)
-{
-    auto _none = bp::object();
-    vector<Pointer<CoordSys>*> output(count);
-    for (int i=0; i<count; i++) {
-        auto ptr = new Pointer<CoordSys>();
-        ptr->TestInputs(_none, pbore, pofs, _none, _none);
-        output[i] = ptr;
-    }
-    return output;
-}
-
-template <typename CoordSys>
-inline
-void Pointer<CoordSys>::InitPerDet(int i_det)
+void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
 {
     const char *det = (char*)_pdetbuf.view.buf
         + _pdetbuf.view.strides[0] * i_det;
     for (int ic = 0; ic < 4; ++ic)
-        _coords[ic] = *(double*)(det + _pdetbuf.view.strides[1] * ic);
+        dofs[ic] = *(double*)(det + _pdetbuf.view.strides[1] * ic);
 }
 
 template <>
 inline
-void Pointer<CoordFlat>::GetCoords(int i_det, int i_time, double *coords)
+void Pointer<CoordFlat>::GetCoords(int i_det, int i_time,
+                                   const double *dofs, double *coords)
 {
     for (int ic=0; ic<4; ic++)
         coords[ic] = *(double*)((char*)_pborebuf.view.buf +
                                 _pborebuf.view.strides[0] * i_time +
                                 _pborebuf.view.strides[1] * ic);
-    coords[0] += _coords[0];
-    coords[1] += _coords[1];
+    coords[0] += dofs[0];
+    coords[1] += dofs[1];
     const double coords_2_ = coords[2];
-    coords[2] = coords[2] * _coords[2] - coords[3] * _coords[3];
-    coords[3] = coords[3] * _coords[2] + coords_2_ * _coords[3];
+    coords[2] = coords[2] * dofs[2] - coords[3] * dofs[3];
+    coords[3] = coords[3] * dofs[2] + coords_2_ * dofs[3];
 }
 
 
@@ -110,7 +96,8 @@ void Pointer<CoordFlat>::GetCoords(int i_det, int i_time, double *coords)
 
 template <>
 inline
-void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
+void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time,
+                                      const double *dofs, double *coords)
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
@@ -119,8 +106,8 @@ void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
                             _pborebuf.view.strides[1] * ic);
 
     // What could possibly go wrong.
-    quatd *qbore = reinterpret_cast<quatd*>(_qbore);
-    quatd *qofs = reinterpret_cast<quatd*>(_coords);
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
     quatd qdet = (*qbore) * (*qofs);
 
     const double a = qdet.R_component_1();
@@ -151,7 +138,8 @@ void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time, double *coords)
 
 template <>
 inline
-void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time, double *coords)
+void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time,
+                                      const double *dofs, double *coords)
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
@@ -160,8 +148,8 @@ void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time, double *coords)
                             _pborebuf.view.strides[1] * ic);
 
     // What could possibly go wrong.
-    quatd *qbore = reinterpret_cast<quatd*>(_qbore);
-    quatd *qofs = reinterpret_cast<quatd*>(_coords);
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
     quatd qdet = (*qbore) * (*qofs);
 
     const double a = qdet.R_component_1();
@@ -557,12 +545,13 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
-        pointer.InitPerDet(i_det);
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             double weights[4];
             int pixel_offset;
-            pointer.GetCoords(i_det, i_time, (double*)coords);
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
             accumulator.Forward(i_det, i_time, pixel_offset, coords, weights);
         }
@@ -607,38 +596,27 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
         ivals.push_back(v);
     }
 
-    vector<P*> pointers;
-
 #pragma omp parallel
     {
         // The principle here is that all threads loop over all
         // detectors, but the sample ranges encoded in ivals are
         // disjoint.
-
-#pragma omp single
-        {
-            pointers = pointer.ThreadableBatch(omp_get_num_threads(),
-                                               pbore, pofs);
-        }
-        auto pointer_instance = pointers[omp_get_thread_num()];
-
         const int i_thread = omp_get_thread_num();
         for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer_instance->InitPerDet(i_det);
+            double dofs[4];
+            pointer.InitPerDet(i_det, dofs);
             for (auto rng: ivals[i_thread][i_det].segments) {
                 for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                     double coords[4];
                     double weights[4];
                     int pixel_offset;
-                    pointer_instance->GetCoords(i_det, i_time, (double*)coords);
+                    pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                     pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
                     accumulator.Forward(i_det, i_time, pixel_offset, coords, weights);
                 }
             }
         }
     }
-    for (auto p: pointers)
-        delete p;
     return map;
 }
 
@@ -672,12 +650,14 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map(
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
-        pointer.InitPerDet(i_det);
+        // pointer.InitPerDet(i_det);
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             double weights[4];
             int pixel_offset;
-            pointer.GetCoords(i_det, i_time, (double*)coords);
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
             accumulator.ForwardWeight(i_det, i_time, pixel_offset, coords, weights);
         }
@@ -730,37 +710,27 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
         ivals.push_back(v);
     }
 
-    vector<P*> pointers;
-
 #pragma omp parallel
     {
         // The principle here is that all threads loop over all
         // detectors, but the sample ranges encoded in ivals are
         // disjoint.
-#pragma omp single
-        {
-            pointers = pointer.ThreadableBatch(omp_get_num_threads(),
-                                               pbore, pofs);
-        }
-        auto pointer_instance = pointers[omp_get_thread_num()];
-
         const int i_thread = omp_get_thread_num();
         for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer_instance->InitPerDet(i_det);
+            double dofs[4];
+            pointer.InitPerDet(i_det, dofs);
             for (auto rng: ivals[i_thread][i_det].segments) {
                 for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                     double coords[4];
                     double weights[4];
                     int pixel_offset;
-                    pointer_instance->GetCoords(i_det, i_time, (double*)coords);
+                    pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                     pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
                     accumulator.ForwardWeight(i_det, i_time, pixel_offset, coords, weights);
                 }
             }
         }
     }
-    for (auto p: pointers)
-        delete p;
 
     return map;
 }
@@ -781,31 +751,20 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
 
     _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
     
-    vector<P*> pointers;
-
-#pragma omp parallel
-    {
-#pragma omp single
-        {
-            pointers = pointer.ThreadableBatch(omp_get_num_threads(),
-                                               pbore, pofs);
-        }
-        auto pointer_instance = pointers[omp_get_thread_num()];
-#pragma omp for
-        for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer_instance->InitPerDet(i_det);
-            for (int i_time = 0; i_time < n_time; ++i_time) {
-                double coords[4];
-                double weights[4];
-                int pixel_offset;
-                pointer_instance->GetCoords(i_det, i_time, (double*)coords);
-                pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
-                accumulator.Reverse(i_det, i_time, pixel_offset, coords, weights);
-            }
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            double weights[4];
+            int pixel_offset;
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+            accumulator.Reverse(i_det, i_time, pixel_offset, coords, weights);
         }
     }
-    for (auto p: pointers)
-        delete p;
+
     return accumulator._signalspace->ret_val;
 }
 
@@ -824,35 +783,22 @@ bp::object ProjectionEngine<P,Z,A>::coords(
     auto coord_buf_man = SignalSpace<double>(
         coord, "coord", NPY_FLOAT64, n_det, n_time, n_coord);
 
-    vector<P*> pointers;
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
 
-#pragma omp parallel
-    {
-#pragma omp single
-        {
-            pointers = pointer.ThreadableBatch(omp_get_num_threads(),
-                                               pbore, pofs);
-        }
-        auto pointer_instance = pointers[omp_get_thread_num()];
+        double* const coords_det = coord_buf_man.data_ptr[i_det];
+        const int step0 = coord_buf_man.steps[0];
+        const int step1 = coord_buf_man.steps[1];
 
-#pragma omp for
-        for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer_instance->InitPerDet(i_det);
-
-            double* const coords_det = coord_buf_man.data_ptr[i_det];
-            const int step0 = coord_buf_man.steps[0];
-            const int step1 = coord_buf_man.steps[1];
-
-            for (int i_time = 0; i_time < n_time; ++i_time) {
-                double coords[4];
-                pointer_instance->GetCoords(i_det, i_time, (double*)coords);
-                for (int ic=0; ic<4; ic++)
-                    *(coords_det + step0 * i_time + step1 * ic) = coords[ic];
-            }
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            for (int ic=0; ic<4; ic++)
+                *(coords_det + step0 * i_time + step1 * ic) = coords[ic];
         }
     }
-    for (auto p: pointers)
-        delete p;
 
     return coord_buf_man.ret_val;
 }
@@ -873,33 +819,21 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     auto pixel_buf_man = SignalSpace<int32_t>(
         pixel, "pixel", NPY_INT32, n_det, n_time);
 
-    vector<P*> pointers;
-
-#pragma omp parallel
-    {
-#pragma omp single
-        {
-            pointers = pointer.ThreadableBatch(omp_get_num_threads(),
-                                               pbore, pofs);
-        }
-        auto pointer_instance = pointers[omp_get_thread_num()];
-
-#pragma omp for
-        for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer_instance->InitPerDet(i_det);
-            int* const pix_buf = pixel_buf_man.data_ptr[i_det];
-            const int step = pixel_buf_man.steps[0];
-            for (int i_time = 0; i_time < n_time; ++i_time) {
-                double coords[4];
-                pointer_instance->GetCoords(i_det, i_time, (double*)coords);
-                int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
-                pix_buf[i_time * step] = pixel_offset;
-                // pix_buf[i_time * pixel_buf_man.steps[0]] = pixel_offset;
-            }
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        int* const pix_buf = pixel_buf_man.data_ptr[i_det];
+        const int step = pixel_buf_man.steps[0];
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+            pix_buf[i_time * step] = pixel_offset;
+            // pix_buf[i_time * pixel_buf_man.steps[0]] = pixel_offset;
         }
     }
-    for (auto p: pointers)
-        delete p;
+
     return pixel_buf_man.ret_val;
 }
 
@@ -920,7 +854,6 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
     auto pix_range = _pixelizor.IndexRange();
 
     vector<vector<IntervalsInt32>> ranges;
-    vector<P*> pointers;
 
 #pragma omp parallel
     {
@@ -931,10 +864,7 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
                 vector<IntervalsInt32> v(n_det);
                 ranges.push_back(v);
             }
-            pointers = pointer.ThreadableBatch(omp_get_num_threads(),
-                                               pbore, pofs);
         }
-        auto pointer_instance = pointers[omp_get_thread_num()];
 
         int pix_lo = pix_range.first;
         int pix_step = (pix_range.second - pix_range.first +
@@ -942,12 +872,13 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
 
 #pragma omp for
         for (int i_det = 0; i_det < n_det; ++i_det) {
-            pointer_instance->InitPerDet(i_det);
+            double dofs[4];
+            pointer.InitPerDet(i_det, dofs);
             int last_slice = -1;
             int slice_start = 0;
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
-                pointer_instance->GetCoords(i_det, i_time, (double*)coords);
+                pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                 int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
                 int this_slice = -1;
                 if (pixel_offset >= 0)
@@ -965,8 +896,6 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
                     slice_start, n_time);
         }
     }
-    for (auto p: pointers)
-        delete p;
 
     // Convert super vector to a list and return
     auto ivals_out = bp::list();

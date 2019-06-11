@@ -33,14 +33,11 @@ class Pointer : public ProjectionOptimizer {
 public:
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &weight);
-    void InitPerDet(int i_det);
+    void InitPerDet(int i_det, double *dofs);
     int DetCount() { return n_det; }
     int TimeCount() { return n_time; }
-    void GetCoords(int i_det, int i_time, double *coords);
-    vector<Pointer<CoordSys>*> ThreadableBatch(
-        int count, bp::object pbore, bp::object pofs);
+    void GetCoords(int i_det, int i_time, const double *dofs, double *coords);
 private:
-    double _coords[4];
     BufferWrapper _pborebuf;
     BufferWrapper _pdetbuf;
     int n_det;
