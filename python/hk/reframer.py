@@ -19,7 +19,7 @@ class _HKBlockBundle:
         """Returns true if the current block has crossed flush_time."""
         return len(self.t) > 0 and self.t[-1] >= flush_time
 
-    def rebundle(self, flush_time):
+    def rebundle(self, flush_time, downsample):
         """Return the IrregBlockDouble with all samples timestamped up to but
         not including flush_time.  Pass None to force rebundle all.
 
@@ -34,10 +34,16 @@ class _HKBlockBundle:
             while idx < len(self.t) and self.t[idx] < flush_time:
                 idx += 1
         out = so3g.IrregBlockDouble()
-        out.t = np.array(self.t[:idx])
+        if downsample:
+            out.t = downsample.downsample_t(self.t[:idx])
+        else:
+            out.t = np.array(self.t[:idx])
         self.t = self.t[idx:]
         for k in self.chans.keys():
-            out.data[k] = np.array(self.chans[k][:idx])
+            if downsample:
+                out.data[k] = downsample.downsample_data(self.chans[k][:idx])
+            else:
+                out.data[k] = np.array(self.chans[k][:idx:downsample])
             self.chans[k] = self.chans[k][idx:]
         return out
 
@@ -70,7 +76,7 @@ class _HKProvBundle:
     def ready(self):
         return all(b.ready(self.t0 + self.dt) for b in self.blocks)
 
-    def rebundle(self, force=False):
+    def rebundle(self, force=False, downsample=None):
         output = []
         while force or self.ready():
             if force:
@@ -78,7 +84,8 @@ class _HKProvBundle:
             else:
                 flush_time = self.t0 + self.dt
                 self.t0 += self.dt
-            blocks_out = [b.rebundle(flush_time) for b in self.blocks]
+            blocks_out = [b.rebundle(flush_time, downsample) \
+                          for b in self.blocks]
             blocks_out = [b for b in blocks_out if b is not None and len(b.t)>0]
             if len(blocks_out) == 0:
                 break
@@ -89,17 +96,74 @@ class _HKProvBundle:
             output.append(f)
         return output
 
+class Downsample:
+    """Define a scheme for downsampling data when rebundling.
+    
+    This parent class simply downsamples by introducing a step into the array
+    slicing. Derived classes can do something more complicated.
+
+    Attributes:
+        step: A positive integer indicating the step size for slicing input
+          arrays.
+    """
+    def __init__(self, step):
+        if not isinstance(step, int) or step < 1:
+            raise TypeError("Attribute step must be a positive integer.")
+        self.step = step
+
+    def downsample_t(self, t):
+        """Downsample the timestamp.
+
+        Derived classes should override this method.
+
+        Args:
+            t: The timestamp to downsample.
+
+        Returns:
+            A downsampled array.
+        """
+        return np.array(t[::self.step])
+
+    def downsample_data(self, d):
+        """Downsample a field of data.
+
+        Derived classes should override this method.
+
+        Args:
+            d: The data field to downsample.
+
+        Returns:
+            A downsampled arrays.
+        """
+        return np.array(d[::self.step])
+
+class DownsampleMinPeriod(Downsample):
+    """Downsample by specifying a minimum period between timesteps.
+
+    The timestamp is downsampled by returning ... CONTINUE HERE.
+    """
+    def __init__(self, min_period=1.0, method=np.median):
+        self.min_period = min_period
+        self.method = method
+        # THE REST STILL TO BE WRITTEN ...
+
+
 
 class HKReframer:
     """The purpose of this module is to rebundle HK frames in order to
     increase or decrease the number of samples in each data frame.
 
+    Attributes:
+        target: Target length for output frames, in seconds.
+        downsample: An object of `Downsample` or derived type; or `None` for no
+          downsampling.
     """
     cache = {}
 
     # A G3Pipeline module.
-    def __init__(self, target=60.):
+    def __init__(self, target=60., downsample=None):
         self.target = target
+        self.downsample = downsample
         self.session_id = None
         self.providers = {}
 
@@ -171,7 +235,7 @@ class HKReframer:
             fb = self.providers[f['prov_id']]
             fb.add(f)
             if fb.ready():
-                output += fb.rebundle()
+                output += fb.rebundle(False, self.downsample)
 
         else:
             raise ValueError('Invalid hkagg_type')
