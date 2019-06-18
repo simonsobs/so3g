@@ -43,7 +43,7 @@ class _HKBlockBundle:
             if downsample:
                 out.data[k] = downsample.downsample_data(self.chans[k][:idx])
             else:
-                out.data[k] = np.array(self.chans[k][:idx:downsample])
+                out.data[k] = np.array(self.chans[k][:idx])
             self.chans[k] = self.chans[k][idx:]
         return out
 
