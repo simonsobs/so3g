@@ -1,6 +1,9 @@
 import so3g
 from spt3g import core
 
+from . import quat
+from . import wcs
+
 import numpy as np
 
 """We're typically converting from some set of vectors of time-ordered
