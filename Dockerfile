@@ -2,7 +2,7 @@
 # A containerized so3g installation.
 
 # Build on spt3g base image
-FROM grumpy.physics.yale.edu/spt3g:2fb411c
+FROM simonsobs/spt3g:c822dee
 
 # Set the working directory
 WORKDIR /app_lib/so3g

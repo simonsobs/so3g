@@ -22,7 +22,7 @@ jobs:
         # Use the git tag to tag docker image
         - export DOCKER_TAG=`git describe --tags --always`
         # Login to docker
-        - echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" -u "${REGISTRY_USER}" --password-stdin;
+        - echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin;
 
       script:
         # Build the docker image
@@ -32,10 +32,10 @@ jobs:
 
       after_success:
         # Tag all images for upload to the registry
-        - "docker tag so3g:latest ${REGISTRY_URL}/so3g:latest"
-        - "docker tag so3g:latest ${REGISTRY_URL}/so3g:${DOCKER_TAG}"
+        - "docker tag so3g:latest ${DOCKERHUB_ORG}/so3g:latest"
+        - "docker tag so3g:latest ${DOCKERHUB_ORG}/so3g:${DOCKER_TAG}"
 
         # Upload to docker registry
-        - "docker push ${REGISTRY_URL}/so3g:${DOCKER_TAG}"
-        - "docker push ${REGISTRY_URL}/so3g:latest"
-        - "echo ${REGISTRY_URL}/so3g:${DOCKER_TAG} pushed"
+        - "docker push ${DOCKERHUB_ORG}/so3g:${DOCKER_TAG}"
+        - "docker push ${DOCKERHUB_ORG}/so3g:latest"
+        - "echo ${DOCKERHUB_ORG}/so3g:${DOCKER_TAG} pushed"
