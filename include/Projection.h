@@ -24,9 +24,15 @@ public:
     void InitPerSample() {};
 };
     
-class CoordQuatCyl;
-class CoordQuatZen;
-class CoordFlat;
+class ProjQuat;
+class ProjFlat;
+
+class ProjCEA;
+class ProjCAR;
+
+class ProjARC;
+class ProjTAN;
+class ProjZEA;
 
 template <typename CoordSys>
 class Pointer : public ProjectionOptimizer {

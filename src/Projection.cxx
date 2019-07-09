@@ -71,10 +71,35 @@ void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
         dofs[ic] = *(double*)(det + _pdetbuf.view.strides[1] * ic);
 }
 
+/* ProjQuat: Not a projection -- returns the quaternion rotation
+ * components.
+ */
+
 template <>
 inline
-void Pointer<CoordFlat>::GetCoords(int i_det, int i_time,
-                                   const double *dofs, double *coords)
+void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
+                                  const double *dofs, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
+                            _pborebuf.view.strides[0] * i_time +
+                            _pborebuf.view.strides[1] * ic);
+
+    // What could possibly go wrong.
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
+    quatd *qdet = reinterpret_cast<quatd*>(coords);
+    *qdet =(*qbore) * (*qofs);
+}
+
+/* ProjFlat: Not a spherical projection -- assumes flat space (as in
+ * FITS X,Y type coordinates). */
+
+template <>
+inline
+void Pointer<ProjFlat>::GetCoords(int i_det, int i_time,
+                                  const double *dofs, double *coords)
 {
     for (int ic=0; ic<4; ic++)
         coords[ic] = *(double*)((char*)_pborebuf.view.buf +
@@ -87,17 +112,17 @@ void Pointer<CoordFlat>::GetCoords(int i_det, int i_time,
     coords[3] = coords[3] * dofs[2] + coords_2_ * dofs[3];
 }
 
-
-/* CoordQuatZen: this system is appropriate for Zenith projections,
- * such as tangent plane.  The tangent point is xyz = (0,0,1), and the
- * axes are (X,Y) <- (y,x).  The QU system has Q parallel to x.  This
- * will break down for points where z = 0.
+/* ProjARC: the zenithal equidistant projection.
+ *
+ * The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+ * [see FITS-II].  Then cos and sin of parallactic angle.  For ARC,
+ * R(lat) = 90 - lat = theta.
  */
 
 template <>
 inline
-void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time,
-                                      const double *dofs, double *coords)
+void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
+                                 const double *dofs, double *coords)
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
@@ -115,30 +140,143 @@ void Pointer<CoordQuatZen>::GetCoords(int i_det, int i_time,
     const double c = qdet.R_component_3();
     const double d = qdet.R_component_4();
 
-    // All we need is cos(lat/2)^2...
-    const double cos_lat2_sq = a*a + d*d;
+    const double cos_theta2_sq = a*a + d*d;
 
-    coords[0] = 2 * (a*b - c*d);
-    coords[1] = 2 * (a*c + b*d);
-    coords[2] = (a*a - d*d) / cos_lat2_sq;
-    coords[3] = (2*a*d) / cos_lat2_sq;
+    const double sc = c*a + d*b;
+    const double ss = a*b - c*d;
+    const double half_sin_theta = sqrt(sc*sc + ss*ss);
+    double R_factor;
+    if (half_sin_theta < 1e-8)
+        R_factor = 2 + 1.33333333333*half_sin_theta*half_sin_theta;
+    else
+        R_factor = asin(half_sin_theta*2) / half_sin_theta;
+
+    coords[0] = ss * R_factor;
+    coords[1] = sc * R_factor;
+    coords[2] = (a*a - d*d) / cos_theta2_sq;
+    coords[3] = (2*a*d) / cos_theta2_sq;
 }
 
-/* CoordQuatCyl: this system is appropriate for Cylindrical
- * projections, such as CAR, CEA, Healpix.
+/* ProjTAN: the tangent plane (gnomonic) projection.  It is zenithal.
  *
- * Currently the routine transfers positions (y,z) into map
- * coordinates (x,y).  So that's not very cylindrical... either we
- * need inverse trig functions (for CAR or CEA) or we need to transfer
- * x,y,z (for Healpix).
- *
- * The QU system, at least, is done properly -- Q is parallel to
- * increasing latitude.
+ * The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+ * [see FITS-II].  Then cos and sin of parallactic angle.  For TAN,
+ * R(lat) = tan(lat) = cot(theta).
  */
 
 template <>
 inline
-void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time,
+void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
+                                 const double *dofs, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
+                            _pborebuf.view.strides[0] * i_time +
+                            _pborebuf.view.strides[1] * ic);
+
+    // What could possibly go wrong.
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
+    quatd qdet = (*qbore) * (*qofs);
+
+    const double a = qdet.R_component_1();
+    const double b = qdet.R_component_2();
+    const double c = qdet.R_component_3();
+    const double d = qdet.R_component_4();
+
+    const double cos_theta2_sq = a*a + d*d;
+    const double cos_theta = 2*cos_theta2_sq - 1;
+
+    coords[0] = (a*b - c*d) * 2 / cos_theta;
+    coords[1] = (a*c + b*d) * 2 / cos_theta;
+    coords[2] = (a*a - d*d) / cos_theta2_sq;
+    coords[3] = (2*a*d) / cos_theta2_sq;
+}
+
+/* ProjZEA: the zenithal equal area projection.
+ *
+ * The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+ * [see FITS-II].  Then cos and sin of parallactic angle.  For ZEA,
+ * R(lat) = sqrt(2(1-cos(lat))) = sqrt(2(1-sin(theta))).
+ */
+
+template <>
+inline
+void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
+                                 const double *dofs, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
+                            _pborebuf.view.strides[0] * i_time +
+                            _pborebuf.view.strides[1] * ic);
+
+    // What could possibly go wrong.
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
+    quatd qdet = (*qbore) * (*qofs);
+
+    const double a = qdet.R_component_1();
+    const double b = qdet.R_component_2();
+    const double c = qdet.R_component_3();
+    const double d = qdet.R_component_4();
+
+    const double cos_theta2_sq = a*a + d*d;
+    const double cos_theta = 2*cos_theta2_sq - 1;
+    const double cos_theta2 = sqrt(cos_theta2_sq);
+
+    coords[0] = (a*b - c*d) * 2 / cos_theta2;
+    coords[1] = (a*c + b*d) * 2 / cos_theta2;
+    coords[2] = (a*a - d*d) / cos_theta2_sq;
+    coords[3] = (2*a*d) / cos_theta2_sq;
+}
+
+/* ProjCEA: Cylindrical projection.
+ *
+ * First two coordinates are lon (in radians) and sin(lat).  Then cos
+ * and sin of parallactic angle.
+ */
+
+template <>
+inline
+void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
+                                 const double *dofs, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
+                            _pborebuf.view.strides[0] * i_time +
+                            _pborebuf.view.strides[1] * ic);
+
+    // What could possibly go wrong.
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
+    quatd qdet = (*qbore) * (*qofs);
+
+    const double a = qdet.R_component_1();
+    const double b = qdet.R_component_2();
+    const double c = qdet.R_component_3();
+    const double d = qdet.R_component_4();
+
+    const double cos_theta = a*a - b*b - c*c + d*d;
+    const double half_sin_theta = 0.5 * sqrt(1 - cos_theta*cos_theta);
+
+    coords[0] = atan2(c*d - a*b, c*a + d*b);
+    coords[1] = cos_theta; // Yes, cos(theta) = sin(lat).
+    coords[2] = (a*c - b*d) / half_sin_theta;
+    coords[3] = (c*d + a*b) / half_sin_theta;
+}
+
+/* ProjCAR: Cylindrical projection.
+ *
+ * First two coordinates are lon and lat (in radians).  Then cos and
+ * sin of parallactic angle.
+ */
+
+template <>
+inline
+void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
                                       const double *dofs, double *coords)
 {
     double _qbore[4];
@@ -157,18 +295,13 @@ void Pointer<CoordQuatCyl>::GetCoords(int i_det, int i_time,
     const double c = qdet.R_component_3();
     const double d = qdet.R_component_4();
 
-    // Decomposition into trig of (phi,lat,lon) angles.
-    const double cos_lat2_sq = a*a + d*d;     // cos^2(lat/2)
-    const double cos_lat = 2*cos_lat2_sq - 1;    // cos(lat)
-    const double CS = sqrt(1 - cos_lat*cos_lat) / 2;  // cos(lat/2) sin(lat/2)
+    const double cos_theta = a*a - b*b - c*c + d*d;
+    const double half_sin_theta = 0.5 * sqrt(1 - cos_theta*cos_theta);
 
-    const double r_cos_phi = (a*c - b*d) / CS;
-    const double r_sin_phi = (a*b + c*d) / CS;
-
-    coords[0] = -2 * (a*b - c*d);       // -y
-    coords[1] = cos_lat;                //  z
-    coords[2] = (a*c - b*d) / CS;       //  cos(phi)
-    coords[3] = (a*b + c*d) / CS;       //  sin(phi)
+    coords[0] = atan2(c*d - a*b, c*a + d*b);
+    coords[1] = asin(cos_theta);   // Yes, cos(theta) = sin(lat).
+    coords[2] = (a*c - b*d) / half_sin_theta;
+    coords[3] = (c*d + a*b) / half_sin_theta;
 }
 
 Pixelizor2_Flat::Pixelizor2_Flat(
@@ -910,24 +1043,47 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
     return bp::extract<bp::object>(ivals_out);
 }
 
-typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinT>>
+//Flat.
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT>>
   ProjEng_Flat_T;
-typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinQU>>
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinQU>>
   ProjEng_Flat_QU;
-typedef ProjectionEngine<Pointer<CoordFlat>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinTQU>>
   ProjEng_Flat_TQU;
-typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjEng_QCyl_T;
-typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjEng_QCyl_QU;
-typedef ProjectionEngine<Pointer<CoordQuatCyl>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjEng_QCyl_TQU;
-typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjEng_QZen_T;
-typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjEng_QZen_QU;
-typedef ProjectionEngine<Pointer<CoordQuatZen>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjEng_QZen_TQU;
+typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinT>>
+
+//Cylindrical.
+  ProjEng_CEA_T;
+typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjEng_CEA_QU;
+typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjEng_CEA_TQU;
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjEng_CAR_T;
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjEng_CAR_QU;
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjEng_CAR_TQU;
+
+//Zenithal.
+typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjEng_ARC_T;
+typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjEng_ARC_QU;
+typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjEng_ARC_TQU;
+typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjEng_TAN_T;
+typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjEng_TAN_QU;
+typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjEng_TAN_TQU;
+typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinT>>
+  ProjEng_ZEA_T;
+typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinQU>>
+  ProjEng_ZEA_QU;
+typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+  ProjEng_ZEA_TQU;
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
@@ -945,12 +1101,21 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjEng_Flat_T);
     EXPORT_ENGINE(ProjEng_Flat_QU);
     EXPORT_ENGINE(ProjEng_Flat_TQU);
-    EXPORT_ENGINE(ProjEng_QCyl_T);
-    EXPORT_ENGINE(ProjEng_QCyl_QU);
-    EXPORT_ENGINE(ProjEng_QCyl_TQU);
-    EXPORT_ENGINE(ProjEng_QZen_T);
-    EXPORT_ENGINE(ProjEng_QZen_QU);
-    EXPORT_ENGINE(ProjEng_QZen_TQU);
+    EXPORT_ENGINE(ProjEng_CAR_T);
+    EXPORT_ENGINE(ProjEng_CAR_QU);
+    EXPORT_ENGINE(ProjEng_CAR_TQU);
+    EXPORT_ENGINE(ProjEng_CEA_T);
+    EXPORT_ENGINE(ProjEng_CEA_QU);
+    EXPORT_ENGINE(ProjEng_CEA_TQU);
+    EXPORT_ENGINE(ProjEng_ARC_T);
+    EXPORT_ENGINE(ProjEng_ARC_QU);
+    EXPORT_ENGINE(ProjEng_ARC_TQU);
+    EXPORT_ENGINE(ProjEng_TAN_T);
+    EXPORT_ENGINE(ProjEng_TAN_QU);
+    EXPORT_ENGINE(ProjEng_TAN_TQU);
+    EXPORT_ENGINE(ProjEng_ZEA_T);
+    EXPORT_ENGINE(ProjEng_ZEA_QU);
+    EXPORT_ENGINE(ProjEng_ZEA_TQU);
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double>())
         .def("zeros", &Pixelizor2_Flat::zeros);
