@@ -1,5 +1,8 @@
 import time
 import numpy as np
+import collections
+
+import so3g
 
 class Timer(): 
     def __init__(self, block_name=None): 
@@ -36,3 +39,59 @@ def Qroti(n,phi):
     out[...,0  ] = np.cos(phi)
     out[...,n+1] = np.sin(phi)
     return out
+
+proj_dict = collections.OrderedDict([
+    ('flat', 'Flat'),
+    ('car' , 'CAR'),
+    ('cea' , 'CEA'),
+    ('arc' , 'ARC'),
+    ('tan' , 'TAN'),
+    ('zea' , 'ZEA'),
+    ])
+
+def get_proj(coord_sys, pol_sys, pxz=None):
+    assert pol_sys in ['T', 'TQU', 'QU']
+    name = 'ProjEng_{}_{}'.format(proj_dict[coord_sys], pol_sys)
+    cls = getattr(so3g, name) # ProjEng_X_Y
+    if pxz is None:
+        return cls
+    return cls(pxz)
+
+def get_boresight_quat(system, x, y, gamma=None):
+    if gamma is None:
+        gamma = 0
+
+    if system == 'flat':
+        # At each time step, boresight is (x, y, cos(phi), sin(phi))
+        n_t = len(x)
+        ptg = np.zeros((n_t, 4))
+        ptg[...,0] = x
+        ptg[...,1] = y
+        ptg[...,2] = np.cos(gamma)
+        ptg[...,3] = np.sin(gamma)
+
+    elif system in ['car', 'cea']:
+        # boresight needs to point to equinox...
+        ptg = Qmul(Qroti(2, x),
+                   Qroti(1, np.pi/2 - y),
+                   Qroti(2, np.pi - gamma))
+
+    elif system in['arc', 'tan', 'zea']:
+        # boresight needs to point to pole...
+        ptg = Qmul(Qroti(1, y),
+                   Qroti(0, x),
+                   Qroti(2, gamma))
+
+    else:
+        raise ValueError('Unknown system: "%s"' % system)
+
+    return ptg
+
+def get_offsets_quat(system, dx, dy, polphi):
+    if system == 'flat':
+        ofs = np.transpose([dx, dy, np.cos(polphi), np.sin(polphi)])
+    else:
+        ofs = Qmul(Qroti(0, dx),
+                   Qroti(1,-dy),
+                   Qroti(2, polphi))
+    return ofs

@@ -2,19 +2,19 @@ import so3g
 import numpy as np
 import pylab as pl
 
+pl.rcParams['image.origin'] = 'lower'
+
 from pixell import enmap
 from astropy.wcs import WCS
 
-from test_utils import Timer, Qmul, Qroti
+import test_utils
+from test_utils import Timer, proj_dict
 
 # Command line option(s)...
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--system', '-s', choices=[
-    'flat',
-    'qcyl',
-    'qzen',
-], default='flat')
+parser.add_argument('--system', '-s', choices=proj_dict.keys(),
+                    default=list(proj_dict.keys())[0])
 args = parser.parse_args()
 system = args.system
 print('Using system: %s' % system)
@@ -25,12 +25,15 @@ naxis = (128,128)
 wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
 wcs.wcs.crval = np.array([0., 0.])
 wcs.wcs.crpix = np.array([naxis[0]//2, naxis[1]//2])[::-1]
-wcs.wcs.cdelt = np.array([.1, .1])
+wcs.wcs.cdelt = np.array([-.1, .1])
 
 # A slightly polarized beam.
 beam = enmap.zeros((3,) + naxis, wcs=wcs)
 yx = beam.posmap() * 180/np.pi
-beam[:] = np.exp(-(yx[0]**2 + yx[1]**2) / 5**2)[None,...]
+# Main beam...
+beam[:] = np.exp(-(yx[0]**2 + yx[1]**2) / 2**2)[None,...]
+# feature, up and to the right.
+beam[:] += np.exp(-((yx[0]-3.)**2 + (yx[1]+1.5)**2) / .7**2)[None,...]
 phi = np.arctan2(yx[0], yx[1])
 beam[1] *= 0.04 * np.cos(2*phi)
 beam[2] *= 0.04 * np.sin(2*phi)
@@ -53,30 +56,10 @@ n_t = 10000#0
 x = (20 * np.arange(n_t) / n_t) % 1. * 15 - 7.5
 y = np.arange(n_t) / n_t * 15 - 7.5
 
-if system == 'flat':
-    # At each time step, boresight is (x, y, cos(phi), sin(phi))
-    ptg = np.zeros((n_t, 4))
-    ptg[...,0] = x * np.pi/180
-    ptg[...,1] = y * np.pi/180
-    ptg[...,2] = 1.
-    ptg[...,3] = 0.
-
-elif system == 'qcyl':
-    # boresight needs to point to equinox...
-    ptg = Qmul(Qroti(2, x*np.pi/180),
-               Qroti(1, np.pi/2 - y*np.pi/180),
-               Qroti(2, np.pi))
-
-elif system == 'qzen':
-    # boresight needs to point to pole...
-    ptg = Qmul(Qroti(1, y*np.pi/180),
-               Qroti(0, x*np.pi/180))
-
-
 # Detector offsets... make a diskular bundle of these.
 r = np.arange(n_det)**.5 / n_det**.5 * .5 * (np.pi/180)
 ophi = 6.28 * np.arange(n_det)**2 / n_det**2
-x, y = r*np.cos(ophi), r*np.sin(ophi)
+dx, dy = r*np.cos(ophi), r*np.sin(ophi)
 polphi = 6.28 * np.random.uniform(size=n_det)
 
 # ... but not totally random...
@@ -84,28 +67,19 @@ polphi[0] = 0.       # The "Q" detector is nice to have for debugging...
 polphi[2] = np.pi/4  # ...as is the "U" detector.
 
 # ... and (2n,2n+1) should be co-located orthogonal pairs.
-x[1::2] = x[0::2]
-y[1::2] = y[0::2]
+dx[1::2] = dx[0::2]
+dy[1::2] = dy[0::2]
 polphi[1::2] = polphi[0::2] + np.pi/2
 
-if system == 'flat':
-    ofs = np.transpose([x, y, np.cos(polphi), np.sin(polphi)])
-elif system in ['qcyl', 'qzen']:
-    ofs = Qmul(Qroti(1, x),
-               Qroti(0,-y),
-               Qroti(2, polphi))
+ptg = test_utils.get_boresight_quat(system, x*np.pi/180, y*np.pi/180)
+ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 
 
 #
 # Projection tests.
 #
 
-if system == 'flat':
-    pe = so3g.ProjEng_Flat_TQU(pxz)
-elif system == 'qcyl':
-    pe = so3g.ProjEng_QCyl_TQU(pxz)
-elif system == 'qzen':
-    pe = so3g.ProjEng_QZen_TQU(pxz)
+pe = test_utils.get_proj(system, 'TQU')(pxz)
 
 # Project the map into time-domain.
 sig0 = pe.from_map(beam, ptg, ofs, None, None)
@@ -158,12 +132,7 @@ sigd = (sig1[0::2,:] - sig1[1::2,:]) / 2
 ofsd = (ofs[::2,...])
 
 # Use the QU projector.
-if system == 'flat':
-    pe = so3g.ProjEng_Flat_QU(pxz)
-elif system == 'qcyl':
-    pe = so3g.ProjEng_QCyl_QU(pxz)
-elif system == 'qzen':
-    pe = so3g.ProjEng_QZen_QU(pxz)
+pe = test_utils.get_proj(system, 'QU')(pxz)
 
 # Bin the map again...
 map1d = pe.to_map(None, ptg, ofsd, sigd, None)

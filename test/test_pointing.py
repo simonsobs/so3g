@@ -2,16 +2,16 @@ import so3g
 import numpy as np
 import pylab as pl
 
-from test_utils import Timer, Qmul, Qroti
+import test_utils
+from test_utils import Timer, proj_dict
+import os
 
 # Command line option(s)...
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--system', '-s', choices=[
-    'flat',
-    'qcyl',
-    'qzen',
-], default='flat')
+parser.add_argument('--system', '-s',
+                    choices=proj_dict.keys(),
+                    default=list(proj_dict.keys())[0])
 args = parser.parse_args()
 system = args.system
 print('Using system: %s' % system)
@@ -34,36 +34,27 @@ dr = .002
 polphi = 6.28 * np.arange(n_det) / n_det
 dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 
-if system == 'flat':
-    pe = so3g.ProjEng_Flat_TQU(pxz)
-    # At each time step, boresight is (x, y, cos(phi), sin(phi))
-    ptg = np.zeros((n_t, 4))
-    ptg[...,0] = x
-    ptg[...,1] = y
-    ptg[...,2] = 1.
-    ptg[...,3] = 0.
-    ofs = np.transpose([dx, dy, np.cos(polphi), np.sin(polphi)])
-
-elif system == 'qcyl':
-    pe = so3g.ProjEng_QCyl_TQU(pxz)
-    # boresight needs to point to equinox...
-    ptg = Qmul(Qroti(2, x),
-               Qroti(1, np.pi/2 - y),
-               Qroti(2, np.pi))
-    ofs = Qmul(Qroti(0, dx),
-               Qroti(1,-dy),
-               Qroti(2, polphi))
-
-elif system == 'qzen':
-    pe = so3g.ProjEng_QZen_TQU(pxz)
-    # boresight needs to point to pole...
-    ptg = Qmul(Qroti(1, y),
-               Qroti(0, x))
-    ofs = Qmul(Qroti(0, dx),
-               Qroti(1,-dy),
-               Qroti(2, polphi))
+pe = test_utils.get_proj(system, 'TQU', pxz)
+ptg = test_utils.get_boresight_quat(system, x, y)
+ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 
 sig = np.ones((1,n_det,n_t)) * .5
+
+print('Note the problem size is %i x %i = %.3fM samples.\n' %
+      (n_det, n_t, n_det*n_t/1e6))
+
+n_omp = os.getenv('OMP_NUM_THREADS')
+if n_omp is None:
+    print(' OMP_NUM_THREADS not set -- unknown parallelism.\n')
+    n_omp = '?'
+else:
+    n_omp = int(n_omp)
+    print(' OMP_NUM_THREADS=%i.\n' % n_omp)
+
+
+print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
+with Timer():
+    Ivals = pe.pixel_ranges(ptg, ofs)
 
 map0 = pxz.zeros(1)
 
@@ -91,15 +82,15 @@ if 1:
 
     pix[:] = 0
     pix_list = [p for p in pix]  #listify...
-    print('And into a list.', end='\n ...')
+    print('And into a list.', end='\n ... ')
     with Timer() as T:
         pe.pixels(ptg,ofs,pix_list)
 
-    print('And with no target array(s).', end='\n ...')
+    print('And with no target array(s).', end='\n ... ')
     with Timer() as T:
         pix3 = pe.pixels(ptg, ofs, None)
 
-    print('Check for failure...', end='\n ...')
+    print('Check for failure...', end='\n ... ')
     pix_list[10] = np.empty(sig.shape[-1]*2, 'int32')[::2]
     try:
         pe.pixels(ptg,ofs,pix_list)
@@ -116,6 +107,12 @@ if 1:
     with Timer() as T:
         map1 = pe.to_map(None,ptg,ofs,sig_list,None)
 
+if 1:
+    print('Forward projection (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
+    with Timer() as T:
+        map1o = pe.to_map_omp(None,ptg,ofs,sig_list,None,Ivals)
+
+if 1:
     print('Reverse projection (TQU)', end='\n ... ')
     sig1 = [x for x in np.zeros((n_det,n_t))]
     sig1 = np.random.uniform(size=(n_det,n_t))
@@ -128,6 +125,16 @@ if 1:
     map0 = None #pxz.zeros(3)
     with Timer() as T:
         map2 = pe.to_weight_map(None,ptg,ofs,None,None)
+
+if 1:
+    print('Forward project weights (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
+    with Timer() as T:
+        map2o = pe.to_weight_map_omp(None,ptg,ofs,None,None,Ivals)
+
+    print('Checking that OMP and non-OMP forward calcs agree: ', end='\n ... ')
+    assert abs(map1 - map1o).max() == 0
+    assert abs(map2 - map2o).max() == 0
+    print('yes')
 
 print('Plotting...')
 import pylab as pl
