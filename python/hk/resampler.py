@@ -8,7 +8,7 @@ class HKResampler:
     Attributes
     ----------
     scheme: an object that has a method named `resample` that takes as an
-    argument a frame block and returns the resampled block.
+        argument a frame block and returns the resampled block.
     """
 
     def __init__(self, scheme):
@@ -36,6 +36,32 @@ class HKResampler:
         for b in f["blocks"]:
             f_out["blocks"].append(self.scheme.resample(b))
         return [f_out]
+
+
+class ResampleStep:
+    """This resampling scheme simply reslices the input arrays with a step 
+    size set by the user.
+
+    Attributes:
+        step: Positive, integer step size for resampling
+    """
+    def __init__(self, step):
+        self.step = step
+
+    def resample(self, block):
+        """Resample an HK block.
+
+        Parameters:
+            block: A frame block.
+
+        Returns:
+            The resampled block.
+        """
+        ret = so3g.IrregBlockDouble()
+        ret.t = np.array(block.t)[::self.step]
+        for k in block.data.keys():
+            ret.data[k] = np.array(block.data[k])[::self.step]
+        return ret
 
 
 class ResampleMedianMinMax:
@@ -87,32 +113,6 @@ class ResampleMedianMinMax:
                     ret.data["%s_max" % k][j] = 0
             t_now += self.size
             i_start = i_end
-        return ret
-
-
-class ResampleStep:
-    """This resampling scheme simply reslices the input arrays with a step 
-    size set by the user.
-
-    Attributes:
-        step: Positive, integer step size for resampling
-    """
-    def __init__(self, step):
-        self.step = step
-
-    def resample(self, block):
-        """Resample an HK block.
-
-        Parameters:
-            block: A frame block.
-
-        Returns:
-            The resampled block.
-        """
-        ret = so3g.IrregBlockDouble()
-        ret.t = np.array(block.t)[::self.step]
-        for k in block.data.keys():
-            ret.data[k] = np.array(block.data[k])[::self.step]
         return ret
 
 
