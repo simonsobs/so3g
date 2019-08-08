@@ -58,12 +58,13 @@ class HKArchive:
             both = span * fg.cover
             if len(both.array()) > 0:
                 for f in fg.fields:
-                    if fields is not None and f not in fields:
+                    full_field = fg.prefix + '.' + f
+                    if fields is not None and full_field not in fields:
                         continue
-                    if not f in field_map:
-                        field_map[f] = [fg]
+                    if not full_field in field_map:
+                        field_map[full_field] = [fg]
                     else:
-                        field_map[f].append(fg)
+                        field_map[full_field].append(fg)
 
         # Sort each list of field_groups by object id -- all we care
         # about is whether two fields have the same field group set.
@@ -147,14 +148,15 @@ class HKArchive:
                     assert(len(fn) == 1)
                     # Find the right block.
                     for blk in fn[0]['blocks']:
-                        if fields[0] in blk.data.keys():
+                        test_f = fields[0].split('.')[-1]   ## dump prefix.
+                        if test_f in blk.data.keys():
                             blocks_in.append(blk)
                             break
             # Create a new Block for this group.
             blk = so3g.IrregBlockDouble()
             blk.t = np.hstack([b.t for b in blocks_in])
             for f in fields:
-                blk.data[f] = np.hstack([b.data[f] for b in blocks_in])
+                blk.data[f] = np.hstack([b.data[f.split('.')[-1]] for b in blocks_in])
             blocks_out.append((group_name, blk))
         if raw:
             return blocks_out
@@ -170,6 +172,19 @@ class HKArchive:
             for k,v in block.data.items():
                 data[k] = v
         return (data, timelines)
+
+
+class _HKProvider:
+    def __init__(self, prov_id, prefix):
+        self.prov_id = prov_id
+        self.prefix = prefix
+        self.blocks = []
+
+    @classmethod
+    def from_g3(cls, element):
+        prov_id = element['prov_id'].value
+        prefix = element['description'].value
+        return cls(prov_id, prefix)
 
 
 class HKArchiveScanner:
@@ -223,22 +238,20 @@ class HKArchiveScanner:
         elif f['hkagg_type'] == so3g.HKFrameType.status:
             # If a provider has disappeared, flush its information into a
             # FieldGroup.
-            now_prov_id = [p['prov_id'].value for p in f['providers']]
-            to_flush = [p for p in self.providers
-                        if not p in now_prov_id]
-            for p in to_flush:
-                self.flush([p])
-                    
-            # New providers?
-            for p in now_prov_id:
-                blocks = self.providers.get(p)
-                if blocks is None:
-                    self.providers[p] = []
+            prov_cands = [_HKProvider.from_g3(p) for p in f['providers']]
+            to_flush = list(self.providers.keys())  # prov_ids...
+            for p in prov_cands:
+                if p.prov_id in to_flush:
+                    to_flush.remove(p.prov_id) # no, don't.
+                else:
+                    self.providers[p.prov_id] = p
+            for prov_id in to_flush:
+                self.flush(self.providers[prov_id])
 
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
-            blocks = self.providers[f['prov_id']]
-            representatives = [block['fields'][0] for block in blocks]
+            prov = self.providers[f['prov_id']]
+            representatives = [block['fields'][0] for block in prov.blocks]
             for b in f['blocks']:
                 fields = b.data.keys()
                 if len(b.t) == 0 or len(fields) == 0:
@@ -247,15 +260,15 @@ class HKArchiveScanner:
                     if rep in fields:
                         break
                 else:
-                    block_index = len(blocks)
-                    blocks.append({'fields': fields,
-                                   'start': b.t[0],
-                                   'index_info': []})
+                    block_index = len(prov.blocks)
+                    prov.blocks.append({'fields': fields,
+                                        'start': b.t[0],
+                                        'index_info': []})
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
-                blocks[block_index]['index_info'].append(index_info)
+                prov.blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
+                prov.blocks[block_index]['index_info'].append(index_info)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
@@ -280,10 +293,11 @@ class HKArchiveScanner:
         if provs is None:
             provs = list(self.providers.keys())
         for p in provs:
-            blocks = self.providers.pop(p)
+            prov = self.providers.pop(p)
+            blocks = prov.blocks
             for info in blocks:
-                fg = _FieldGroup(info['fields'], info['start'],
-                                   info['end'], info['index_info'])
+                fg = _FieldGroup(prov.prefix, info['fields'], info['start'],
+                                 info['end'], info['index_info'])
                 self.field_groups.append(fg)
 
     def finalize(self):
@@ -322,7 +336,8 @@ class _FieldGroup:
       (perhaps a filename and byte_offset?).
 
     """
-    def __init__(self, fields, start, end, index_info):
+    def __init__(self, prefix, fields, start, end, index_info):
+        self.prefix = prefix
         self.fields = list(fields)
         self.cover = so3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
