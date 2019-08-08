@@ -216,6 +216,43 @@ class HKArchive:
                 data[k] = v
         return (data, timelines)
 
+    def simple(self, fields=None, start=None, end=None, min_stride=None,
+               raw=False, short_match=True):
+        """Load data from specified field(s) between specified times, and
+        unpack the data for ease of use.  Use get_data if you want to
+        preserve the co-sampling structure.
+
+        Arguments ``field``, ``start``, ``end``, ``short_match`` are
+        as described in _get_groups.  However, ``fields`` can be a
+        single string rather than a list of strings.
+
+        Note that ``short_match`` defaults to True (which is not the
+        case for getdata).x
+
+        Returns:
+            List of pairs of numpy arrays (t,y) corresponding to each
+            field in the ``fields`` list.  If ``fields`` is a string,
+            a simple pair (t,y) is returned.  ``t`` and ``y`` are
+            numpy arrays of equal length containing the timestamps and
+            field readings, respectively.  In cases where two fields
+            are co-sampled, the time vector will be the same object.
+        """
+        if isinstance(fields, str):
+            unpack = True
+            fields = [fields]
+        data, timelines = self.get_data(fields, start, end, min_stride, raw, short_match)
+        output = {}
+        for timeline in timelines.values():
+            # Make the array here, so that the same object is returned
+            # for all fields in this group.
+            _t = np.array(timeline['t'])
+            for f in timeline['fields']:
+                output[f] = (_t, np.array(data[f]))
+        output = [output[f] for f in fields]
+        if unpack:
+            output = output[0]
+        return output
+
 
 class _HKProvider:
     def __init__(self, prov_id, prefix):
@@ -415,11 +452,20 @@ if __name__ == '__main__':
             print(field_name)
 
     print('Name shortened to:', field_name)
+
+    # This is the awkward way, which preserves co-sampled
+    # relationships (and is thus annoying to decode in simple cases).
     fields, timelines = cat.get_data([field_name], short_match=True)
-    x = list(timelines.values())[0]['t']
-    y = fields[field_name]
+    x0 = list(timelines.values())[0]['t']
+    y0 = fields[field_name]
+
+    # This is the easy way, which just gives you one timeline per
+    # requested field.
+    x1, y1 = cat.simple(field_name)
     
+    assert np.all(np.array(x0) == x1) and np.all(np.array(y0) == y1)
+
     import pylab as pl
-    pl.plot(x, y)
+    pl.plot(x1, y1)
     pl.title(field_name)
     pl.show()
