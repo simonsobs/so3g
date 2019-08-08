@@ -14,7 +14,21 @@ import numpy as np
 
 SPAN_BUFFER_SECONDS = 1.0
 
+def is_sub_seq(full_seq, sub_seq):
+    """Return true if sub_seq is a sub-sequence of full_seq.
+
+    """
+    if len(sub_seq) == 0:
+        return True
+    for idx0,x0 in enumerate(full_seq):
+        if x0 == sub_seq[0]:
+            if is_sub_seq(full_seq[idx0+1:], sub_seq[1:]):
+                return True
+    return False
+
+
 class HKArchive:
+
     """Contains information necessary to determine what data fields are
     present in a data archive at what times.  It also knows how to
     group fields that share a commong timeline.
@@ -24,7 +38,8 @@ class HKArchive:
         if field_groups is not None:
             self.field_groups = list(field_groups)
 
-    def _get_groups(self, fields=None, start=None, end=None):
+    def _get_groups(self, fields=None, start=None, end=None,
+                    short_match=False):
         """Helper for get_fields and get_data.  Determines which fields, of
         those listed in fields, are present in the archive between the
         specified times.
@@ -38,6 +53,14 @@ class HKArchive:
               consider arbitrarily late times.  Note that ``start``
               and ``end`` form a semi-closed interval that includes
               start but excludes end.
+            short_match (bool): If True, then a requested field will
+              be considered to match an archive field if its
+              "."-tokenized form is a sub-sequence of the
+              "."-tokenized field in the archive.  For example, the
+              archive field "obs.agentX.feeds.therms.c1" may be
+              matched by the requested field "agentX.c1".  In the case
+              that multiple archive fields match a requested field, a
+              ValueError is thrown.
 
         Returns:
             List of (group_name, group_fields, fgs).  The
@@ -53,18 +76,38 @@ class HKArchive:
         if end is None:
             end = span.domain[1]
         span.add_interval(start, end)
+
+        if short_match and (fields is not None):
+            field_seqs = [f.split('.') for f in fields]
+            short_match_map = {}  # map from shortened name to full field name.
+
         field_map = {}
         for fg in self.field_groups:
             both = span * fg.cover
             if len(both.array()) > 0:
                 for f in fg.fields:
                     full_field = fg.prefix + '.' + f
-                    if fields is not None and full_field not in fields:
-                        continue
-                    if not full_field in field_map:
-                        field_map[full_field] = [fg]
+                    key_field = full_field
+                    if fields is not None:
+                        # User is interested only in particular fields.
+                        if short_match:
+                            for seq in field_seqs:
+                                if is_sub_seq(full_field.split('.'), seq):
+                                    key_field = '.'.join(seq)
+                                    prev_short_match = short_match_map.get(key_field)
+                                    if prev_short_match not in [None, full_field]:
+                                        raise ValueError("Multiple matches for soft key: %s [%s, %s]." %
+                                                         (key_field, prev_short_match, full_field))
+                                    short_match_map[key_field] = full_field
+                                    break
+                            else:
+                                continue
+                        elif full_field not in fields:
+                            continue
+                    if not key_field in field_map:
+                        field_map[key_field] = [fg]
                     else:
-                        field_map[full_field].append(fg)
+                        field_map[key_field].append(fg)
 
         # Sort each list of field_groups by object id -- all we care
         # about is whether two fields have the same field group set.
@@ -111,11 +154,11 @@ class HKArchive:
         return field_map, timeline_map
 
     def get_data(self, field=None, start=None, end=None, min_stride=None,
-                 raw=False):
+                 raw=False, short_match=False):
         """Load data from specified field(s) between specified times.
 
-        Arguments ``field``, ``start``, ``end`` are as described in
-        _get_groups.
+        Arguments ``field``, ``start``, ``end``, ``short_match`` are
+        as described in _get_groups.
 
         Returns:
             Pair of dictionaries, (data, timelines).  The ``data``
@@ -133,7 +176,7 @@ class HKArchive:
               streams that are being updated in real time.
 
         """
-        grouped = self._get_groups(field, start, end)
+        grouped = self._get_groups(field, start, end, short_match=short_match)
         handles = {}  # filename -> G3IndexedReader map.
         blocks_out = []
         for group_name, fields, fgrps in grouped:
@@ -355,8 +398,24 @@ if __name__ == '__main__':
     for field_name in sorted(fields):
         group_name = fields[field_name]['timeline']
         print(field_name, timelines[group_name]['interval'])
-    field_name = list(fields.keys())[0]
-    fields, timelines = cat.get_data([field_name])
+    full_name = list(fields.keys())[0]
+    print('Pretending interest in:', full_name)
+
+    # Identify the shortest form of this field that also works.
+    f_toks = full_name.split('.')
+    field_name = full_name
+    for i in range(1, 2**len(f_toks)):
+        short_name = '.'.join([t for b,t in enumerate(f_toks) if (i >> b) & 1])
+        try:
+            fields, timelines = cat.get_data([short_name], short_match=True)
+        except Exception:
+            continue
+        if len(short_name) < len(field_name):
+            field_name = short_name
+            print(field_name)
+
+    print('Name shortened to:', field_name)
+    fields, timelines = cat.get_data([field_name], short_match=True)
     x = list(timelines.values())[0]['t']
     y = fields[field_name]
     
