@@ -195,6 +195,8 @@ class HKArchive:
                         if test_f in blk.data.keys():
                             blocks_in.append(blk)
                             break
+            # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
+            blocks_in.sort(key=lambda b: b.t[0])
             # Create a new Block for this group.
             blk = so3g.IrregBlockDouble()
             blk.t = np.hstack([b.t for b in blocks_in])
@@ -326,7 +328,7 @@ class HKArchiveScanner:
                 else:
                     self.providers[p.prov_id] = p
             for prov_id in to_flush:
-                self.flush(self.providers[prov_id])
+                self.flush([prov_id])
 
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
