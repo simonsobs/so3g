@@ -18,8 +18,12 @@ RUN git clone https://github.com/simonsobs/ocs.git \
     && pip3 install -r ocs/requirements.txt \
     && pip3 install -e ocs
 
+COPY ./jupyter_config /jupyter_config
+ENV JUPYTER_CONFIG_DIR /jupyter_config/
+
+RUN mkdir /config/
 ENV OCS_CONFIG_DIR /config/
-ENV JUPYTER_CONFIG_DIR /config/jupyter/
+
 
 ENTRYPOINT ["jupyter", "notebook"]
 
