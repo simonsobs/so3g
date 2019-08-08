@@ -14,7 +14,21 @@ import numpy as np
 
 SPAN_BUFFER_SECONDS = 1.0
 
+def is_sub_seq(full_seq, sub_seq):
+    """Return true if sub_seq is a sub-sequence of full_seq.
+
+    """
+    if len(sub_seq) == 0:
+        return True
+    for idx0,x0 in enumerate(full_seq):
+        if x0 == sub_seq[0]:
+            if is_sub_seq(full_seq[idx0+1:], sub_seq[1:]):
+                return True
+    return False
+
+
 class HKArchive:
+
     """Contains information necessary to determine what data fields are
     present in a data archive at what times.  It also knows how to
     group fields that share a commong timeline.
@@ -24,7 +38,8 @@ class HKArchive:
         if field_groups is not None:
             self.field_groups = list(field_groups)
 
-    def _get_groups(self, fields=None, start=None, end=None):
+    def _get_groups(self, fields=None, start=None, end=None,
+                    short_match=False):
         """Helper for get_fields and get_data.  Determines which fields, of
         those listed in fields, are present in the archive between the
         specified times.
@@ -38,6 +53,14 @@ class HKArchive:
               consider arbitrarily late times.  Note that ``start``
               and ``end`` form a semi-closed interval that includes
               start but excludes end.
+            short_match (bool): If True, then a requested field will
+              be considered to match an archive field if its
+              "."-tokenized form is a sub-sequence of the
+              "."-tokenized field in the archive.  For example, the
+              archive field "obs.agentX.feeds.therms.c1" may be
+              matched by the requested field "agentX.c1".  In the case
+              that multiple archive fields match a requested field, a
+              ValueError is thrown.
 
         Returns:
             List of (group_name, group_fields, fgs).  The
@@ -53,17 +76,38 @@ class HKArchive:
         if end is None:
             end = span.domain[1]
         span.add_interval(start, end)
+
+        if short_match and (fields is not None):
+            field_seqs = [f.split('.') for f in fields]
+            short_match_map = {}  # map from shortened name to full field name.
+
         field_map = {}
         for fg in self.field_groups:
             both = span * fg.cover
             if len(both.array()) > 0:
                 for f in fg.fields:
-                    if fields is not None and f not in fields:
-                        continue
-                    if not f in field_map:
-                        field_map[f] = [fg]
+                    full_field = fg.prefix + '.' + f
+                    key_field = full_field
+                    if fields is not None:
+                        # User is interested only in particular fields.
+                        if short_match:
+                            for seq in field_seqs:
+                                if is_sub_seq(full_field.split('.'), seq):
+                                    key_field = '.'.join(seq)
+                                    prev_short_match = short_match_map.get(key_field)
+                                    if prev_short_match not in [None, full_field]:
+                                        raise ValueError("Multiple matches for soft key: %s [%s, %s]." %
+                                                         (key_field, prev_short_match, full_field))
+                                    short_match_map[key_field] = full_field
+                                    break
+                            else:
+                                continue
+                        elif full_field not in fields:
+                            continue
+                    if not key_field in field_map:
+                        field_map[key_field] = [fg]
                     else:
-                        field_map[f].append(fg)
+                        field_map[key_field].append(fg)
 
         # Sort each list of field_groups by object id -- all we care
         # about is whether two fields have the same field group set.
@@ -110,11 +154,11 @@ class HKArchive:
         return field_map, timeline_map
 
     def get_data(self, field=None, start=None, end=None, min_stride=None,
-                 raw=False):
+                 raw=False, short_match=False):
         """Load data from specified field(s) between specified times.
 
-        Arguments ``field``, ``start``, ``end`` are as described in
-        _get_groups.
+        Arguments ``field``, ``start``, ``end``, ``short_match`` are
+        as described in _get_groups.
 
         Returns:
             Pair of dictionaries, (data, timelines).  The ``data``
@@ -132,7 +176,7 @@ class HKArchive:
               streams that are being updated in real time.
 
         """
-        grouped = self._get_groups(field, start, end)
+        grouped = self._get_groups(field, start, end, short_match=short_match)
         handles = {}  # filename -> G3IndexedReader map.
         blocks_out = []
         for group_name, fields, fgrps in grouped:
@@ -147,14 +191,15 @@ class HKArchive:
                     assert(len(fn) == 1)
                     # Find the right block.
                     for blk in fn[0]['blocks']:
-                        if fields[0] in blk.data.keys():
+                        test_f = fields[0].split('.')[-1]   ## dump prefix.
+                        if test_f in blk.data.keys():
                             blocks_in.append(blk)
                             break
             # Create a new Block for this group.
             blk = so3g.IrregBlockDouble()
             blk.t = np.hstack([b.t for b in blocks_in])
             for f in fields:
-                blk.data[f] = np.hstack([b.data[f] for b in blocks_in])
+                blk.data[f] = np.hstack([b.data[f.split('.')[-1]] for b in blocks_in])
             blocks_out.append((group_name, blk))
         if raw:
             return blocks_out
@@ -170,6 +215,56 @@ class HKArchive:
             for k,v in block.data.items():
                 data[k] = v
         return (data, timelines)
+
+    def simple(self, fields=None, start=None, end=None, min_stride=None,
+               raw=False, short_match=True):
+        """Load data from specified field(s) between specified times, and
+        unpack the data for ease of use.  Use get_data if you want to
+        preserve the co-sampling structure.
+
+        Arguments ``field``, ``start``, ``end``, ``short_match`` are
+        as described in _get_groups.  However, ``fields`` can be a
+        single string rather than a list of strings.
+
+        Note that ``short_match`` defaults to True (which is not the
+        case for getdata).x
+
+        Returns:
+            List of pairs of numpy arrays (t,y) corresponding to each
+            field in the ``fields`` list.  If ``fields`` is a string,
+            a simple pair (t,y) is returned.  ``t`` and ``y`` are
+            numpy arrays of equal length containing the timestamps and
+            field readings, respectively.  In cases where two fields
+            are co-sampled, the time vector will be the same object.
+        """
+        unpack = isinstance(fields, str)
+        if unpack:
+            fields = [fields]
+        data, timelines = self.get_data(fields, start, end, min_stride, raw, short_match)
+        output = {}
+        for timeline in timelines.values():
+            # Make the array here, so that the same object is returned
+            # for all fields in this group.
+            _t = np.array(timeline['t'])
+            for f in timeline['fields']:
+                output[f] = (_t, np.array(data[f]))
+        output = [output[f] for f in fields]
+        if unpack:
+            output = output[0]
+        return output
+
+
+class _HKProvider:
+    def __init__(self, prov_id, prefix):
+        self.prov_id = prov_id
+        self.prefix = prefix
+        self.blocks = []
+
+    @classmethod
+    def from_g3(cls, element):
+        prov_id = element['prov_id'].value
+        prefix = element['description'].value
+        return cls(prov_id, prefix)
 
 
 class HKArchiveScanner:
@@ -223,22 +318,20 @@ class HKArchiveScanner:
         elif f['hkagg_type'] == so3g.HKFrameType.status:
             # If a provider has disappeared, flush its information into a
             # FieldGroup.
-            now_prov_id = [p['prov_id'].value for p in f['providers']]
-            to_flush = [p for p in self.providers
-                        if not p in now_prov_id]
-            for p in to_flush:
-                self.flush([p])
-                    
-            # New providers?
-            for p in now_prov_id:
-                blocks = self.providers.get(p)
-                if blocks is None:
-                    self.providers[p] = []
+            prov_cands = [_HKProvider.from_g3(p) for p in f['providers']]
+            to_flush = list(self.providers.keys())  # prov_ids...
+            for p in prov_cands:
+                if p.prov_id in to_flush:
+                    to_flush.remove(p.prov_id) # no, don't.
+                else:
+                    self.providers[p.prov_id] = p
+            for prov_id in to_flush:
+                self.flush(self.providers[prov_id])
 
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
-            blocks = self.providers[f['prov_id']]
-            representatives = [block['fields'][0] for block in blocks]
+            prov = self.providers[f['prov_id']]
+            representatives = [block['fields'][0] for block in prov.blocks]
             for b in f['blocks']:
                 fields = b.data.keys()
                 if len(b.t) == 0 or len(fields) == 0:
@@ -247,15 +340,15 @@ class HKArchiveScanner:
                     if rep in fields:
                         break
                 else:
-                    block_index = len(blocks)
-                    blocks.append({'fields': fields,
-                                   'start': b.t[0],
-                                   'index_info': []})
+                    block_index = len(prov.blocks)
+                    prov.blocks.append({'fields': fields,
+                                        'start': b.t[0],
+                                        'index_info': []})
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
-                blocks[block_index]['index_info'].append(index_info)
+                prov.blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
+                prov.blocks[block_index]['index_info'].append(index_info)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
@@ -280,10 +373,11 @@ class HKArchiveScanner:
         if provs is None:
             provs = list(self.providers.keys())
         for p in provs:
-            blocks = self.providers.pop(p)
+            prov = self.providers.pop(p)
+            blocks = prov.blocks
             for info in blocks:
-                fg = _FieldGroup(info['fields'], info['start'],
-                                   info['end'], info['index_info'])
+                fg = _FieldGroup(prov.prefix, info['fields'], info['start'],
+                                 info['end'], info['index_info'])
                 self.field_groups.append(fg)
 
     def finalize(self):
@@ -322,7 +416,8 @@ class _FieldGroup:
       (perhaps a filename and byte_offset?).
 
     """
-    def __init__(self, fields, start, end, index_info):
+    def __init__(self, prefix, fields, start, end, index_info):
+        self.prefix = prefix
         self.fields = list(fields)
         self.cover = so3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
@@ -340,12 +435,37 @@ if __name__ == '__main__':
     for field_name in sorted(fields):
         group_name = fields[field_name]['timeline']
         print(field_name, timelines[group_name]['interval'])
-    field_name = list(fields.keys())[0]
-    fields, timelines = cat.get_data([field_name])
-    x = list(timelines.values())[0]['t']
-    y = fields[field_name]
+    full_name = list(fields.keys())[0]
+    print('Pretending interest in:', full_name)
+
+    # Identify the shortest form of this field that also works.
+    f_toks = full_name.split('.')
+    field_name = full_name
+    for i in range(1, 2**len(f_toks)):
+        short_name = '.'.join([t for b,t in enumerate(f_toks) if (i >> b) & 1])
+        try:
+            fields, timelines = cat.get_data([short_name], short_match=True)
+        except Exception:
+            continue
+        if len(short_name) < len(field_name):
+            field_name = short_name
+            print(field_name)
+
+    print('Name shortened to:', field_name)
+
+    # This is the awkward way, which preserves co-sampled
+    # relationships (and is thus annoying to decode in simple cases).
+    fields, timelines = cat.get_data([field_name], short_match=True)
+    x0 = list(timelines.values())[0]['t']
+    y0 = fields[field_name]
+
+    # This is the easy way, which just gives you one timeline per
+    # requested field.
+    x1, y1 = cat.simple(field_name)
     
+    assert np.all(np.array(x0) == x1) and np.all(np.array(y0) == y1)
+
     import pylab as pl
-    pl.plot(x, y)
+    pl.plot(x1, y1)
     pl.title(field_name)
     pl.show()
