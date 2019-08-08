@@ -237,8 +237,8 @@ class HKArchive:
             field readings, respectively.  In cases where two fields
             are co-sampled, the time vector will be the same object.
         """
-        if isinstance(fields, str):
-            unpack = True
+        unpack = isinstance(fields, str)
+        if unpack:
             fields = [fields]
         data, timelines = self.get_data(fields, start, end, min_stride, raw, short_match)
         output = {}
