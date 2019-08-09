@@ -26,16 +26,17 @@ jobs:
 
       script:
         # Build the docker image
-        - docker build -t so3g .
+        - docker-compose build
+
         # Test import within container
         - docker run --rm so3g /usr/bin/python3 -c 'import so3g'
 
       after_success:
         # Tag all images for upload to the registry
-        - "docker tag so3g:latest ${DOCKERHUB_ORG}/so3g:latest"
-        - "docker tag so3g:latest ${DOCKERHUB_ORG}/so3g:${DOCKER_TAG}"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:latest"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}"
 
         # Upload to docker registry
-        - "docker push ${DOCKERHUB_ORG}/so3g:${DOCKER_TAG}"
-        - "docker push ${DOCKERHUB_ORG}/so3g:latest"
-        - "echo ${DOCKERHUB_ORG}/so3g:${DOCKER_TAG} pushed"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:latest"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed"

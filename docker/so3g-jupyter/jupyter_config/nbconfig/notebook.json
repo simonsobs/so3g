@@ -1,0 +1,10 @@
+{
+  "load_extensions": {
+    "hinterland/hinterland": false
+  },
+  "hinterland": {
+    "enable_at_start": true,
+    "hint_inside_comments": false,
+    "hint_delay": "100"
+  }
+}
