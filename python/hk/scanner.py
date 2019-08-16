@@ -15,7 +15,7 @@ class HKScanner:
             'n_session': 0,
         }
 
-    def report(self):
+    def report_and_reset(self):
         core.log_info('Report for session_id %i:\n' % self.session_id +
                       str(self.stats) + '\n' +
                       str(self.providers) + '\nEnd report.',
@@ -29,7 +29,7 @@ class HKScanner:
 
         """
         if f.type == core.G3FrameType.EndProcessing:
-            self.report()
+            self.report_and_reset()
             return [f]
 
         if f.type != core.G3FrameType.Housekeeping:
@@ -42,7 +42,7 @@ class HKScanner:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
-                    self.report()
+                    self.report_and_reset()  # note this does clear self.session_id.
             if self.session_id is None:
                 core.log_info('New HK Session id = %i, timestamp = %i' %
                               (session_id, f['start_time']), unit='HKScanner')
