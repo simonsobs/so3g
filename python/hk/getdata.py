@@ -399,6 +399,10 @@ class HKArchiveScanner:
         optional index_info argument set to a dictionary containing
         the filename and byte_offset of the frame.
 
+        Internal data grouping will be somewhat cleaner if the
+        multiple files from a single aggregator "session" are passed
+        to this function in acquisition order.  This should not be
+        necessary for proper function, however.
         """
         reader = so3g.G3IndexedReader(filename)
         while True:
