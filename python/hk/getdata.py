@@ -210,12 +210,13 @@ class HKArchive:
         timelines = {}
         for group_name, block in blocks_out:
             timelines[group_name] = {
-                't': block.t,
+                't': np.array(block.t),
                 'finalized_until': block.t[-1],
                 'fields': list(block.data.keys()),
             }
             for k,v in block.data.items():
-                data[k] = v
+                data[k] = np.array(v)
+
         return (data, timelines)
 
     def simple(self, fields=None, start=None, end=None, min_stride=None,
