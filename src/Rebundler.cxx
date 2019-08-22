@@ -57,8 +57,8 @@ bp::object Rebundler<G3TimestreamMap>::ExtractIntervalTime(
         auto tm = dynamic_cast<G3TimestreamMap *>(tm_ptr.get());
         auto t0 = tm->GetStartTime();
         auto t1 = tm->GetStopTime();
-        double _i0 = double(start_time - t0) * tm->GetSampleRate();
-        double _i1 = double(end_time   - t0) * tm->GetSampleRate();
+        double _i0 = (double(start_time) - double(t0)) * tm->GetSampleRate();
+        double _i1 = (double(end_time)   - double(t0)) * tm->GetSampleRate();
         int i0 = _i0 > 0 ? int(_i0) : 0;
         int i1 = _i1 > 0 ? int(_i1) : 0;
         if (i1 > tm->NSamples())
