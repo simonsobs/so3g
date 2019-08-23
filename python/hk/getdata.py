@@ -281,7 +281,6 @@ class HKArchiveScanner:
     def __init__(self):
         self.session_id = None
         self.providers = {}
-        self.catalog = HKArchive()
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
@@ -393,7 +392,7 @@ class HKArchiveScanner:
         self.flush()
         return HKArchive(self.field_groups)
 
-    def process_file(self, filename):
+    def process_file(self, filename, flush_after=True):
         """Process the file specified by ``filename`` using a G3IndexedReader.
         Each frame from the file is passed to self.Process, with the
         optional index_info argument set to a dictionary containing
@@ -401,8 +400,9 @@ class HKArchiveScanner:
 
         Internal data grouping will be somewhat cleaner if the
         multiple files from a single aggregator "session" are passed
-        to this function in acquisition order.  This should not be
-        necessary for proper function, however.
+        to this function in acquisition order.  In that case, call
+        with flush_after=False.
+
         """
         reader = so3g.G3IndexedReader(filename)
         while True:
@@ -413,6 +413,13 @@ class HKArchiveScanner:
             if len(frames) == 0:
                 break
             self(frames[0], info)
+        # Calling flush() here protects us against the odd case that
+        # we process files from a single session in non-consecutive
+        # order.  In that case the start' and 'end' times will get
+        # messed up because we can't tell the stream has been
+        # re-initialized.
+        if flush_after:
+            self.flush()
 
 
 class _FieldGroup:
