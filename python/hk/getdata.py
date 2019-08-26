@@ -281,7 +281,6 @@ class HKArchiveScanner:
     def __init__(self):
         self.session_id = None
         self.providers = {}
-        self.catalog = HKArchive()
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
@@ -311,7 +310,7 @@ class HKArchiveScanner:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
-                    self.flush()
+                    self.flush()  # Note that this sets self.session_id=None.
             if self.session_id is None:
                 core.log_info('New HK Session id = %i, timestamp = %i' %
                               (session_id, f['start_time']), unit='HKScanner')
@@ -362,18 +361,21 @@ class HKArchiveScanner:
         information.  Delete the provider information.  This will be
         called automatically during frame processing if a provider
         session ends.  Once frame processing has completed, this
-        fnuction should be called, with no arguments, to flush any
+        function should be called, with no arguments, to flush any
         remaining provider sessions.
 
         Args:
             provs (list or None): list of provider identifiers to
-              flush.  If None, flush all.
+              flush.  If None, flush all and also reset the
+              self.session_id.
 
         Returns:
             None
+
         """
         if provs is None:
             provs = list(self.providers.keys())
+            self.session_id = None
         for p in provs:
             prov = self.providers.pop(p)
             blocks = prov.blocks
@@ -390,11 +392,16 @@ class HKArchiveScanner:
         self.flush()
         return HKArchive(self.field_groups)
 
-    def process_file(self, filename):
+    def process_file(self, filename, flush_after=True):
         """Process the file specified by ``filename`` using a G3IndexedReader.
         Each frame from the file is passed to self.Process, with the
         optional index_info argument set to a dictionary containing
         the filename and byte_offset of the frame.
+
+        Internal data grouping will be somewhat cleaner if the
+        multiple files from a single aggregator "session" are passed
+        to this function in acquisition order.  In that case, call
+        with flush_after=False.
 
         """
         reader = so3g.G3IndexedReader(filename)
@@ -406,6 +413,13 @@ class HKArchiveScanner:
             if len(frames) == 0:
                 break
             self(frames[0], info)
+        # Calling flush() here protects us against the odd case that
+        # we process files from a single session in non-consecutive
+        # order.  In that case the start' and 'end' times will get
+        # messed up because we can't tell the stream has been
+        # re-initialized.
+        if flush_after:
+            self.flush()
 
 
 class _FieldGroup:
@@ -427,10 +441,11 @@ class _FieldGroup:
 if __name__ == '__main__':
     import sys
 
-    hkcs = HKArchiveScanner()
+    hkas = HKArchiveScanner()
     for filename in sys.argv[1:]:
-        hkcs.process_file(filename)
-    cat = hkcs.finalize()
+        print(filename)
+        hkas.process_file(filename)
+    cat = hkas.finalize()
     # Get list of fields, timelines, spanning all times:
     fields, timelines = cat.get_fields()
     # Show
