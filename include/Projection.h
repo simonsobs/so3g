@@ -3,6 +3,13 @@
 
 namespace bp = boost::python;
 
+/* For detector timestreams, a.k.a. "signal", float32 is sufficient in
+ * most cases.  We don't want to template this, but let's leave our
+ * options open by using this typedef. */
+typedef float FSIGNAL;
+#define FSIGNAL_NPY_TYPE NPY_FLOAT32
+
+
 class BufferWrapper;
 
 /** ProjectionOptimizer is the base class for our optimization model.
@@ -125,25 +132,25 @@ public:
             delete _signalspace;
     };
     inline int ComponentCount() {return SpinClass::comp_count;}
-    void PixelWeight(const double *coords, double *wt);
+    void PixelWeight(const double *coords, FSIGNAL *wt);
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &weight);
     void Forward(const int i_det,
                  const int i_time,
                  const int pixel_index,
                  const double* coords,
-                 const double* weights);
+                 const FSIGNAL* weights);
     void ForwardWeight(const int i_det,
                        const int i_time,
                        const int pixel_index,
                        const double* coords,
-                       const double* weights);
+                       const FSIGNAL* weights);
     void Reverse(const int i_det,
                  const int i_time,
                  const int pixel_index,
                  const double* coords,
-                 const double* weights);
-    SignalSpace<double> *_signalspace = nullptr;
+                 const FSIGNAL* weights);
+    SignalSpace<FSIGNAL> *_signalspace = nullptr;
 protected:
     bool need_map = true;
     bool need_signal = true;

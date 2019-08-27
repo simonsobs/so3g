@@ -38,7 +38,7 @@ pe = test_utils.get_proj(system, 'TQU', pxz)
 ptg = test_utils.get_boresight_quat(system, x, y)
 ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 
-sig = np.ones((1,n_det,n_t)) * .5
+sig = np.ones((1,n_det,n_t), 'float32') * .5
 
 print('Note the problem size is %i x %i = %.3fM samples.\n' %
       (n_det, n_t, n_det*n_t/1e6))
@@ -114,8 +114,8 @@ if 1:
 
 if 1:
     print('Reverse projection (TQU)', end='\n ... ')
-    sig1 = [x for x in np.zeros((n_det,n_t))]
-    sig1 = np.random.uniform(size=(n_det,n_t))
+    sig1 = [x for x in np.zeros((n_det,n_t), 'float32')]
+    sig1 = np.random.uniform(size=(n_det,n_t)).astype('float32')
     with Timer() as T:
         #sig1 =
         pe.from_map(map1, ptg, ofs, sig1, None)

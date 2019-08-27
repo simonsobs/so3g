@@ -86,7 +86,7 @@ sig0 = pe.from_map(beam, ptg, ofs, None, None)
 sig0 = np.array(sig0)
 
 # Add some noise...
-sig1 = sig0 + .0001*np.random.normal(0, 1, size=sig0.shape)
+sig1 = sig0 + .0001*np.random.normal(0, 1, size=sig0.shape).astype('float32')
 
 # Show this...
 _, sps = pl.subplots(1, 2)
@@ -107,7 +107,7 @@ wmap1[2,0] = wmap1[0,2]
 wmap1[2,1] = wmap1[1,2]
 
 # The inverse weight map.
-iwmap1 = np.linalg.pinv(wmap1.transpose((2,3,0,1))).transpose((2,3,0,1))
+iwmap1 = test_utils.linalg_pinv(wmap1.transpose((2,3,0,1))).transpose((2,3,0,1))
 
 # The mapped solution.
 map2 = (iwmap1 * map1[None,...]).sum(axis=1)
@@ -142,7 +142,7 @@ wmap1d = pe.to_weight_map(None, ptg, ofsd, None, None)
 wmap1d[1,0] = wmap1d[0,1] # fill in unpopulated entries again...
 
 # Solved...
-iwmap1d = np.linalg.pinv(wmap1d.transpose((2,3,0,1))).transpose((2,3,0,1))
+iwmap1d = test_utils.linalg_pinv(wmap1d.transpose((2,3,0,1))).transpose((2,3,0,1))
 map2d = (iwmap1d * map1d[None,...]).sum(axis=1)
 
 # Display.

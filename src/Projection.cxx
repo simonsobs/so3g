@@ -435,8 +435,8 @@ bool Accumulator<SpinClass>::TestInputs(
     }
 
     if (need_signal) {
-        _signalspace = new SignalSpace<double>(
-            signal, "signal", NPY_FLOAT64, n_det, n_time);
+        _signalspace = new SignalSpace<FSIGNAL>(
+            signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     }
 
     // Insist that user passed in None for the weights.
@@ -450,7 +450,7 @@ bool Accumulator<SpinClass>::TestInputs(
 template <>
 inline
 void Accumulator<SpinT>::PixelWeight(
-    const double* coords, double *pwt)
+    const double* coords, FSIGNAL *pwt)
 {
     pwt[0] = 1;
 }
@@ -458,7 +458,7 @@ void Accumulator<SpinT>::PixelWeight(
 template <>
 inline
 void Accumulator<SpinQU>::PixelWeight(
-    const double* coords, double *pwt)
+    const double* coords, FSIGNAL *pwt)
 {
     const double c = coords[2];
     const double s = coords[3];
@@ -469,7 +469,7 @@ void Accumulator<SpinQU>::PixelWeight(
 template<>
 inline
 void Accumulator<SpinTQU>::PixelWeight(
-    const double* coords, double *pwt)
+    const double* coords, FSIGNAL *pwt)
 {
     const double c = coords[2];
     const double s = coords[3];
@@ -482,13 +482,13 @@ template <typename SpinClass>
 inline
 void Accumulator<SpinClass>::Forward(
     const int i_det, const int i_time,
-    const int pixel_offset, const double* coords, const double* weights)
+    const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
     if (pixel_offset < 0) return;
-    const double sig = *(_signalspace->data_ptr[i_det] +
-                         _signalspace->steps[0]*i_time);
+    const FSIGNAL sig = *(_signalspace->data_ptr[i_det] +
+                          _signalspace->steps[0]*i_time);
     const int N = SpinClass::comp_count;
-    double wt[N];
+    FSIGNAL wt[N];
     PixelWeight(coords, wt);
     for (int imap=0; imap<N; ++imap) {
         *(double*)((char*)_mapbuf.view.buf +
@@ -501,11 +501,11 @@ template <typename SpinClass>
 inline
 void Accumulator<SpinClass>::ForwardWeight(
     const int i_det, const int i_time,
-    const int pixel_offset, const double* coords, const double* weights)
+    const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
     if (pixel_offset < 0) return;
     const int N = SpinClass::comp_count;
-    double wt[N];
+    FSIGNAL wt[N];
     PixelWeight(coords, wt);
     for (int imap=0; imap<N; ++imap) {
         for (int jmap=imap; jmap<N; ++jmap) {
@@ -521,11 +521,11 @@ template <typename SpinClass>
 inline
 void Accumulator<SpinClass>::Reverse(
     const int i_det, const int i_time,
-    const int pixel_offset, const double* coords, const double* weights)
+    const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
     if (pixel_offset < 0) return;
     const int N = SpinClass::comp_count;
-    double wt[N];
+    FSIGNAL wt[N];
     PixelWeight(coords, wt);
     double _sig = 0.;
     for (int imap=0; imap<N; ++imap) {
@@ -533,8 +533,8 @@ void Accumulator<SpinClass>::Reverse(
                            _mapbuf.view.strides[0]*imap +
                            pixel_offset) * wt[imap];
     }
-    double *sig = (_signalspace->data_ptr[i_det] +
-                   _signalspace->steps[0]*i_time);
+    FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
+                    _signalspace->steps[0]*i_time);
     *sig += _sig;
 }
 
@@ -682,7 +682,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
         pointer.InitPerDet(i_det, dofs);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
-            double weights[4];
+            FSIGNAL weights[4];
             int pixel_offset;
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
@@ -741,7 +741,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
             for (auto rng: ivals[i_thread][i_det].segments) {
                 for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                     double coords[4];
-                    double weights[4];
+                    FSIGNAL weights[4];
                     int pixel_offset;
                     pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                     pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
@@ -788,7 +788,7 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map(
         pointer.InitPerDet(i_det, dofs);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
-            double weights[4];
+            FSIGNAL weights[4];
             int pixel_offset;
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
@@ -855,7 +855,7 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
             for (auto rng: ivals[i_thread][i_det].segments) {
                 for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                     double coords[4];
-                    double weights[4];
+                    FSIGNAL weights[4];
                     int pixel_offset;
                     pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                     pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
@@ -890,7 +890,7 @@ bp::object ProjectionEngine<P,Z,A>::from_map(
         pointer.InitPerDet(i_det, dofs);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
-            double weights[4];
+            FSIGNAL weights[4];
             int pixel_offset;
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);

@@ -95,3 +95,15 @@ def get_offsets_quat(system, dx, dy, polphi):
                    Qroti(1,-dy),
                    Qroti(2, polphi))
     return ofs
+
+def linalg_pinv(wmap):
+    try:
+        iwmap = np.linalg.pinv(wmap)
+    except ValueError:
+        # np.linalg.pinv only runs on stacks for numpy>=1.14 (Jan 2018),
+        # so we hack an alternative.
+        iwmap = np.empty(wmap.shape, wmap.dtype)
+        for i in range(wmap.shape[0]):
+            for j in range(wmap.shape[1]):
+                iwmap[i,j] = np.linalg.pinv(wmap[i,j])
+    return iwmap
