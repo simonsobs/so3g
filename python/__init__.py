@@ -22,7 +22,6 @@ del set_frame_hooks
 
 # Other python modules.
 from . import hk
-from . import coords
 from . import proj
 
 # Deprecated:
