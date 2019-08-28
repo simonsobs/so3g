@@ -26,12 +26,12 @@ class Projectionist:
         if  (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 0.):
             # This is typical for cylindrical projections.
             assert((delta0 >= 0 and wcs.wcs.lonpole == 180.0) or
-                   (delta0 <  0 and wcs.wcs.lonpole ==   0.0))  # The default for theta0=0.
-            Q = (quat.euler(2, -alpha0 * quat.DEG) *
-                 quat.euler(1,  delta0 * quat.DEG))
+                   (delta0 <= 0 and wcs.wcs.lonpole ==   0.0))
+            Q = (quat.euler(1,  delta0 * quat.DEG) *
+                 quat.euler(2, -alpha0 * quat.DEG))
         elif (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 90.):
             # This is typical for zenithal projections.
-            assert(wcs.wcs.lonpole == 180.0)   # The default for theta0=90.
+            assert(wcs.wcs.lonpole == 180.0)
             Q = (quat.euler(2, np.pi) *
                  quat.euler(1, (delta0 - 90)*quat.DEG) *
                  quat.euler(2, -alpha0 * quat.DEG))
