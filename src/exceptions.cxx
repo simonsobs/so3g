@@ -31,4 +31,5 @@ PYBINDINGS("so3g")
     bp::register_exception_translator<shape_exception>     (&translate_RuntimeError);
     bp::register_exception_translator<agreement_exception> (&translate_RuntimeError);
     bp::register_exception_translator<general_agreement_exception> (&translate_ValueError);
+    bp::register_exception_translator<general_type_exception> (&translate_TypeError);
 }
