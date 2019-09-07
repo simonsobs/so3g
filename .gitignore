@@ -4,6 +4,10 @@ local.cmake
 ## Common backup / temporary files.
 *~
 
+## python & doc stuff
+**/__pycache__
+docs/_build
+
 ## github's default C++ stuff.
 
 # Prerequisites
