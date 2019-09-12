@@ -107,12 +107,21 @@ Class references
 .. autoclass:: so3g.hk.HKScanner
    :members:
 
-HK Data Types and File Structure
---------------------------------
+HK Data Types and File Structure [weak]
+---------------------------------------
 
+As of September 2019, all HK data that has been written is version 0
+of the schema, which is only able to store vectors of double-precision
+readings.  This will be extended substantially in version 1.
 
-Writing HK Data
----------------
+The HK file structures and versions are described in
+https://github.com/simonsobs/tod2maps_docs/tod_format.
+
+Writing HK Data [weak]
+----------------------
+
+Limited facilities exist to assist with creating valid HK data.  This
+interface targets, especially, the OCS "aggregator" Agent.
 
 .. autoclass:: so3g.hk.HKSessionHelper
    :members:
