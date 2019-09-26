@@ -2,7 +2,7 @@
 # A containerized so3g installation.
 
 # Build on spt3g base image
-FROM simonsobs/spt3g:c822dee
+FROM simonsobs/spt3g:reader-timeout-2f6d377
 
 # Set the working directory
 WORKDIR /app_lib/so3g
