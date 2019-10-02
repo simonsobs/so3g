@@ -54,7 +54,7 @@ for finding libraries.
 
 
 Local configuration through local.cmake
-=======================================
+---------------------------------------
 
 Optional, site-specific parameters may be set in the file local.cmake.
 Lines declaring set(VARIABLE, value) should have the same effect as
@@ -70,3 +70,14 @@ like this one::
 
   set(Boost_PYTHON_TYPE python-py35)
 
+Testing
+=======
+We use the built-in python unittest for testing. To run the tests install so3g
+and run::
+
+    cd test/
+    python3 -m unittest
+
+You can run specific tests by calling them directly::
+
+    python3 -m unittest test_indexed
