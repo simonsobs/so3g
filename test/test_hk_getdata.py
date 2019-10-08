@@ -77,7 +77,7 @@ class TestGetData(unittest.TestCase):
 
     def tearDown(self):
         """Remove the temporary file we made."""
-        os.remove('test.g3')
+        os.remove(self._file)
 
     def test_hk_getdata_field_array_type(self):
         """Make sure we return the fields as a numpy array when we get_data."""
