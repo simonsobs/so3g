@@ -10,8 +10,8 @@ print('Streaming to %s' % test_file)
 w = core.G3Writer(test_file)
 
 # Create something to help us track the aggregator session.
-hksess = so3g.hkagg.HKSession(session_id=1234,
-                              description="Test HK data.")
+hksess = so3g.hk.HKSessionHelper(session_id=1234,
+                                 description="Test HK data.")
 
 # Register a data provider.
 prov_id = hksess.add_provider(

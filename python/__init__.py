@@ -23,6 +23,3 @@ del set_frame_hooks
 # Other python modules.
 from . import hk
 from . import proj
-
-# Deprecated:
-from . import hkagg
