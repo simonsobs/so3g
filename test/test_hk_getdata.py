@@ -4,9 +4,24 @@ import numpy as np
 
 import so3g
 from so3g.hk import HKArchiveScanner
+from so3g.hk import HKTranslator
 
 from spt3g import core
 
+class Seeder(list):
+    """Module that can be pre-initialized with frames to feed into a
+    Pipeline.  If it's not the first module, it inserts the frames
+    prior to passing any others on.
+
+    """
+    def Process(self, frames):
+        output = [x for x in self]
+        self.clear()
+        if frames is not None:
+            output.extend([f for f in frames if f is not None])
+        return output
+    def __call__(self, *args, **kw):
+        return self.Process(*args, **kw)
 
 def write_example_file(filename='hk_out.g3'):
     """Generate some example HK data and write to file.
@@ -19,7 +34,12 @@ def write_example_file(filename='hk_out.g3'):
 
     # Write a stream of HK frames.
     # (Inspect the output with 'spt3g-dump hk_out.g3 so3g'.)
-    w = core.G3Writer(test_file)
+    seeder = Seeder()
+    w = core.G3Pipeline()
+    w.Add(seeder)
+    w.Add(HKTranslator)
+    w.Add(core.G3Writer(test_file))
+    
 
     # Create something to help us track the aggregator session.
     hksess = so3g.hk.HKSessionHelper(session_id=1234,
@@ -30,10 +50,8 @@ def write_example_file(filename='hk_out.g3'):
         description='Fake data for the real world.')
 
     # Start the stream -- write the initial session and status frames.
-    f = hksess.session_frame()
-    w.Process(f)
-    f = hksess.status_frame()
-    w.Process(f)
+    seeder.append(hksess.session_frame())
+    seeder.append(hksess.status_frame())
 
     # Now make a data frame.
     f = hksess.data_frame(prov_id=prov_id)
@@ -46,8 +64,9 @@ def write_example_file(filename='hk_out.g3'):
     hk.t = [0, 1, 2, 3, 4]
     f['blocks'].append(hk)
 
-    w.Process(f)
+    seeder.append(f)
 
+    w.Run()
     del w
 
 
