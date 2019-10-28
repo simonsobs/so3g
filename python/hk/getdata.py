@@ -9,6 +9,7 @@ sisock-style API.
 """
 
 import so3g
+import so3g.hk
 from spt3g import core
 import numpy as np
 
@@ -45,6 +46,7 @@ class HKArchive:
     def __init__(self, field_groups=None):
         if field_groups is not None:
             self.field_groups = list(field_groups)
+        self.translator = so3g.hk.HKTranslator()
 
     def _get_groups(self, fields=None, start=None, end=None,
                     short_match=False):
@@ -196,20 +198,23 @@ class HKArchive:
                         handles[fn] = so3g.G3IndexedReader(fn)
                     handles[fn].Seek(off)
                     fn = handles[fn].Process(None)
+                    fn = self.translator(fn[0])
                     assert(len(fn) == 1)
                     # Find the right block.
-                    for blk in fn[0]['blocks']:
+                    for k, blk in fn[0].items():
+                        if not isinstance(blk, so3g.IrregBlock): continue
                         test_f = fields[0].split('.')[-1]   ## dump prefix.
-                        if test_f in blk.data.keys():
+                        if test_f in blk.keys():
                             blocks_in.append(blk)
                             break
             # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
-            blocks_in.sort(key=lambda b: b.t[0])
+            blocks_in.sort(key=lambda b: b.times[0].time)
             # Create a new Block for this group.
-            blk = so3g.IrregBlockDouble()
-            blk.t = np.hstack([b.t for b in blocks_in])
+            blk = so3g.IrregBlock()
+            blk.times = core.G3VectorTime(np.hstack([np.array(b.times) for b in blocks_in]))
             for f in fields:
-                blk.data[f] = np.hstack([b.data[f.split('.')[-1]] for b in blocks_in])
+                # Not general enough for HK v1!
+                blk[f] = core.G3VectorDouble(np.hstack([np.array(b[f.split('.')[-1]]) for b in blocks_in]))
             blocks_out.append((group_name, blk))
         if raw:
             return blocks_out
@@ -218,11 +223,11 @@ class HKArchive:
         timelines = {}
         for group_name, block in blocks_out:
             timelines[group_name] = {
-                't': np.array(block.t),
-                'finalized_until': block.t[-1],
-                'fields': list(block.data.keys()),
+                't': np.array([t.time for t in block.times]) / core.G3Units.seconds,
+                'finalized_until': block.times[-1].time / core.G3Units.seconds,
+                'fields': list(block.keys()),
             }
-            for k,v in block.data.items():
+            for k,v in block.items():
                 data[k] = np.array(v)
 
         return (data, timelines)
@@ -269,7 +274,7 @@ class _HKProvider:
     def __init__(self, prov_id, prefix):
         self.prov_id = prov_id
         self.prefix = prefix
-        self.blocks = []
+        self.blocks = {}
 
     @classmethod
     def from_g3(cls, element):
@@ -293,6 +298,7 @@ class HKArchiveScanner:
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
+        self.translator = so3g.hk.HKTranslator()
 
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
@@ -309,11 +315,16 @@ class HKArchiveScanner:
         if index_info is None:
             index_info = {'counter': self.counter}
             
+        f = self.translator(f)[0]
+
         if f.type == core.G3FrameType.EndProcessing:
             return [f]
 
         if f.type != core.G3FrameType.Housekeeping:
             return f
+
+        vers = f.get('hkagg_version', 0)
+        assert(vers == 1)
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']
@@ -341,24 +352,26 @@ class HKArchiveScanner:
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
             prov = self.providers[f['prov_id']]
-            representatives = [block['fields'][0] for block in prov.blocks]
-            for b in f['blocks']:
-                fields = b.data.keys()
-                if len(b.t) == 0 or len(fields) == 0:
+            representatives = prov.blocks.keys()#[block['fields'][0] for block in prov.blocks]
+
+            blocks = [v for k,v in f.items() if isinstance(v, so3g.IrregBlock)]
+            for b in blocks:
+                fields = b.keys()
+                if len(b.times) == 0 or len(fields) == 0:
                     continue
                 for block_index,rep in enumerate(representatives):
                     if rep in fields:
                         break
                 else:
-                    block_index = len(prov.blocks)
-                    prov.blocks.append({'fields': fields,
-                                        'start': b.t[0],
-                                        'index_info': []})
+                    rep = fields[0]
+                    prov.blocks[rep] = {'fields': fields,
+                                        'start': b.times[0].time / core.G3Units.seconds,
+                                        'index_info': []}
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                prov.blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
-                prov.blocks[block_index]['index_info'].append(index_info)
+                prov.blocks[rep]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
+                prov.blocks[rep]['index_info'].append(index_info)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
@@ -388,7 +401,7 @@ class HKArchiveScanner:
         for p in provs:
             prov = self.providers.pop(p)
             blocks = prov.blocks
-            for info in blocks:
+            for k, info in blocks.items():
                 fg = _FieldGroup(prov.prefix, info['fields'], info['start'],
                                  info['end'], info['index_info'])
                 self.field_groups.append(fg)
@@ -540,21 +553,37 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
     return data
 
 if __name__ == '__main__':
-    import sys
+    import argparse
+    parser = argparse.ArgumentParser(
+        usage='This demo can be used to plot data from SO HK files.')
+    parser.add_argument('--field')
+    parser.add_argument('files', nargs='+', help=
+                        "SO Housekeeping files to load.")
+    args = parser.parse_args()
 
+    # Scan the file set.
     hkas = HKArchiveScanner()
-    for filename in sys.argv[1:]:
-        print(filename)
+    for filename in args.files:
+        print(f'Scanning {filename}...')
         hkas.process_file(filename)
+
+    print(' ... finalizing.')
     cat = hkas.finalize()
+
     # Get list of fields, timelines, spanning all times:
     fields, timelines = cat.get_fields()
+
     # Show
     for field_name in sorted(fields):
         group_name = fields[field_name]['timeline']
         print(field_name, timelines[group_name]['interval'])
-    full_name = list(fields.keys())[0]
-    print('Pretending interest in:', full_name)
+
+    if args.field is None:
+        full_name = list(fields.keys())[0]
+        print('Pretending interest in:', full_name)
+    else:
+        full_name = args.field
+        print('User requests:', full_name)
 
     # Identify the shortest form of this field that also works.
     f_toks = full_name.split('.')
