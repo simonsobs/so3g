@@ -67,23 +67,17 @@ std::string IrregBlock::Summary() const
     return Description();
 }
 
-template <class A> void IrregBlock::save(A &ar, unsigned v) const
+template <class A> void IrregBlock::serialize(A &ar, unsigned v)
 {
-	using namespace cereal;
-	ar & make_nvp("parent", base_class<G3MapFrameObject>(this));
-	ar & make_nvp("times", times);
-}
-template <class A> void IrregBlock::load(A &ar, unsigned v)
-{
-	using namespace cereal;
-	ar & make_nvp("parent", base_class<G3MapFrameObject>(this));
-	ar & make_nvp("times", times);
+    using namespace cereal;
+    ar & make_nvp("parent", base_class<G3MapFrameObject>(this));
+    ar & make_nvp("times", times);
 }
 
 bool IrregBlock::Check()
 {
     int n = times.size();
-    
+
     // How to polymorph?  This is how.
     for (auto item = begin(); item != end(); ++item) {
         auto name = item->first;
@@ -93,21 +87,18 @@ bool IrregBlock::Check()
         int check_len = -1;
 
         // Try to get a length...
-        if ((check_len = g3_vect_size<G3VectorDouble>(el)) >= 0 ||
-            (check_len = g3_vect_size<G3VectorInt   >(el)) >= 0 ||
-            (check_len = g3_vect_size<G3VectorString>(el)) >= 0)
-            check_type = 1;
-
-        if (check_len >= 0 && check_len != n) {
-            std::ostringstream s;
-            s << "Vector not same length as .times: " << name << "\n";
-            throw general_agreement_exception(s.str());
-        }
-
-        if (check_type) {
+        if ((check_len = g3_vect_size<G3VectorDouble>(el)) < 0 &&
+            (check_len = g3_vect_size<G3VectorInt   >(el)) < 0 &&
+            (check_len = g3_vect_size<G3VectorString>(el)) < 0) {
             std::ostringstream s;
             s << "Item type is not acceptable: " << name << "\n";
             throw general_type_exception(s.str());
+        }
+
+        if (check_len != n) {
+            std::ostringstream s;
+            s << "Vector not same length as .times: " << name << "\n";
+            throw general_agreement_exception(s.str());
         }
     }
     return true;
@@ -185,7 +176,7 @@ template <class A> void IrregBlockDouble::serialize(A &ar, unsigned v)
 }
 
 
-G3_SPLIT_SERIALIZABLE_CODE(IrregBlock);
+G3_SERIALIZABLE_CODE(IrregBlock);
 G3_SERIALIZABLE_CODE(IrregBlockDouble);
 
 

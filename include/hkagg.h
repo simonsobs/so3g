@@ -28,10 +28,15 @@ public:
     string Description() const;
     string Summary() const;
 
-    template <class A> void save(A &ar, unsigned v) const;
-    template <class A> void load(A &ar, unsigned v);
+    template <class A> void serialize(A &ar, unsigned v);
 };
 
+// This specialization tells cereal to use IrregBlock::serialize and
+// not the base class' load/save.
+namespace cereal {
+    template <class A> struct specialize<
+        A, IrregBlock, cereal::specialization::member_serialize> {};
+}
 
 class IrregBlockDouble : public G3FrameObject {
     // Stores a block of timestamped data.  This consists of named
@@ -50,10 +55,6 @@ public:
     template <class A> void serialize(A &ar, unsigned v);
 };
 
-namespace cereal {
-    template <class A> struct specialize<
-        A, IrregBlock, cereal::specialization::member_load_save> {};
-}
-
 G3_SERIALIZABLE(IrregBlock, 0);
 G3_SERIALIZABLE(IrregBlockDouble, 0);
+
