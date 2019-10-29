@@ -6,12 +6,19 @@ import binascii
 
 
 class HKSessionHelper:
-    """
-    Helper class to produce G3Frame templates for creating streams of
-    generic HK data.
-    """
     def __init__(self, session_id=None, start_time=None,
                  description='No description provided.'):
+        """Helper class to produce G3Frame templates for creating streams of
+        generic HK data.
+
+        Arguments:
+          session_id: an integer session ID for the HK session.  If
+            not provided (recommended) then it will be generated based
+            on the PID, the start_time, and the description string.
+          start_time (float): a timestamp to use for the HK session.
+          description (str): a description of the agent generating the
+            stream.
+        """
         if start_time is None:
             start_time = time.time()
         self.start_time = start_time

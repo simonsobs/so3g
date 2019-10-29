@@ -79,8 +79,8 @@ class TestHKSessionHelper(unittest.TestCase):
         print('Stats: ', scanner.stats)
         print('Providers: ', scanner.providers)
 
-        assert (scanner.stats['concerns']['n_error'] == 0)
-        assert (scanner.stats['concerns']['n_warning'] == 0)
+        self.assertEqual(scanner.stats['concerns']['n_error'], 0)
+        self.assertEqual(scanner.stats['concerns']['n_warning'], 0)
 
 
 if __name__ == '__main__':
