@@ -1,21 +1,49 @@
 import so3g
 from spt3g import core
 import time
+import os
+import binascii
+
 
 class HKSessionHelper:
-    """
-    Helper class to produce G3Frame templates for creating streams of
-    generic HK data.
-    """
-    def __init__(self, session_id=0, start_time=None,
+    def __init__(self, session_id=None, start_time=None,
                  description='No description provided.'):
+        """Helper class to produce G3Frame templates for creating streams of
+        generic HK data.
+
+        Arguments:
+          session_id: an integer session ID for the HK session.  If
+            not provided (recommended) then it will be generated based
+            on the PID, the start_time, and the description string.
+          start_time (float): a timestamp to use for the HK session.
+          description (str): a description of the agent generating the
+            stream.
+        """
         if start_time is None:
             start_time = time.time()
-        self.session_id = session_id
         self.start_time = start_time
         self.description = description
         self.provs = {}
         self.next_prov_id = 0
+        if session_id is None:
+            session_id = self._generate_session_id(start_time, description)
+        self.session_id = session_id
+
+    @staticmethod
+    def _generate_session_id(timestamp=None, description=''):
+        if timestamp is None:
+            timestamp = time.time()
+        if description is None:
+            description = '?'
+        # Bit-combine some unique stuff.  It's useful if this sorts in
+        # time, so lead off with the timestamp.
+        elements = [(int(timestamp), 32),
+                    (os.getpid(), 14),
+                    (binascii.crc32(bytes(description, 'utf8')), 14)]
+        session_id = 0
+        for i, b in elements:
+            session_id = (session_id << b) | (i % (1 << b))
+        return session_id
 
     def add_provider(self, description='No provider description... provided'):
         prov_id = self.next_prov_id
@@ -29,7 +57,7 @@ class HKSessionHelper:
     """
     Frame generators.
     """
-        
+
     def session_frame(self):
         """
         Return the Session frame.  No additional information needs to be
@@ -67,7 +95,7 @@ class HKSessionHelper:
             provs.append(prov)
         f['providers'] = provs
         return f
-    
+
     def data_frame(self, prov_id, timestamp=None):
         """
         Return a Data frame template.  The prov_id must match the prov_id
