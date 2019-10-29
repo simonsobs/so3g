@@ -13,6 +13,10 @@ class HKScanner:
             'n_hk': 0,
             'n_other': 0,
             'n_session': 0,
+            'concerns': {
+                'n_error': 0,
+                'n_warning': 0
+            },
         }
 
     def report_and_reset(self):
@@ -63,6 +67,7 @@ class HKScanner:
                     if not info['active']:
                         core.log_warn('prov_id %i came back to life.' % p,
                                       unit='HKScanner')
+                        self.stats['concerns']['n_warning'] += 1
                         info['n_active'] += 1
                         info['active'] = True
                 else:
@@ -86,9 +91,11 @@ class HKScanner:
                     core.log_warn('data timestamp (%.1f) precedes provider '
                                   'timestamp by %f seconds.' % (t_this, t_this - t_ref),
                                   unit='HKScanner')
+                    self.stats['concerns']['n_warning'] += 1
             elif t_this <= info['timestamp_data']:
                 core.log_warn('data frame timestamps are not strictly ordered.',
                               unit='HKScanner')
+                self.stats['concerns']['n_warning'] += 1
             info['timestamp_data'] = t_this # update
 
             t_check = []
@@ -105,14 +112,17 @@ class HKScanner:
                     if len(v) != len(b.t):
                         core.log_error('Field "%s" has %i samples but .t has %i samples.' %
                                        (k, len(v), len(b.t)))
+                        self.stats['concerns']['n_error'] += 1
             if len(t_check) and abs(min(t_check) - t_this) > 60:
                 core.log_warn('data frame timestamp (%.1f) does not correspond to '
                               'data timestamp vectors (%s) .' % (t_this, t_check),
                               unit='HKScanner')
+                self.stats['concerns']['n_warning'] += 1
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
                           unit='HKScanner')
+            self.stats['concerns']['n_warning'] += 1
 
         return [f]
 
