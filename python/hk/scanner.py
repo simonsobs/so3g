@@ -4,7 +4,19 @@ import numpy as np
 
 class HKScanner:
     """Module that scans and reports on HK archive contents and compliance.
+    
+    Attributes:
+      stats (dict): A nested dictionary of statistics that are updated as
+        frames are processed by the module.  Elements:
 
+        - ``n_hk`` (int): The number of HK frames encountered.
+        - ``n_other`` (int): The number of non-HK frames encountered.
+        - ``n_session`` (int): The number of distinct HK sessions
+          processed.
+        - ``concerns`` (dict): The number of warning (key ``n_warning``)
+          and error (key ``n_error``) events encountered.  The detail
+          for such events is logged to ``spt3g.core.log_warning`` /
+          ``log_error``.
     """
     def __init__(self):
         self.session_id = None
