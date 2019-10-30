@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def ces(el, az0, throw, v_scan, t):
     """Generate a CES scan pattern.
 
@@ -22,4 +23,3 @@ def ces(el, az0, throw, v_scan, t):
     az = phase
     az[phase>2*throw] = 4*throw - phase[phase>2*throw]
     return az - throw + az0, el + az*0
-

@@ -5,9 +5,9 @@ from . import quat
 from . import util
 
 from .wcs import Projectionist, ProjectionOmpData
-from .coords import CelestialSightLine, EarthlySite, Assembly
+from .coords import CelestialSightLine, EarthlySite, Assembly, FocalPlane
+from .weather import Weather, weather_factory
 
 import numpy as np
 
 DEG = np.pi/180.
-

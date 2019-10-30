@@ -1,5 +1,6 @@
 import so3g
 from . import quat
+from .weather import weather_factory
 
 from collections import OrderedDict
 
@@ -7,10 +8,16 @@ import numpy as np
 
 DEG = np.pi / 180.
 
+
 class EarthlySite:
-    def __init__(self, lon, lat, elev):
-        """Arguments in degrees.  Positive longitude is East on the Earth."""
+    def __init__(self, lon, lat, elev, typical_weather=None):
+        """Arguments in degrees E, degrees N, meters above sea level.  The
+        typical_weather argument should be an so3g Weather object, or
+        None.
+
+        """
         self.lon, self.lat, self.elev = lon, lat, elev
+        self.typical_weather = typical_weather
 
     @classmethod
     def get_named(cls, name):
@@ -18,13 +25,17 @@ class EarthlySite:
 
 
 SITES = {
-    'act': EarthlySite(-67.7876 * DEG,-22.9585 * DEG, 5188.),
+    'act': EarthlySite(-67.7876, -22.9585, 5188.,
+                       typical_weather=weather_factory('toco'))
 }
 DEFAULT_SITE = 'act'
 
+# These definitions are used for the naive horizon -> celestial
+# conversion.
 ERA_EPOCH = 946684800 + 3600 * 12  # Noon on Jan 1 2000.
 ERA_POLY = np.array([6.300387486754831,
-                     4.894961212823756]) # Operates on "days since ERA_EPOCH".
+                     4.894961212823756])  # Operates on "days since ERA_EPOCH".
+
 
 class CelestialSightLine:
     """Carries a vector of celestial pointing data.
@@ -45,12 +56,12 @@ class CelestialSightLine:
         raise ValueError("Could not decode %s as a Site." % site)
 
     @classmethod
-    def naive_az_el(cls, az, el, t, site=None):
-        """Construct a sight line from horizon coordinates, az and el (in
+    def naive_az_el(cls, t, az, el, roll=0., site=None, weather=None):
+        """Construct a SightLine from horizon coordinates, az and el (in
         radians) and time t (unix timestamp).
 
         This will be off by several arcminutes... but less than a
-        degree.
+        degree.  The weather is ignored.
 
         """
         site = cls.decode_site(site)
@@ -60,13 +71,54 @@ class CelestialSightLine:
 
         J = (t - ERA_EPOCH) / 86400
         era = np.polyval(ERA_POLY, J)
-        lst = era + site.lon
+        lst = era + site.lon * DEG
 
         self.Q = (
-            quat.euler(2, lst) * quat.euler(1, np.pi/2 - site.lat) *
+            quat.euler(2, lst) *
+            quat.euler(1, np.pi/2 - site.lat * DEG) *
             quat.euler(2, np.pi) *
-            quat.euler(2, -az)  * quat.euler(1, np.pi/2 - el) *
-            quat.euler(2, np.pi))
+            quat.euler(2, -az) *
+            quat.euler(1, np.pi/2 - el) *
+            quat.euler(2, np.pi + roll)
+            )
+        return self
+
+    @classmethod
+    def az_el(cls, t, az, el, roll=None, site=None, weather=None):
+        """Construct a SightLine from horizon coordinates.  This uses
+        high-precision pointing.
+
+        """
+        import qpoint  # https://github.com/arahlin/qpoint
+
+        site = cls.decode_site(site)
+        assert isinstance(site, EarthlySite)
+
+        if weather == 'typical':
+            weather = site.typical_weather
+        elif weather == 'vacuum':
+            weather = weather_factory('vacuum')
+        if weather is None:
+            raise ValueError('High-precision pointing requires a weather '
+                             'object.  Try passing \'typical\', or '
+                             '\'vacuum\'.')
+
+        self = cls()
+        qp = qpoint.QPoint(accuracy='high', fast_math=True, mean_aber=True,
+                           num_threads=4,
+                           rate_ref='always', **weather.to_qpoint())
+
+        az, el, t = map(np.asarray, [az, el, t])
+        Q_arr = qp.azel2bore(az / DEG, el / DEG, None, None,
+                             lon=site.lon, lat=site.lat, ctime=t)
+        self.Q = quat.G3VectorQuat(Q_arr)
+
+        # Apply boresight roll manually (note qpoint pitch/roll refer
+        # to the platform rather than to something about the boresight
+        # axis).
+        if roll is not None:
+            self.Q *= quat.euler(2, roll)
+
         return self
 
     def coords(self, det_offsets=None, output=None):
@@ -92,37 +144,76 @@ class CelestialSightLine:
 
         """
         # Get a projector, in CAR.
-        px = so3g.Pixelizor2_Flat(1,1,1.,1.,1.,1.)
+        px = so3g.Pixelizor2_Flat(1, 1, 1., 1., 1., 1.)
         p = so3g.ProjEng_CAR_TQU(px)
         # Pre-process the offsets
         collapse = (det_offsets is None)
         if collapse:
-            det_offsets = np.array([[1., 0,0,0]])
+            det_offsets = np.array([[1., 0., 0., 0.]])
             if output is not None:
                 output = output[None]
         redict = isinstance(det_offsets, dict)
         if redict:
             keys, det_offsets = zip(*det_offsets.items())
-            det_offsets = np.array(det_offsets)
+            if isinstance(det_offsets[0], quat.quat):
+                # Individual quat doesn't array() properly...
+                det_offsets = np.array(quat.G3VectorQuat(det_offsets))
+            else:
+                det_offsets = np.array(det_offsets)
             if isinstance(output, dict):
                 output = [output[k] for k in keys]
         if np.shape(det_offsets)[1] == 2:
             # XY
-            x, y = det_offsets[:,0], det_offsets[:,1]
-            theta = (x**2 + y**2)**0.5
+            x, y = det_offsets[:, 0], det_offsets[:, 1]
+            theta = np.arcsin((x**2 + y**2)**0.5)
             v = np.array([-y, x]) / theta
             v[np.isnan(v)] = 0.
             det_offsets = np.transpose([np.cos(theta/2),
                                         np.sin(theta/2) * v[0],
                                         np.sin(theta/2) * v[1],
                                         np.zeros(len(theta))])
-            det_offsets = quat.cu3g.G3VectorQuat(det_offsets.copy())
+            det_offsets = quat.G3VectorQuat(det_offsets.copy())
         output = p.coords(self.Q, det_offsets, output)
         if redict:
             output = OrderedDict(zip(keys, output))
         if collapse:
             output = output[0]
         return output
+
+
+class FocalPlane(OrderedDict):
+    """This class collects the focal plane positions and orientations for
+    multiple named detectors.  The classmethods can be used to
+    construct the object from some common input formats.
+
+    """
+    @classmethod
+    def from_xieta(cls, names, xi, eta, gamma=None):
+        """Creates a FocalPlane object for a set of detector positions
+        provided in xieta projection plane coordinates.
+
+        Arguments:
+          names: vector of detector names.
+          xi: vector of xi positions, in radians.
+          eta: vector of eta positions, in radians.
+          gamma: vector or scalar detector orientation, in radians.
+
+        The (xi,eta) coordinates are Cartesian projection plane
+        coordinates.  When looking at the sky along the telescope
+        boresight, xi parallel to increasing elevation and eta is
+        parallel to increasing azimuth.  (xi, eta, boresight) form a
+        right-handed cartesian system.  The angle gamma, indicating
+        the sensitivity direction, is measured from the xi axis,
+        increasing towards the eta axis.
+
+        """
+        x, y = np.asarray(xi), np.asarray(eta)
+        theta = np.arcsin((x**2 + y**2)**.5)
+        phi = np.arctan2(y, x)
+        if gamma is None:
+            gamma = 0.
+        qs = quat.rotation_iso(theta, phi, gamma - phi)
+        return cls(zip(names, qs))
 
 
 class Assembly:
@@ -148,12 +239,15 @@ class Assembly:
             self.dets = [det_offsets[k] for k in self.keys]
         else:
             self.dets = det_offsets
+        # Make sure it's a numpy array.  This is dumb.
+        if isinstance(self.dets[0], quat.quat):
+            self.dets = quat.G3VectorQuat(self.dets)
+        self.dets = np.array(self.dets)
         return self
 
     @classmethod
     def for_boresight(cls, sight_line):
         self = cls(collapse=True)
         self.Q = sight_line.Q
-        self.dets = [np.array([1.,0,0,0])]
+        self.dets = [np.array([1., 0, 0, 0])]
         return self
-

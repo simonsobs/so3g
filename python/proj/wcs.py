@@ -3,6 +3,7 @@ from . import quat
 
 import numpy as np
 
+
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
     structures needed for accelerated pointing routines.
@@ -23,7 +24,7 @@ class Projectionist:
 
         """
         alpha0, delta0 = wcs.wcs.crval  # In degrees.
-        if  (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 0.):
+        if (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 0.):
             # This is typical for cylindrical projections.
             assert((delta0 >= 0 and wcs.wcs.lonpole == 180.0) or
                    (delta0 <= 0 and wcs.wcs.lonpole ==   0.0))
@@ -36,7 +37,8 @@ class Projectionist:
                  quat.euler(1, (delta0 - 90)*quat.DEG) *
                  quat.euler(2, -alpha0 * quat.DEG))
         else:
-            raise ValueError(f'Unimplemented NSC reference (phi0,theta0)=({phi0:.2f},{theta0:.2f})')
+            raise ValueError(f'Unimplemented NSC reference (phi0,theta0)='
+                             '({wcs.wcs.phi0:.2f},{wcs.wcs.theta0:.2f})')
         return Q
 
     def __init__(self):
@@ -56,8 +58,7 @@ class Projectionist:
         # Extract the projection name (e.g. CAR)
         proj = [c[-3:] for c in wcs.wcs.ctype]
         assert(proj[0] == proj[1])
-        proj_name = proj[0] # Projection name
-        coord_names = [c[:-3].rstrip('-') for c in wcs.wcs.ctype]
+        proj_name = proj[0]  # Projection name
         self.proj_name = proj_name
 
         # Store the rotation to native spherical coordinates.
@@ -86,7 +87,8 @@ class Projectionist:
                                     float(self.cdelt[1]), float(self.cdelt[0]),
                                     float(self.crpix[1]), float(self.crpix[0]))
 
-    def get_ProjEng(self, comps='TQU', proj_name=None, get=True, instance=True):
+    def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
+                    instance=True):
         """Returns an so3g.ProjEng object appropriate for use with the
         configured geometry.
 
@@ -100,8 +102,8 @@ class Projectionist:
             projeng_cls = getattr(so3g, projeng_name)
         except AttributeError:
             raise ValueError(f'There is no projector implemented for '
-                             'pixelization "{proj_name}", components "{comps}" (tried '
-                             '"{projeng_name}").')
+                             'pixelization "{proj_name}", components '
+                             '"{comps}" (tried "{projeng_name}").')
         if not instance:
             return projeng_cls
         return projeng_cls(self.get_pixelizor())
@@ -111,6 +113,19 @@ class Projectionist:
             self._q0 = new_q0
             self._qv = self.q_celestial_to_native * self._q0
         return self._qv
+
+    def _guess_comps(self, map_shape):
+        if len(map_shape) != 3:
+            raise ValueError('Cannot guess components based on '
+                             'map with %i!=3 dimensions!' % len(map_shape))
+        if map_shape[0] == 1:
+            return 'T'
+        elif map_shape[0] == 2:
+            return 'QU'
+        elif map_shape[0] == 3:
+            return 'TQU'
+        raise ValueError('No default components for ncomp=%i; '
+                         'set comps=... explicitly.' % map_shape[0])
 
     def get_pixels(self, assembly):
         """Get the pixel indices for the provided pointing Assembly.  For each
@@ -172,8 +187,8 @@ class Projectionist:
             projected signal.  If None, a map will be initialized internally.
           comps: The projection component string, e.g. 'T', 'QU',
             'TQU'.
-          omp: The OMP information (returned by get_prec_omp), if OMP
-            acceleration is to be used.
+          omp (ProjectionOmpData): The OMP information (returned by
+            get_prec_omp), if OMP acceleration is to be used.
 
         See class documentation for description of standard arguments.
 
@@ -181,7 +196,8 @@ class Projectionist:
         if dest_map is None and comps is None:
             raise ValueError("Provide an output map or specify component of "
                              "interest (e.g. comps='TQU').")
-        assert(comps is not None) # Psych, I need comps anyway.
+        if comps is None:
+            comps = self._guess_comps(dest_map.shape)
         projeng = self.get_ProjEng(comps)
         q1 = self._get_cached_q(assembly.Q)
         if omp is None:
@@ -201,8 +217,8 @@ class Projectionist:
             initialized internally.
           comps: The projection component string, e.g. 'T', 'QU',
             'TQU'.
-          omp: The OMP information (returned by get_prec_omp), if OMP
-            acceleration is to be used.
+          omp (ProjectionOmpData): The OMP information (returned by
+            get_prec_omp), if OMP acceleration is to be used.
 
         See class documentation for description of standard arguments.
 
@@ -210,12 +226,14 @@ class Projectionist:
         if dest_map is None and comps is None:
             raise ValueError("Provide an output map or specify component of "
                              "interest (e.g. comps='TQU').")
-        assert(comps is not None) # Psych, I need comps anyway.
+        if comps is None:
+            assert(dest_map.shape[0] == dest_map.shape[1])
+            comps = self._guess_comps(dest_map.shape[1:])
         projeng = self.get_ProjEng(comps)
         q1 = self._get_cached_q(assembly.Q)
         if omp is None:
             map_out = projeng.to_weight_map(
-                dest_map, q1, assembly.dets, None, None, None)
+                dest_map, q1, assembly.dets, None, None)
         else:
             map_out = projeng.to_weight_map_omp(
                 dest_map, q1, assembly.dets, None, None, omp.data)
@@ -237,7 +255,11 @@ class Projectionist:
         See class documentation for description of standard arguments.
 
         """
-        assert(comps is not None) # Psych, I need comps anyway.
+        if src_map.ndim == 2:
+            # Promote to (1,...)
+            src_map = src_map[None]
+        if comps is None:
+            comps = self._guess_comps(src_map.shape)
         projeng = self.get_ProjEng(comps)
         q1 = self._get_cached_q(assembly.Q)
         signal_out = projeng.from_map(
@@ -251,10 +273,10 @@ class ProjectionOmpData:
     """
     def __init__(self, data):
         self.data = data
+
     def __repr__(self):
         return '%s[n_thread=%i,n_det=%i]' % (
             self.__class__, len(self.data), len(self.data[0]))
 
     # It would be useful to have a profiling method here that could
     # compute stats for evenness and fragmentation.
-
