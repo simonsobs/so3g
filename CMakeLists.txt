@@ -62,6 +62,7 @@ add_library(so3g SHARED
   src/G3WCS.cxx
   src/G3Ndmap.cxx
   src/G3IndexedReader.cxx
+  src/G3ThreadedExpander.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
   src/Rebundler.cxx

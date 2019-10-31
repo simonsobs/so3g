@@ -104,3 +104,27 @@ public:
 	return text;
     }
 };
+
+class key_crawling_exception : public so3g_exception
+{
+public:
+    std::string text;
+    key_crawling_exception(std::string text) :
+        text{text} {}
+
+    std::string msg_for_python() const throw() {
+	return text;
+    }
+};
+
+class value_decoding_exception : public so3g_exception
+{
+public:
+    std::string text;
+    value_decoding_exception(std::string text) :
+        text{text} {}
+
+    std::string msg_for_python() const throw() {
+	return text;
+    }
+};
