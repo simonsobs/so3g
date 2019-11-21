@@ -1,5 +1,10 @@
 import numpy as np
-from spt3g import coordinateutils as cu3g
+
+try:
+    from spt3g.core import quat, G3VectorQuat
+except ImportError:
+    # Pre-Oct 2019 versions.
+    from spt3g.coordinateutils import quat, G3VectorQuat
 
 """We are using the spt3g quaternion containers,
 i.e. cu3g.G3VectorQuat and cu3g.quat.  One way these are nice is that
