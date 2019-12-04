@@ -1,5 +1,4 @@
 import matplotlib
-matplotlib.use('Agg')
 
 import so3g
 import numpy as np
