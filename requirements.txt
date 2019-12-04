@@ -1,4 +1,5 @@
 astropy
 pytest
+pytest-cov
 matplotlib
 ephem

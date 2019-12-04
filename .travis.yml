@@ -27,7 +27,9 @@ jobs:
         # Build the docker images with docker-compose
         - docker-compose build
     
-      script: docker run --rm so3g sh -c "cd test/ && python3 -m unittest"
+      script: docker run -v $PWD:/coverage --rm so3g sh -c "COVERAGE_FILE=/coverage/.coverage python3 -m pytest --cov /usr/lib/python3/dist-packages/so3g/ test/"
+
+      after_success: coveralls
 
       #after_success:
       #  # Tag all images for upload to the private test registry
