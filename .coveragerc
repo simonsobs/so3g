@@ -3,5 +3,5 @@ source = python
 
 [paths]
 source =
-  /usr/lib/python3/dist-packages/so3g/
   python/
+  /usr/lib/python3/dist-packages/so3g/

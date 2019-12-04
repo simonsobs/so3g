@@ -32,6 +32,8 @@ jobs:
       after_success:
         - pip install coveralls
         - coverage combine
+        - coverage report
+        - ls -la
         - coveralls
 
       #after_success:
