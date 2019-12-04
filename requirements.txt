@@ -5,4 +5,3 @@ ephem
 # testing
 pytest
 pytest-cov
-coveralls
