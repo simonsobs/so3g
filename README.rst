@@ -5,6 +5,9 @@ so3g
 .. image:: https://travis-ci.com/simonsobs/so3g.svg?branch=master
     :target: https://travis-ci.com/simonsobs/so3g
 
+.. image:: https://coveralls.io/repos/github/simonsobs/so3g/badge.svg?branch=master
+    :target: https://coveralls.io/github/simonsobs/so3g?branch=master
+
 .. image:: https://img.shields.io/badge/dockerhub-latest-blue
     :target: https://hub.docker.com/r/simonsobs/so3g/tags
 
