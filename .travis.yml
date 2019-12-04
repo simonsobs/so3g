@@ -8,6 +8,7 @@ python:
   - "3.6"
 
 stages:
+  - test
   - name: dockerize
     if: |
       branch = master AND \
@@ -15,6 +16,30 @@ stages:
 
 jobs:
   include:
+    - stage: test
+      #before_install:
+      #  # Use the git tag to tag docker image
+      #  - export DOCKER_TAG=`git describe --tags --always`
+      #  # Login to docker
+      #  - echo "${TEST_REGISTRY_PASSWORD}" | docker login -u "${TEST_REGISTRY_USER}" --password-stdin "${TEST_REGISTRY_URL}";
+
+      install:
+        # Build the docker images with docker-compose
+        - docker-compose build
+    
+      script: docker run --rm so3g sh -c "cd test/ && python3 -m unittest"
+
+      #after_success:
+      #  # Tag all images for upload to the private test registry
+      #  - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${TEST_REGISTRY_URL}/{}:latest"
+      #  - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${TEST_REGISTRY_URL}/{}:${DOCKER_TAG}"
+
+      #  # Upload to private docker registry
+      #  - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${TEST_REGISTRY_URL}/{}:${DOCKER_TAG}"
+      #  - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${TEST_REGISTRY_URL}/{}:latest"
+      #  - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${TEST_REGISTRY_URL}/{}:${DOCKER_TAG} pushed"
+
+
     - stage: dockerize
       install: true
 
