@@ -1,1 +1,4 @@
 astropy
+pytest
+matplotlib
+ephem
