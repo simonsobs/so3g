@@ -9,6 +9,7 @@ Welcome to so3g
 
    intro
    hk
+   proj
 
 
 Indices and tables

@@ -14,6 +14,7 @@ and that's fine."""
 
 DEG = np.pi/180
 
+
 def euler(axis, angle):
     """
     The quaternion representing of an Euler rotation.
@@ -39,11 +40,12 @@ def euler(axis, angle):
     shape = np.broadcast(axis, angle).shape + (4,)
     c, s = np.cos(angle/2), np.sin(angle/2)
     q = np.zeros(shape)
-    q[...,0] = c
-    q[...,axis+1] = s
+    q[..., 0] = c
+    q[..., axis+1] = s
     if len(shape) == 1:
-        return cu3g.quat(*q)
-    return cu3g.G3VectorQuat(q)
+        return quat(*q)
+    return G3VectorQuat(q)
+
 
 def rotation_iso(theta, phi, gamma=None):
     """Returns the quaternion that composes the Euler rotations:
@@ -57,6 +59,7 @@ def rotation_iso(theta, phi, gamma=None):
         return output
     return output * euler(2, gamma)
 
+
 def rotation_lonlat(lon, lat, gamma=0.):
     """Returns the quaternion that composes the Euler rotations:
 
@@ -65,6 +68,7 @@ def rotation_lonlat(lon, lat, gamma=0.):
     Note arguments are in radians.
     """
     return rotation_iso(np.pi/2 - lat, lon, gamma)
+
 
 def decompose_iso(q):
     """Decomposes the rotation encoded by q into the product of Euler
@@ -85,7 +89,7 @@ def decompose_iso(q):
         The rotation angles, in radians.
     """
 
-    if isinstance(q, cu3g.quat):
+    if isinstance(q, quat):
         a,b,c,d = q.a, q.b, q.c, q.d
     else:
         a,b,c,d = np.transpose(q)
@@ -101,6 +105,5 @@ def decompose_iso(q):
 
 def decompose_lonlat(q):
     """Like decompose_iso, but returns (lon, lat, gamma)."""
-    phi, theta, gamma = decompose_iso(q)
-    return (theta, np.pi/2 - phi, gamma)
-
+    theta, phi, gamma = decompose_iso(q)
+    return (phi, np.pi/2 - theta, gamma)
