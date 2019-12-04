@@ -1,5 +1,8 @@
 astropy
-pytest
-pytest-cov
 matplotlib
 ephem
+
+# testing
+pytest
+pytest-cov
+coveralls
