@@ -1,1 +1,7 @@
 astropy
+matplotlib
+ephem
+
+# testing
+pytest
+pytest-cov

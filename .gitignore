@@ -1,3 +1,10 @@
+## build directory
+build/
+
+## Testing files
+.coverage
+*.g3
+
 ## Local config files.
 local.cmake
 
