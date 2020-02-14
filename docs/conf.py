@@ -215,3 +215,6 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+
+# Modules to be mocked, useful for C dependent libraries
+autodoc_mock_imports = ["so3g"]
