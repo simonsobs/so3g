@@ -4,6 +4,9 @@
 # Build on spt3g base image
 FROM simonsobs/spt3g:7678fcc
 
+# Set locale
+ENV LANG C.UTF-8
+
 # Set the working directory
 WORKDIR /app_lib/so3g
 
