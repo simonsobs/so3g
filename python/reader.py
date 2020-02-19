@@ -27,6 +27,10 @@ def g3_to_array(g3file):
         if frame.type == core.G3FrameType.Scan:
             frametime = frame['data'].times()
             frametimes.append(frametime)
+
+    if frametimes == []:
+        raise Exception('Wrong frame type')
+
     strtimes = np.hstack(frametimes)
     
     times = []
