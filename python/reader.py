@@ -40,20 +40,31 @@ def g3_to_array(g3file):
     times = np.asarray(times)
     
     channums = []
-    
-    if frames[1].type == core.G3FrameType.Scan:
-        for chan in frames[1]['data'].keys():
-            channums.append(int(chan))
-    else:
-        for chan in frames[2]['data'].keys():
-            channums.append(int(chan))
+
+    i=0
+    while i<len(frames):
+        print('Trying frame %i'%i)
+        frametype = frames[i].type
+        if frametype == core.G3FrameType.Scan:
+            for chan in frames[i]['data'].keys():
+                channums.append(int(chan.split('r')[1]))
+            break
+        else:
+            i+=1
+    print('Channel numbers obtained')
+#    if frames[1].type == core.G3FrameType.Scan:
+#        for chan in frames[1]['data'].keys():
+#            channums.append(int(chan))
+#    else:
+#        for chan in frames[2]['data'].keys():
+#            channums.append(int(chan))
     channums.sort()
     for ch in channums:
- #           print('Adding channel %s'%ch)
+        print('Adding channel %s'%ch)
         chdata = []
         for frame in frames:
             if frame.type == core.G3FrameType.Scan:
-                framedata = frame['data'][str(ch)]
+                framedata = frame['data']['r'+format(ch, "04")]
                 chdata.append(framedata)
         chdata_all = np.hstack(chdata)
         data.append(chdata_all)
