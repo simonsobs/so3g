@@ -74,8 +74,24 @@ def g3_to_array(g3file, verbose=False):
         chdata_all = np.hstack(chdata)
         data.append(chdata_all)
 
+    biases = []
+    biasnums = []
+    for num in frames[i]['tes_biases'].keys():
+        biasnums.append(int(num))
+    biasnums.sort()
+    for b in biasnums:
+        if verbose:
+            print('Adding bias number %i'%b)
+        bias = []
+        for frame in frames:
+            if frame.type == core.G3FrameType.Scan:
+                biasdata = frame['tes_biases'][str(b)]
+                bias.append(biasdata)
+        bias_all = np.hstack(bias)
+        biases.append(bias_all)
+    biases = np.asarray(biases)
     data = np.asarray(data)
-    return times, data
+    return times, data, biases
 
 
 if __name__ == '__main__':
@@ -84,9 +100,9 @@ if __name__ == '__main__':
         verbose = bool(sys.argv[2])
     except IndexError:
         verbose = False
-    times, data = g3_to_array(g3file, verbose)
+    times, data, biases = g3_to_array(g3file, verbose)
     newfile_name = g3file.split('/')[-1].strip('.g3')
     with open(newfile_name+'.pkl','wb') as f:
-        pickle.dump({'times':times, 'data':data},f)
+        pickle.dump({'times':times, 'data':data, 'tes_biases':biases},f)
     f.close()
 
