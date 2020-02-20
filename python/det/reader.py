@@ -5,6 +5,7 @@ import pickle
 import datetime, time
 import sys, os
 import warnings
+import argparse
 
 def g3_to_array(g3file, verbose=False):
     """
@@ -13,7 +14,7 @@ def g3_to_array(g3file, verbose=False):
     Parameters
     ----------
     g3file : full path to the G3 file
-    verbose : OPTIONAL choice for verbose output
+    verbose : OPTIONAL choice for verbose output (-v, --verbose)
     
     Returns
     -------
@@ -50,18 +51,13 @@ def g3_to_array(g3file, verbose=False):
         frametype = frames[i].type
         if frametype == core.G3FrameType.Scan:
             for chan in frames[i]['data'].keys():
-                channums.append(int(chan.split('r')[1]))
+                channums.append(int(chan.strip('r')))
             break
         else:
             i+=1
     if verbose:
         print('Channel numbers obtained')
-#    if frames[1].type == core.G3FrameType.Scan:
-#        for chan in frames[1]['data'].keys():
-#            channums.append(int(chan))
-#    else:
-#        for chan in frames[2]['data'].keys():
-#            channums.append(int(chan))
+
     channums.sort()
     for ch in channums:
         if verbose:
@@ -95,13 +91,14 @@ def g3_to_array(g3file, verbose=False):
 
 
 if __name__ == '__main__':
-    g3file = sys.argv[1]
-    try:
-        verbose = bool(sys.argv[2])
-    except IndexError:
-        verbose = False
-    times, data, biases = g3_to_array(g3file, verbose)
-    newfile_name = g3file.split('/')[-1].strip('.g3')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('g3file', type=str, metavar='G3', help='full path to g3 file')
+    parser.add_argument('-v', '--verbosity', action='store_true', default=False)
+
+    args = parser.parse_args()
+
+    times, data, biases = g3_to_array(args.g3file, args.verbosity)
+    newfile_name = args.g3file.split('/')[-1].strip('.g3')
     with open(newfile_name+'.pkl','wb') as f:
         pickle.dump({'times':times, 'data':data, 'tes_biases':biases},f)
     f.close()
