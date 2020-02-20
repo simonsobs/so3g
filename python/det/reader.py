@@ -4,14 +4,16 @@ import numpy as np
 import pickle
 import datetime, time
 import sys, os
+import warnings
 
-def g3_to_array(g3file):
+def g3_to_array(g3file, verbose=False):
     """
     Takes a G3 file output from the SMuRF archiver and reads to a numpy array.
 
     Parameters
     ----------
     g3file : full path to the G3 file
+    verbose : OPTIONAL choice for verbose output
     
     Returns
     -------
@@ -29,7 +31,7 @@ def g3_to_array(g3file):
             frametimes.append(frametime)
 
     if frametimes == []:
-        raise Exception('Wrong frame type')
+        warnings.warn('Wrong frame type')
 
     strtimes = np.hstack(frametimes)
     
@@ -43,7 +45,8 @@ def g3_to_array(g3file):
 
     i=0
     while i<len(frames):
-        print('Trying frame %i'%i)
+        if verbose:
+            print('Trying frame %i'%i)
         frametype = frames[i].type
         if frametype == core.G3FrameType.Scan:
             for chan in frames[i]['data'].keys():
@@ -51,7 +54,8 @@ def g3_to_array(g3file):
             break
         else:
             i+=1
-    print('Channel numbers obtained')
+    if verbose:
+        print('Channel numbers obtained')
 #    if frames[1].type == core.G3FrameType.Scan:
 #        for chan in frames[1]['data'].keys():
 #            channums.append(int(chan))
@@ -60,7 +64,8 @@ def g3_to_array(g3file):
 #            channums.append(int(chan))
     channums.sort()
     for ch in channums:
-        print('Adding channel %s'%ch)
+        if verbose:
+            print('Adding channel %s'%ch)
         chdata = []
         for frame in frames:
             if frame.type == core.G3FrameType.Scan:
@@ -75,7 +80,11 @@ def g3_to_array(g3file):
 
 if __name__ == '__main__':
     g3file = sys.argv[1]
-    times, data = g3_to_array(g3file)
+    try:
+        verbose = bool(sys.argv[2])
+    except IndexError:
+        verbose = False
+    times, data = g3_to_array(g3file, verbose)
     newfile_name = g3file.split('/')[-1].strip('.g3')
     with open(newfile_name+'.pkl','wb') as f:
         pickle.dump({'times':times, 'data':data},f)
