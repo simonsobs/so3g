@@ -529,7 +529,7 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
             continue
         t,x = cat.simple(field)
         msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
-        data[name] = t,x
+        data[name] = t[msk],x[msk]
         
     return data
 
