@@ -14,8 +14,8 @@ def g3_to_array(g3file, verbose=False):
     Parameters
     ----------
     g3file : full path to the G3 file
-    verbose : OPTIONAL choice for verbose output (-v, --verbose)
-    
+    verbose : OPTIONAL choice for verbose output (-v, --verbosity)
+
     Returns
     -------
     times : array of G3Time objects
