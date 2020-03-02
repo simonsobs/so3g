@@ -112,3 +112,8 @@ install(FILES ${MY_PYTHONS_HK}
         DESTINATION ${INSTALL_DEST}/hk)
 install(FILES ${MY_PYTHONS_PROJ}
         DESTINATION ${INSTALL_DEST}/proj)
+
+add_custom_target(prep-readthedocs
+  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py --prep-rtd --source-branch=docs-hacking
+  )
+
