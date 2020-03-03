@@ -16,7 +16,18 @@ from importlib import import_module
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-sys.path.insert(0, os.path.abspath('..'))
+here = os.path.split(__file__)[0]
+repo_root = os.path.abspath(os.path.join(here, '..'))
+
+sys.path.insert(0, repo_root)
+
+if os.getenv('READTHEDOCS') == 'True':
+    os.environ['DOCS_BUILD'] = '1'
+    sys.path.insert(1, here)
+    import extract_docstrings as edocs
+    edocs.install_fake_spt3g(repo_root)
+    edocs.install_fake_so3g(repo_root)
+
 import so3g
 
 # -- Project information -----------------------------------------------------
@@ -49,6 +60,11 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.napoleon'
 ]
+
+# Present auto-documented members in source order (rather than alphabetical).
+autodoc_default_options = {
+    'member-order': 'bysource',
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
