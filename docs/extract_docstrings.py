@@ -108,10 +108,11 @@ def prepare_readthedocs(src_branch='master',
 
     for cmd in [
             'git checkout %s' % dest_branch,
+            'git pull --ff-only',
             'git merge --no-ff %s' % src_branch,
             None,
             'git add %s' % dest_file,
-            'git commit -m "Doc-ready build : %s"' % so3g.version(),
+            'git commit --allow-empty -m "Doc-ready build : %s"' % so3g.version(),
     ]:
         if cmd is None:
             # Write the lib shell.
