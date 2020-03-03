@@ -114,6 +114,7 @@ install(FILES ${MY_PYTHONS_PROJ}
         DESTINATION ${INSTALL_DEST}/proj)
 
 add_custom_target(prep-readthedocs
-  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py --prep-rtd --source-branch=docs-hacking
+  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py
+          --prep-rtd --source-branch=master
   )
 
