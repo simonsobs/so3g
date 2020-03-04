@@ -161,7 +161,7 @@ Intervals<T>& Intervals<T>::merge(const Intervals<T> &src)
 //
 
 template <typename T>
-inline
+static inline
 pair<T,T> interval_pair(char *p1, char *p2) {
     return make_pair(*reinterpret_cast<T*>(p1),
                      *reinterpret_cast<T*>(p2));
@@ -176,7 +176,7 @@ pair<G3Time,G3Time> interval_pair(char *p1, char *p2) {
 
 
 template <typename T>
-inline
+static inline
 int interval_extract(const std::pair<T,T> *src, char *dest) {
     auto Tdest = reinterpret_cast<T*>(dest);
     *(Tdest) = src->first;
@@ -194,7 +194,7 @@ int interval_extract(const std::pair<G3Time,G3Time> *src, char *dest) {
 }
 
 template <typename T>
-inline int get_dtype() {
+static inline int get_dtype() {
     return NPY_NOTYPE;
 }
 
@@ -336,7 +336,7 @@ bp::object Intervals<T>::array() const
 template <typename intType, typename numpyType,
           typename std::enable_if<!std::is_integral<intType>::value,
                                   int>::type* = nullptr>
-inline bp::object from_mask_(void *buf, intType count, int n_bits)
+static inline bp::object from_mask_(void *buf, intType count, int n_bits)
 {
     throw dtype_exception("target", "Interval<> over integral type.");
     return bp::object();
@@ -345,7 +345,7 @@ inline bp::object from_mask_(void *buf, intType count, int n_bits)
 template <typename intType, typename numpyType,
           typename std::enable_if<std::is_integral<intType>::value,
                                   int>::type* = nullptr>
-inline bp::object from_mask_(void *buf, intType count, int n_bits)
+static inline bp::object from_mask_(void *buf, intType count, int n_bits)
 {
     if (n_bits < 0)
         n_bits = 8*sizeof(numpyType);
@@ -436,7 +436,7 @@ bp::object Intervals<T>::from_mask(const bp::object &src, int n_bits)
 
 template <typename intType,typename std::enable_if<!std::is_integral<intType>::value,
                                                    int>::type* = nullptr>
-inline bp::object mask_(const bp::list &ivlist, int n_bits)
+static inline bp::object mask_(const bp::list &ivlist, int n_bits)
 {
     intType x;
     throw dtype_exception("ivlist", "Interval<> over integral type.");
@@ -445,7 +445,7 @@ inline bp::object mask_(const bp::list &ivlist, int n_bits)
 
 template <typename intType, typename std::enable_if<std::is_integral<intType>::value,
                                                     int>::type* = nullptr>
-inline bp::object mask_(const bp::list &ivlist, int n_bits)
+static inline bp::object mask_(const bp::list &ivlist, int n_bits)
 {
     vector<Intervals<intType>> ivals;
     vector<int> indexes;
@@ -553,6 +553,74 @@ Intervals<T> Intervals<T>::complement() const
 }
 
 
+// Slicing!
+template <typename T,
+          typename std::enable_if<!std::is_integral<T>::value,
+                                  int>::type* = nullptr>
+static inline Intervals<T> _getitem_(Intervals<T> &src, bp::object indices)
+{
+    throw dtype_exception("target", "Interval<> over integral type.");
+    return Intervals<T>();
+}
+
+template <typename objType, typename T>
+static inline T extract_or_default(objType src, T default_)
+{
+    bp::extract<T> ex(src);
+    if (ex.check())
+        return ex();
+    return default_;
+}
+
+template <typename T,
+          typename std::enable_if<std::is_integral<T>::value,
+                                  int>::type* = nullptr>
+static inline Intervals<T> _getitem_(Intervals<T> &src, bp::object indices)
+{
+    bp::extract<bp::slice> ex(indices);
+    if (ex.check()) {
+        T count = src.domain.second - src.domain.first;
+
+        auto sl = ex();
+        T start = extract_or_default(sl.start(), 0);
+        T stop = extract_or_default(sl.stop(), count);
+        T step = extract_or_default(sl.step(), 1);
+
+        assert(step == 1);
+        if (start < 0)
+            start = count + start;
+        if (stop < 0)
+            stop = count + stop;
+        if (stop < start)
+            stop = start;
+
+        // Now interpret start, stop in domain reference.
+        start += src.domain.first;
+        stop += src.domain.first;
+
+        if (start > src.domain.second)
+            return Intervals<T>(src.domain.second, src.domain.second);
+        if (stop < src.domain.first)
+            return Intervals<T>(src.domain.first, src.domain.first);
+
+        if (start < src.domain.first)
+            start = src.domain.first;
+        if (stop > src.domain.second)
+            stop = src.domain.second;
+
+        auto output = src; // copy
+        output.set_domain(start, stop);
+        return output;
+    }
+    return Intervals<T>();
+}
+
+template <typename T>
+Intervals<T> Intervals<T>::getitem(bp::object indices)
+{
+    return _getitem_(*this, indices);
+}
+
 //
 // Operators
 //
@@ -656,6 +724,7 @@ using namespace boost::python;
               return CLASSNAME(A); \
           }, \
          "Get a new object with a copy of the data.") \
+    .def("__getitem__", &CLASSNAME::getitem) \
     .def(-self) \
     .def(~self) \
     .def(self += self) \
