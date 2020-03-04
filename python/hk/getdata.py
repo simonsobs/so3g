@@ -452,7 +452,9 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
     '''
     Args:
         start - datetime object to start looking
+                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
         stop - datetime object to stop looking
+                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
         fields - fields to return, if None, returns all fields
         alias - if not None, needs to be the length of fields
         data_dir - directory where all the ctime folders are. 
@@ -490,8 +492,8 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
     
-    start_ctime = (start-dt.timedelta(hours=1)-dt.datetime(1970,1,1)).total_seconds()
-    stop_ctime = (stop+dt.timedelta(hours=1)-dt.datetime(1970,1,1)).total_seconds()
+    start_ctime = (start.astimezone(dt.timezone.utc)-dt.timedelta(hours=1)).timestamp()
+    stop_ctime = (stop.astimezone(dt.timezone.utc)+dt.timedelta(hours=1)).timestamp()
 
     hksc = HKArchiveScanner()
     
@@ -502,15 +504,19 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
             continue
     
         for file in sorted(os.listdir(base)):
-            t = dt.datetime.strptime( file, '%Y-%m-%d-%H-%M-%S.g3')
-            if t >= start-dt.timedelta(hours=1) and t <=stop+dt.timedelta(hours=1):
+            try:
+                t = int(file[:-3])
+            except:
+                hk_logger.debug('{} does not have the right format, skipping'.format(file))
+                continue
+            if t >= start_ctime-3600 and t <=stop_ctime+3600:
                 hk_logger.debug('Processing {}'.format(base+'/'+file))
                 hksc.process_file( base+'/'+file)
     
     
     cat = hksc.finalize()
-    start_ctime = (start-dt.datetime(1970,1,1)).total_seconds()
-    stop_ctime = (stop-dt.datetime(1970,1,1)).total_seconds()
+    start_ctime = start.timestamp()
+    stop_ctime = stop.timestamp()
     
     all_fields,_ = cat.get_fields()
     
