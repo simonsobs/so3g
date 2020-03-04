@@ -3,6 +3,7 @@ from . import quat
 
 import numpy as np
 
+from .ranges import Ranges, RangesMatrix
 
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
@@ -176,7 +177,7 @@ class Projectionist:
         projeng = self.get_ProjEng('T')
         q1 = self._get_cached_q(assembly.Q)
         omp_ivals = projeng.pixel_ranges(q1, assembly.dets)
-        return ProjectionOmpData(omp_ivals)
+        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
     def to_map(self, signal, assembly, dest_map=None, omp=None, comps=None):
         """Project signal into a map.
@@ -205,7 +206,7 @@ class Projectionist:
                 dest_map, q1, assembly.dets, signal, None)
         else:
             map_out = projeng.to_map_omp(
-                dest_map, q1, assembly.dets, signal, None, omp.data)
+                dest_map, q1, assembly.dets, signal, None, omp)
         return map_out
 
     def to_weights(self, assembly, dest_map=None, omp=None, comps=None):
@@ -236,7 +237,7 @@ class Projectionist:
                 dest_map, q1, assembly.dets, None, None)
         else:
             map_out = projeng.to_weight_map_omp(
-                dest_map, q1, assembly.dets, None, None, omp.data)
+                dest_map, q1, assembly.dets, None, None, omp)
         return map_out
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
@@ -265,18 +266,3 @@ class Projectionist:
         signal_out = projeng.from_map(
             src_map, q1, assembly.dets, signal, None)
         return signal_out
-
-
-class ProjectionOmpData:
-    """This is a wrapper for precomputed OMP information used by the
-    Projectionist.
-    """
-    def __init__(self, data):
-        self.data = data
-
-    def __repr__(self):
-        return '%s[n_thread=%i,n_det=%i]' % (
-            self.__class__, len(self.data), len(self.data[0]))
-
-    # It would be useful to have a profiling method here that could
-    # compute stats for evenness and fragmentation.
