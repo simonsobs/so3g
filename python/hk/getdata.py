@@ -12,6 +12,14 @@ import so3g
 from spt3g import core
 import numpy as np
 
+import os
+import logging
+import datetime as dt
+
+
+hk_logger = logging.getLogger('hk_logger')
+hk_logger.setLevel(logging.INFO)
+
 SPAN_BUFFER_SECONDS = 1.0
 
 def is_sub_seq(full_seq, sub_seq):
@@ -438,6 +446,98 @@ class _FieldGroup:
         self.fields = list(fields)
         self.cover = so3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
+
+        
+def load_range(start, stop, fields=None, alias=None, data_dir=None):
+    '''
+    Args:
+        start - datetime object to start looking
+                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
+        stop - datetime object to stop looking
+                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
+        fields - fields to return, if None, returns all fields
+        alias - if not None, needs to be the length of fields
+        data_dir - directory where all the ctime folders are. 
+                If None, tries to use $OCS_DATA_DIR
+                
+    Returns - Dictionary of the format:
+        {
+            alias[i] : (time[i], data[i])
+        }
+        It will be masked to only have data between start and stop
+        
+    Example use:
+    fields = [
+        'observatory.HAN.feeds.temperatures.Channel 1 T',
+        'observatory.HAN.feeds.temperatures.Channel 2 T',
+    ]
+
+    alias = [
+        'HAN 1', 'HAN 2',
+    ]
+
+    start = dt.datetime(2020,2,19,18,48)
+    stop = dt.datetime(2020,2,22)
+    data = load_range(start, stop, fields=fields, alias=alias)
+    
+    plt.figure()
+    for name in alias:
+        plt.plot( data[name][0], data[name][1])
+    '''
+    
+    if data_dir is None and 'OCS_DATA_DIR' not in os.environ.keys():
+        raise ValueError('if $OCS_DATA_DIR is not defined a data directory must be passed to getdata')
+    if data_dir is None:
+        data_dir = os.environ['OCS_DATA_DIR']
+
+    hk_logger.debug('Loading data from {}'.format(data_dir))
+    
+    start_ctime = (start.astimezone(dt.timezone.utc)-dt.timedelta(hours=1)).timestamp()
+    stop_ctime = (stop.astimezone(dt.timezone.utc)+dt.timedelta(hours=1)).timestamp()
+
+    hksc = HKArchiveScanner()
+    
+    for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
+        base = data_dir+'/'+str(folder)
+        if not os.path.exists(base):
+            hk_logger.debug('{} does not exist, skipping'.format(base))
+            continue
+    
+        for file in sorted(os.listdir(base)):
+            try:
+                t = int(file[:-3])
+            except:
+                hk_logger.debug('{} does not have the right format, skipping'.format(file))
+                continue
+            if t >= start_ctime-3600 and t <=stop_ctime+3600:
+                hk_logger.debug('Processing {}'.format(base+'/'+file))
+                hksc.process_file( base+'/'+file)
+    
+    
+    cat = hksc.finalize()
+    start_ctime = start.timestamp()
+    stop_ctime = stop.timestamp()
+    
+    all_fields,_ = cat.get_fields()
+    
+    if fields is None:
+        fields = all_fields
+    if alias is not None:
+        if len(alias) != len(fields):
+            hk_logger.error('if provided, alias needs to be the length of fields')
+    else:
+        alias = fields
+    
+    data = {}
+    for name, field in zip(alias, fields):
+        if field not in all_fields:
+            hk_logger.info('`{}` not in available fields, skipping'.format(field))
+            continue
+        t,x = cat.simple(field)
+        msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
+        data[name] = t[msk],x[msk]
+        
+    return data
 
 if __name__ == '__main__':
     import sys
