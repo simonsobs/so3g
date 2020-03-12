@@ -1,6 +1,7 @@
 astropy
 matplotlib
 ephem
+pytz
 
 # testing
 pytest
