@@ -79,6 +79,8 @@ file(GLOB MY_PYTHONS_HK
   "${CMAKE_CURRENT_SOURCE_DIR}/python/hk/*.py")
 file(GLOB MY_PYTHONS_PROJ
   "${CMAKE_CURRENT_SOURCE_DIR}/python/proj/*.py")
+file(GLOB MY_PYTHONS_SMURF
+  "${CMAKE_CURRENT_SOURCE_DIR}/python/smurf/*.py")
 
 # Provide list of libs to link against.
 target_link_libraries(so3g pthread ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${SPT3G_LIBRARIES})
@@ -112,9 +114,10 @@ install(FILES ${MY_PYTHONS_HK}
         DESTINATION ${INSTALL_DEST}/hk)
 install(FILES ${MY_PYTHONS_PROJ}
         DESTINATION ${INSTALL_DEST}/proj)
+install(FILES ${MY_PYTHONS_SMURF}
+        DESTINATION ${INSTALL_DEST}/smurf)
 
 add_custom_target(prep-readthedocs
   COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py
           --prep-rtd --source-branch=master
   )
-
