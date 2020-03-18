@@ -116,3 +116,8 @@ install(FILES ${MY_PYTHONS_PROJ}
         DESTINATION ${INSTALL_DEST}/proj)
 install(FILES ${MY_PYTHONS_SMURF}
         DESTINATION ${INSTALL_DEST}/smurf)
+
+add_custom_target(prep-readthedocs
+  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py
+          --prep-rtd --source-branch=master
+  )
