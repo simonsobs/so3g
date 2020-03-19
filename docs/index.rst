@@ -10,6 +10,7 @@ Welcome to so3g
    intro
    hk
    proj
+   cpp_objects
 
 
 Indices and tables

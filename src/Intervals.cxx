@@ -680,60 +680,68 @@ Intervals<T> Intervals<T>::operator*(const Intervals<T> &src) const
 using namespace boost::python;
 
 #define EXPORT_INTERVALS(DOMAIN_TYPE, CLASSNAME) \
-    EXPORT_FRAMEOBJECT(CLASSNAME, init<>(), \
-   "A finite series of non-overlapping semi-open intervals on a domain " \
-   "of type: " #DOMAIN_TYPE ".") \
+    EXPORT_FRAMEOBJECT(CLASSNAME, init<>(),                             \
+        "A finite series of non-overlapping semi-open intervals on a "  \
+        "domain of type: " #DOMAIN_TYPE ".")                            \
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with domain.")) \
-    .def("add_interval", &CLASSNAME::add_interval, \
-         return_internal_reference<>(), \
-         "Merge an interval into the set.") \
+    .def("add_interval", &CLASSNAME::add_interval,                      \
+         return_internal_reference<>(),                                 \
+         args("self", "start", "end"),                                  \
+         "Merge an interval into the set.")                             \
     .def("append_interval_no_check", &CLASSNAME::append_interval_no_check, \
-         return_internal_reference<>(), \
+         return_internal_reference<>(),                                 \
+         args("self", "start", "end"),                                  \
          "Append an interval to the set without checking for overlap or sequence.") \
-    .def("merge", &CLASSNAME::merge, \
-         return_internal_reference<>(), \
-         "Merge an Intervals into the set.") \
-    .def("intersect", &CLASSNAME::intersect, \
-         return_internal_reference<>(), \
-         "Intersect another " #DOMAIN_TYPE "with this one.") \
-    .add_property(                                                 \
-        "domain",                                                  \
-        +[](const CLASSNAME& A) {                                  \
-             return make_tuple( A.domain.first, A.domain.second ); \
-         },                                                        \
-        +[](CLASSNAME& A, object _domain) {                        \
-             A.set_domain(extract<DOMAIN_TYPE>(_domain[0]),        \
-                          extract<DOMAIN_TYPE>(_domain[1]));       \
-         },                                                        \
-        "Interval set domain (settable, with consequences).")      \
-    .def("complement", &CLASSNAME::complement, \
-         "Return the complement (over domain).") \
-    .def("array", &CLASSNAME::array, \
-         "Return the intervals as a 2-d numpy array.") \
-    .def("from_array", &CLASSNAME::from_array,              \
-         "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
-    .staticmethod("from_array")                                  \
-    .def("from_mask", &CLASSNAME::from_mask,                     \
-         "Return a list of " #CLASSNAME " extracted from an ndarray encoding a bitmask.") \
-    .staticmethod("from_mask")                                   \
+    .def("merge", &CLASSNAME::merge,                                    \
+         return_internal_reference<>(),                                 \
+         "Merge an Intervals into the set.")                            \
+    .def("intersect", &CLASSNAME::intersect,                            \
+         return_internal_reference<>(),                                 \
+         args("self", "source"),                                        \
+         "Intersect another " #DOMAIN_TYPE "with this one.")            \
+    .add_property(                                                      \
+        "domain",                                                       \
+        +[](const CLASSNAME& A) {                                       \
+             return make_tuple( A.domain.first, A.domain.second );      \
+         },                                                             \
+        +[](CLASSNAME& A, object _domain) {                             \
+             A.set_domain(extract<DOMAIN_TYPE>(_domain[0]),             \
+                          extract<DOMAIN_TYPE>(_domain[1]));            \
+         },                                                             \
+        "Interval set domain (settable, with consequences).")           \
+    .def("complement", &CLASSNAME::complement,                          \
+         "Return the complement (over domain).")                        \
+    .def("array", &CLASSNAME::array,                                    \
+         "Return the intervals as a 2-d numpy array.")                  \
+    .def("from_array", &CLASSNAME::from_array,                          \
+         args("input_array"),                                           \
+         "Return a " #CLASSNAME " based on an (n,2) ndarray.")          \
+    .staticmethod("from_array")                                         \
+    .def("from_mask", &CLASSNAME::from_mask,                            \
+         args("input_array", "n_bits"),                                 \
+         "Return a list of " #CLASSNAME ", extracted from the first \n" \
+         "n_bits bits of input_array (a 1-d array of integer type).")   \
+    .staticmethod("from_mask")                                          \
     .def("mask", &CLASSNAME::mask,                                      \
-         "Return an ndarray bitmask from a list of" #CLASSNAME ".") \
+         args("intervals_list", "n_bits"),                              \
+         "Return an ndarray bitmask from a list of " #CLASSNAME ".\n"   \
+         "The dtype will be the smallest available to hold n_bits.")    \
     .staticmethod("mask")                                               \
-    .def("copy", \
-         +[](CLASSNAME& A) { \
-              return CLASSNAME(A); \
-          }, \
-         "Get a new object with a copy of the data.") \
-    .def("__getitem__", &CLASSNAME::getitem) \
-    .def(-self) \
-    .def(~self) \
-    .def(self += self) \
-    .def(self -= self) \
-    .def(self + self) \
-    .def(self - self) \
-    .def(self * self); \
+    .def("copy",                                                        \
+         +[](CLASSNAME& A) {                                            \
+              return CLASSNAME(A);                                      \
+          },                                                            \
+         "Get a new object with a copy of the data.")                   \
+    .def("__getitem__", &CLASSNAME::getitem)                            \
+    .def(-self)                                                         \
+    .def(~self)                                                         \
+    .def(self += self)                                                  \
+    .def(self -= self)                                                  \
+    .def(self + self)                                                   \
+    .def(self - self)                                                   \
+    .def(self * self);                                                  \
     register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from "  \
-        "strings to Intervals over " #DOMAIN_TYPE ".")
+      "strings to Intervals over " #DOMAIN_TYPE ".")
 
 
 G3_SERIALIZABLE_CODE(IntervalsDouble);
@@ -748,6 +756,7 @@ G3_SERIALIZABLE_CODE(MapIntervalsTime);
 
 PYBINDINGS("so3g")
 {
+    docstring_options local_docstring_options(true, true, false);
     EXPORT_INTERVALS(double,  IntervalsDouble);
     EXPORT_INTERVALS(int64_t, IntervalsInt);
     EXPORT_INTERVALS(int32_t, IntervalsInt32);
