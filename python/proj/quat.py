@@ -18,19 +18,19 @@ DEG = np.pi/180
 def euler(axis, angle):
     """
     The quaternion representing of an Euler rotation.
-
+    
     For example, if axis=2 the computed quaternion(s) will have
     components:
 
-      q = (cos(angle/2), 0, 0, sin(angle/2))
-
+        q = (cos(angle/2), 0, 0, sin(angle/2))
+    
     Parameters
     ----------
     axis : {0, 1, 2}
         The index of the cartesian axis of the rotation (x, y, z).
     angle : float or 1-d float array
         Angle of rotation, in radians.
-
+    
     Returns
     -------
     quat or G3VectorQuat, depending on ndim(angle).
@@ -47,45 +47,62 @@ def euler(axis, angle):
     return G3VectorQuat(q)
 
 
-def rotation_iso(theta, phi, gamma=None):
+def rotation_iso(theta, phi, psi=None):
     """Returns the quaternion that composes the Euler rotations:
-
-        Qz(phi) Qy(theta) Qz(gamma)
+   
+        Qz(phi) Qy(theta) Qz(psi)
 
     Note arguments are in radians.
     """
     output = euler(2, phi) * euler(1, theta)
-    if gamma is None:
+    if psi is None:
         return output
-    return output * euler(2, gamma)
+    return output * euler(2, psi)
 
 
-def rotation_lonlat(lon, lat, gamma=0.):
+def rotation_lonlat(lon, lat, psi=0.):
     """Returns the quaternion that composes the Euler rotations:
+        
+        Qz(lon) Qy(pi/2 - lat) Qz(psi)
+    
+    Note arguments are in radians.
+    """
+    return rotation_iso(np.pi/2 - lat, lon, psi)
 
-        Qz(lon) Qy(pi/2 - lat) Qz(gamma)
+def rotation_xieta(xi, eta, gamma=0):
+    """Returns the quaternion that rotates the center of focal 
+    plane to (xi, eta, psi)
+
+        xi = - sin(theta) * sin(phi)
+        eta = - sin(theta) * cos(phi)
+        gamma = psi + phi
+    
+    The corresponding Euler rotations are:
+
+        Qz(phi) Qy(theta) Qz (psi)
 
     Note arguments are in radians.
     """
-    return rotation_iso(np.pi/2 - lat, lon, gamma)
-
+    phi = np.arctan2(-xi, -eta)
+    theta = np.arcsin(np.sqrt(xi**2 + eta**2))
+    psi = gamma - phi
+    return rotation_iso(theta, phi, psi)
 
 def decompose_iso(q):
     """Decomposes the rotation encoded by q into the product of Euler
     rotations:
-
-        q = Qz(phi) Qy(-theta) Qz(gamma)
-
-    and returns theta, phi, gamma.  Why that order?  Because ISO.
-
+    
+        q = Qz(phi) Qy(-theta) Qz(psi)
+    
+    and returns theta, phi, psi.  Why that order?  Because ISO.
     Parameters
     ----------
     q : quat or G3VectorQuat
         The quaternion(s) to be decomposed.
-
+    
     Returns
     -------
-    (theta, phi, gamma) : tuple of floats or of 1-d arrays
+    (theta, phi, psi) : tuple of floats or of 1-d arrays
         The rotation angles, in radians.
     """
 
@@ -94,16 +111,24 @@ def decompose_iso(q):
     else:
         a,b,c,d = np.transpose(q)
 
-    gamma = np.arctan2(a*b+c*d, a*c-b*d)
+    psi = np.arctan2(a*b+c*d, a*c-b*d)
     phi = np.arctan2(c*d-a*b, a*c+b*d)
 
     # There are many ways to get theta; this is probably the most
     # expensive but the most robust.
     theta = 2 * np.arctan2((b**2 + c**2)**.5, (a**2 + d**2)**.5)
 
-    return (theta, phi, gamma)
+    return (theta, phi, psi)
 
 def decompose_lonlat(q):
-    """Like decompose_iso, but returns (lon, lat, gamma)."""
-    theta, phi, gamma = decompose_iso(q)
-    return (phi, np.pi/2 - theta, gamma)
+    """Like decompose_iso, but returns (lon, lat, psi)."""
+    theta, phi, psi = decompose_iso(q)
+    return (phi, np.pi/2 - theta, psi)
+
+def decompose_xieta(q):
+    """Like decompose_iso, but returns (xi, eta, gamma)."""
+    theta, phi, psi = decompose_iso(q)
+    xi = -np.sin(theta) * np.sin(phi)
+    eta = -np.sin(theta) * np.cos(phi)
+    gamma = psi + phi
+    return (xi, eta, gamma)
