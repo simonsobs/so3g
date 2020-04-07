@@ -3,6 +3,7 @@ from . import quat
 
 import numpy as np
 
+from .ranges import Ranges, RangesMatrix
 
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
@@ -43,6 +44,9 @@ class Projectionist:
 
     def __init__(self):
         self._q0 = None
+        self.naxis = np.array([0, 0])
+        self.cdelt = np.array([0., 0.])
+        self.crpix = np.array([0., 0.])
 
     @classmethod
     def for_geom(cls, shape, wcs):
@@ -76,7 +80,23 @@ class Projectionist:
             wcs = emap.wcs
         return cls.for_geom(emap.shape, wcs)
 
+    @classmethod
+    def for_source_at(cls, alpha0, delta0, gamma0=0.,
+                      proj_name='TAN'):
+        """Return a projection that places the specified source position at
+        the North Pole."""
+
+        self = cls()
+        self.proj_name = proj_name
+        assert(gamma0 == 0.)
+        self.q_celestial_to_native = (
+            quat.euler(2, np.pi)
+            * quat.euler(1, (delta0 - 90)*quat.DEG)
+            * quat.euler(2, -alpha0 * quat.DEG))
+        return self
+
     def get_pixelizor(self):
+
         """Returns the so3g.Pixelizor appropriate for use with the configured
         geometry.
 
@@ -151,7 +171,8 @@ class Projectionist:
         projection.  If you are interested in the parallactic angle of
         the native spherical coordinate system (e.g. if you're doing a
         tangent plane projection), make a second call specifying
-        use_native=True.
+        use_native=True.  In this case you might also take a look at
+        the get_planar() routine.
 
         See class documentation for description of standard arguments.
 
@@ -161,6 +182,21 @@ class Projectionist:
             q1 = self._get_cached_q(assembly.Q)
         else:
             q1 = assembly.Q
+        return projeng.coords(q1, assembly.dets, None)
+
+    def get_planar(self, assembly):
+        """Get projection plane coordinates for all detectors at all times.
+        For each detector, a float64 array of shape [n_time,4] is
+        returned.  The first two elements are the x and y projection
+        plane coordiantes, similar to the "intermediate world
+        coordinates", in FITS language.  Insofar as FITS ICW has units
+        of degrees, these coordinates have units of radians.  Indices
+        2 and 3 carry the cosine and sine of the detector parallactic
+        angle.
+
+        """
+        q1 = self._get_cached_q(assembly.Q)
+        projeng = self.get_ProjEng('TQU')
         return projeng.coords(q1, assembly.dets, None)
 
     def get_prec_omp(self, assembly):
@@ -176,7 +212,7 @@ class Projectionist:
         projeng = self.get_ProjEng('T')
         q1 = self._get_cached_q(assembly.Q)
         omp_ivals = projeng.pixel_ranges(q1, assembly.dets)
-        return ProjectionOmpData(omp_ivals)
+        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
     def to_map(self, signal, assembly, dest_map=None, omp=None, comps=None):
         """Project signal into a map.
@@ -205,7 +241,7 @@ class Projectionist:
                 dest_map, q1, assembly.dets, signal, None)
         else:
             map_out = projeng.to_map_omp(
-                dest_map, q1, assembly.dets, signal, None, omp.data)
+                dest_map, q1, assembly.dets, signal, None, omp)
         return map_out
 
     def to_weights(self, assembly, dest_map=None, omp=None, comps=None):
@@ -236,7 +272,7 @@ class Projectionist:
                 dest_map, q1, assembly.dets, None, None)
         else:
             map_out = projeng.to_weight_map_omp(
-                dest_map, q1, assembly.dets, None, None, omp.data)
+                dest_map, q1, assembly.dets, None, None, omp)
         return map_out
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
@@ -265,18 +301,3 @@ class Projectionist:
         signal_out = projeng.from_map(
             src_map, q1, assembly.dets, signal, None)
         return signal_out
-
-
-class ProjectionOmpData:
-    """This is a wrapper for precomputed OMP information used by the
-    Projectionist.
-    """
-    def __init__(self, data):
-        self.data = data
-
-    def __repr__(self):
-        return '%s[n_thread=%i,n_det=%i]' % (
-            self.__class__, len(self.data), len(self.data[0]))
-
-    # It would be useful to have a profiling method here that could
-    # compute stats for evenness and fragmentation.
