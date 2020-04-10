@@ -1,14 +1,11 @@
 import so3g
 import numpy as np
 
+"""Objects will self report as being of type "RangesInt32" rather than
+Ranges.  But let's try to use so3g.proj.Ranges when testing types and
+making new ones and stuff."""
 
-class Ranges(so3g.RangesInt32):
-    """This is an alias for an internal range-management type, defining
-    the general work-horse class for defining restricted sample ranges for
-    mapping operations.
-
-    """
-    pass
+Ranges = so3g.RangesInt32
 
 
 class RangesMatrix():
