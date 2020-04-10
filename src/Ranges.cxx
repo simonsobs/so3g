@@ -196,7 +196,7 @@ static int format_to_dtype(const Py_buffer &view)
 
 
 template <typename T>
-Ranges<T> Ranges<T>::from_array(const bp::object &src)
+Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
 {
     Ranges<T> output;
 
@@ -221,7 +221,9 @@ Ranges<T> Ranges<T>::from_array(const bp::object &src)
         output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
         d += buf.view.strides[0];
     }
+    output.count = count;
 
+    output.cleanup();
     return output;
 }
 
@@ -651,7 +653,9 @@ using namespace boost::python;
     .def("ranges", &CLASSNAME::ranges, \
          "Return the intervals as a 2-d numpy array of ranges.") \
     .def("from_array", &CLASSNAME::from_array,              \
-         "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
+         "from_array(data, count) -> " #DOMAIN_TYPE "\n"         \
+         "The input data must be an (n,2) shape ndarray of int32. " \
+         "The integer count sets the domain of the object.")       \
     .staticmethod("from_array")                                  \
     .def("from_bitmask", &CLASSNAME::from_mask,                     \
          "Return a list of " #CLASSNAME " extracted from an ndarray encoding a bitmask.") \

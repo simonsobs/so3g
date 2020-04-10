@@ -25,8 +25,7 @@ public:
     Ranges(T count) : count{count}, reference(0) {}
     Ranges(T count, T reference) : count{count}, reference(reference) {}
 
-    //static Ranges<T> from_array(const bp::numpy::ndarray &src);
-    static Ranges<T> from_array(const bp::object &src);
+    static Ranges<T> from_array(const bp::object &src, int count);
 
     // Basic ops
     Ranges<T>& merge(const Ranges<T> &src);

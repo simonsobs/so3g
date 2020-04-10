@@ -119,8 +119,7 @@ class RangesMatrix():
                     for item in items:
                         r.extend(item.ranges() + n)
                         n += item.count
-                    r = Ranges.from_array(np.array(r))
-                    r.count = n
+                    r = Ranges.from_array(np.array(r, dtype='int32'), n)
                     return r
             return RangesMatrix(ranges)
         return collect(items, axis)
