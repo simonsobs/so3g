@@ -630,8 +630,12 @@ using namespace boost::python;
 
 #define EXPORT_RANGES(DOMAIN_TYPE, CLASSNAME)                           \
     EXPORT_FRAMEOBJECT(CLASSNAME, init<>(),                             \
-    "A finite series of non-overlapping semi-open intervals on a domain " \
-    "of type: " #DOMAIN_TYPE ".")                                       \
+    "A finite series of non-overlapping semi-open intervals on a domain\n" \
+    "of type: " #DOMAIN_TYPE ".\n\n"                                    \
+    "\n"                                                                \
+    "In addition to the methods explained below, note that the unary\n" \
+    "operator ~r is equivalent to r.complement() and the binary operator\n" \
+    "r1 * r2 is equivalent to (r1.copy()).intersect(r2).")              \
     .def(init<const DOMAIN_TYPE&>("Initialize with count."))            \
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with count and reference.")) \
     .add_property("count", &CLASSNAME::count, &CLASSNAME::safe_set_count) \
