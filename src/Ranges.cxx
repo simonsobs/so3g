@@ -632,10 +632,30 @@ using namespace boost::python;
     EXPORT_FRAMEOBJECT(CLASSNAME, init<>(),                             \
     "A finite series of non-overlapping semi-open intervals on a domain\n" \
     "of type: " #DOMAIN_TYPE ".\n\n"                                    \
+    "To create an empty object, instantiate with just a sample count:\n" \
+    "``" #CLASSNAME "(count)``.\n"                                      \
     "\n"                                                                \
-    "In addition to the methods explained below, note that the unary\n" \
-    "operator ~r is equivalent to r.complement() and the binary operator\n" \
-    "r1 * r2 is equivalent to (r1.copy()).intersect(r2).")              \
+    "Alternately, consider convenience methods such as ``from_mask``,\n" \
+    "``from_array``, and ``from_bitmask``; see below.\n"                \
+    "\n"                                                                \
+    "In addition to the methods explained below, note the that following\n" \
+    "operators have been defined and perform as follows (where ``r1`` and\n" \
+    "``r2`` are objects of this class:\n"                               \
+    "\n"                                                                \
+    "- ``~r1`` is equivalent to ``r1.complement()``\n"                  \
+    "- ``r1 *= r2`` is equivalent to ``r1.intersect(r2)``\n"            \
+    "- ``r1 += r2`` is equivalent to ``r1.merge(r2)``\n"                \
+    "- ``r1 * r2`` and ``r1 + r2`` behave as you might expect, returning a\n" \
+    "  new object and leaving ``r1`` and ``r2`` unmodified.\n"          \
+    "\n"                                                                \
+    "The object also supports slicing.  For example, if ``r1`` has\n"   \
+    "count = 100 then r1[10:-5] returns a new object (not a view)\n"    \
+    "that has count = 85.  A data member ``reference`` keeps track\n"   \
+    "of the history of shifts in the first sample; for example if\n"    \
+    "r1.reference = 0 then r1[10:-5].reference will be -10.  This\n"    \
+    "variable can be interpreted as giving the logical index, in\n"     \
+    "the new index system, of where index=0 of the original object\n"   \
+    "would be found.  This is useful for bookkeeping in some cases.\n") \
     .def(init<const DOMAIN_TYPE&>("Initialize with count."))            \
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with count and reference.")) \
     .add_property("count", &CLASSNAME::count, &CLASSNAME::safe_set_count) \

@@ -35,6 +35,9 @@ class RangesMatrix():
     def __len__(self):
         return self.shape[0]
 
+    def copy(self):
+        return RangesMatrix([x.copy() for x in self.ranges])
+
     @property
     def shape(self):
         if len(self.ranges) == 0:
