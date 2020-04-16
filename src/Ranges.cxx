@@ -196,7 +196,7 @@ static int format_to_dtype(const Py_buffer &view)
 
 
 template <typename T>
-Ranges<T> Ranges<T>::from_array(const bp::object &src)
+Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
 {
     Ranges<T> output;
 
@@ -221,7 +221,9 @@ Ranges<T> Ranges<T>::from_array(const bp::object &src)
         output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
         d += buf.view.strides[0];
     }
+    output.count = count;
 
+    output.cleanup();
     return output;
 }
 
@@ -626,56 +628,91 @@ Ranges<T> Ranges<T>::operator*(const Ranges<T> &src) const
 
 using namespace boost::python;
 
-#define EXPORT_RANGES(DOMAIN_TYPE, CLASSNAME) \
-    EXPORT_FRAMEOBJECT(CLASSNAME, init<>(), \
-   "A finite series of non-overlapping semi-open intervals on a domain " \
-   "of type: " #DOMAIN_TYPE ".") \
-    .def(init<const DOMAIN_TYPE&>("Initialize with count.")) \
+#define EXPORT_RANGES(DOMAIN_TYPE, CLASSNAME)                           \
+    EXPORT_FRAMEOBJECT(CLASSNAME, init<>(),                             \
+    "A finite series of non-overlapping semi-open intervals on a domain\n" \
+    "of type: " #DOMAIN_TYPE ".\n\n"                                    \
+    "To create an empty object, instantiate with just a sample count:\n" \
+    "``" #CLASSNAME "(count)``.\n"                                      \
+    "\n"                                                                \
+    "Alternately, consider convenience methods such as ``from_mask``,\n" \
+    "``from_array``, and ``from_bitmask``; see below.\n"                \
+    "\n"                                                                \
+    "In addition to the methods explained below, note the that following\n" \
+    "operators have been defined and perform as follows (where ``r1`` and\n" \
+    "``r2`` are objects of this class:\n"                               \
+    "\n"                                                                \
+    "- ``~r1`` is equivalent to ``r1.complement()``\n"                  \
+    "- ``r1 *= r2`` is equivalent to ``r1.intersect(r2)``\n"            \
+    "- ``r1 += r2`` is equivalent to ``r1.merge(r2)``\n"                \
+    "- ``r1 * r2`` and ``r1 + r2`` behave as you might expect, returning a\n" \
+    "  new object and leaving ``r1`` and ``r2`` unmodified.\n"          \
+    "\n"                                                                \
+    "The object also supports slicing.  For example, if ``r1`` has\n"   \
+    "count = 100 then r1[10:-5] returns a new object (not a view)\n"    \
+    "that has count = 85.  A data member ``reference`` keeps track\n"   \
+    "of the history of shifts in the first sample; for example if\n"    \
+    "r1.reference = 0 then r1[10:-5].reference will be -10.  This\n"    \
+    "variable can be interpreted as giving the logical index, in\n"     \
+    "the new index system, of where index=0 of the original object\n"   \
+    "would be found.  This is useful for bookkeeping in some cases.\n") \
+    .def(init<const DOMAIN_TYPE&>("Initialize with count."))            \
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with count and reference.")) \
     .add_property("count", &CLASSNAME::count, &CLASSNAME::safe_set_count) \
-    .add_property("reference", &CLASSNAME::reference) \
-    .def("add_interval", &CLASSNAME::add_interval, \
-         return_internal_reference<>(), \
-         "Merge an interval into the set.") \
+    .add_property("reference", &CLASSNAME::reference)                   \
+    .def("add_interval", &CLASSNAME::add_interval,                      \
+         return_internal_reference<>(),                                 \
+         args("self", "start", "end"),                                  \
+         "Merge an interval into the set.")                             \
     .def("append_interval_no_check", &CLASSNAME::append_interval_no_check, \
-         return_internal_reference<>(), \
+         return_internal_reference<>(),                                 \
+         args("self", "start", "end"),                                  \
          "Append an interval to the set without checking for overlap or sequence.") \
-    .def("merge", &CLASSNAME::merge, \
-         return_internal_reference<>(), \
-         "Merge an Ranges into the set.") \
-    .def("intersect", &CLASSNAME::intersect, \
-         return_internal_reference<>(), \
-         "Intersect another " #DOMAIN_TYPE "with this one.") \
-    .def("complement", &CLASSNAME::complement, \
-         "Return the complement (over domain).") \
-    .def("ranges", &CLASSNAME::ranges, \
-         "Return the intervals as a 2-d numpy array of ranges.") \
-    .def("from_array", &CLASSNAME::from_array,              \
-         "Return a " #DOMAIN_TYPE " based on an (n,2) ndarray.") \
-    .staticmethod("from_array")                                  \
-    .def("from_bitmask", &CLASSNAME::from_mask,                     \
+    .def("merge", &CLASSNAME::merge,                                    \
+         return_internal_reference<>(),                                 \
+         args("self", "src"),                                           \
+         "Merge ranges from another " #CLASSNAME " into this one.")     \
+    .def("intersect", &CLASSNAME::intersect,                            \
+         return_internal_reference<>(),                                 \
+         args("self", "src"),                                           \
+         "Intersect another " #CLASSNAME " with this one.")             \
+    .def("complement", &CLASSNAME::complement,                          \
+         "Return the complement (over domain).")                        \
+    .def("ranges", &CLASSNAME::ranges,                                  \
+         "Return the intervals as a 2-d numpy array of ranges.")        \
+    .def("from_array", &CLASSNAME::from_array,                          \
+         args("data", "count"),                                         \
+         "The input data must be an (n,2) shape ndarray of int32. "     \
+         "The integer count sets the domain of the object.")            \
+    .staticmethod("from_array")                                         \
+    .def("from_bitmask", &CLASSNAME::from_mask,                         \
+         args("bitmask_array"),                                         \
          "Return a list of " #CLASSNAME " extracted from an ndarray encoding a bitmask.") \
-    .staticmethod("from_bitmask")                                          \
-    .def("from_mask", &CLASSNAME::from_mask,                     \
+    .staticmethod("from_bitmask")                                       \
+    .def("from_mask", &CLASSNAME::from_mask,                            \
+         args("bool_array"),                                            \
          "Return a list of " #CLASSNAME " extracted from an ndarray of bool.") \
     .staticmethod("from_mask")                                          \
-    .def("bitmask", &CLASSNAME::bitmask,                                      \
-         "Return an ndarray bitmask from a list of" #CLASSNAME ".") \
-    .staticmethod("bitmask")                                        \
-    .def("mask", &CLASSNAME::mask,                                  \
-             "Return a boolean mask from this Ranges object.")      \
-    .def("copy",                                                    \
-             +[](CLASSNAME& A) {                                    \
-              return CLASSNAME(A); \
-          }, \
-         "Get a new object with a copy of the data.") \
-    .def("__getitem__", &CLASSNAME::getitem) \
-    .add_property("shape", &CLASSNAME::shape) \
-    .def(~self) \
-    .def(self += self) \
-    .def(self *= self) \
-    .def(self + self) \
-    .def(self * self); \
+    .def("bitmask", &CLASSNAME::bitmask,                                \
+         args("ranges_list", "n_bits"),                                 \
+         "Return an ndarray bitmask from a list of" #CLASSNAME ".\n"    \
+         "n_bits determines the output integer type.  Bits are assigned from \n" \
+         "LSB onwards; use None in the list to skip a bit.")            \
+    .staticmethod("bitmask")                                            \
+    .def("mask", &CLASSNAME::mask,                                      \
+         "Return a boolean mask from this Ranges object.")              \
+    .def("copy",                                                        \
+         +[](CLASSNAME& A) {                                            \
+             return CLASSNAME(A);                                       \
+         },                                                             \
+         "Get a new object with a copy of the data.")                   \
+    .def("__getitem__", &CLASSNAME::getitem)                            \
+    .add_property("shape", &CLASSNAME::shape)                           \
+    .def(~self)                                                         \
+    .def(self += self)                                                  \
+    .def(self *= self)                                                  \
+    .def(self + self)                                                   \
+    .def(self * self);                                                  \
     register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from "  \
         "strings to Ranges over " #DOMAIN_TYPE ".")
 
@@ -686,5 +723,6 @@ G3_SERIALIZABLE_CODE(MapRangesInt32);
 
 PYBINDINGS("so3g")
 {
+    docstring_options local_docstring_options(true, true, false);
     EXPORT_RANGES(int32_t, RangesInt32);
 }
