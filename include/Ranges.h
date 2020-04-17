@@ -36,7 +36,9 @@ public:
     Ranges<T>& close_gaps(const T gap);
     Ranges<T> buffered(const T buff);
     Ranges<T> complement() const;
-
+    Ranges<T> empty_like() const;
+    Ranges<T> full_like() const;
+    
     void cleanup();
 
     bp::object ranges() const;
