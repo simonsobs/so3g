@@ -120,6 +120,62 @@ Ranges<T>& Ranges<T>::merge(const Ranges<T> &src)
     return *this;
 }
 
+//Buffer Range in place
+template <typename T>
+Ranges<T>& Ranges<T>::buffer(const T buff)
+{
+    auto p0 = this->segments.begin();
+    while (p0 != this->segments.end()) {
+        p0->first -= buff;
+        p0->second += buff;
+        p0++;
+    }
+    cleanup();
+    return *this;
+}
+
+//Return newly buffered range
+template <typename T>
+Ranges<T> Ranges<T>::buffered(const T buff)
+{
+    Ranges<T> output(count, reference);
+
+    for (auto p: segments) {
+        output.segments.push_back(make_pair(p.first - buff, p.second + buff));
+    }
+    output.cleanup();
+    return output;
+}
+
+//Close gaps between Ranges if they are leq gap
+template <typename T>
+Ranges<T>& Ranges<T>::close_gaps(const T gap)
+{
+    auto p = segments.begin();
+    while (p != segments.end()) {
+        // Check for distance from the front
+        if (p->first <= gap){
+            p->first = 0;
+        }
+        if (p->second >= count-gap) {
+            p->second = count;
+        }
+        // Check for distances from the next interval.
+        auto q = p+1;
+        if (q == segments.end())
+            break;
+        // if distance is leq gap, close interval
+        if (q->first - p->second <= gap) {
+            p->second = q->second;
+            segments.erase(q);
+        } else{
+            p++;
+        }
+    }
+    
+    return *this;
+}
+
 //
 // Machinery for converting between Interval vector<pair>
 // representation and buffers (such as numpy arrays).
@@ -492,6 +548,25 @@ Ranges<T> Ranges<T>::complement() const
     return output;
 }
 
+// Make empty range to match this range
+template <typename T>
+Ranges<T> Ranges<T>::zeros_like() const
+{
+    Ranges<T> output(count, reference);
+    return output;
+    
+}
+
+//make "full" range to match this range
+template <typename T>
+Ranges<T> Ranges<T>::ones_like() const
+{
+    Ranges<T> output(count, reference);
+    output.add_interval(0, count);
+    return output;
+    
+}
+
 
 // Slicing!
 template <typename T,
@@ -672,12 +747,27 @@ using namespace boost::python;
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \
          "Merge ranges from another " #CLASSNAME " into this one.")     \
+    .def("buffer", &CLASSNAME::buffer,                                  \
+        return_internal_reference<>(),                                  \
+        args("self", "buff"),                                           \
+        "Buffer each interval by an amount specified by buff")          \
+    .def("buffered", &CLASSNAME::buffered,                              \
+        args("self", "buff"),                                           \
+        "Return an interval buffered by buff")                          \
+    .def("close_gaps", &CLASSNAME::close_gaps,                          \
+        return_internal_reference<>(),                                  \
+        args("self", "gap"),                                            \
+        "Remove gaps between ranges less than gap")                     \
     .def("intersect", &CLASSNAME::intersect,                            \
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \
          "Intersect another " #CLASSNAME " with this one.")             \
     .def("complement", &CLASSNAME::complement,                          \
          "Return the complement (over domain).")                        \
+    .def("zeros_like", &CLASSNAME::zeros_like,                          \
+         "Return range of same length but no intervals")                \
+    .def("ones_like", &CLASSNAME::ones_like,                            \
+         "Return range of same length and interval spanning count")     \
     .def("ranges", &CLASSNAME::ranges,                                  \
          "Return the intervals as a 2-d numpy array of ranges.")        \
     .def("from_array", &CLASSNAME::from_array,                          \

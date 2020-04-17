@@ -38,6 +38,22 @@ class RangesMatrix():
     def copy(self):
         return RangesMatrix([x.copy() for x in self.ranges])
 
+    def zeros_like(self):
+        return RangesMatrix([x.zeros_like() for x in self.ranges])
+    
+    def ones_like(self):
+        return RangesMatrix([x.ones_like() for x in self.ranges])
+
+    def buffer(self, buff):
+        [x.buffer(buff) for x in self.ranges]
+        ## just to make this work like Ranges.buffer()
+        return self
+    
+    def buffered(self, buff):
+        out = self.copy()
+        [x.buffer(buff) for x in out.ranges]
+        return out
+    
     @property
     def shape(self):
         if len(self.ranges) == 0:
@@ -66,7 +82,29 @@ class RangesMatrix():
             return RangesMatrix([d[index[1:]] for d in self.ranges[index[0]]],
                                 self.shape[1:])
         return self.ranges[index]
-
+    
+    def __add__(self, x):
+        if isinstance(x, Ranges):
+            return self.__class__([d + x for d in self.ranges])
+        elif isinstance(x, RangesMatrix):
+            # Check for shape compatibility.
+            nd_a = len(self.shape)
+            nd_b = len(x.shape)
+            ndim = min(nd_a, nd_b)
+            ok = [(a==1 or b==1 or a == b) for a,b in zip(self.shape[-ndim:], x.shape[-ndim:])]
+            if not all(ok) or nd_a < nd_b:
+                raise ValueError('Operands have incompatible shapes: %s %s' %
+                                 self.shape, x.shape)
+            if nd_a == nd_b:
+                # Broadcast if either has shape 1...
+                if x.shape[0] == 1:
+                    return self.__class__([r + x[0] for r in self.ranges])
+                elif self.shape[0] == 1:
+                    return self.__class__([self.ranges[0] + _x for _x in x])
+                elif self.shape[0] == x.shape[0]:
+                    return self.__class__([r + d for r, d in zip(self.ranges, x)])
+            return self.__class__([r + x for r in self.ranges])
+        
     def __mul__(self, x):
         if isinstance(x, Ranges):
             return self.__class__([d * x for d in self.ranges])
