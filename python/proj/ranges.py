@@ -38,6 +38,11 @@ class RangesMatrix():
     def copy(self):
         return RangesMatrix([x.copy() for x in self.ranges])
 
+    def empty_like(self):
+        return RangesMatrix([x.empty_like() for x in self.ranges])
+    def full_like(self):
+        return RangesMatrix([x.full_like() for x in self.ranges])
+    
     @property
     def shape(self):
         if len(self.ranges) == 0:
