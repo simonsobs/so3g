@@ -38,10 +38,11 @@ class RangesMatrix():
     def copy(self):
         return RangesMatrix([x.copy() for x in self.ranges])
 
-    def empty_like(self):
-        return RangesMatrix([x.empty_like() for x in self.ranges])
-    def full_like(self):
-        return RangesMatrix([x.full_like() for x in self.ranges])
+    def zeros_like(self):
+        return RangesMatrix([x.zeros_like() for x in self.ranges])
+    
+    def ones_like(self):
+        return RangesMatrix([x.ones_like() for x in self.ranges])
 
     def buffer(self, buff):
         [x.buffer(buff) for x in self.ranges]

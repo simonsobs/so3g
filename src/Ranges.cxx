@@ -550,7 +550,7 @@ Ranges<T> Ranges<T>::complement() const
 
 // Make empty range to match this range
 template <typename T>
-Ranges<T> Ranges<T>::empty_like() const
+Ranges<T> Ranges<T>::zeros_like() const
 {
     Ranges<T> output(count, reference);
     return output;
@@ -559,7 +559,7 @@ Ranges<T> Ranges<T>::empty_like() const
 
 //make "full" range to match this range
 template <typename T>
-Ranges<T> Ranges<T>::full_like() const
+Ranges<T> Ranges<T>::ones_like() const
 {
     Ranges<T> output(count, reference);
     output.add_interval(0, count);
@@ -764,9 +764,9 @@ using namespace boost::python;
          "Intersect another " #CLASSNAME " with this one.")             \
     .def("complement", &CLASSNAME::complement,                          \
          "Return the complement (over domain).")                        \
-    .def("empty_like", &CLASSNAME::empty_like,                          \
+    .def("zeros_like", &CLASSNAME::zeros_like,                          \
          "Return range of same length but no intervals")                \
-    .def("full_like", &CLASSNAME::full_like,                            \
+    .def("ones_like", &CLASSNAME::ones_like,                            \
          "Return range of same length and interval spanning count")     \
     .def("ranges", &CLASSNAME::ranges,                                  \
          "Return the intervals as a 2-d numpy array of ranges.")        \
