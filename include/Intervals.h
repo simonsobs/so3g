@@ -41,6 +41,8 @@ public:
 
     bp::object array() const;
  
+    Intervals<T> getitem(bp::object indices);
+
     // Operators.
     Intervals<T> operator~() const;
     Intervals<T> operator-() const;

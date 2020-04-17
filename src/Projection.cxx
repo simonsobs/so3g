@@ -15,7 +15,7 @@ using namespace std;
 
 #include "so3g_numpy.h"
 #include <Projection.h>
-#include <Intervals.h>
+#include <Ranges.h>
 #include "exceptions.h"
 
 #include <boost/math/quaternion.hpp>
@@ -718,14 +718,15 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
 
     // Indexed by i_thread, i_det.
-    vector<vector<IntervalsInt32>> ivals;
+    vector<vector<RangesInt32>> ivals;
 
-    auto ival_list_list = bp::extract<bp::list>(thread_intervals)();
-    for (int i=0; i<bp::len(ival_list_list); i++) {
-        auto ival_list =  bp::extract<bp::list>(ival_list_list[i])();
-        vector<IntervalsInt32> v(bp::len(ival_list));
+    // Descend two levels.. don't assume it's a list, just that it has
+    // len and [].
+    for (int i=0; i<bp::len(thread_intervals); i++) {
+        bp::object ival_list = thread_intervals[i];
+        vector<RangesInt32> v(bp::len(ival_list));
         for (int j=0; j<bp::len(ival_list); j++)
-            v[j] = bp::extract<IntervalsInt32>(ival_list[j])();
+            v[j] = bp::extract<RangesInt32>(ival_list[j])();
         ivals.push_back(v);
     }
 
@@ -738,7 +739,7 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
         for (int i_det = 0; i_det < n_det; ++i_det) {
             double dofs[4];
             pointer.InitPerDet(i_det, dofs);
-            for (auto rng: ivals[i_thread][i_det].segments) {
+            for (auto const &rng: ivals[i_thread][i_det].segments) {
                 for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                     double coords[4];
                     FSIGNAL weights[4];
@@ -832,14 +833,15 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
     accumulator.TestInputs(map, pbore, pofs, signal, weight);
 
     // Indexed by i_thread, i_det.
-    vector<vector<IntervalsInt32>> ivals;
+    vector<vector<RangesInt32>> ivals;
 
-    auto ival_list_list = bp::extract<bp::list>(thread_intervals)();
-    for (int i=0; i<bp::len(ival_list_list); i++) {
-        auto ival_list =  bp::extract<bp::list>(ival_list_list[i])();
-        vector<IntervalsInt32> v(bp::len(ival_list));
+    // Descend two levels.. don't assume it's a list, just that it has
+    // len and [].
+    for (int i=0; i<bp::len(thread_intervals); i++) {
+        bp::object ival_list = thread_intervals[i];
+        vector<RangesInt32> v(bp::len(ival_list));
         for (int j=0; j<bp::len(ival_list); j++)
-            v[j] = bp::extract<IntervalsInt32>(ival_list[j])();
+            v[j] = bp::extract<RangesInt32>(ival_list[j])();
         ivals.push_back(v);
     }
 
@@ -852,7 +854,7 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
         for (int i_det = 0; i_det < n_det; ++i_det) {
             double dofs[4];
             pointer.InitPerDet(i_det, dofs);
-            for (auto rng: ivals[i_thread][i_det].segments) {
+            for (auto const &rng: ivals[i_thread][i_det].segments) {
                 for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                     double coords[4];
                     FSIGNAL weights[4];
@@ -986,7 +988,7 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
 
     auto pix_range = _pixelizor.IndexRange();
 
-    vector<vector<IntervalsInt32>> ranges;
+    vector<vector<RangesInt32>> ranges;
 
 #pragma omp parallel
     {
@@ -994,7 +996,9 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
 #pragma omp single
         {
             for (int i=0; i<n_domain; ++i) {
-                vector<IntervalsInt32> v(n_det);
+                vector<RangesInt32> v(n_det);
+                for (auto &_v: v)
+                    _v.count = n_time;
                 ranges.push_back(v);
             }
         }

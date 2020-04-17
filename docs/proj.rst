@@ -322,7 +322,7 @@ best way to assign pixels to threads depends on the particulars of the
 scan pattern.  So OMP should be used with care.
 
 The assignment of pixels to threads, and thus of sample-ranges to
-threads, is encoded in a ProjectionOmpData object.  To get one, try
+threads, is encoded in a RangesMatrix object.  To get one, try
 the ``Projectionist.get_prec_omp()`` method, then pass the result to
 ``to_map`` or ``from_map`` argument ``omp=``::
 
@@ -332,7 +332,7 @@ the ``Projectionist.get_prec_omp()`` method, then pass the result to
 Inspecting::
 
   >>> omp_precomp
-  <class 'so3g.proj.wcs.ProjectionOmpData'>[n_thread=4,n_det=3]
+  RangesMatrix(4,3,1)
   >>> map_pol2[:,45,106]
   array([10.        ,  4.97712898,  8.67341805])
 
@@ -340,22 +340,45 @@ Inspecting::
 Class reference
 ===============
 
-The core classes from ``so3g.proj`` are auto-documented here.
+*The core classes from* ``so3g.proj`` *are auto-documented here.  If
+you see a bunch of headings and no docstrings, then it's likely
+because the Sphinx could not import so3g properly when building the
+docs!*
 
+Assembly
+--------
 .. autoclass:: so3g.proj.Assembly
    :members:
 
+CelestialSightLine
+------------------
 .. autoclass:: so3g.proj.CelestialSightLine
    :members:
 
+EarthlySite
+-----------
 .. autoclass:: so3g.proj.EarthlySite
    :members:
 
+Projectionist
+-------------
 .. autoclass:: so3g.proj.Projectionist
    :members:
 
-.. autoclass:: so3g.proj.ProjectionOmpData
+Ranges
+------
+.. autoclass:: so3g.proj.Ranges
    :members:
 
+.. autoclass:: so3g.RangesInt32
+   :members:
+
+RangesMatrix
+------------
+.. autoclass:: so3g.proj.RangesMatrix
+   :members:
+
+Weather
+-------
 .. autoclass:: so3g.proj.Weather
    :members:
