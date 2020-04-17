@@ -120,6 +120,32 @@ Ranges<T>& Ranges<T>::merge(const Ranges<T> &src)
     return *this;
 }
 
+//Buffer Range in place
+template <typename T>
+Ranges<T>& Ranges<T>::buffer(const T buff)
+{
+    auto p0 = this->segments.begin();
+    while (p0 != this->segments.end()){
+        p0->first -= buff;
+        p0->second += buff;
+        p0++;
+    }
+    cleanup();
+    return *this;
+}
+
+//Return newly buffered range
+template <typename T>
+Ranges<T> Ranges<T>::buffered(const T buff)
+{
+    Ranges<T> output(count, reference);
+
+    for (auto p: segments){
+        output.segments.push_back(make_pair(p.first - buff, p.second + buff));
+    }
+    output.cleanup();
+    return output;
+}
 //
 // Machinery for converting between Interval vector<pair>
 // representation and buffers (such as numpy arrays).
@@ -672,6 +698,13 @@ using namespace boost::python;
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \
          "Merge ranges from another " #CLASSNAME " into this one.")     \
+    .def("buffer", &CLASSNAME::buffer,                                  \
+        return_internal_reference<>(),                                  \
+        args("self", "buff"),                                           \
+        "Buffer each interval by an amount specificed by buff")         \
+    .def("buffered", &CLASSNAME::buffered,                              \
+        args("self", "buff"),                                           \
+        "Return an interval buffered by buff")                          \
     .def("intersect", &CLASSNAME::intersect,                            \
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \

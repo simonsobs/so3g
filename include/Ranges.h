@@ -32,6 +32,8 @@ public:
     Ranges<T>& intersect(const Ranges<T> &src);
     Ranges<T>& add_interval(const T start, const T end);
     Ranges<T>& append_interval_no_check(const T start, const T end);
+    Ranges<T>& buffer(const T buff);
+    Ranges<T> buffered(const T buff);
     Ranges<T> complement() const;
 
     void cleanup();
