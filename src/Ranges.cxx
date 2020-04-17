@@ -125,7 +125,7 @@ template <typename T>
 Ranges<T>& Ranges<T>::buffer(const T buff)
 {
     auto p0 = this->segments.begin();
-    while (p0 != this->segments.end()){
+    while (p0 != this->segments.end()) {
         p0->first -= buff;
         p0->second += buff;
         p0++;
@@ -140,7 +140,7 @@ Ranges<T> Ranges<T>::buffered(const T buff)
 {
     Ranges<T> output(count, reference);
 
-    for (auto p: segments){
+    for (auto p: segments) {
         output.segments.push_back(make_pair(p.first - buff, p.second + buff));
     }
     output.cleanup();
@@ -157,7 +157,7 @@ Ranges<T>& Ranges<T>::close_gaps(const T gap)
         if (p->first <= gap){
             p->first = 0;
         }
-        if (p->second >= count-gap){
+        if (p->second >= count-gap) {
             p->second = count;
         }
         // Check for distances from the next interval.
@@ -165,7 +165,7 @@ Ranges<T>& Ranges<T>::close_gaps(const T gap)
         if (q == segments.end())
             break;
         // if distance is leq gap, close interval
-        if (q->first - p->second <= gap){
+        if (q->first - p->second <= gap) {
             p->second = q->second;
             segments.erase(q);
         } else{
@@ -750,7 +750,7 @@ using namespace boost::python;
     .def("buffer", &CLASSNAME::buffer,                                  \
         return_internal_reference<>(),                                  \
         args("self", "buff"),                                           \
-        "Buffer each interval by an amount specificed by buff")         \
+        "Buffer each interval by an amount specified by buff")          \
     .def("buffered", &CLASSNAME::buffered,                              \
         args("self", "buff"),                                           \
         "Return an interval buffered by buff")                          \
