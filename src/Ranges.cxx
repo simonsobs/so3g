@@ -146,6 +146,36 @@ Ranges<T> Ranges<T>::buffered(const T buff)
     output.cleanup();
     return output;
 }
+
+//Close gaps between Ranges if they are leq gap
+template <typename T>
+Ranges<T>& Ranges<T>::close_gaps(const T gap)
+{
+    auto p = segments.begin();
+    while (p != segments.end()) {
+        // Check for distance from the front
+        if (p->first <= gap){
+            p->first = 0;
+        }
+        if (p->second >= count-gap){
+            p->second = count;
+        }
+        // Check for distances from the next interval.
+        auto q = p+1;
+        if (q == segments.end())
+            break;
+        // if distance is leq gap, close interval
+        if (q->first - p->second <= gap){
+            p->second = q->second;
+            segments.erase(q);
+        } else{
+            p++;
+        }
+    }
+    
+    return *this;
+}
+
 //
 // Machinery for converting between Interval vector<pair>
 // representation and buffers (such as numpy arrays).
@@ -705,6 +735,10 @@ using namespace boost::python;
     .def("buffered", &CLASSNAME::buffered,                              \
         args("self", "buff"),                                           \
         "Return an interval buffered by buff")                          \
+    .def("close_gaps", &CLASSNAME::close_gaps,                          \
+        return_internal_reference<>(),                                  \
+        args("self", "gap"),                                            \
+        "Remove gaps between ranges less than gap")                     \
     .def("intersect", &CLASSNAME::intersect,                            \
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \
