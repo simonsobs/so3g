@@ -42,6 +42,16 @@ class RangesMatrix():
         return RangesMatrix([x.empty_like() for x in self.ranges])
     def full_like(self):
         return RangesMatrix([x.full_like() for x in self.ranges])
+
+    def buffer(self, buff):
+        [x.buffer(buff) for x in self.ranges]
+        ## just to make this work like Ranges.buffer()
+        return self
+    
+    def buffered(self, buff):
+        out = self.copy()
+        [x.buffer(buff) for x in out.ranges]
+        return out
     
     @property
     def shape(self):
