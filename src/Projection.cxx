@@ -30,7 +30,7 @@ inline bool isNone(bp::object &pyo)
 template <typename CoordSys>
 bool Pointer<CoordSys>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
-    bp::object &signal, bp::object &weight)
+    bp::object &signal, bp::object &det_weights)
 {
     // Boresight and Detector must present and inter-compatible.
 
@@ -322,7 +322,7 @@ Pixelizor2_Flat::Pixelizor2_Flat(
 }
 
 bool Pixelizor2_Flat::TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                             bp::object &signal, bp::object &weight)
+                             bp::object &signal, bp::object &det_weights)
 {
     // Flat pixelizor.  Requires:
     // 1. Map has the right shape -- but map can be none.
@@ -407,7 +407,7 @@ std::pair<int,int> Pixelizor2_Flat::IndexRange()
 template <typename SpinClass>
 bool Accumulator<SpinClass>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
-    bp::object &signal, bp::object &weight)
+    bp::object &signal, bp::object &det_weights)
 {
     const int N = SpinClass::comp_count;
     if (need_map) {
@@ -439,9 +439,20 @@ bool Accumulator<SpinClass>::TestInputs(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     }
 
-    // Insist that user passed in None for the weights.
-    if (weight.ptr() != Py_None) {
-        throw shape_exception("weight", "must be None");
+    // det_weights, if it is passed in at all, should be same type as
+    // signal but shape (n_det).
+    if (det_weights.ptr() != Py_None) {
+        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("det_weights");
+        }
+        if (_det_weights.view.ndim != 1 ||
+            _det_weights.view.shape[0] != n_det)
+            throw shape_exception("det_weights", "must have shape (n_det).");
+        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
+            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
+        }
     }
 
     return true;
@@ -487,13 +498,19 @@ void Accumulator<SpinClass>::Forward(
     if (pixel_offset < 0) return;
     const FSIGNAL sig = *(_signalspace->data_ptr[i_det] +
                           _signalspace->steps[0]*i_time);
+
+    FSIGNAL det_wt = 1.;
+    if (_det_weights.view.obj != NULL)
+        det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf +
+                             _det_weights.view.strides[0]*i_det);
+
     const int N = SpinClass::comp_count;
     FSIGNAL wt[N];
     PixelWeight(coords, wt);
     for (int imap=0; imap<N; ++imap) {
         *(double*)((char*)_mapbuf.view.buf +
                    _mapbuf.view.strides[0]*imap +
-                   pixel_offset) += sig * wt[imap];
+                   pixel_offset) += sig * wt[imap] * det_wt;
     }
 }
 
@@ -504,6 +521,11 @@ void Accumulator<SpinClass>::ForwardWeight(
     const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
     if (pixel_offset < 0) return;
+
+    FSIGNAL det_wt = 1.;
+    if (_det_weights.view.obj != NULL)
+        det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+
     const int N = SpinClass::comp_count;
     FSIGNAL wt[N];
     PixelWeight(coords, wt);
@@ -512,7 +534,7 @@ void Accumulator<SpinClass>::ForwardWeight(
             *(double*)((char*)_mapbuf.view.buf +
                        _mapbuf.view.strides[0]*imap +
                        _mapbuf.view.strides[1]*jmap +
-                       pixel_offset) += wt[imap] * wt[jmap];
+                       pixel_offset) += wt[imap] * wt[jmap] * det_wt;
         }
     }
 }
@@ -636,7 +658,7 @@ SignalSpace<DTYPE>::SignalSpace(
  *     pbore:    (n_t, n_coord)
  *     pofs:     (n_det, n_coord)
  *     signal:   (n_det, n_t)
- *     weight:   (n_det, n_map)
+ *     det_weights: (n_det)
  *
  *  Notes:
  *
@@ -658,11 +680,11 @@ ProjectionEngine<P,Z,A>::ProjectionEngine(Z pixelizor)
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
 {
     //Initialize it / check inputs.
     auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
@@ -674,8 +696,8 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
         map = _pixelizor.zeros(n_comp);
     }
 
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
-    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
+    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
@@ -695,14 +717,14 @@ bp::object ProjectionEngine<P,Z,A>::to_map(
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_map_omp(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight,
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
     bp::object thread_intervals)
 {
     auto _none = bp::object();
 
     //Initialize it / check inputs.
     auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
@@ -714,8 +736,8 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
         map = _pixelizor.zeros(n_comp);
     }
 
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
-    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
+    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
 
     // Indexed by i_thread, i_det.
     vector<vector<RangesInt32>> ivals;
@@ -756,11 +778,11 @@ bp::object ProjectionEngine<P,Z,A>::to_map_omp(
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_weight_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
 {
     //Initialize it / check inputs.
     auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
@@ -780,8 +802,8 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map(
         map = bp::object(bp::handle<>(v1));
     }
 
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
-    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
+    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         // pointer.InitPerDet(i_det);
@@ -802,14 +824,14 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map(
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight,
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
     bp::object thread_intervals)
 {
     auto _none = bp::object();
 
     //Initialize it / check inputs.
     auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
@@ -829,8 +851,8 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
         map = bp::object(bp::handle<>(v1));
     }
 
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
-    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
+    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
 
     // Indexed by i_thread, i_det.
     vector<vector<RangesInt32>> ivals;
@@ -872,19 +894,19 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::from_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object weight)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
 {
     // Initialize pointer and _pixelizor.
     auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, weight);
+    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
     // Initialize accumulator -- create signal if it DNE.
     auto accumulator = A(true, true, false, n_det, n_time);
-    accumulator.TestInputs(map, pbore, pofs, signal, weight);
+    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
 
-    _pixelizor.TestInputs(map, pbore, pofs, signal, weight);
+    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {

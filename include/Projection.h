@@ -8,6 +8,7 @@ namespace bp = boost::python;
  * options open by using this typedef. */
 typedef float FSIGNAL;
 #define FSIGNAL_NPY_TYPE NPY_FLOAT32
+#define FSIGNAL_BUFFER_FORMAT "f"
 
 
 class BufferWrapper;
@@ -24,7 +25,7 @@ public:
     virtual
     ~ProjectionOptimizer() {};
     virtual bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                            bp::object &signal, bp::object &weight) = 0;
+                            bp::object &signal, bp::object &det_weights) = 0;
     inline
     void InitPerDet(int i_det) {};
     inline
@@ -45,7 +46,7 @@ template <typename CoordSys>
 class Pointer : public ProjectionOptimizer {
 public:
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &weight);
+                    bp::object &signal, bp::object &det_weights);
     void InitPerDet(int i_det, double *dofs);
     int DetCount() { return n_det; }
     int TimeCount() { return n_time; }
@@ -65,7 +66,7 @@ public:
               double ix0=0., double iy0=0.);
     ~Pixelizor2_Flat() {};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &weight);
+                    bp::object &signal, bp::object &det_weights);
     bp::object zeros(int count);
     int GetPixel(int i_det, int i_time, const double *coords);
     std::pair<int,int> IndexRange();
@@ -134,7 +135,7 @@ public:
     inline int ComponentCount() {return SpinClass::comp_count;}
     void PixelWeight(const double *coords, FSIGNAL *wt);
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &weight);
+                    bp::object &signal, bp::object &det_weights);
     void Forward(const int i_det,
                  const int i_time,
                  const int pixel_index,
@@ -158,6 +159,7 @@ protected:
     int n_det = 0;
     int n_time = 0;
     BufferWrapper _mapbuf;
+    BufferWrapper _det_weights;
 };
 
 template<typename P, typename Z, typename A>
