@@ -460,33 +460,33 @@ bool Accumulator<SpinClass>::TestInputs(
 
 template <>
 inline
-void Accumulator<SpinT>::PixelWeight(
-    const double* coords, FSIGNAL *pwt)
+void Accumulator<SpinT>::SpinProjFactors(
+    const double* coords, FSIGNAL *projfacs)
 {
-    pwt[0] = 1;
+    projfacs[0] = 1;
 }
 
 template <>
 inline
-void Accumulator<SpinQU>::PixelWeight(
-    const double* coords, FSIGNAL *pwt)
+void Accumulator<SpinQU>::SpinProjFactors(
+    const double* coords, FSIGNAL *projfacs)
 {
     const double c = coords[2];
     const double s = coords[3];
-    pwt[0] = c*c - s*s;
-    pwt[1] = 2*c*s;
+    projfacs[0] = c*c - s*s;
+    projfacs[1] = 2*c*s;
 }
 
 template<>
 inline
-void Accumulator<SpinTQU>::PixelWeight(
-    const double* coords, FSIGNAL *pwt)
+void Accumulator<SpinTQU>::SpinProjFactors(
+    const double* coords, FSIGNAL *projfacs)
 {
     const double c = coords[2];
     const double s = coords[3];
-    pwt[0] = 1.;
-    pwt[1] = c*c - s*s;
-    pwt[2] = 2*c*s;
+    projfacs[0] = 1.;
+    projfacs[1] = c*c - s*s;
+    projfacs[2] = 2*c*s;
 }
 
 template <typename SpinClass>
@@ -505,12 +505,12 @@ void Accumulator<SpinClass>::Forward(
                              _det_weights.view.strides[0]*i_det);
 
     const int N = SpinClass::comp_count;
-    FSIGNAL wt[N];
-    PixelWeight(coords, wt);
+    FSIGNAL pf[N];
+    SpinProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
         *(double*)((char*)_mapbuf.view.buf +
                    _mapbuf.view.strides[0]*imap +
-                   pixel_offset) += sig * wt[imap] * det_wt;
+                   pixel_offset) += sig * pf[imap] * det_wt;
     }
 }
 
@@ -527,14 +527,14 @@ void Accumulator<SpinClass>::ForwardWeight(
         det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
 
     const int N = SpinClass::comp_count;
-    FSIGNAL wt[N];
-    PixelWeight(coords, wt);
+    FSIGNAL pf[N];
+    SpinProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
         for (int jmap=imap; jmap<N; ++jmap) {
             *(double*)((char*)_mapbuf.view.buf +
                        _mapbuf.view.strides[0]*imap +
                        _mapbuf.view.strides[1]*jmap +
-                       pixel_offset) += wt[imap] * wt[jmap] * det_wt;
+                       pixel_offset) += pf[imap] * pf[jmap] * det_wt;
         }
     }
 }
@@ -547,13 +547,13 @@ void Accumulator<SpinClass>::Reverse(
 {
     if (pixel_offset < 0) return;
     const int N = SpinClass::comp_count;
-    FSIGNAL wt[N];
-    PixelWeight(coords, wt);
+    FSIGNAL pf[N];
+    SpinProjFactors(coords, pf);
     double _sig = 0.;
     for (int imap=0; imap<N; ++imap) {
         _sig += *(double*)((char*)_mapbuf.view.buf +
                            _mapbuf.view.strides[0]*imap +
-                           pixel_offset) * wt[imap];
+                           pixel_offset) * pf[imap];
     }
     FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
                     _signalspace->steps[0]*i_time);

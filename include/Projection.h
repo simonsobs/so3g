@@ -103,11 +103,11 @@ private:
 
 /** Accumulator class templates.
  *
- * The SpinClass is used primarily to activate appropriate PixelWeight
- * specializations depending on the map components.  For example,
- * SpinT implies weight = 1, while SpinTQU implies weight triplet (1,
- * cos(2 phi), sin(2 phi)).  SpinClass also provides the number of
- * basic map components.
+ * The SpinClass is used primarily to activate appropriate
+ * SpinProjFactors specializations depending on the map components.
+ * For example, SpinT implies projection factor = 1, while SpinTQU
+ * implies factor triplet (1, cos(2 phi), sin(2 phi)).  SpinClass also
+ * provides the number of basic map components, through comp_count.
  */
 
 template <int N>
@@ -133,7 +133,7 @@ public:
             delete _signalspace;
     };
     inline int ComponentCount() {return SpinClass::comp_count;}
-    void PixelWeight(const double *coords, FSIGNAL *wt);
+    void SpinProjFactors(const double *coords, FSIGNAL *wt);
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &det_weights);
     void Forward(const int i_det,
