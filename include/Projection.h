@@ -181,6 +181,8 @@ public:
     bp::object coords(bp::object pbore, bp::object pofs,
                       bp::object coord);
     bp::object pixels(bp::object pbore, bp::object pofs, bp::object pixel);
+    bp::object pointing_matrix(bp::object pbore, bp::object pofs,
+                               bp::object pixel, bp::object proj);
     bp::object pixel_ranges(bp::object pbore, bp::object pofs);
 private:
     Z _pixelizor;

@@ -100,7 +100,13 @@ if 1:
     except RuntimeError as e:
         print('Failure successful.')
 
-    del pix, pix_list, pix3
+    print('Get spin projection factors, too.',
+          end='\n ... ')
+    with Timer() as T:
+        pix2, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
+
+    del pix, pix_list, pix3, pix2, spin_proj
+
 
 if 1:
     print('Forward projection (TQU)', end='\n ... ')

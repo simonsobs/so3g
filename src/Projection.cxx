@@ -994,6 +994,54 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel_buf_man.ret_val;
 }
 
+template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
+    bp::object pbore, bp::object pofs, bp::object pixel, bp::object proj)
+{
+    auto _none = bp::object();
+
+    auto pointer = P();
+    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+    _pixelizor.TestInputs(_none, _none, _none, _none, _none);
+
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel, "pixel", NPY_INT32, n_det, n_time);
+
+    auto accumulator = A(false, false, false, n_det, n_time);
+    accumulator.TestInputs(_none, pbore, pofs, _none, _none);
+
+    const int n_spin = accumulator.ComponentCount();
+    auto proj_buf_man = SignalSpace<FSIGNAL>(
+        proj, "proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
+
+    FSIGNAL pf[n_spin];
+
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        int* const pix_buf = pixel_buf_man.data_ptr[i_det];
+        FSIGNAL* const proj_buf = proj_buf_man.data_ptr[i_det];
+        const int step = pixel_buf_man.steps[0];
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
+            accumulator.SpinProjFactors(coords, pf);
+
+            pix_buf[i_time * step] = pixel_offset;
+            for (int i_spin = 0; i_spin < n_spin; i_spin++)
+                proj_buf[i_time * proj_buf_man.steps[0] +
+                         i_spin * proj_buf_man.steps[1]] = pf[i_spin];
+        }
+    }
+
+    return bp::make_tuple(pixel_buf_man.ret_val,
+                          proj_buf_man.ret_val);
+}
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
@@ -1120,6 +1168,7 @@ typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
     .def("from_map", &CLASSNAME::from_map)                              \
     .def("coords", &CLASSNAME::coords)                                  \
     .def("pixels", &CLASSNAME::pixels)                                  \
+    .def("pointing_matrix", &CLASSNAME::pointing_matrix)                \
     .def("pixel_ranges", &CLASSNAME::pixel_ranges);
 
 PYBINDINGS("so3g")

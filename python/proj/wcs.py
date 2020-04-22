@@ -158,6 +158,23 @@ class Projectionist:
         q1 = self._get_cached_q(assembly.Q)
         return projeng.pixels(q1, assembly.dets, None)
 
+    def get_pointing_matrix(self, assembly):
+        """Get the pointing matrix information, which is to say both the pixel
+        indices and the "spin projection factors" for the provided
+        pointing Assembly.  Returns (pixel_indices, spin_proj) where
+        pixel_indices is a list of int32 arrays of shape [n_time] and
+        spin_proj is a list of float arrays of shape [n_time,
+        n_component].  As an alternative to on-the-fly computation,
+        this information can be cached and used for very fast
+        projection operations.
+
+        See class documentation for description of standard arguments.
+
+        """
+        projeng = self.get_ProjEng('TQU')
+        q1 = self._get_cached_q(assembly.Q)
+        return projeng.pointing_matrix(q1, assembly.dets, None, None)
+
     def get_coords(self, assembly, use_native=False):
         """Get the spherical coordinates for the provided pointing Assembly.
         For each detector, a float64 array of shape [n_time,4] is
