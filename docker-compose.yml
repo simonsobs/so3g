@@ -4,9 +4,3 @@ services:
   so3g:
     image: "so3g"
     build: .
-
-  so3g-jupyter:
-    image: "so3g-jupyter"
-    build: ./docker/so3g-jupyter/
-    depends_on:
-      - so3g
