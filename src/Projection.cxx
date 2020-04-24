@@ -563,19 +563,18 @@ void Accumulator<SpinClass>::Reverse(
 
 template <typename DTYPE>
 bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
-                                   int dtype, std::vector<int> dims)
+                                   int dtype)
 {
-    // The first axis is special; identify it with detector count.
-    int n_det = dims[0];
-
     // We want a list of arrays here.
     bp::list sig_list;
     auto list_extractor = bp::extract<bp::list>(input);
     if (isNone(input)) {
+        if (dims[0] < 0)
+            throw shape_exception(var_name, "Need to pass valid n_det (>0) or valid input object.");
         npy_intp _dims[dims.size()];
         for (int d=0; d<dims.size(); ++d)
             _dims[d] = dims[d];
-        for (int i=0; i<n_det; ++i) {
+        for (int i=0; i<dims[0]; ++i) {
             PyObject *v = PyArray_ZEROS(dims.size()-1, _dims+1, dtype, 0);
             sig_list.append(bp::object(bp::handle<>(v)));
         }
@@ -588,8 +587,14 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
     }
     ret_val = sig_list;
 
-    if (bp::len(sig_list) != n_det)
+    if (dims[0] == -1) {
+        dims[0] = bp::len(sig_list);
+        if (dims[0] == 0)
+            throw shape_exception(var_name, "has not been tested on shape 0 objects");
+    } else if (bp::len(sig_list) != dims[0])
         throw shape_exception(var_name, "must contain (n_det) vectors"); 
+
+    const int n_det = dims[0];
 
     // Now extract each list member into our vector of BufferWrappers..
     data_ptr = (DTYPE**)calloc(n_det, sizeof(*data_ptr));
@@ -609,7 +614,9 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
         if (strcmp(bw[i].view.format, bw[0].view.format) != 0)
             throw dtype_exception(var_name, "[all elements must have same type]");
         for (int d=0; d<dims.size() - 1; ++d) {
-            if (bw[i].view.shape[d] != dims[d+1])
+            if (dims[d+1] == -1)
+                dims[d+1] = bw[i].view.shape[d];
+            else if (bw[i].view.shape[d] != dims[d+1])
                 throw shape_exception(var_name, "must have right shape in all dimensions");
             if (bw[i].view.strides[d] != bw[0].view.strides[d])
                 throw shape_exception(var_name, "[all elements must have same stride]");
@@ -622,11 +629,9 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
         throw dtype_exception(var_name, "[itemsize does not match expectation]");
 
     // Check the stride and store the step in units of the itemsize.
-    //steps.empty();
     for (int d=0; d<dims.size()-1; d++) {
         if (bw[0].view.strides[d] % bw[0].view.itemsize != 0)
             throw shape_exception(var_name, "stride is non-integral; realign.");
-        //steps.push_back(bw[0].view.strides[d] / bw[0].view.itemsize);
         steps[d] = bw[0].view.strides[d] / bw[0].view.itemsize;
     }
     return true;
@@ -636,8 +641,8 @@ template <typename DTYPE>
 SignalSpace<DTYPE>::SignalSpace(
     bp::object input, std::string var_name, int dtype, int n_det, int n_time)
 {
-    vector<int> dims = {n_det, n_time};
-    _Validate(input, var_name, dtype, dims);
+    dims = {n_det, n_time};
+    _Validate(input, var_name, dtype);
 }
 
 template <typename DTYPE>
@@ -645,8 +650,8 @@ SignalSpace<DTYPE>::SignalSpace(
     bp::object input, std::string var_name, int dtype, int n_det, int n_time,
     int n_thirdaxis)
 {
-    vector<int> dims = {n_det, n_time, n_thirdaxis};
-    _Validate(input, var_name, dtype, dims);
+    dims = {n_det, n_time, n_thirdaxis};
+    _Validate(input, var_name, dtype);
 }
 
 
@@ -1017,8 +1022,6 @@ bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
     auto proj_buf_man = SignalSpace<FSIGNAL>(
         proj, "proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
 
-    FSIGNAL pf[n_spin];
-
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
@@ -1028,6 +1031,7 @@ bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
         const int step = pixel_buf_man.steps[0];
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
+            FSIGNAL pf[n_spin];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             int pixel_offset = _pixelizor.GetPixel(i_det, i_time, (double*)coords);
             accumulator.SpinProjFactors(coords, pf);
@@ -1159,6 +1163,222 @@ typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinQU>>
 typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
   ProjEng_ZEA_TQU;
 
+
+/*
+ * We also have a generic ProjEng_Precomp, which is basically what you
+ * can use if you have precomputed pixel index and spin projection
+ * factors for every sample.  This is agnostic of coordinate system,
+ * and so not crazily templated.
+ */
+
+bp::object ProjEng_Precomp::to_map(
+    bp::object map, bp::object pixel_index, bp::object spin_proj,
+    bp::object signal, bp::object det_weights)
+{
+    /* You won't get far without pixel_index, so use that to nail down
+     * the n_time and n_det. */
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel_index, "pixel_index", NPY_INT32, -1, -1);
+
+    int n_det = pixel_buf_man.dims[0];
+    int n_time = pixel_buf_man.dims[1];
+
+    auto signal_man = SignalSpace<FSIGNAL>(
+        signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+
+    BufferWrapper map_buf;
+    if (PyObject_GetBuffer(map.ptr(), &map_buf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("map");
+    }
+    int n_spin = map_buf.view.shape[0];
+
+    auto spin_proj_man = SignalSpace<FSIGNAL>(
+        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
+
+    BufferWrapper _det_weights;
+    if (det_weights.ptr() != Py_None) {
+        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("det_weights");
+        }
+        if (_det_weights.view.ndim != 1 ||
+            _det_weights.view.shape[0] != n_det)
+            throw shape_exception("det_weights", "must have shape (n_det).");
+        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
+            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
+        }
+    }
+
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        FSIGNAL det_wt = 1.;
+        if (_det_weights.view.obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
+                                      pixel_buf_man.steps[0]*i_time);
+            if (pixel_index < 0)
+                continue;
+            const FSIGNAL sig = *(signal_man.data_ptr[i_det] +
+                                  signal_man.steps[0]*i_time);
+            for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
+                FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
+                               spin_proj_man.steps[0] * i_time +
+                               spin_proj_man.steps[1] * i_spin);
+                ((double*)map_buf.view.buf)[pixel_index +
+                                             map_buf.view.strides[0] * i_spin / sizeof(double)]
+                    += det_wt * sig * sp;
+            }
+        }
+    }
+
+    return map;
+}
+
+
+bp::object ProjEng_Precomp::to_weight_map(
+    bp::object map, bp::object pixel_index, bp::object spin_proj,
+    bp::object signal, bp::object det_weights)
+{
+    /* You won't get far without pixel_index, so use that to nail down
+     * the n_time and n_det. */
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel_index, "pixel_index", NPY_INT32, -1, -1);
+
+    int n_det = pixel_buf_man.dims[0];
+    int n_time = pixel_buf_man.dims[1];
+
+    auto signal_man = SignalSpace<FSIGNAL>(
+        signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+
+    BufferWrapper map_buf;
+    if (PyObject_GetBuffer(map.ptr(), &map_buf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("map");
+    }
+    int n_spin = map_buf.view.shape[0];
+
+    auto spin_proj_man = SignalSpace<FSIGNAL>(
+        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
+
+    BufferWrapper _det_weights;
+    if (det_weights.ptr() != Py_None) {
+        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("det_weights");
+        }
+        if (_det_weights.view.ndim != 1 ||
+            _det_weights.view.shape[0] != n_det)
+            throw shape_exception("det_weights", "must have shape (n_det).");
+        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
+            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
+        }
+    }
+
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        FSIGNAL det_wt = 1.;
+        if (_det_weights.view.obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
+                                      pixel_buf_man.steps[0]*i_time);
+            if (pixel_index < 0)
+                continue;
+            const FSIGNAL sig = *(signal_man.data_ptr[i_det] +
+                                  signal_man.steps[0]*i_time);
+            FSIGNAL *sp = (spin_proj_man.data_ptr[i_det] +
+                           spin_proj_man.steps[0] * i_time);
+            for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
+                for (int j_spin = i_spin; j_spin < n_spin; ++j_spin) {
+                    ((double*)map_buf.view.buf)[pixel_index +
+                                                (map_buf.view.strides[0] * i_spin +
+                                                 map_buf.view.strides[1] * j_spin) / sizeof(double)]
+                        += det_wt * sp[spin_proj_man.steps[1] * i_spin] *
+                        sp[spin_proj_man.steps[1] * j_spin];
+                }
+            }
+        }
+    }
+
+    return map;
+}
+
+
+bp::object ProjEng_Precomp::from_map(
+    bp::object map, bp::object pixel_index, bp::object spin_proj,
+    bp::object signal, bp::object det_weights)
+{
+    /* You won't get far without pixel_index, so use that to nail down
+     * the n_time and n_det. */
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel_index, "pixel_index", NPY_INT32, -1, -1);
+
+    int n_det = pixel_buf_man.dims[0];
+    int n_time = pixel_buf_man.dims[1];
+
+    auto signal_man = SignalSpace<FSIGNAL>(
+        signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+
+    BufferWrapper map_buf;
+    if (PyObject_GetBuffer(map.ptr(), &map_buf.view,
+                           PyBUF_RECORDS) == -1) {
+        PyErr_Clear();
+        throw buffer_exception("map");
+    }
+    int n_spin = map_buf.view.shape[0];
+
+    auto spin_proj_man = SignalSpace<FSIGNAL>(
+        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
+
+    BufferWrapper _det_weights;
+    if (det_weights.ptr() != Py_None) {
+        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
+                               PyBUF_RECORDS) == -1) {
+            PyErr_Clear();
+            throw buffer_exception("det_weights");
+        }
+        if (_det_weights.view.ndim != 1 ||
+            _det_weights.view.shape[0] != n_det)
+            throw shape_exception("det_weights", "must have shape (n_det).");
+        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
+            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
+        }
+    }
+
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        FSIGNAL det_wt = 1.;
+        if (_det_weights.view.obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
+                                      pixel_buf_man.steps[0]*i_time);
+            if (pixel_index < 0)
+                continue;
+            FSIGNAL sig = 0;
+            for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
+                FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
+                               spin_proj_man.steps[0] * i_time +
+                               spin_proj_man.steps[1] * i_spin);
+                sig += sp * ((double*)map_buf.view.buf)[
+                    pixel_index + map_buf.view.strides[0] * i_spin / sizeof(double)];
+            }
+            *(signal_man.data_ptr[i_det] + signal_man.steps[0]*i_time) += sig;
+        }
+    }
+
+    return signal_man.ret_val;
+}
+
+
+
 #define EXPORT_ENGINE(CLASSNAME)                                        \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_Flat>())      \
     .def("to_map", &CLASSNAME::to_map)                                  \
@@ -1170,6 +1390,13 @@ typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
     .def("pixels", &CLASSNAME::pixels)                                  \
     .def("pointing_matrix", &CLASSNAME::pointing_matrix)                \
     .def("pixel_ranges", &CLASSNAME::pixel_ranges);
+
+#define EXPORT_PRECOMP(CLASSNAME)                                       \
+    bp::class_<CLASSNAME>(#CLASSNAME)                                   \
+    .def("to_map", &CLASSNAME::to_map)                                  \
+    .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
+    .def("from_map", &CLASSNAME::from_map);
+
 
 PYBINDINGS("so3g")
 {
@@ -1191,6 +1418,9 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjEng_ZEA_T);
     EXPORT_ENGINE(ProjEng_ZEA_QU);
     EXPORT_ENGINE(ProjEng_ZEA_TQU);
+
+    EXPORT_PRECOMP(ProjEng_Precomp);
+
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double>())
         .def("zeros", &Pixelizor2_Flat::zeros);

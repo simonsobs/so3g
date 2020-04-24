@@ -91,13 +91,14 @@ public:
     // inner loop (even if it's inlined, the compiler might worry).
     DTYPE **data_ptr = NULL;
     int steps[64];
+    vector<int> dims;
 
     vector<BufferWrapper> bw;
     bp::object ret_val;
 
 private:
     bool _Validate(bp::object input, std::string var_name,
-                   int dtype, std::vector<int> dims);
+                   int dtype);
 };
 
 
@@ -186,4 +187,16 @@ public:
     bp::object pixel_ranges(bp::object pbore, bp::object pofs);
 private:
     Z _pixelizor;
+};
+
+
+class ProjEng_Precomp {
+public:
+    ProjEng_Precomp() {};
+    bp::object to_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
+                      bp::object signal, bp::object weights);
+    bp::object to_weight_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
+                             bp::object signal, bp::object weights);
+    bp::object from_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
+                        bp::object signal, bp::object weights);
 };

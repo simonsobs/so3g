@@ -144,6 +144,42 @@ if 1:
     assert abs(map2 - map2o).max() == 0
     print('yes')
 
+
+if 1:
+    print('Cache pointing matrix.', end='\n ...')
+    with Timer() as T:
+        pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
+
+    print('Forward project using precomputed pointing matrix.',
+          end='\n ...')
+    pp = so3g.ProjEng_Precomp()
+    map1p = pxz.zeros(3)
+    with Timer() as T:
+        pp.to_map(map1p, pix_idx, spin_proj, sig_list, None)
+
+    print('and also weights', end='\n ... ')
+    map2p = np.zeros((3,3) + pxz.zeros(1).shape[1:])
+    with Timer() as T:
+        map2p = pp.to_weight_map(map2p,pix_idx,spin_proj,None,None)
+
+    print('Checking that precomp and on-the-fly forward calcs agree: ',
+          end='\n ... ')
+    assert abs(map1 - map1p).max() == 0
+    assert abs(map2 - map2p).max() == 0
+    print('yes')
+
+    print('Reverse projection using precomputed pointing',
+          end='\n ...')
+    with Timer() as T:
+        sig1p = pp.from_map(map1, pix_idx, spin_proj, None, None)
+
+    print('Checking that it agrees with on-the-fly',
+          end='\n ...')
+    sig1 = pe.from_map(map1, ptg, ofs, None, None)
+    thresh = map1[0].std() * 1e-6
+    assert max([np.abs(a - b).max() for a, b in zip(sig1, sig1p)]) < thresh
+    print('yes')
+
 print('Plotting...')
 import pylab as pl
 gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
