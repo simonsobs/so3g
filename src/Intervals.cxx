@@ -269,27 +269,13 @@ template <typename T>
 Intervals<T> Intervals<T>::from_array(const bp::object &src)
 {
     Intervals<T> output;
+    BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
 
-    // Get a view...
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(src.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    } 
-
-    if (buf.view.ndim != 2 || buf.view.shape[1] != 2)
-        throw shape_exception("src", "must have shape (n,2)");
-
-    int dtype = format_to_dtype(buf.view);
-    if (dtype != get_dtype<T>())
-        throw dtype_exception("src", "matching Interval class");
-
-    char *d = (char*)buf.view.buf;
-    int n_seg = buf.view.shape[0];
+    char *d = (char*)buf.view->buf;
+    int n_seg = buf.view->shape[0];
     for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
-        d += buf.view.strides[0];
+        output.segments.push_back(interval_pair<T>(d, d+buf.view->strides[1]));
+        d += buf.view->strides[0];
     }
     
     return output;
@@ -391,20 +377,15 @@ static inline bp::object from_mask_(void *buf, intType count, int n_bits)
 template <typename T>
 bp::object Intervals<T>::from_mask(const bp::object &src, int n_bits)
 {
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(src.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
+    BufferWrapper<T> buf("src", src, false);
 
-    if (buf.view.ndim != 1)
+    if (buf.view->ndim != 1)
         throw shape_exception("src", "must be 1-d");
 
-    int p_count = buf.view.shape[0];
-    void *p = buf.view.buf;
+    int p_count = buf.view->shape[0];
+    void *p = buf.view->buf;
 
-    int dtype = format_to_dtype(buf.view);
+    int dtype = format_to_dtype(*buf.view);
     switch(dtype) {
     case NPY_UINT8:
     case NPY_INT8:

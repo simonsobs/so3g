@@ -255,27 +255,13 @@ template <typename T>
 Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
 {
     Ranges<T> output;
+    BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
 
-    // Get a view...
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(src.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
-
-    if (buf.view.ndim != 2 || buf.view.shape[1] != 2)
-        throw shape_exception("src", "must have shape (n,2)");
-
-    int dtype = format_to_dtype(buf.view);
-    if (dtype != get_dtype<T>())
-        throw dtype_exception("src", "matching Interval class");
-
-    char *d = (char*)buf.view.buf;
-    int n_seg = buf.view.shape[0];
+    char *d = (char*)buf.view->buf;
+    int n_seg = buf.view->shape[0];
     for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
-        d += buf.view.strides[0];
+        output.segments.push_back(interval_pair<T>(d, d+buf.view->strides[1]));
+        d += buf.view->strides[0];
     }
     output.count = count;
 
@@ -368,7 +354,7 @@ bp::object Ranges<T>::from_bitmask(const bp::object &src, int n_bits)
 {
     // Buffer protocol doesn't work directly on bool arrays, so if
     // what we've been passed is definitely a bool array, get a view
-    // of it as a uint8 array and work with thtat.  (Wrap it with
+    // of it as a uint8 array and work with that.  (Wrap it with
     // bp::object so references are counted properly.)
     bp::object target(src);
     PyObject* obj_ptr = target.ptr();
@@ -378,20 +364,15 @@ bp::object Ranges<T>::from_bitmask(const bp::object &src, int n_bits)
             target = bp::object(bp::handle<>(obj_ptr));
         }
 
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(target.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
+    BufferWrapper<T> buf("src", target, false);
 
-    if (buf.view.ndim != 1)
+    if (buf.view->ndim != 1)
         throw shape_exception("src", "must be 1-d");
 
-    int p_count = buf.view.shape[0];
-    void *p = buf.view.buf;
+    int p_count = buf.view->shape[0];
+    void *p = buf.view->buf;
 
-    int dtype = format_to_dtype(buf.view);
+    int dtype = format_to_dtype(*buf.view);
     switch(dtype) {
     case NPY_BOOL:
     case NPY_UINT8:

@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#include "numpy_assist.h"
+
 using namespace std;
 namespace bp = boost::python;
 
