@@ -1,5 +1,6 @@
 #include <boost/python.hpp>
 #include "exceptions.h"
+#include "numpy_assist.h"
 
 namespace bp = boost::python;
 
@@ -10,8 +11,6 @@ typedef float FSIGNAL;
 #define FSIGNAL_NPY_TYPE NPY_FLOAT32
 #define FSIGNAL_BUFFER_FORMAT "f"
 
-
-class BufferWrapper;
 
 /** ProjectionOptimizer is the base class for our optimization model.
  *
@@ -52,8 +51,8 @@ public:
     int TimeCount() { return n_time; }
     void GetCoords(int i_det, int i_time, const double *dofs, double *coords);
 private:
-    BufferWrapper _pborebuf;
-    BufferWrapper _pdetbuf;
+    BufferWrapper<double> _pborebuf;
+    BufferWrapper<double> _pdetbuf;
     int n_det;
     int n_time;
 };
@@ -93,7 +92,7 @@ public:
     int steps[64];
     vector<int> dims;
 
-    vector<BufferWrapper> bw;
+    vector<BufferWrapper<DTYPE>> bw;
     bp::object ret_val;
 
 private:
@@ -159,8 +158,8 @@ protected:
     bool need_weight_map = false;
     int n_det = 0;
     int n_time = 0;
-    BufferWrapper _mapbuf;
-    BufferWrapper _det_weights;
+    BufferWrapper<double> _mapbuf;
+    BufferWrapper<FSIGNAL> _det_weights;
 };
 
 template<typename P, typename Z, typename A>

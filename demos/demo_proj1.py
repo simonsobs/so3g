@@ -14,6 +14,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--system', '-s',
                     choices=proj_dict.keys(),
                     default=list(proj_dict.keys())[0])
+parser.add_argument('--n-det', '-d',
+                    type=int, default=2000)
+parser.add_argument('--n-time', '-t',
+                    type=int, default=25000)
 args = parser.parse_args()
 system = args.system
 print('Using system: %s' % system)
@@ -22,8 +26,8 @@ print('Using system: %s' % system)
 pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0)
 
 # Samples
-n_det = 2000
-n_t = 25000
+n_det = args.n_det
+n_t = args.n_time
 
 # Boresight
 phi = np.arange(n_t) / n_t * 6.28 * 3
@@ -175,9 +179,9 @@ if 1:
 
     print('Checking that it agrees with on-the-fly',
           end='\n ...')
-    sig1 = pe.from_map(map1, ptg, ofs, None, None)
+    sig1f = pe.from_map(map1, ptg, ofs, None, None)
     thresh = map1[0].std() * 1e-6
-    assert max([np.abs(a - b).max() for a, b in zip(sig1, sig1p)]) < thresh
+    assert max([np.abs(a - b).max() for a, b in zip(sig1f, sig1p)]) < thresh
     print('yes')
 
 print('Plotting...')
@@ -190,5 +194,5 @@ for axi in range(3):
     ax.set_title('TQU'[axi])
 
 ax = pl.subplot(gs1[1,:])
-ax.plot(sig1[0,500])
+ax.plot(sig1[0])
 pl.show()

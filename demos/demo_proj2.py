@@ -17,6 +17,10 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--system', '-s', choices=proj_dict.keys(),
                     default=list(proj_dict.keys())[0])
+parser.add_argument('--n-det', '-d',
+                    type=int, default=2000)
+parser.add_argument('--n-time', '-t',
+                    type=int, default=25000)
 parser.add_argument('--no-plots', action='store_true')
 parser.add_argument('--uniform-weights', action='store_true')
 args = parser.parse_args()
@@ -53,8 +57,8 @@ def get_pixelizor(emap):
 pxz = get_pixelizor(beam)
 
 # Our dummy observation.
-n_det = 200
-n_t = 100000
+n_det = args.n_det
+n_t = args.n_time
 print('TOD size: %i x %i = %.1fM' % (n_det, n_t, n_det*n_t/1e6))
 
 # Boresight motion, in degrees, rough projection.
@@ -108,8 +112,8 @@ else:
     det_weights = np.ones(n_det, 'float32') * \
         np.random.uniform(.3, 1.8, size=n_det).astype('float32')
     # Make at least one bad detector or it's not a good test:
-    sig1[30] *= 1e3        # This will stripe...
-    det_weights[30] = 0.0  # ... unless we mark it as noisy.
+    sig1[n_det//2] *= 1e3        # This will stripe...
+    det_weights[n_det//2] = 0.0  # ... unless we mark it as noisy.
 
 # Then back to map.
 print('Create timestream...', end='\n ... ')

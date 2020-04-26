@@ -50,7 +50,7 @@ add_library(so3g SHARED
   src/Butterworth.cxx
   src/Ranges.cxx
   src/Rebundler.cxx
-#  src/Projection.cxx
+  src/Projection.cxx
   src/exceptions.cxx
 )
 

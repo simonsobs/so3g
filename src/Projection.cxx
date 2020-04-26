@@ -33,31 +33,12 @@ bool Pointer<CoordSys>::TestInputs(
     bp::object &signal, bp::object &det_weights)
 {
     // Boresight and Detector must present and inter-compatible.
-
-    if (PyObject_GetBuffer(pbore.ptr(), &_pborebuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("pbore");
-    }
-    if (PyObject_GetBuffer(pdet.ptr(), &_pdetbuf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("pdet");
-    }
-
-    if (_pborebuf.view.ndim != 2)
-        throw shape_exception("pbore", "must have shape (n_t,n_coord)");
-    if (_pdetbuf.view.ndim != 2)
-        throw shape_exception("pdet", "must have shape (n_det,n_coord)");
-
-    if (_pborebuf.view.shape[1] != 4)
-        throw shape_exception("pbore", "must have shape (n_t,4)");
-    if (_pdetbuf.view.shape[1] != 4)
-        throw shape_exception("pdet", "must have shape (n_det,4)");
-
-    n_time = _pborebuf.view.shape[0];
-    n_det = _pdetbuf.view.shape[0];
-
+    _pborebuf = BufferWrapper<double>("boresight", pbore, false,
+                                      vector<int>{-1, 4});
+    _pdetbuf = BufferWrapper<double>("detectors", pdet, false,
+                                     vector<int>{-1, 4});
+    n_time = _pborebuf.view->shape[0];
+    n_det = _pdetbuf.view->shape[0];
     return true;
 }
 
@@ -65,10 +46,10 @@ template <typename CoordSys>
 inline
 void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
 {
-    const char *det = (char*)_pdetbuf.view.buf
-        + _pdetbuf.view.strides[0] * i_det;
+    const char *det = (char*)_pdetbuf.view->buf
+        + _pdetbuf.view->strides[0] * i_det;
     for (int ic = 0; ic < 4; ++ic)
-        dofs[ic] = *(double*)(det + _pdetbuf.view.strides[1] * ic);
+        dofs[ic] = *(double*)(det + _pdetbuf.view->strides[1] * ic);
 }
 
 /* ProjQuat: Not a projection -- returns the quaternion rotation
@@ -82,9 +63,9 @@ void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
-                            _pborebuf.view.strides[0] * i_time +
-                            _pborebuf.view.strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
+                            _pborebuf.view->strides[0] * i_time +
+                            _pborebuf.view->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -102,9 +83,9 @@ void Pointer<ProjFlat>::GetCoords(int i_det, int i_time,
                                   const double *dofs, double *coords)
 {
     for (int ic=0; ic<4; ic++)
-        coords[ic] = *(double*)((char*)_pborebuf.view.buf +
-                                _pborebuf.view.strides[0] * i_time +
-                                _pborebuf.view.strides[1] * ic);
+        coords[ic] = *(double*)((char*)_pborebuf.view->buf +
+                                _pborebuf.view->strides[0] * i_time +
+                                _pborebuf.view->strides[1] * ic);
     coords[0] += dofs[0];
     coords[1] += dofs[1];
     const double coords_2_ = coords[2];
@@ -126,9 +107,9 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
-                            _pborebuf.view.strides[0] * i_time +
-                            _pborebuf.view.strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
+                            _pborebuf.view->strides[0] * i_time +
+                            _pborebuf.view->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -171,9 +152,9 @@ void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
-                            _pborebuf.view.strides[0] * i_time +
-                            _pborebuf.view.strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
+                            _pborebuf.view->strides[0] * i_time +
+                            _pborebuf.view->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -208,9 +189,9 @@ void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
-                            _pborebuf.view.strides[0] * i_time +
-                            _pborebuf.view.strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
+                            _pborebuf.view->strides[0] * i_time +
+                            _pborebuf.view->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -245,9 +226,9 @@ void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
-                            _pborebuf.view.strides[0] * i_time +
-                            _pborebuf.view.strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
+                            _pborebuf.view->strides[0] * i_time +
+                            _pborebuf.view->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -281,9 +262,9 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view.buf +
-                            _pborebuf.view.strides[0] * i_time +
-                            _pborebuf.view.strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
+                            _pborebuf.view->strides[0] * i_time +
+                            _pborebuf.view->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -328,24 +309,15 @@ bool Pixelizor2_Flat::TestInputs(bp::object &map, bp::object &pbore, bp::object 
     // 1. Map has the right shape -- but map can be none.
     // 2. Coords have the right format (unchecked currently).
 
-    if (!isNone(map)) {
-        BufferWrapper mapbuf;
-        if (PyObject_GetBuffer(map.ptr(), &mapbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("map");
-        }
-        int ndim = mapbuf.view.ndim;
-        if (mapbuf.view.ndim < 2)
-            throw shape_exception("map", "must have shape (...,n_y,n_x)");
-        if (mapbuf.view.shape[ndim-2] != naxis[0])
-            throw shape_exception("map", "dimension -2 must match naxis[0]");
-        if (mapbuf.view.shape[ndim-1] != naxis[1])
-            throw shape_exception("map", "dimension -1 must match naxis[1]");
-
+    // If map is provided, it can have any number of leading
+    // dimensions but the last two dimensions must match naxis.
+    BufferWrapper<double> mapbuf("map", map, true,
+                                 vector<int>{-2,naxis[0],naxis[1]});
+    if (mapbuf.view->buf != NULL) {
         // Note these are byte offsets, not index.
-        strides[0] = mapbuf.view.strides[ndim-2];
-        strides[1] = mapbuf.view.strides[ndim-1];
+        int ndim = mapbuf.view->ndim;
+        strides[0] = mapbuf.view->strides[ndim-2];
+        strides[1] = mapbuf.view->strides[ndim-1];
     } else {
         // Set it up to return naive C-ordered pixel indices.
         strides[0] = naxis[1];
@@ -411,27 +383,15 @@ bool Accumulator<SpinClass>::TestInputs(
 {
     const int N = SpinClass::comp_count;
     if (need_map) {
-        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("map");
-        }
-        if (_mapbuf.view.ndim < 2)
-            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
-
-        if (_mapbuf.view.shape[0] != N)
-            throw shape_exception("map", "must have shape (n_comp,n_axis0,...)");
+        // The map is mandatory, and the leading axis must match the
+        // component count.  It can have 1+ other dimensions.
+        _mapbuf = BufferWrapper<double>("map", map, false,
+                                        vector<int>{N,-1,-3});
     } else if (need_weight_map) {
-        if (PyObject_GetBuffer(map.ptr(), &_mapbuf.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("map");
-        }
-        if (_mapbuf.view.ndim < 3)
-            throw shape_exception("map", "must have shape (n_map,n_axis0,...)");
-        if (_mapbuf.view.shape[0] != N ||
-            _mapbuf.view.shape[1] != N)
-            throw shape_exception("map", "must have shape (n_comp,n_comp,n_axis0,...)");
+        // The map is mandatory, and the two leading axes must match
+        // the component count.  It can have 1+ other dimensions.
+        _mapbuf = BufferWrapper<double>("map", map, false,
+                                        vector<int>{N,N,-1,-3});
     }
 
     if (need_signal) {
@@ -439,21 +399,8 @@ bool Accumulator<SpinClass>::TestInputs(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     }
 
-    // det_weights, if it is passed in at all, should be same type as
-    // signal but shape (n_det).
-    if (det_weights.ptr() != Py_None) {
-        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("det_weights");
-        }
-        if (_det_weights.view.ndim != 1 ||
-            _det_weights.view.shape[0] != n_det)
-            throw shape_exception("det_weights", "must have shape (n_det).");
-        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
-            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
-        }
-    }
+     _det_weights = BufferWrapper<FSIGNAL>(
+         "det_weights", det_weights, true, vector<int>{n_det});
 
     return true;
 }
@@ -500,16 +447,16 @@ void Accumulator<SpinClass>::Forward(
                           _signalspace->steps[0]*i_time);
 
     FSIGNAL det_wt = 1.;
-    if (_det_weights.view.obj != NULL)
-        det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf +
-                             _det_weights.view.strides[0]*i_det);
+    if (_det_weights.view->obj != NULL)
+        det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf +
+                             _det_weights.view->strides[0]*i_det);
 
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
     SpinProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
-        *(double*)((char*)_mapbuf.view.buf +
-                   _mapbuf.view.strides[0]*imap +
+        *(double*)((char*)_mapbuf.view->buf +
+                   _mapbuf.view->strides[0]*imap +
                    pixel_offset) += sig * pf[imap] * det_wt;
     }
 }
@@ -523,17 +470,17 @@ void Accumulator<SpinClass>::ForwardWeight(
     if (pixel_offset < 0) return;
 
     FSIGNAL det_wt = 1.;
-    if (_det_weights.view.obj != NULL)
-        det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+    if (_det_weights.view->obj != NULL)
+        det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
 
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
     SpinProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
         for (int jmap=imap; jmap<N; ++jmap) {
-            *(double*)((char*)_mapbuf.view.buf +
-                       _mapbuf.view.strides[0]*imap +
-                       _mapbuf.view.strides[1]*jmap +
+            *(double*)((char*)_mapbuf.view->buf +
+                       _mapbuf.view->strides[0]*imap +
+                       _mapbuf.view->strides[1]*jmap +
                        pixel_offset) += pf[imap] * pf[jmap] * det_wt;
         }
     }
@@ -551,8 +498,8 @@ void Accumulator<SpinClass>::Reverse(
     SpinProjFactors(coords, pf);
     double _sig = 0.;
     for (int imap=0; imap<N; ++imap) {
-        _sig += *(double*)((char*)_mapbuf.view.buf +
-                           _mapbuf.view.strides[0]*imap +
+        _sig += *(double*)((char*)_mapbuf.view->buf +
+                           _mapbuf.view->strides[0]*imap +
                            pixel_offset) * pf[imap];
     }
     FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
@@ -569,11 +516,12 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
     bp::list sig_list;
     auto list_extractor = bp::extract<bp::list>(input);
     if (isNone(input)) {
-        if (dims[0] < 0)
-            throw shape_exception(var_name, "Need to pass valid n_det (>0) or valid input object.");
         npy_intp _dims[dims.size()];
-        for (int d=0; d<dims.size(); ++d)
+        for (int d=0; d<dims.size(); ++d) {
+            if (dims[d] < 0)
+                throw shape_exception(var_name, "Cannot create space with wildcard dimensons.");
             _dims[d] = dims[d];
+        }
         for (int i=0; i<dims[0]; ++i) {
             PyObject *v = PyArray_ZEROS(dims.size()-1, _dims+1, dtype, 0);
             sig_list.append(bp::object(bp::handle<>(v)));
@@ -600,39 +548,33 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
     data_ptr = (DTYPE**)calloc(n_det, sizeof(*data_ptr));
 
     bw.reserve(n_det);
-    for (int i=0; i<n_det; i++) {
-        bw.push_back(BufferWrapper());
-        BufferWrapper &_bw = bw[i];
-        bp::object item = bp::extract<bp::object>(sig_list[i])();
-        if (PyObject_GetBuffer(item.ptr(),
-                               &_bw.view, PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception(var_name);
-        }
-        if (_bw.view.ndim != dims.size() - 1)
-            throw shape_exception(var_name, "must have the right number of dimsons");
-        if (strcmp(bw[i].view.format, bw[0].view.format) != 0)
-            throw dtype_exception(var_name, "[all elements must have same type]");
-        for (int d=0; d<dims.size() - 1; ++d) {
-            if (dims[d+1] == -1)
-                dims[d+1] = bw[i].view.shape[d];
-            else if (bw[i].view.shape[d] != dims[d+1])
-                throw shape_exception(var_name, "must have right shape in all dimensions");
-            if (bw[i].view.strides[d] != bw[0].view.strides[d])
-                throw shape_exception(var_name, "[all elements must have same stride]");
-        }
-        data_ptr[i] = (DTYPE*)bw[i].view.buf;
-    }
-    // Check the dtype
-    // FIXME; this does not check the dtype, it only checks the sizes.
-    if (bw[0].view.itemsize != sizeof(DTYPE))
-        throw dtype_exception(var_name, "[itemsize does not match expectation]");
 
-    // Check the stride and store the step in units of the itemsize.
+    // Copy dims[1:] into sub_dims; potentially update sub_dims during
+    // extraction, then copy those back into dims.
+    vector<int> sub_dims(dims.begin()+1, dims.end());
+
+    for (int i=0; i<n_det; i++) {
+        bp::object item = bp::extract<bp::object>(sig_list[i])();
+        bw.push_back(BufferWrapper<DTYPE>(var_name, item, false, sub_dims));
+        if (i == 0) {
+            sub_dims.clear();
+            for (int d=0; d<bw[0].view->ndim; d++)
+                sub_dims.push_back(bw[0].view->shape[d]);
+        } else {
+            for (int d=0; d<sub_dims.size(); ++d) {
+                if (bw[i].view->strides[d] != bw[0].view->strides[d])
+                    throw shape_exception(var_name, "[all elements must have same stride]");
+            }
+        }
+        data_ptr[i] = (DTYPE*)bw[i].view->buf;
+    }
+
+    // Store the step in units of the itemsize; update dims from sub_dims.
     for (int d=0; d<dims.size()-1; d++) {
-        if (bw[0].view.strides[d] % bw[0].view.itemsize != 0)
+        dims[d+1] = sub_dims[d];
+        if (bw[0].view->strides[d] % bw[0].view->itemsize != 0)
             throw shape_exception(var_name, "stride is non-integral; realign.");
-        steps[d] = bw[0].view.strides[d] / bw[0].view.itemsize;
+        steps[d] = bw[0].view->strides[d] / bw[0].view->itemsize;
     }
     return true;
 }
@@ -1186,36 +1128,20 @@ bp::object ProjEng_Precomp::to_map(
     auto signal_man = SignalSpace<FSIGNAL>(
         signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
-    BufferWrapper map_buf;
-    if (PyObject_GetBuffer(map.ptr(), &map_buf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    }
-    int n_spin = map_buf.view.shape[0];
+    BufferWrapper<double> map_buf("map", map, false,
+                                  vector<int>{-1,-3});
+    int n_spin = map_buf.view->shape[0];
 
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
 
-    BufferWrapper _det_weights;
-    if (det_weights.ptr() != Py_None) {
-        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("det_weights");
-        }
-        if (_det_weights.view.ndim != 1 ||
-            _det_weights.view.shape[0] != n_det)
-            throw shape_exception("det_weights", "must have shape (n_det).");
-        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
-            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
-        }
-    }
+    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
+                                        vector<int>{n_det});
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights.view.obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+        if (_det_weights.view->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
@@ -1228,8 +1154,8 @@ bp::object ProjEng_Precomp::to_map(
                 FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
                                spin_proj_man.steps[0] * i_time +
                                spin_proj_man.steps[1] * i_spin);
-                ((double*)map_buf.view.buf)[pixel_index +
-                                             map_buf.view.strides[0] * i_spin / sizeof(double)]
+                ((double*)map_buf.view->buf)[pixel_index +
+                                             map_buf.view->strides[0] * i_spin / sizeof(double)]
                     += det_wt * sig * sp;
             }
         }
@@ -1254,36 +1180,20 @@ bp::object ProjEng_Precomp::to_weight_map(
     auto signal_man = SignalSpace<FSIGNAL>(
         signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
-    BufferWrapper map_buf;
-    if (PyObject_GetBuffer(map.ptr(), &map_buf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    }
-    int n_spin = map_buf.view.shape[0];
+    BufferWrapper<double> map_buf("map", map, false,
+                                  vector<int>{-1,-3});
+    int n_spin = map_buf.view->shape[0];
 
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
 
-    BufferWrapper _det_weights;
-    if (det_weights.ptr() != Py_None) {
-        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("det_weights");
-        }
-        if (_det_weights.view.ndim != 1 ||
-            _det_weights.view.shape[0] != n_det)
-            throw shape_exception("det_weights", "must have shape (n_det).");
-        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
-            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
-        }
-    }
+    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
+                                        vector<int>{n_det});
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights.view.obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+        if (_det_weights.view->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
@@ -1296,9 +1206,9 @@ bp::object ProjEng_Precomp::to_weight_map(
                            spin_proj_man.steps[0] * i_time);
             for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
                 for (int j_spin = i_spin; j_spin < n_spin; ++j_spin) {
-                    ((double*)map_buf.view.buf)[pixel_index +
-                                                (map_buf.view.strides[0] * i_spin +
-                                                 map_buf.view.strides[1] * j_spin) / sizeof(double)]
+                    ((double*)map_buf.view->buf)[pixel_index +
+                                                (map_buf.view->strides[0] * i_spin +
+                                                 map_buf.view->strides[1] * j_spin) / sizeof(double)]
                         += det_wt * sp[spin_proj_man.steps[1] * i_spin] *
                         sp[spin_proj_man.steps[1] * j_spin];
                 }
@@ -1325,37 +1235,21 @@ bp::object ProjEng_Precomp::from_map(
     auto signal_man = SignalSpace<FSIGNAL>(
         signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
-    BufferWrapper map_buf;
-    if (PyObject_GetBuffer(map.ptr(), &map_buf.view,
-                           PyBUF_RECORDS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("map");
-    }
-    int n_spin = map_buf.view.shape[0];
+    BufferWrapper<double> map_buf("map", map, false,
+                                  vector<int>{-1,-3});
+    int n_spin = map_buf.view->shape[0];
 
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
 
-    BufferWrapper _det_weights;
-    if (det_weights.ptr() != Py_None) {
-        if (PyObject_GetBuffer(det_weights.ptr(), &_det_weights.view,
-                               PyBUF_RECORDS) == -1) {
-            PyErr_Clear();
-            throw buffer_exception("det_weights");
-        }
-        if (_det_weights.view.ndim != 1 ||
-            _det_weights.view.shape[0] != n_det)
-            throw shape_exception("det_weights", "must have shape (n_det).");
-        if (strcmp(_det_weights.view.format, FSIGNAL_BUFFER_FORMAT) !=0) {
-            throw dtype_exception("det_weights", FSIGNAL_BUFFER_FORMAT);
-        }
-    }
+    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
+                                        vector<int>{n_det});
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights.view.obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights.view.buf + _det_weights.view.strides[0]*i_det);
+        if (_det_weights.view->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
@@ -1367,8 +1261,8 @@ bp::object ProjEng_Precomp::from_map(
                 FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
                                spin_proj_man.steps[0] * i_time +
                                spin_proj_man.steps[1] * i_spin);
-                sig += sp * ((double*)map_buf.view.buf)[
-                    pixel_index + map_buf.view.strides[0] * i_spin / sizeof(double)];
+                sig += sp * ((double*)map_buf.view->buf)[
+                    pixel_index + map_buf.view->strides[0] * i_spin / sizeof(double)];
             }
             *(signal_man.data_ptr[i_det] + signal_man.steps[0]*i_time) += sig;
         }
