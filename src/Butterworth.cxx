@@ -42,30 +42,30 @@ void BFilterBank::apply_buffer(boost::python::object input,
     BufferWrapper<float> inbuf("input", input, false);
     BufferWrapper<float> outbuf("output", output, false);
 
-    if (strcmp(inbuf.view->format, outbuf.view->format) != 0)
+    if (strcmp(inbuf->format, outbuf->format) != 0)
         throw agreement_exception("input", "output", "data type");
 
-    if (inbuf.view->ndim != 1)
+    if (inbuf->ndim != 1)
         throw shape_exception("input", "must be 1-d");
 
-    if (inbuf.view->shape[0] != outbuf.view->shape[0])
+    if (inbuf->shape[0] != outbuf->shape[0])
         throw agreement_exception("input", "output", "shape");
 
     // We later assume contiguity.
-    if (inbuf.view->strides[0] != inbuf.view->itemsize)
+    if (inbuf->strides[0] != inbuf->itemsize)
         throw buffer_exception("input");
 
-    if (outbuf.view->strides[0] != outbuf.view->itemsize)
+    if (outbuf->strides[0] != outbuf->itemsize)
         throw buffer_exception("output");
 
-    int n_samp = inbuf.view->shape[0];
-    if (strcmp(inbuf.view->format, "i")==0) {
-        int *in = reinterpret_cast<int*>(inbuf.view->buf);
-        int *out = reinterpret_cast<int*>(outbuf.view->buf);
+    int n_samp = inbuf->shape[0];
+    if (strcmp(inbuf->format, "i")==0) {
+        int *in = reinterpret_cast<int*>(inbuf->buf);
+        int *out = reinterpret_cast<int*>(outbuf->buf);
         apply(in, out, n_samp);
-    } else if (strcmp(inbuf.view->format, "f") == 0) {
-        float *in = reinterpret_cast<float*>(inbuf.view->buf);
-        float *out = reinterpret_cast<float*>(outbuf.view->buf);
+    } else if (strcmp(inbuf->format, "f") == 0) {
+        float *in = reinterpret_cast<float*>(inbuf->buf);
+        float *out = reinterpret_cast<float*>(outbuf->buf);
         apply_to_float(in, out, 1., n_samp);
     } else {
         throw dtype_exception("input", "int or float32");

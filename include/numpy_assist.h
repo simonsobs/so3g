@@ -101,42 +101,28 @@ static std::string shape_string(std::vector<int> shape)
     return s.str();
 }
 
-// class Py_buffer_wrapper
-//
-// Enriches Py_buffer with a destructor that calls PyBuffer_Release.
-// Without this, raising exceptions after calling PyObject_GetBuffer
-// could leak (large amounts of) memory.
-//
-// Also has private copy constructor so you can't duplicate references
-// to the buffer.  Later, we carry these objects only in shared
-// pointers and we are nicely protected from segfaults and so on.
-
-class Py_buffer_wrapper : public Py_buffer {
-public:
-    Py_buffer_wrapper() : Py_buffer() {};
-    ~Py_buffer_wrapper() {
-        PyBuffer_Release(this);
-    }
-private:
-    Py_buffer_wrapper(const Py_buffer_wrapper *);
-    Py_buffer_wrapper& operator=(const Py_buffer_wrapper &);
-};
-
 
 // class BufferWrapper
 //
-// A container for a Py_buffer over a certain type.  The Py_buffer is
-// reference counted so its safe to copy these objects.  Various
-// constructors eliminate boilerplate when wrapping objects that must
-// be of a certain shape / type.
+// A wrapper for Py_buffer pointer, templated for a particular data
+// type.  The underlying Py_buffer is privately held, and
+// reference-counted with a shared_ptr so it is freed when all copies
+// of the parent of gone out of scope.  Various constructors help to
+// eliminate boilerplate when wrapping objects that must be of a
+// certain shape / type.
 
 template <typename T>
 class BufferWrapper {
 public:
-    std::shared_ptr<Py_buffer_wrapper> view;
+    // Through the -> operator you can access the fields of the
+    // Py_buffer.
+    Py_buffer *operator->() const {
+        return view.get();
+    }
 
     BufferWrapper() {
-        view = std::make_shared<Py_buffer_wrapper>();
+        auto p = (Py_buffer*)calloc(1, sizeof(Py_buffer));
+        view = std::shared_ptr<Py_buffer>(p, PyBuffer_Release);
     }
 
     // Constructor with no shape or type checking.
@@ -195,4 +181,7 @@ public:
             throw shape_exception(name, s.str());
         }
     }        
+
+private:
+    std::shared_ptr<Py_buffer> view;
 };

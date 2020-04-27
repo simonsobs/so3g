@@ -37,8 +37,8 @@ bool Pointer<CoordSys>::TestInputs(
                                       vector<int>{-1, 4});
     _pdetbuf = BufferWrapper<double>("detectors", pdet, false,
                                      vector<int>{-1, 4});
-    n_time = _pborebuf.view->shape[0];
-    n_det = _pdetbuf.view->shape[0];
+    n_time = _pborebuf->shape[0];
+    n_det = _pdetbuf->shape[0];
     return true;
 }
 
@@ -46,10 +46,10 @@ template <typename CoordSys>
 inline
 void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
 {
-    const char *det = (char*)_pdetbuf.view->buf
-        + _pdetbuf.view->strides[0] * i_det;
+    const char *det = (char*)_pdetbuf->buf
+        + _pdetbuf->strides[0] * i_det;
     for (int ic = 0; ic < 4; ++ic)
-        dofs[ic] = *(double*)(det + _pdetbuf.view->strides[1] * ic);
+        dofs[ic] = *(double*)(det + _pdetbuf->strides[1] * ic);
 }
 
 /* ProjQuat: Not a projection -- returns the quaternion rotation
@@ -63,9 +63,9 @@ void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
-                            _pborebuf.view->strides[0] * i_time +
-                            _pborebuf.view->strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -83,9 +83,9 @@ void Pointer<ProjFlat>::GetCoords(int i_det, int i_time,
                                   const double *dofs, double *coords)
 {
     for (int ic=0; ic<4; ic++)
-        coords[ic] = *(double*)((char*)_pborebuf.view->buf +
-                                _pborebuf.view->strides[0] * i_time +
-                                _pborebuf.view->strides[1] * ic);
+        coords[ic] = *(double*)((char*)_pborebuf->buf +
+                                _pborebuf->strides[0] * i_time +
+                                _pborebuf->strides[1] * ic);
     coords[0] += dofs[0];
     coords[1] += dofs[1];
     const double coords_2_ = coords[2];
@@ -107,9 +107,9 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
-                            _pborebuf.view->strides[0] * i_time +
-                            _pborebuf.view->strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -152,9 +152,9 @@ void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
-                            _pborebuf.view->strides[0] * i_time +
-                            _pborebuf.view->strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -189,9 +189,9 @@ void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
-                            _pborebuf.view->strides[0] * i_time +
-                            _pborebuf.view->strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -226,9 +226,9 @@ void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
-                            _pborebuf.view->strides[0] * i_time +
-                            _pborebuf.view->strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -262,9 +262,9 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf.view->buf +
-                            _pborebuf.view->strides[0] * i_time +
-                            _pborebuf.view->strides[1] * ic);
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
 
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
@@ -313,11 +313,11 @@ bool Pixelizor2_Flat::TestInputs(bp::object &map, bp::object &pbore, bp::object 
     // dimensions but the last two dimensions must match naxis.
     BufferWrapper<double> mapbuf("map", map, true,
                                  vector<int>{-2,naxis[0],naxis[1]});
-    if (mapbuf.view->buf != NULL) {
+    if (mapbuf->buf != NULL) {
         // Note these are byte offsets, not index.
-        int ndim = mapbuf.view->ndim;
-        strides[0] = mapbuf.view->strides[ndim-2];
-        strides[1] = mapbuf.view->strides[ndim-1];
+        int ndim = mapbuf->ndim;
+        strides[0] = mapbuf->strides[ndim-2];
+        strides[1] = mapbuf->strides[ndim-1];
     } else {
         // Set it up to return naive C-ordered pixel indices.
         strides[0] = naxis[1];
@@ -447,16 +447,16 @@ void Accumulator<SpinClass>::Forward(
                           _signalspace->steps[0]*i_time);
 
     FSIGNAL det_wt = 1.;
-    if (_det_weights.view->obj != NULL)
-        det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf +
-                             _det_weights.view->strides[0]*i_det);
+    if (_det_weights->obj != NULL)
+        det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
+                             _det_weights->strides[0]*i_det);
 
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
     SpinProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
-        *(double*)((char*)_mapbuf.view->buf +
-                   _mapbuf.view->strides[0]*imap +
+        *(double*)((char*)_mapbuf->buf +
+                   _mapbuf->strides[0]*imap +
                    pixel_offset) += sig * pf[imap] * det_wt;
     }
 }
@@ -470,17 +470,17 @@ void Accumulator<SpinClass>::ForwardWeight(
     if (pixel_offset < 0) return;
 
     FSIGNAL det_wt = 1.;
-    if (_det_weights.view->obj != NULL)
-        det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
+    if (_det_weights->obj != NULL)
+        det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
 
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
     SpinProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
         for (int jmap=imap; jmap<N; ++jmap) {
-            *(double*)((char*)_mapbuf.view->buf +
-                       _mapbuf.view->strides[0]*imap +
-                       _mapbuf.view->strides[1]*jmap +
+            *(double*)((char*)_mapbuf->buf +
+                       _mapbuf->strides[0]*imap +
+                       _mapbuf->strides[1]*jmap +
                        pixel_offset) += pf[imap] * pf[jmap] * det_wt;
         }
     }
@@ -498,8 +498,8 @@ void Accumulator<SpinClass>::Reverse(
     SpinProjFactors(coords, pf);
     double _sig = 0.;
     for (int imap=0; imap<N; ++imap) {
-        _sig += *(double*)((char*)_mapbuf.view->buf +
-                           _mapbuf.view->strides[0]*imap +
+        _sig += *(double*)((char*)_mapbuf->buf +
+                           _mapbuf->strides[0]*imap +
                            pixel_offset) * pf[imap];
     }
     FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
@@ -558,23 +558,23 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
         bw.push_back(BufferWrapper<DTYPE>(var_name, item, false, sub_dims));
         if (i == 0) {
             sub_dims.clear();
-            for (int d=0; d<bw[0].view->ndim; d++)
-                sub_dims.push_back(bw[0].view->shape[d]);
+            for (int d=0; d<bw[0]->ndim; d++)
+                sub_dims.push_back(bw[0]->shape[d]);
         } else {
             for (int d=0; d<sub_dims.size(); ++d) {
-                if (bw[i].view->strides[d] != bw[0].view->strides[d])
+                if (bw[i]->strides[d] != bw[0]->strides[d])
                     throw shape_exception(var_name, "[all elements must have same stride]");
             }
         }
-        data_ptr[i] = (DTYPE*)bw[i].view->buf;
+        data_ptr[i] = (DTYPE*)bw[i]->buf;
     }
 
     // Store the step in units of the itemsize; update dims from sub_dims.
     for (int d=0; d<dims.size()-1; d++) {
         dims[d+1] = sub_dims[d];
-        if (bw[0].view->strides[d] % bw[0].view->itemsize != 0)
+        if (bw[0]->strides[d] % bw[0]->itemsize != 0)
             throw shape_exception(var_name, "stride is non-integral; realign.");
-        steps[d] = bw[0].view->strides[d] / bw[0].view->itemsize;
+        steps[d] = bw[0]->strides[d] / bw[0]->itemsize;
     }
     return true;
 }
@@ -1130,7 +1130,7 @@ bp::object ProjEng_Precomp::to_map(
 
     BufferWrapper<double> map_buf("map", map, false,
                                   vector<int>{-1,-3});
-    int n_spin = map_buf.view->shape[0];
+    int n_spin = map_buf->shape[0];
 
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
@@ -1140,8 +1140,8 @@ bp::object ProjEng_Precomp::to_map(
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights.view->obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
+        if (_det_weights->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
@@ -1154,8 +1154,8 @@ bp::object ProjEng_Precomp::to_map(
                 FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
                                spin_proj_man.steps[0] * i_time +
                                spin_proj_man.steps[1] * i_spin);
-                ((double*)map_buf.view->buf)[pixel_index +
-                                             map_buf.view->strides[0] * i_spin / sizeof(double)]
+                ((double*)map_buf->buf)[pixel_index +
+                                             map_buf->strides[0] * i_spin / sizeof(double)]
                     += det_wt * sig * sp;
             }
         }
@@ -1182,7 +1182,7 @@ bp::object ProjEng_Precomp::to_weight_map(
 
     BufferWrapper<double> map_buf("map", map, false,
                                   vector<int>{-1,-3});
-    int n_spin = map_buf.view->shape[0];
+    int n_spin = map_buf->shape[0];
 
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
@@ -1192,8 +1192,8 @@ bp::object ProjEng_Precomp::to_weight_map(
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights.view->obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
+        if (_det_weights->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
@@ -1206,9 +1206,9 @@ bp::object ProjEng_Precomp::to_weight_map(
                            spin_proj_man.steps[0] * i_time);
             for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
                 for (int j_spin = i_spin; j_spin < n_spin; ++j_spin) {
-                    ((double*)map_buf.view->buf)[pixel_index +
-                                                (map_buf.view->strides[0] * i_spin +
-                                                 map_buf.view->strides[1] * j_spin) / sizeof(double)]
+                    ((double*)map_buf->buf)[pixel_index +
+                                                (map_buf->strides[0] * i_spin +
+                                                 map_buf->strides[1] * j_spin) / sizeof(double)]
                         += det_wt * sp[spin_proj_man.steps[1] * i_spin] *
                         sp[spin_proj_man.steps[1] * j_spin];
                 }
@@ -1237,7 +1237,7 @@ bp::object ProjEng_Precomp::from_map(
 
     BufferWrapper<double> map_buf("map", map, false,
                                   vector<int>{-1,-3});
-    int n_spin = map_buf.view->shape[0];
+    int n_spin = map_buf->shape[0];
 
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
@@ -1248,8 +1248,8 @@ bp::object ProjEng_Precomp::from_map(
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights.view->obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights.view->buf + _det_weights.view->strides[0]*i_det);
+        if (_det_weights->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int pixel_index = *(pixel_buf_man.data_ptr[i_det] +
@@ -1261,8 +1261,8 @@ bp::object ProjEng_Precomp::from_map(
                 FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
                                spin_proj_man.steps[0] * i_time +
                                spin_proj_man.steps[1] * i_spin);
-                sig += sp * ((double*)map_buf.view->buf)[
-                    pixel_index + map_buf.view->strides[0] * i_spin / sizeof(double)];
+                sig += sp * ((double*)map_buf->buf)[
+                    pixel_index + map_buf->strides[0] * i_spin / sizeof(double)];
             }
             *(signal_man.data_ptr[i_det] + signal_man.steps[0]*i_time) += sig;
         }
