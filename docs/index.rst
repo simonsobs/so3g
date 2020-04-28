@@ -11,6 +11,7 @@ Welcome to so3g
    hk
    proj
    cpp_objects
+   maintenance_notes
 
 
 Indices and tables
