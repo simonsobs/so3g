@@ -18,6 +18,14 @@ Here is how to update readthedocs:
 
 - You have to be working in a build directory that is within the
   cloned repo, on master branch, with the up-to-date so3g installed.
+
+  - The repo should be clean, because commands like ``git checkout``
+    and ``git merge`` will be run on this tree, and those aren't
+    guaranteed to work if there are local modifications.
+  - The installed version of so3g must be available (in the Python
+    search path) because the code will ```import so3g``` in order to
+    find and extract the docstrings.
+
 - From that build directory, run "make prep-readthedocs".  The
   following will (should) happen:
 
