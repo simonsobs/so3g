@@ -116,24 +116,48 @@ public:
     static const int comp_count = N;
 };
 
-class SpinT : public SpinClass<1> {};
-class SpinQU : public SpinClass<2> {};
-class SpinTQU : public SpinClass<3> {};
+class SpinT : public SpinClass<1> {
+public:
+    static void ProjFactors(const double* coords, FSIGNAL *projfacs) {
+            projfacs[0] = 1;
+    }
+};
+class SpinQU : public SpinClass<2> {
+public:
+    static void ProjFactors(const double* coords, FSIGNAL *projfacs) {
+        const double c = coords[2];
+        const double s = coords[3];
+        projfacs[0] = c*c - s*s;
+        projfacs[1] = 2*c*s;
+    }
+};
+class SpinTQU : public SpinClass<3> {
+public:
+    static void ProjFactors(const double* coords, FSIGNAL *projfacs) {
+        const double c = coords[2];
+        const double s = coords[3];
+        projfacs[0] = 1.;
+        projfacs[1] = c*c - s*s;
+        projfacs[2] = 2*c*s;
+    }
+};
 
-template <typename SpinClass>
+template <typename SpinClass, typename TilingSystem>
 class Accumulator : public ProjectionOptimizer {
 public:
-    Accumulator<SpinClass>() {};
-    Accumulator<SpinClass>(bool _need_map, bool _need_signal, bool _need_weight_map,
+    Accumulator<SpinClass,TilingSystem>() {};
+    Accumulator<SpinClass,TilingSystem>(bool _need_map, bool _need_signal, bool _need_weight_map,
                            int _n_det, int _n_time):
         need_map(_need_map), need_signal(_need_signal),
         need_weight_map(_need_weight_map), n_det(_n_det), n_time(_n_time) {};
-    ~Accumulator<SpinClass>() {
+    ~Accumulator<SpinClass,TilingSystem>() {
         if (_signalspace != nullptr)
             delete _signalspace;
     };
     inline int ComponentCount() {return SpinClass::comp_count;}
-    void SpinProjFactors(const double *coords, FSIGNAL *wt);
+    void SpinProjFactors(const double *coords, FSIGNAL *wt) {
+        SpinClass::ProjFactors(coords, wt);
+    }
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &det_weights);
     void Forward(const int i_det,
@@ -158,7 +182,7 @@ protected:
     bool need_weight_map = false;
     int n_det = 0;
     int n_time = 0;
-    BufferWrapper<double> _mapbuf;
+    TilingSystem tiling;
     BufferWrapper<FSIGNAL> _det_weights;
 };
 

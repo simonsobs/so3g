@@ -375,9 +375,40 @@ std::pair<int,int> Pixelizor2_Flat::IndexRange()
 /** Accumulator - transfer signal from map domain to time domain.
  *
  */
+class Tiled {
+public:
+    BufferWrapper<double> mapbuf;
+    double *pix(int imap, int pixel_offset) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         pixel_offset);
+    }
+    double *wpix(int imap, int jmap, int pixel_offset) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*jmap +
+                         pixel_offset);
+    }
+};
 
-template <typename SpinClass>
-bool Accumulator<SpinClass>::TestInputs(
+class NonTiled {
+public:
+    BufferWrapper<double> mapbuf;
+    double *pix(int imap, int pixel_offset) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         pixel_offset);
+    }
+    double *wpix(int imap, int jmap, int pixel_offset) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*jmap +
+                         pixel_offset);
+    }
+};
+
+template <typename SpinClass, typename TilingSystem>
+bool Accumulator<SpinClass,TilingSystem>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &det_weights)
 {
@@ -385,12 +416,12 @@ bool Accumulator<SpinClass>::TestInputs(
     if (need_map) {
         // The map is mandatory, and the leading axis must match the
         // component count.  It can have 1+ other dimensions.
-        _mapbuf = BufferWrapper<double>("map", map, false,
+        tiling.mapbuf = BufferWrapper<double>("map", map, false,
                                         vector<int>{N,-1,-3});
     } else if (need_weight_map) {
         // The map is mandatory, and the two leading axes must match
         // the component count.  It can have 1+ other dimensions.
-        _mapbuf = BufferWrapper<double>("map", map, false,
+        tiling.mapbuf = BufferWrapper<double>("map", map, false,
                                         vector<int>{N,N,-1,-3});
     }
 
@@ -405,40 +436,40 @@ bool Accumulator<SpinClass>::TestInputs(
     return true;
 }
 
-template <>
-inline
-void Accumulator<SpinT>::SpinProjFactors(
-    const double* coords, FSIGNAL *projfacs)
-{
-    projfacs[0] = 1;
-}
+// template <typename TilingSystem>
+// inline
+// void Accumulator<SpinT,TilingSystem>::SpinProjFactors(
+//     const double* coords, FSIGNAL *projfacs)
+// {
+//     projfacs[0] = 1;
+// }
 
-template <>
-inline
-void Accumulator<SpinQU>::SpinProjFactors(
-    const double* coords, FSIGNAL *projfacs)
-{
-    const double c = coords[2];
-    const double s = coords[3];
-    projfacs[0] = c*c - s*s;
-    projfacs[1] = 2*c*s;
-}
+// template <typename TilingSystem>
+// inline
+// void Accumulator<SpinQU,TilingSystem>::SpinProjFactors(
+//     const double* coords, FSIGNAL *projfacs)
+// {
+//     const double c = coords[2];
+//     const double s = coords[3];
+//     projfacs[0] = c*c - s*s;
+//     projfacs[1] = 2*c*s;
+// }
 
-template<>
-inline
-void Accumulator<SpinTQU>::SpinProjFactors(
-    const double* coords, FSIGNAL *projfacs)
-{
-    const double c = coords[2];
-    const double s = coords[3];
-    projfacs[0] = 1.;
-    projfacs[1] = c*c - s*s;
-    projfacs[2] = 2*c*s;
-}
+// template <typename TilingSystem>
+// inline
+// void Accumulator<SpinTQU,TilingSystem>::SpinProjFactors(
+//     const double* coords, FSIGNAL *projfacs)
+// {
+//     const double c = coords[2];
+//     const double s = coords[3];
+//     projfacs[0] = 1.;
+//     projfacs[1] = c*c - s*s;
+//     projfacs[2] = 2*c*s;
+// }
 
-template <typename SpinClass>
+template <typename SpinClass,typename TilingSystem>
 inline
-void Accumulator<SpinClass>::Forward(
+void Accumulator<SpinClass,TilingSystem>::Forward(
     const int i_det, const int i_time,
     const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
@@ -453,17 +484,18 @@ void Accumulator<SpinClass>::Forward(
 
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
-    SpinProjFactors(coords, pf);
+    SpinClass::ProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
-        *(double*)((char*)_mapbuf->buf +
-                   _mapbuf->strides[0]*imap +
-                   pixel_offset) += sig * pf[imap] * det_wt;
+        // *(double*)((char*)tiling.mapbuf->buf +
+        //            tiling.mapbuf->strides[0]*imap +
+        //            pixel_offset) += sig * pf[imap] * det_wt;
+        *tiling.pix(imap, pixel_offset) += sig * pf[imap] * det_wt;
     }
 }
 
-template <typename SpinClass>
+template <typename SpinClass,typename TilingSystem>
 inline
-void Accumulator<SpinClass>::ForwardWeight(
+void Accumulator<SpinClass,TilingSystem>::ForwardWeight(
     const int i_det, const int i_time,
     const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
@@ -475,32 +507,34 @@ void Accumulator<SpinClass>::ForwardWeight(
 
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
-    SpinProjFactors(coords, pf);
+    SpinClass::ProjFactors(coords, pf);
     for (int imap=0; imap<N; ++imap) {
         for (int jmap=imap; jmap<N; ++jmap) {
-            *(double*)((char*)_mapbuf->buf +
-                       _mapbuf->strides[0]*imap +
-                       _mapbuf->strides[1]*jmap +
-                       pixel_offset) += pf[imap] * pf[jmap] * det_wt;
+            // *(double*)((char*)tiling.mapbuf->buf +
+            //            tiling.mapbuf->strides[0]*imap +
+            //            tiling.mapbuf->strides[1]*jmap +
+            //            pixel_offset) += pf[imap] * pf[jmap] * det_wt;
+            *tiling.wpix(imap, jmap, pixel_offset) += pf[imap] * pf[jmap] * det_wt;
         }
     }
 }
 
-template <typename SpinClass>
+template <typename SpinClass,typename TilingSystem>
 inline
-void Accumulator<SpinClass>::Reverse(
+void Accumulator<SpinClass,TilingSystem>::Reverse(
     const int i_det, const int i_time,
     const int pixel_offset, const double* coords, const FSIGNAL* weights)
 {
     if (pixel_offset < 0) return;
     const int N = SpinClass::comp_count;
     FSIGNAL pf[N];
-    SpinProjFactors(coords, pf);
+    SpinClass::ProjFactors(coords, pf);
     double _sig = 0.;
     for (int imap=0; imap<N; ++imap) {
-        _sig += *(double*)((char*)_mapbuf->buf +
-                           _mapbuf->strides[0]*imap +
-                           pixel_offset) * pf[imap];
+        // _sig += *(double*)((char*)tiling.mapbuf->buf +
+        //                    tiling.mapbuf->strides[0]*imap +
+        //                    pixel_offset) * pf[imap];
+        _sig += *tiling.pix(imap, pixel_offset) * pf[imap];
     }
     FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
                     _signalspace->steps[0]*i_time);
@@ -1064,47 +1098,62 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
 }
 
 //Flat.
-typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT>>
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
   ProjEng_Flat_T;
-typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinQU>>
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
   ProjEng_Flat_QU;
-typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
   ProjEng_Flat_TQU;
-typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinT>>
 
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT,Tiled>>
+  ProjEng_Flat_Tiled_T;
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinQU,Tiled>>
+  ProjEng_Flat_Tiled_QU;
+typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinTQU,Tiled>>
+  ProjEng_Flat_Tiled_TQU;
+
+/*
 //Cylindrical.
+typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
   ProjEng_CEA_T;
-typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinQU>>
+typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
   ProjEng_CEA_QU;
-typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
   ProjEng_CEA_TQU;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinT>>
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
   ProjEng_CAR_T;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinQU>>
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
   ProjEng_CAR_QU;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinTQU>>
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
   ProjEng_CAR_TQU;
 
-//Zenithal.
-typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjEng_ARC_T;
-typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjEng_ARC_QU;
-typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjEng_ARC_TQU;
-typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjEng_TAN_T;
-typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjEng_TAN_QU;
-typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjEng_TAN_TQU;
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinT>>
-  ProjEng_ZEA_T;
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinQU>>
-  ProjEng_ZEA_QU;
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU>>
-  ProjEng_ZEA_TQU;
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinT,Tiled>>
+  ProjEng_CAR_Tiled_T;
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinQU,Tiled>>
+  ProjEng_CAR_Tiled_QU;
+typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinTQU,Tiled>>
+  ProjEng_CAR_Tiled_TQU;
 
+//Zenithal.
+typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
+  ProjEng_ARC_T;
+typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
+  ProjEng_ARC_QU;
+typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
+  ProjEng_ARC_TQU;
+typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
+  ProjEng_TAN_T;
+typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
+  ProjEng_TAN_QU;
+typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
+  ProjEng_TAN_TQU;
+typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
+  ProjEng_ZEA_T;
+typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
+  ProjEng_ZEA_QU;
+typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
+  ProjEng_ZEA_TQU;
+*/
 
 /*
  * We also have a generic ProjEng_Precomp, which is basically what you
@@ -1297,22 +1346,25 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjEng_Flat_T);
     EXPORT_ENGINE(ProjEng_Flat_QU);
     EXPORT_ENGINE(ProjEng_Flat_TQU);
-    EXPORT_ENGINE(ProjEng_CAR_T);
-    EXPORT_ENGINE(ProjEng_CAR_QU);
-    EXPORT_ENGINE(ProjEng_CAR_TQU);
-    EXPORT_ENGINE(ProjEng_CEA_T);
-    EXPORT_ENGINE(ProjEng_CEA_QU);
-    EXPORT_ENGINE(ProjEng_CEA_TQU);
-    EXPORT_ENGINE(ProjEng_ARC_T);
-    EXPORT_ENGINE(ProjEng_ARC_QU);
-    EXPORT_ENGINE(ProjEng_ARC_TQU);
-    EXPORT_ENGINE(ProjEng_TAN_T);
-    EXPORT_ENGINE(ProjEng_TAN_QU);
-    EXPORT_ENGINE(ProjEng_TAN_TQU);
-    EXPORT_ENGINE(ProjEng_ZEA_T);
-    EXPORT_ENGINE(ProjEng_ZEA_QU);
-    EXPORT_ENGINE(ProjEng_ZEA_TQU);
-
+    EXPORT_ENGINE(ProjEng_Flat_Tiled_T);
+    EXPORT_ENGINE(ProjEng_Flat_Tiled_QU);
+    EXPORT_ENGINE(ProjEng_Flat_Tiled_TQU);
+//    EXPORT_ENGINE(ProjEng_CAR_T);
+//    EXPORT_ENGINE(ProjEng_CAR_QU);
+//    EXPORT_ENGINE(ProjEng_CAR_TQU);
+//    EXPORT_ENGINE(ProjEng_CEA_T);
+//    EXPORT_ENGINE(ProjEng_CEA_QU);
+//    EXPORT_ENGINE(ProjEng_CEA_TQU);
+//    EXPORT_ENGINE(ProjEng_ARC_T);
+//    EXPORT_ENGINE(ProjEng_ARC_QU);
+//    EXPORT_ENGINE(ProjEng_ARC_TQU);
+//    EXPORT_ENGINE(ProjEng_TAN_T);
+//    EXPORT_ENGINE(ProjEng_TAN_QU);
+//    EXPORT_ENGINE(ProjEng_TAN_TQU);
+//    EXPORT_ENGINE(ProjEng_ZEA_T);
+//    EXPORT_ENGINE(ProjEng_ZEA_QU);
+//    EXPORT_ENGINE(ProjEng_ZEA_TQU);
+//
     EXPORT_PRECOMP(ProjEng_Precomp);
 
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
