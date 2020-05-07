@@ -375,18 +375,41 @@ std::pair<int,int> Pixelizor2_Flat::IndexRange()
 /** Accumulator - transfer signal from map domain to time domain.
  *
  */
+
 class Tiled {
 public:
-    BufferWrapper<double> mapbuf;
+    vector<BufferWrapper<double>> mapbufs;
+    vector<int> shape;
+    vector<int> tile_shape;
+    
+    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        std::cout << "Tiled::TestInputs\n";
+        vector<int> map_shape_req;
+        if (need_map) {
+            // The map is mandatory, and the leading axis must match the
+            // component count.  It can have 1+ other dimensions.
+            map_shape_req = {comp_count,-1,-3};
+        } else if (need_weight_map) {
+            // The map is mandatory, and the two leading axes must match
+            // the component count.  It can have 1+ other dimensions.
+            map_shape_req = {comp_count,comp_count,-1,-3};
+        }
+        
+        if (map_shape_req.size())
+            mapbufs.push_back(
+                BufferWrapper<double>("map", map, false, map_shape_req));
+
+        return true;
+    }        
     double *pix(int imap, int pixel_offset) {
-        return (double*)((char*)mapbuf->buf +
-                         mapbuf->strides[0]*imap +
+        return (double*)((char*)mapbufs[0]->buf +
+                         mapbufs[0]->strides[0]*imap +
                          pixel_offset);
     }
     double *wpix(int imap, int jmap, int pixel_offset) {
-        return (double*)((char*)mapbuf->buf +
-                         mapbuf->strides[0]*imap +
-                         mapbuf->strides[1]*jmap +
+        return (double*)((char*)mapbufs[0]->buf +
+                         mapbufs[0]->strides[0]*imap +
+                         mapbufs[0]->strides[1]*jmap +
                          pixel_offset);
     }
 };
@@ -394,6 +417,21 @@ public:
 class NonTiled {
 public:
     BufferWrapper<double> mapbuf;
+    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        std::cout << "NonTiled::TestInputs\n";
+        if (need_map) {
+            // The map is mandatory, and the leading axis must match the
+            // component count.  It can have 1+ other dimensions.
+            mapbuf = BufferWrapper<double>("map", map, false,
+                                           vector<int>{comp_count,-1,-3});
+        } else if (need_weight_map) {
+            // The map is mandatory, and the two leading axes must match
+            // the component count.  It can have 1+ other dimensions.
+            mapbuf = BufferWrapper<double>("map", map, false,
+                                           vector<int>{comp_count,comp_count,-1,-3});
+        }
+        return true;
+    }        
     double *pix(int imap, int pixel_offset) {
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
@@ -412,18 +450,7 @@ bool Accumulator<SpinClass,TilingSystem>::TestInputs(
     bp::object &map, bp::object &pbore, bp::object &pdet,
     bp::object &signal, bp::object &det_weights)
 {
-    const int N = SpinClass::comp_count;
-    if (need_map) {
-        // The map is mandatory, and the leading axis must match the
-        // component count.  It can have 1+ other dimensions.
-        tiling.mapbuf = BufferWrapper<double>("map", map, false,
-                                        vector<int>{N,-1,-3});
-    } else if (need_weight_map) {
-        // The map is mandatory, and the two leading axes must match
-        // the component count.  It can have 1+ other dimensions.
-        tiling.mapbuf = BufferWrapper<double>("map", map, false,
-                                        vector<int>{N,N,-1,-3});
-    }
+    tiling.TestInputs(map, need_map, need_weight_map, SpinClass::comp_count);
 
     if (need_signal) {
         _signalspace = new SignalSpace<FSIGNAL>(

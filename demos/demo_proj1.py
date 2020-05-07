@@ -18,6 +18,7 @@ parser.add_argument('--n-det', '-d',
                     type=int, default=2000)
 parser.add_argument('--n-time', '-t',
                     type=int, default=25000)
+parser.add_argument('--tiled', action='store_true')
 args = parser.parse_args()
 system = args.system
 print('Using system: %s' % system)
@@ -40,7 +41,7 @@ dr = .002
 polphi = 6.28 * np.arange(n_det) / n_det
 dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 
-pe = test_utils.get_proj(system, 'TQU', pxz)
+pe = test_utils.get_proj(system, 'TQU', pxz, tiled=args.tiled)
 ptg = test_utils.get_boresight_quat(system, x, y)
 ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 
@@ -77,7 +78,7 @@ if 1:
 
     pl.plot(coo[0,:,0],
             coo[0,:,1])
-    pl.show()
+    #pl.show()
 
     del coo, coo1
 
