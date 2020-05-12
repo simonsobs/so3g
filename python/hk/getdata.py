@@ -9,7 +9,6 @@ sisock-style API.
 """
 
 import so3g
-import so3g.hk
 from spt3g import core
 import numpy as np
 
@@ -46,6 +45,8 @@ class HKArchive:
     def __init__(self, field_groups=None):
         if field_groups is not None:
             self.field_groups = list(field_groups)
+        # A translator is used to update frames, on the fly, to the
+        # modern schema assumed here.
         self.translator = so3g.hk.HKTranslator()
 
     def _get_groups(self, fields=None, start=None, end=None,
@@ -352,7 +353,7 @@ class HKArchiveScanner:
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
             prov = self.providers[f['prov_id']]
-            representatives = prov.blocks.keys()#[block['fields'][0] for block in prov.blocks]
+            representatives = prov.blocks.keys()
 
             blocks = [v for k,v in f.items() if isinstance(v, core.G3TimesampleMap)]
             for b in blocks:

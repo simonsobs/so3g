@@ -1,4 +1,6 @@
-"""Backwards compatibility for older SO HK schemas."""
+"""Backwards compatibility for older SO HK schemas.
+
+"""
 
 import so3g
 import so3g.hk
@@ -7,7 +9,13 @@ from spt3g import core
 
 class HKTranslator:
     """Translates SO Housekeeping frames from schema version 0 to version
-    1.
+    1; passes v1 frames through unaffected.  This can be used in a
+    G3Pipeline to condition HK streams for processing by v1-compatible
+    code.
+
+    Version 1 is not a strict superset of version 0, but the two main
+    structural features eliminated in v1 (block names and field
+    prefixes) were not really used.
 
     """
     TARGET_VERSION = 1
