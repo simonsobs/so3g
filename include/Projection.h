@@ -59,6 +59,7 @@ private:
 
 class Pixelizor2_Flat : public ProjectionOptimizer {
 public:
+    static const int index_count = 2;
     Pixelizor2_Flat() {};
     Pixelizor2_Flat(int ny, int nx,
                     double dy=1., double dx=1.,
@@ -67,15 +68,32 @@ public:
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &det_weights);
     bp::object zeros(int count);
-    int GetPixel(int i_det, int i_time, const double *coords);
-    std::pair<int,int> IndexRange();
-private:
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index);
     int crpix[2];
     double cdelt[2];
     int naxis[2];
-    int strides[2];
 };
 
+class Pixelizor2_Flat_Tiled : public ProjectionOptimizer {
+public:
+    static const int index_count = 3;
+    Pixelizor2_Flat_Tiled() {};
+    Pixelizor2_Flat_Tiled(Pixelizor2_Flat _parent_pix,
+                          int tiley, int tilex);
+    Pixelizor2_Flat_Tiled(int ny, int nx,
+                          double dy=1., double dx=1.,
+                          double iy0=0., double ix0=0.,
+                          int tiley=0, int tilex=0);
+    ~Pixelizor2_Flat_Tiled() {};
+    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
+                    bp::object &signal, bp::object &det_weights);
+    bp::object zeros(int count);
+    bp::object zeros_tiled(int count, bp::object active_tiles);
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index);
+private:
+    Pixelizor2_Flat parent_pix;
+    int tile_shape[2];
+};
 
 template <typename DTYPE>
 class SignalSpace {
@@ -162,19 +180,20 @@ public:
                     bp::object &signal, bp::object &det_weights);
     void Forward(const int i_det,
                  const int i_time,
-                 const int pixel_index,
+                 const int pixel_index[],
                  const double* coords,
                  const FSIGNAL* weights);
     void ForwardWeight(const int i_det,
                        const int i_time,
-                       const int pixel_index,
+                       const int pixel_index[],
                        const double* coords,
                        const FSIGNAL* weights);
     void Reverse(const int i_det,
                  const int i_time,
-                 const int pixel_index,
+                 const int pixel_index[],
                  const double* coords,
                  const FSIGNAL* weights);
+    int Stripe(const int pixel_index[], int n_thread);
     SignalSpace<FSIGNAL> *_signalspace = nullptr;
 protected:
     bool need_map = true;
@@ -210,16 +229,4 @@ public:
     bp::object pixel_ranges(bp::object pbore, bp::object pofs);
 private:
     Z _pixelizor;
-};
-
-
-class ProjEng_Precomp {
-public:
-    ProjEng_Precomp() {};
-    bp::object to_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                      bp::object signal, bp::object weights);
-    bp::object to_weight_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                             bp::object signal, bp::object weights);
-    bp::object from_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                        bp::object signal, bp::object weights);
 };

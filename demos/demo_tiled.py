@@ -18,13 +18,51 @@ parser.add_argument('--n-det', '-d',
                     type=int, default=2000)
 parser.add_argument('--n-time', '-t',
                     type=int, default=25000)
-parser.add_argument('--tiled', action='store_true')
+#parser.add_argument('--tiled', action='store_true')
 args = parser.parse_args()
+args.tiled = True
 system = args.system
 print('Using system: %s' % system)
 
 # Map space.
-pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0)
+class TiledOccupation:
+    def __init__(self, super_shape, tile_shape, maps_present=[]):
+        self.super_shape, self.tile_shape = super_shape, tile_shape
+        self.maps_present = maps_present
+        self.tilage = [int(np.ceil(s/t)) for s, t in zip(self.super_shape, self.tile_shape)]
+    def zeros(self, shape):
+        if np.ndim(shape) == 0:
+            shape = (shape,)
+        n = shape[0]
+        for s in shape[1:]:
+            n *= s
+        tiles = pxzt.zeros(n, maps_present)
+        for t in tiles:
+            if t is not None:
+                t.shape = shape + t.shape[1:]
+        return tiles
+    def new_map(self, shape):
+        return [(self.super_shape, self.tile_shape), self.zeros(shape)]
+    def __repr__(self):
+        return 'TiledOccupation(%s,%s,occupation=%i/%i)' % (
+            self.super_shape, self.tile_shape, len(self.maps_present),
+            self.tilage[0] * self.tilage[1])
+    @staticmethod
+    def max_diff(a, b):
+        return max([abs(_a-_b).max() for _a, _b in zip(a[1], b[1]) if _a is not None])
+        
+#super_shape = (598, 502)
+#tile_shape = (100, 120)
+#tiling = [int(np.ceil(s/t)) for s,t in zip(super_shape, tile_shape)]
+tiling = TiledOccupation((598, 502), (100,120))
+
+pxz = so3g.Pixelizor2_Flat(
+    tiling.super_shape[0], tiling.super_shape[1],
+    0.00005,0.00005,0,0)
+pxzt = so3g.Pixelizor2_Flat_Tiled(
+    tiling.super_shape[0], tiling.super_shape[1],
+    0.00005,0.00005,0,0,
+    tiling.tile_shape[0], tiling.tile_shape[1])
 
 # Samples
 n_det = args.n_det
@@ -41,7 +79,7 @@ dr = .002
 polphi = 6.28 * np.arange(n_det) / n_det
 dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 
-pe = test_utils.get_proj(system, 'TQU', pxz, tiled=args.tiled)
+pe = test_utils.get_proj(system, 'TQU', pxzt, tiled=args.tiled)
 ptg = test_utils.get_boresight_quat(system, x, y)
 ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 
@@ -58,12 +96,31 @@ else:
     n_omp = int(n_omp)
     print(' OMP_NUM_THREADS=%i.\n' % n_omp)
 
+#
+# Projector exercise
+#
+
+# 1. The .pixels method should tell us which tiles we will need.
+
+print('Compute coords and pixels and return pixels.', end='\n ... ')
+pix = np.empty(sig.shape[1:] + (3,), 'int32')
+with Timer() as T:
+    spix = pe.pixels(ptg,ofs,pix)
+
+maps_present = []
+for s in spix:
+    maps_present.extend(list(set(list(s[:,0]))))
+    
+maps_present = sorted(list(set(maps_present)))
+tiling.maps_present = maps_present
+
+# 2. The .zeros method should make tiles of the right sizes.
+with Timer() as T:
+    tiles1 = pe.to_map(tiling.new_map(3),ptg,ofs,sig[0],None)
 
 print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
 with Timer():
     Ivals = pe.pixel_ranges(ptg, ofs)
-
-map0 = pxz.zeros(1)
 
 if 1:
     coo = np.empty(sig.shape[1:] + (4,), 'double')
@@ -83,7 +140,7 @@ if 1:
     del coo, coo1
 
     print('Compute coords and pixels and return pixels.', end='\n ... ')
-    pix = np.empty(sig.shape[1:] + (pxz.index_count,), 'int32')
+    pix = np.empty(sig.shape[1:] + (3,), 'int32')
     with Timer() as T:
         pe.pixels(ptg,ofs,pix)
 
@@ -115,20 +172,14 @@ if 1:
 
 if 1:
     print('Forward projection (TQU)', end='\n ... ')
-    map0 = None #pxz.zeros(3)
-    if args.tiled:
-        map0 = pxz.zeros(3)
-        map0 = [(map0.shape, map0.shape), [map0]]
-    else:
-        map0 = pxz.zeros(3)
     sig_list = [x for x in sig[0]]
     with Timer() as T:
-        map1 = pe.to_map(map0,ptg,ofs,sig_list,None)
+        map1 = pe.to_map(tiling.new_map(3),ptg,ofs,sig_list,None)
 
 if 1:
     print('Forward projection (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
     with Timer() as T:
-        map1o = pe.to_map_omp(None,ptg,ofs,sig_list,None,Ivals)
+        map1o = pe.to_map_omp(tiling.new_map(3),ptg,ofs,sig_list,None,Ivals)
 
 if 1:
     print('Reverse projection (TQU)', end='\n ... ')
@@ -140,20 +191,20 @@ if 1:
 
 if 1:
     print('Forward project weights (TQU)', end='\n ... ')
-    map0 = None #pxz.zeros(3)
+    map0 = tiling.new_map((3,3))
     with Timer() as T:
-        map2 = pe.to_weight_map(None,ptg,ofs,None,None)
+        map2 = pe.to_weight_map(map0,ptg,ofs,None,None)
 
 if 1:
     print('Forward project weights (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
+    map0 = tiling.new_map((3,3))
     with Timer() as T:
-        map2o = pe.to_weight_map_omp(None,ptg,ofs,None,None,Ivals)
+        map2o = pe.to_weight_map_omp(map0,ptg,ofs,None,None,Ivals)
 
     print('Checking that OMP and non-OMP forward calcs agree: ', end='\n ... ')
-    assert abs(map1 - map1o).max() == 0
-    assert abs(map2 - map2o).max() == 0
+    assert tiling.max_diff(map1, map1o) == 0
+    assert tiling.max_diff(map2, map2o) == 0
     print('yes')
-
 
 if 1:
     print('Cache pointing matrix.', end='\n ...')
@@ -162,20 +213,18 @@ if 1:
 
     print('Forward project using precomputed pointing matrix.',
           end='\n ...')
-    pp = so3g.ProjEng_Precomp_()
-    map1p = pxz.zeros(3)
+    pp = so3g.ProjEng_Precomp_Tiled()
     with Timer() as T:
-        pp.to_map(map1p, pix_idx, spin_proj, sig_list, None)
+        map1p = pp.to_map(tiling.new_map(3), pix_idx, spin_proj, sig_list, None)
 
     print('and also weights', end='\n ... ')
-    map2p = np.zeros((3,3) + pxz.zeros(1).shape[1:])
     with Timer() as T:
-        map2p = pp.to_weight_map(map2p,pix_idx,spin_proj,None,None)
+        map2p = pp.to_weight_map(tiling.new_map((3,3)),pix_idx,spin_proj,None,None)
 
     print('Checking that precomp and on-the-fly forward calcs agree: ',
           end='\n ... ')
-    assert abs(map1 - map1p).max() == 0
-    assert abs(map2 - map2p).max() == 0
+    assert tiling.max_diff(map1, map1p) == 0
+    assert tiling.max_diff(map2, map2p) == 0
     print('yes')
 
     print('Reverse projection using precomputed pointing',
@@ -186,19 +235,21 @@ if 1:
     print('Checking that it agrees with on-the-fly',
           end='\n ...')
     sig1f = pe.from_map(map1, ptg, ofs, None, None)
-    thresh = map1[0].std() * 1e-6
+    thresh = max([m.std()*1e-6 for m in map1[1] if m is not None])
     assert max([np.abs(a - b).max() for a, b in zip(sig1f, sig1p)]) < thresh
     print('yes')
 
 print('Plotting...')
 import pylab as pl
-gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
+gs1 = pl.matplotlib.gridspec.GridSpec(*tiling.tilage)
 
-for axi in range(3):
-    ax = pl.subplot(gs1[0,axi])
-    ax.imshow(map1[axi], cmap='gray')
-    ax.set_title('TQU'[axi])
+for y in range(tiling.tilage[0]):
+    for x in range(tiling.tilage[1]):
+        m = map1[1][y*tiling.tilage[1] + x]
+        if m is not None:
+            ax = pl.subplot(gs1[y, x])
+            ax.imshow(m[0], cmap='gray')
 
-ax = pl.subplot(gs1[1,:])
-ax.plot(sig1[0])
+#ax = pl.subplot(gs1[1,:])
+#ax.plot(sig1[0])
 pl.show()
