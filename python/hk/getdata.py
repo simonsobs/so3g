@@ -35,6 +35,13 @@ def is_sub_seq(full_seq, sub_seq):
     return False
 
 
+_SCHEMA_V1_BLOCK_TYPES = [
+    core.G3VectorDouble,
+    core.G3VectorInt,
+    core.G3VectorString,
+]
+
+
 class HKArchive:
 
     """Contains information necessary to determine what data fields are
@@ -214,8 +221,14 @@ class HKArchive:
             blk = core.G3TimesampleMap()
             blk.times = core.G3VectorTime(np.hstack([np.array(b.times) for b in blocks_in]))
             for f in fields:
-                # Not general enough for HK v1!
-                blk[f] = core.G3VectorDouble(np.hstack([np.array(b[f.split('.')[-1]]) for b in blocks_in]))
+                f_short = f.split('.')[-1]
+                for _type in _SCHEMA_V1_BLOCK_TYPES:
+                    if isinstance(blocks_in[0][f_short], _type):
+                        break
+                else:
+                    raise RuntimeError('Field "%s" is of unsupported type %s.' %
+                                       (f_short, type(blocks_in[0][f_short])))
+                blk[f] = _type(np.hstack([np.array(b[f_short]) for b in blocks_in]))
             blocks_out.append((group_name, blk))
         if raw:
             return blocks_out

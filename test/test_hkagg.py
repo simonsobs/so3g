@@ -46,6 +46,8 @@ class TestHKSessionHelper(unittest.TestCase):
                         for _t in t_next + np.arange(len(speed))]
             hk['position'] = core.G3VectorDouble(np.arange(len(speed)))
             hk['speed'] = core.G3VectorDouble(speed)
+            hk['error_bits'] = core.G3VectorInt([10] * len(speed))
+            hk['mode_str'] = core.G3VectorString(['ok'] * len(speed))
             t_next += len(hk)
             f['blocks'].append(hk)
             w.Process(f)
