@@ -202,7 +202,7 @@ class HKArchive:
                     assert(len(fn) == 1)
                     # Find the right block.
                     for k, blk in fn[0].items():
-                        if not isinstance(blk, so3g.IrregBlock): continue
+                        if not isinstance(blk, core.G3TimesampleMap): continue
                         test_f = fields[0].split('.')[-1]   ## dump prefix.
                         if test_f in blk.keys():
                             blocks_in.append(blk)
@@ -210,7 +210,7 @@ class HKArchive:
             # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
             blocks_in.sort(key=lambda b: b.times[0].time)
             # Create a new Block for this group.
-            blk = so3g.IrregBlock()
+            blk = core.G3TimesampleMap()
             blk.times = core.G3VectorTime(np.hstack([np.array(b.times) for b in blocks_in]))
             for f in fields:
                 # Not general enough for HK v1!
@@ -354,7 +354,7 @@ class HKArchiveScanner:
             prov = self.providers[f['prov_id']]
             representatives = prov.blocks.keys()#[block['fields'][0] for block in prov.blocks]
 
-            blocks = [v for k,v in f.items() if isinstance(v, so3g.IrregBlock)]
+            blocks = [v for k,v in f.items() if isinstance(v, core.G3TimesampleMap)]
             for b in blocks:
                 fields = b.keys()
                 if len(b.times) == 0 or len(fields) == 0:

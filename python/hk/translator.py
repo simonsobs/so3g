@@ -57,7 +57,7 @@ class HKTranslator:
             block_id = block.data.keys()[0]  # stand-in block name
             if (block.prefix != ''):
                 f['prefix_for_' + block_id] = block.prefix
-            new_block = so3g.IrregBlock()
+            new_block = core.G3TimesampleMap()
             new_block.times = so3g.hk.util.get_g3_time(block.t)
             for k in block.data.keys():
                 v = block.data[k]
