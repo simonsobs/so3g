@@ -25,6 +25,7 @@ class TestHKSessionHelper(unittest.TestCase):
 
         # Create something to help us track the aggregator session.
         hksess = so3g.hk.HKSessionHelper(session_id=None,
+                                         hkagg_version=1,
                                          description="Test HK data.")
 
         # Register a data provider.
@@ -39,12 +40,13 @@ class TestHKSessionHelper(unittest.TestCase):
         t_next = time.time()
         for i in range(10):
             f = hksess.data_frame(prov_id=prov_id, timestamp=t_next)
-            hk = so3g.IrregBlockDouble()
-            hk.prefix = 'hwp_'
-            hk.data['position'] = [1, 2, 3, 4, 5]
-            hk.data['speed'] = [1.2, 1.2, 1.3, 1.2, 1.3]
-            hk.t = t_next + np.arange(len(hk.data['speed']))
-            t_next += len(hk.data['speed'])
+            hk = core.G3TimesampleMap()
+            speed = [1.2, 1.2, 1.3, 1.2, 1.3]
+            hk.times = [core.G3Time(_t * core.G3Units.second)
+                        for _t in t_next + np.arange(len(speed))]
+            hk['position'] = core.G3VectorDouble(np.arange(len(speed)))
+            hk['speed'] = core.G3VectorDouble(speed)
+            t_next += len(hk)
             f['blocks'].append(hk)
             w.Process(f)
 
@@ -63,9 +65,10 @@ class TestHKSessionHelper(unittest.TestCase):
                 print('  Status update: %i providers' % (len(f['providers'])))
             elif ht == so3g.HKFrameType.data:
                 print('  Data: %i blocks' % len(f['blocks']))
-                for block in f['blocks']:
-                    for k,v in block.data.items():
-                        print('    %s%s' % (block.prefix, k), v)
+                for i, block in enumerate(f['blocks']):
+                    print('    Block %i' % i)
+                    for k, v in block.items():
+                        print('    %s' % k, v)
 
         # Scan and validate.
         print()

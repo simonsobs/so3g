@@ -23,7 +23,7 @@ class Seeder(list):
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
 
-def write_example_file(filename='hk_out.g3'):
+def write_example_file(filename='hk_out.g3', hkagg_version=1):
     """Generate some example HK data and write to file.
 
     Args:
@@ -37,12 +37,14 @@ def write_example_file(filename='hk_out.g3'):
     seeder = Seeder()
     w = core.G3Pipeline()
     w.Add(seeder)
-    w.Add(HKTranslator)
+    assert(hkagg_version in [0,1])
+    if hkagg_version == 1:
+        w.Add(HKTranslator)
     w.Add(core.G3Writer(test_file))
-    
 
     # Create something to help us track the aggregator session.
     hksess = so3g.hk.HKSessionHelper(session_id=1234,
+                                     hkagg_version=0,
                                      description="Test HK data.")
 
     # Register a data provider.
@@ -91,24 +93,28 @@ class TestGetData(unittest.TestCase):
     """TestCase for testing hk.getdata.py."""
     def setUp(self):
         """Generate some test HK data."""
-        self._file = 'test.g3'
-        write_example_file(self._file)
+        self._files = ['test_0.g3', 'test_1.g3']
+        write_example_file(self._files[0], 0)
+        write_example_file(self._files[1], 1)
 
     def tearDown(self):
         """Remove the temporary file we made."""
-        os.remove(self._file)
+        for f in self._files:
+            os.remove(f)
 
     def test_hk_getdata_field_array_type(self):
         """Make sure we return the fields as a numpy array when we get_data."""
-        fields, _ = load_data(self._file)
-        assert isinstance(fields['position'], np.ndarray)
+        for f in self._files:
+            fields, _ = load_data(f)
+            assert isinstance(fields['position'], np.ndarray)
 
     def test_hk_getdata_timeline_array_type(self):
         """Make sure we return the timelines as a numpy array when we
         get_data.
         """
-        _, timelines = load_data(self._file)
-        assert isinstance(timelines['group0']['t'], np.ndarray)
+        for f in self._files:
+            _, timelines = load_data(f)
+            assert isinstance(timelines['group0']['t'], np.ndarray)
 
 
 if __name__ == '__main__':
