@@ -49,28 +49,27 @@ class HKTranslator:
             return [f]
 
         # Always update the version, even if that's our only change...
+        if 'hkagg_version' in f:
+            f['hkagg_version_orig'] = hkagg_version
+            del f['hkagg_version']
         f['hkagg_version'] = 1
-        f['hkagg_version_orig'] = hkagg_version
 
         # No difference in Session/Status for v0 -> v1.
         if f.get('hkagg_type') != so3g.HKFrameType.data:
             return [f]
 
         # Pop the data blocks out of the frame.
-        orig_blocks = f['blocks']
-        del f['blocks']
+        orig_blocks = f.pop('blocks')
+        f['blocks'] = core.G3VectorFrameObject()
 
         # Now process the data blocks.
         for block in orig_blocks:
-            block_id = block.data.keys()[0]  # stand-in block name
-            if (block.prefix != ''):
-                f['prefix_for_' + block_id] = block.prefix
             new_block = core.G3TimesampleMap()
             new_block.times = so3g.hk.util.get_g3_time(block.t)
             for k in block.data.keys():
                 v = block.data[k]
                 new_block[k] = core.G3VectorDouble(v)
-            f['block_for_' + block_id] = new_block
+            f['blocks'].append(new_block)
         return [f]
 
     def __call__(self, *args, **kwargs):

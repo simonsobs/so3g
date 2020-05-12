@@ -202,8 +202,8 @@ class HKArchive:
                     fn = self.translator(fn[0])
                     assert(len(fn) == 1)
                     # Find the right block.
-                    for k, blk in fn[0].items():
-                        if not isinstance(blk, core.G3TimesampleMap): continue
+                    for blk in fn[0]['blocks']:
+                        assert(isinstance(blk, core.G3TimesampleMap))
                         test_f = fields[0].split('.')[-1]   ## dump prefix.
                         if test_f in blk.keys():
                             blocks_in.append(blk)
@@ -355,8 +355,8 @@ class HKArchiveScanner:
             prov = self.providers[f['prov_id']]
             representatives = prov.blocks.keys()
 
-            blocks = [v for k,v in f.items() if isinstance(v, core.G3TimesampleMap)]
-            for b in blocks:
+            for b in f['blocks']:
+                assert(isinstance(b, core.G3TimesampleMap))
                 fields = b.keys()
                 if len(b.times) == 0 or len(fields) == 0:
                     continue

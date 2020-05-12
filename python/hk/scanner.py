@@ -119,12 +119,11 @@ class HKScanner:
 
             t_check = []
 
+            blocks = f['blocks']
             if vers == 0:
-                blocks = f['blocks']
                 block_timef = lambda block: block.t
                 block_itemf = lambda block: [(k, block.data[k]) for k in block.data.keys()]
             elif vers == 1:
-                blocks = [f[k] for k in f.keys() if isinstance(f[k], so3g.IrregBlock)]
                 block_timef = lambda block: np.array([t.time / core.G3Units.seconds for t in b.times])
                 block_itemf = lambda block: [(k, block[k]) for k in block.keys()]
 
