@@ -451,7 +451,7 @@ class _FieldGroup:
         self.index_info = index_info
 
         
-def to_timestamp( some_time, str_format=None ): 
+def to_timestamp(some_time, str_format=None): 
     '''
     Args:
         some_time - if datetime, converted to UTC and used
@@ -526,10 +526,10 @@ def load_range(start, stop, fields=None, alias=None,
             setup = yaml.load(f, Loader=yaml.FullLoader)
         
         if 'data_dir' not in setup.keys():
-            hk_logger.error('load_range config file requires data_dir entry')
+            raise ValueError('load_range config file requires data_dir entry')
         data_dir = setup['data_dir']
         if 'field_list' not in setup.keys():
-            hk_logger.error('load_range config file requires field_list entry')
+            raise ValueError('load_range config file requires field_list entry')
         fields = []
         alias = []
         for k in setup['field_list']:
