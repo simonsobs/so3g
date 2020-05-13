@@ -12,7 +12,7 @@ start with that.  Later on we go into details of the data model and
 the interfaces for writing compliant HK files.
 
 Loading Data Saved OCS/SO Style
----------------
+-------------------------------
 
 One of the most basic things we might want to do is load data between
 a time range. For `.g3` files that are saved by an OCS Aggregator, there
@@ -25,7 +25,7 @@ Example Use::
     data = load_range(start, stop, **kwargs)
 
 Defining Time Ranges
-```````````````````````
+````````````````````
 
 There are several options for defining start and stop. These options are passed
 to ``so3g.hk.to_timestamp(some_time)`` to be parsed.
@@ -47,7 +47,7 @@ to ``so3g.hk.to_timestamp(some_time)`` to be parsed.
     * Or submit your own with the ``str_format`` argument
 
 Define Where to Look for Data
-``````````````````````````````````````````````
+`````````````````````````````
 
 * **Option 1** 
 
@@ -65,7 +65,7 @@ Set an environment variable ``export OCS_DATA_DIR = /path/to/ocs/hk/data``.
 Use a configuration file. See Below.
 
 Define Which Data to Load
-``````````````````````````````````````````````
+`````````````````````````
 
 * **Option 1** 
 
@@ -86,7 +86,7 @@ Use the ``fields = [list, of, field, names]`` keyword argument. Example::
 Use a configuration file. See Below.
 
 Define How the data is returned
-``````````````````````````````````````````````
+```````````````````````````````
 
 The data is returned as a dictionary of the format::
 
@@ -111,7 +111,7 @@ Use the ``alias = [list, of, desired, names]`` which must be the length of
 Use a configuration file. See Below.
 
 Create a Configuration file
-``````````````````````````````````````````````
+```````````````````````````
 
 Because why deal with all these individual pieces when you don't have to?
 
