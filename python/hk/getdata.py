@@ -477,9 +477,9 @@ def to_timestamp(some_time, str_format=None):
                 return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, option )))
             except:
                 continue
-        hk_logger.error('Could not process string into date object, options are: {}'.format(str_options))
-        return
-    hk_logger.error('Type of date / time indication is invalid, accepts datetime, int, float, and string')
+        raise ValueError('Could not process string into date object, options are: {}'.format(str_options))
+        
+    raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None,config=None,):
