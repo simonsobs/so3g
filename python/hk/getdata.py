@@ -7,14 +7,17 @@ frames.  Use the resulting HKArchive to perform random I/O over a
 sisock-style API.
 
 """
+import os
+import pytz
+import yaml
+import logging
+
+import numpy as np
+import datetime as dt
+
 
 import so3g
 from spt3g import core
-import numpy as np
-
-import os
-import logging
-import datetime as dt
 
 
 hk_logger = logging.getLogger('hk_logger')
@@ -448,7 +451,38 @@ class _FieldGroup:
         self.index_info = index_info
 
         
-def load_range(start, stop, fields=None, alias=None, data_dir=None):
+def to_timestamp(some_time, str_format=None): 
+    '''
+    Args:
+        some_time - if datetime, converted to UTC and used
+                    if int or float - assumed to be ctime, no change
+                    if string - trys to parse into datetime object
+                              - assumed to be in UTC
+        str_format - allows user to define a string format if they don't
+                    want to use a default option
+    Returns:
+        ctime of some_time
+    '''
+    
+    if type(some_time) == dt.datetime:
+        return some_time.astimezone(dt.timezone.utc).timestamp()
+    if type(some_time) == int or type(some_time) == float:
+        return some_time
+    if type(some_time) == str:
+        if str_format is not None:
+            return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, str_format )))
+        str_options = ['%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f']
+        for option in str_options:
+            try:
+                return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, option )))
+            except:
+                continue
+        raise ValueError('Could not process string into date object, options are: {}'.format(str_options))
+        
+    raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
+
+def load_range(start, stop, fields=None, alias=None, 
+               data_dir=None,config=None,):
     '''
     Args:
         start - datetime object to start looking
@@ -459,6 +493,7 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
         alias - if not None, needs to be the length of fields
         data_dir - directory where all the ctime folders are. 
                 If None, tries to use $OCS_DATA_DIR
+        config - a .yaml configuration file for loading data_dir / fields / alias
                 
     Returns - Dictionary of the format:
         {
@@ -484,7 +519,23 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
     for name in alias:
         plt.plot( data[name][0], data[name][1])
     '''
-    
+    if config is not None:
+        if not (data_dir is None and fields is None and alias is None):
+            hk_logger.warning('''load_range has a config file - data_dir, fields, and alias are ignored''')
+        with open(config, 'r') as f:
+            setup = yaml.load(f, Loader=yaml.FullLoader)
+        
+        if 'data_dir' not in setup.keys():
+            raise ValueError('load_range config file requires data_dir entry')
+        data_dir = setup['data_dir']
+        if 'field_list' not in setup.keys():
+            raise ValueError('load_range config file requires field_list entry')
+        fields = []
+        alias = []
+        for k in setup['field_list']:
+            fields.append( setup['field_list'][k])
+            alias.append( k )
+            
     if data_dir is None and 'OCS_DATA_DIR' not in os.environ.keys():
         raise ValueError('if $OCS_DATA_DIR is not defined a data directory must be passed to getdata')
     if data_dir is None:
@@ -492,8 +543,8 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
     
-    start_ctime = (start.astimezone(dt.timezone.utc)-dt.timedelta(hours=1)).timestamp()
-    stop_ctime = (stop.astimezone(dt.timezone.utc)+dt.timedelta(hours=1)).timestamp()
+    start_ctime = to_timestamp(start) - 3600
+    stop_ctime = to_timestamp(stop) + 3600
 
     hksc = HKArchiveScanner()
     
@@ -515,8 +566,8 @@ def load_range(start, stop, fields=None, alias=None, data_dir=None):
     
     
     cat = hksc.finalize()
-    start_ctime = start.timestamp()
-    stop_ctime = stop.timestamp()
+    start_ctime = to_timestamp(start)
+    stop_ctime = to_timestamp(stop)
     
     all_fields,_ = cat.get_fields()
     
