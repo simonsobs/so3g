@@ -60,9 +60,9 @@ private:
 class Pixelizor2_Flat : public ProjectionOptimizer {
 public:
     Pixelizor2_Flat() {};
-    Pixelizor2_Flat(int nx, int ny,
-              double dx=1., double dy=1.,
-              double ix0=0., double iy0=0.);
+    Pixelizor2_Flat(int ny, int nx,
+                    double dy=1., double dx=1.,
+                    double iy0=0., double ix0=0.);
     ~Pixelizor2_Flat() {};
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &det_weights);
