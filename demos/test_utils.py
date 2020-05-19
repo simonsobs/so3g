@@ -51,8 +51,8 @@ proj_dict = collections.OrderedDict([
 
 def get_proj(coord_sys, pol_sys, pxz=None, tiled=False):
     assert pol_sys in ['T', 'TQU', 'QU']
-    tiling_word = '_Tiled' if tiled else ''
-    name = f'ProjEng_{proj_dict[coord_sys]}{tiling_word}_{pol_sys}'
+    tiling_word = '_Tiled' if tiled else '_NonTiled'
+    name = f'ProjEng_{proj_dict[coord_sys]}_{pol_sys}{tiling_word}'
     #.format(proj_dict[coord_sys], pol_sys)
     cls = getattr(so3g, name) # ProjEng_X_Y
     if pxz is None:

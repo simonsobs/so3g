@@ -20,6 +20,56 @@ using namespace std;
 
 #include <boost/math/quaternion.hpp>
 
+// Proto-templates.
+template <int N>
+class SpinClass {
+public:
+    static const int comp_count = N;
+};
+
+
+
+// template<CoordSys> options
+class ProjQuat;
+class ProjFlat;
+class ProjCEA;
+class ProjCAR;
+class ProjARC;
+class ProjTAN;
+class ProjZEA;
+
+// template<PixelSys> options
+// class Pixelizor2_Flat;
+// class Pixelizor2_Flat_Tiled;
+
+// template<TilingSys> options
+class Tiled;
+class NonTiled;
+
+// template<SpinSys> options
+class SpinT : public SpinClass<1> {};
+class SpinQU : public SpinClass<2> {};
+class SpinTQU : public SpinClass<3> {};
+
+
+template <typename CoordSys>
+class Pointer {
+public:
+    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
+                    bp::object &signal, bp::object &det_weights);
+    void InitPerDet(int i_det, double *dofs);
+    int DetCount() { return n_det; }
+    int TimeCount() { return n_time; }
+    void GetCoords(int i_det, int i_time, const double *dofs, double *coords);
+private:
+    BufferWrapper<double> _pborebuf;
+    BufferWrapper<double> _pdetbuf;
+    int n_det;
+    int n_time;
+};
+
+
+
 typedef boost::math::quaternion<double> quatd;
 
 inline bool isNone(const bp::object &pyo)
@@ -597,55 +647,39 @@ public:
     }
 };
 
-template <typename SpinClass, typename TilingSystem>
-bool Accumulator<SpinClass,TilingSystem>::TestInputs(
-    bp::object &map, bp::object &pbore, bp::object &pdet,
-    bp::object &signal, bp::object &det_weights)
+
+template <typename SpinSys>
+inline
+void spin_proj_factors(const double* coords, FSIGNAL *projfacs);
+
+
+template <>
+inline void spin_proj_factors<SpinT>(const double* coords, FSIGNAL *projfacs)
 {
-    tiling.TestInputs(map, need_map, need_weight_map, SpinClass::comp_count);
-
-    if (need_signal) {
-        _signalspace = new SignalSpace<FSIGNAL>(
-            signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
-    }
-
-     _det_weights = BufferWrapper<FSIGNAL>(
-         "det_weights", det_weights, true, vector<int>{n_det});
-
-    return true;
+     projfacs[0] = 1.;
 }
 
-// template <typename TilingSystem>
-// inline
-// void Accumulator<SpinT,TilingSystem>::SpinProjFactors(
-//     const double* coords, FSIGNAL *projfacs)
-// {
-//     projfacs[0] = 1;
-// }
+template <>
+inline void spin_proj_factors<SpinQU>(const double* coords, FSIGNAL *projfacs)
+{
+    const double c = coords[2];
+    const double s = coords[3];
+    projfacs[0] = c*c - s*s;
+    projfacs[1] = 2*c*s;
+}
 
-// template <typename TilingSystem>
-// inline
-// void Accumulator<SpinQU,TilingSystem>::SpinProjFactors(
-//     const double* coords, FSIGNAL *projfacs)
-// {
-//     const double c = coords[2];
-//     const double s = coords[3];
-//     projfacs[0] = c*c - s*s;
-//     projfacs[1] = 2*c*s;
-// }
+template <>
+inline void spin_proj_factors<SpinTQU>(const double* coords, FSIGNAL *projfacs)
+{
+     const double c = coords[2];
+     const double s = coords[3];
+     projfacs[0] = 1.;
+     projfacs[1] = c*c - s*s;
+     projfacs[2] = 2*c*s;
+}
 
-// template <typename TilingSystem>
-// inline
-// void Accumulator<SpinTQU,TilingSystem>::SpinProjFactors(
-//     const double* coords, FSIGNAL *projfacs)
-// {
-//     const double c = coords[2];
-//     const double s = coords[3];
-//     projfacs[0] = 1.;
-//     projfacs[1] = c*c - s*s;
-//     projfacs[2] = 2*c*s;
-// }
 
+/*
 template <typename SpinClass,typename TilingSystem>
 inline
 void Accumulator<SpinClass,TilingSystem>::Forward(
@@ -694,37 +728,7 @@ void Accumulator<SpinClass,TilingSystem>::ForwardWeight(
         }
     }
 }
-
-template <typename SpinClass,typename TilingSystem>
-inline
-void Accumulator<SpinClass,TilingSystem>::Reverse(
-    const int i_det, const int i_time,
-    const int pixel_offset[], const double* coords, const FSIGNAL* weights)
-{
-    if (pixel_offset[0] < 0) return;
-    const int N = SpinClass::comp_count;
-    FSIGNAL pf[N];
-    SpinClass::ProjFactors(coords, pf);
-    double _sig = 0.;
-    for (int imap=0; imap<N; ++imap) {
-        // _sig += *(double*)((char*)tiling.mapbuf->buf +
-        //                    tiling.mapbuf->strides[0]*imap +
-        //                    pixel_offset) * pf[imap];
-        _sig += *tiling.pix(imap, pixel_offset) * pf[imap];
-    }
-    FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
-                    _signalspace->steps[0]*i_time);
-    *sig += _sig;
-}
-
-template <typename SpinClass,typename TilingSystem>
-inline
-int Accumulator<SpinClass,TilingSystem>::Stripe(
-    const int pixel_offset[], int n_thread)
-{
-    if (pixel_offset[0] < 0) return -1;
-    return tiling.stripe(pixel_offset, n_thread);
-}
+*/
 
 template <typename DTYPE>
 bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
@@ -815,34 +819,14 @@ SignalSpace<DTYPE>::SignalSpace(
 }
 
 
-/** to_map(map, qpoint, pofs, signal, weights)
- *
- *  Each argument is an ndarray.  In the general case the dimensionalities are:
- *
- *     map:      (n_map, ny, nx, ...)
- *     pbore:    (n_t, n_coord)
- *     pofs:     (n_det, n_coord)
- *     signal:   (n_det, n_t)
- *     det_weights: (n_det)
- *
- *  Notes:
- *
- *  - The map dimensions (ny, nx, ...) are meant to be general enough
- *    to also capture 1-dimensional pixelization systems (such as
- *    healpix), or higher dimensional grids, e.g., (nz, ny, nx).
- *
- *  - Normally we will have n_coord=4.  In the special case of a Flat
- *    (2-d cartesian) projection space with no detector orientation
- *    information, n_coord=2.
- *
- */
 
-template<typename P, typename Z, typename A>
-ProjectionEngine<P,Z,A>::ProjectionEngine(Z pixelizor)
+template<typename C, typename P, typename T, typename S>
+ProjectionEngine<C,P,T,S>::ProjectionEngine(P pixelizor)
 {
     _pixelizor = pixelizor;
 }
 
+/*
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::to_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
@@ -1056,46 +1040,15 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
 
     return map;
 }
+*/
 
-template<typename P, typename Z, typename A>
-bp::object ProjectionEngine<P,Z,A>::from_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
-{
-    // Initialize pointer and _pixelizor.
-    auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
-    int n_det = pointer.DetCount();
-    int n_time = pointer.TimeCount();
-
-    // Initialize accumulator -- create signal if it DNE.
-    auto accumulator = A(true, true, false, n_det, n_time);
-    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
-
-    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
-
-#pragma omp parallel for
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        double dofs[4];
-        pointer.InitPerDet(i_det, dofs);
-        int pixel_offset[Z::index_count];
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            double coords[4];
-            FSIGNAL weights[4];
-            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-            _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-            accumulator.Reverse(i_det, i_time, pixel_offset, coords, weights);
-        }
-    }
-
-    return accumulator._signalspace->ret_val;
-}
-
-template<typename P, typename Z, typename A>
-bp::object ProjectionEngine<P,Z,A>::coords(
+template<typename C, typename P, typename T, typename S>
+//template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<C,P,T,S>::coords(
     bp::object pbore, bp::object pofs, bp::object coord)
 {
     auto _none = bp::object();
-    auto pointer = P();
+    auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
 
     int n_det = pointer.DetCount();
@@ -1125,13 +1078,14 @@ bp::object ProjectionEngine<P,Z,A>::coords(
     return coord_buf_man.ret_val;
 }
 
-template<typename P, typename Z, typename A>
-bp::object ProjectionEngine<P,Z,A>::pixels(
+template<typename C, typename P, typename T, typename S>
+//template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<C,P,T,S>::pixels(
     bp::object pbore, bp::object pofs, bp::object pixel)
 {
     auto _none = bp::object();
 
-    auto pointer = P();
+    auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     _pixelizor.TestInputs(_none, _none, _none, _none, _none);
 
@@ -1139,20 +1093,20 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     int n_time = pointer.TimeCount();
 
     auto pixel_buf_man = SignalSpace<int32_t>(
-        pixel, "pixel", NPY_INT32, n_det, n_time, Z::index_count);
+        pixel, "pixel", NPY_INT32, n_det, n_time, P::index_count);
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
         int* const pix_buf = pixel_buf_man.data_ptr[i_det];
-        int pixel_offset[Z::index_count];
+        int pixel_offset[P::index_count];
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
             // Fix me -- multi-dim!
-            for (int i_dim = 0; i_dim < Z::index_count; i_dim++)
+            for (int i_dim = 0; i_dim < P::index_count; i_dim++)
                 pix_buf[i_time * pixel_buf_man.steps[0] +
                         i_dim * pixel_buf_man.steps[1]] = pixel_offset[i_dim];
             // pix_buf[i_time * pixel_buf_man.steps[0]] = pixel_offset;
@@ -1162,13 +1116,14 @@ bp::object ProjectionEngine<P,Z,A>::pixels(
     return pixel_buf_man.ret_val;
 }
 
-template<typename P, typename Z, typename A>
-bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
+template<typename C, typename P, typename T, typename S>
+//template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<C,P,T,S>::pointing_matrix(
     bp::object pbore, bp::object pofs, bp::object pixel, bp::object proj)
 {
     auto _none = bp::object();
 
-    auto pointer = P();
+    auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     _pixelizor.TestInputs(_none, _none, _none, _none, _none);
 
@@ -1176,14 +1131,10 @@ bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
     int n_time = pointer.TimeCount();
 
     auto pixel_buf_man = SignalSpace<int32_t>(
-        pixel, "pixel", NPY_INT32, n_det, n_time, Z::index_count);
+        pixel, "pixel", NPY_INT32, n_det, n_time, P::index_count);
 
-    auto accumulator = A(false, false, false, n_det, n_time);
-    accumulator.TestInputs(_none, pbore, pofs, _none, _none);
-
-    const int n_spin = accumulator.ComponentCount();
     auto proj_buf_man = SignalSpace<FSIGNAL>(
-        proj, "proj", FSIGNAL_NPY_TYPE, n_det, n_time, n_spin);
+        proj, "proj", FSIGNAL_NPY_TYPE, n_det, n_time, S::comp_count);
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -1192,18 +1143,18 @@ bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
         int* const pix_buf = pixel_buf_man.data_ptr[i_det];
         FSIGNAL* const proj_buf = proj_buf_man.data_ptr[i_det];
         const int step = pixel_buf_man.steps[0];
-        int pixel_offset[Z::index_count];
+        int pixel_offset[P::index_count];
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
-            FSIGNAL pf[n_spin];
+            FSIGNAL pf[S::comp_count];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-            accumulator.SpinProjFactors(coords, pf);
+            spin_proj_factors<S>(coords, pf);
 
-            for (int i_dim = 0; i_dim < Z::index_count; i_dim++)
+            for (int i_dim = 0; i_dim < P::index_count; i_dim++)
                 pix_buf[i_time * pixel_buf_man.steps[0] +
                         i_dim * pixel_buf_man.steps[1]] = pixel_offset[i_dim];
-            for (int i_spin = 0; i_spin < n_spin; i_spin++)
+            for (int i_spin = 0; i_spin < S::comp_count; i_spin++)
                 proj_buf[i_time * proj_buf_man.steps[0] +
                          i_spin * proj_buf_man.steps[1]] = pf[i_spin];
         }
@@ -1212,6 +1163,7 @@ bp::object ProjectionEngine<P,Z,A>::pointing_matrix(
     return bp::make_tuple(pixel_buf_man.ret_val,
                           proj_buf_man.ret_val);
 }
+/*
 
 template<typename P, typename Z, typename A>
 bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
@@ -1281,18 +1233,54 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
     }
     return bp::extract<bp::object>(ivals_out);
 }
+*/
 
-#define TYPEDEF_BATCH(PIX)                                              \
-    typedef ProjectionEngine<Pointer<Proj##PIX>,Pixelizor2_Flat,Accumulator<SpinT,  NonTiled>> ProjEng_##PIX##_T; \
-    typedef ProjectionEngine<Pointer<Proj##PIX>,Pixelizor2_Flat,Accumulator<SpinQU, NonTiled>> ProjEng_##PIX##_QU; \
-    typedef ProjectionEngine<Pointer<Proj##PIX>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>> ProjEng_##PIX##_TQU; \
-    typedef ProjectionEngine<Pointer<Proj##PIX>,Pixelizor2_Flat_Tiled,Accumulator<SpinT,  Tiled>> ProjEng_##PIX##_Tiled_T; \
-    typedef ProjectionEngine<Pointer<Proj##PIX>,Pixelizor2_Flat_Tiled,Accumulator<SpinQU, Tiled>> ProjEng_##PIX##_Tiled_QU; \
-    typedef ProjectionEngine<Pointer<Proj##PIX>,Pixelizor2_Flat_Tiled,Accumulator<SpinTQU,Tiled>> ProjEng_##PIX##_Tiled_TQU;
+template<typename C, typename P, typename T, typename S>
+//template<typename P, typename Z, typename A>
+bp::object ProjectionEngine<C,P,T,S>::from_map(
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
+{
+    // Initialize pointer and _pixelizor.
+    auto pointer = Pointer<C>();
+    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
 
-TYPEDEF_BATCH(Flat)
-TYPEDEF_BATCH(CAR)
-TYPEDEF_BATCH(TAN)
+    // Does this happen before tiling test or after?
+    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
+
+    // Validate or maybe create the map.
+    auto tiling = T();
+    tiling.TestInputs(map, true, false, S::comp_count);
+
+    // Get pointers to the signal and (optional) per-det weights.
+    auto _signalspace = new SignalSpace<FSIGNAL>(
+            signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+    auto _det_weights = BufferWrapper<FSIGNAL>(
+         "det_weights", det_weights, true, vector<int>{n_det});
+
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        int pixel_offset[P::index_count];
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
+            if (pixel_offset[0] < 0) continue;
+            FSIGNAL pf[S::comp_count];
+            spin_proj_factors<S>(coords, pf);
+            FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
+                            _signalspace->steps[0]*i_time);
+            for (int imap=0; imap<S::comp_count; ++imap)
+                *sig += *tiling.pix(imap, pixel_offset) * pf[imap];
+        }
+    }
+
+    return _signalspace->ret_val;
+}
+
 
 ////Flat.
 //typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
@@ -1532,23 +1520,31 @@ bp::object ProjEng_Precomp<Z,T>::from_map(
     return signal_man.ret_val;
 }
 
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-  ProjEng_ZEA_TQU;
+#define TYPEDEF_BATCH(PIX)                                              \
+    typedef ProjectionEngine<Proj ## PIX, Pixelizor2_Flat, NonTiled, SpinTQU> ProjEng_##PIX##_TQU_NonTiled;
+
+TYPEDEF_BATCH(Flat)
+// TYPEDEF_BATCH(CAR)
+// TYPEDEF_BATCH(TAN)
 
 #define EXPORT_ENGINE(CLASSNAME, INIT_CLASS)                            \
     bp::class_<CLASSNAME>(#CLASSNAME, bp::init<Pixelizor2_##INIT_CLASS>()) \
+    .def("coords", &CLASSNAME::coords)                                  \
+    .def("pixels", &CLASSNAME::pixels)                                  \
+    .def("pointing_matrix", &CLASSNAME::pointing_matrix)                \
+    .def("from_map", &CLASSNAME::from_map)                              \
+    ;
+/*
+
     .def("to_map", &CLASSNAME::to_map)                                  \
     .def("to_map_omp", &CLASSNAME::to_map_omp)                          \
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
     .def("to_weight_map_omp", &CLASSNAME::to_weight_map_omp)            \
-    .def("from_map", &CLASSNAME::from_map)                              \
-    .def("coords", &CLASSNAME::coords)                                  \
-    .def("pixels", &CLASSNAME::pixels)                                  \
-    .def("pointing_matrix", &CLASSNAME::pointing_matrix)                \
-    .def("pixel_ranges", &CLASSNAME::pixel_ranges);
+    .def("pixel_ranges", &CLASSNAME::pixel_ranges)                      \
+*/
 
-typedef ProjEng_Precomp<Pixelizor2_Flat,NonTiled> ProjEng_Precomp_;
-typedef ProjEng_Precomp<Pixelizor2_Flat_Tiled,Tiled> ProjEng_Precomp_Tiled;
+// typedef ProjEng_Precomp<Pixelizor2_Flat,NonTiled> ProjEng_Precomp_;
+// typedef ProjEng_Precomp<Pixelizor2_Flat_Tiled,Tiled> ProjEng_Precomp_Tiled;
 
 #define EXPORT_PRECOMP(CLASSNAME)                                       \
     bp::class_<CLASSNAME>(#CLASSNAME)                                   \
@@ -1558,13 +1554,15 @@ typedef ProjEng_Precomp<Pixelizor2_Flat_Tiled,Tiled> ProjEng_Precomp_Tiled;
 
 
 #define EXPORT_BATCH(PIX)                                     \
-    EXPORT_ENGINE(PIX ## _T,   Flat);                         \
+    EXPORT_ENGINE(PIX ## _TQU_NonTiled,   Flat);
+
+/*
     EXPORT_ENGINE(PIX ## _QU,  Flat);                         \
     EXPORT_ENGINE(PIX ## _TQU, Flat);                         \
     EXPORT_ENGINE(PIX ## _Tiled_T,   Flat_Tiled);             \
     EXPORT_ENGINE(PIX ## _Tiled_QU,  Flat_Tiled);             \
     EXPORT_ENGINE(PIX ## _Tiled_TQU, Flat_Tiled);
-
+*/
 
 // There are probably better ways to do this..
 template<typename T>
@@ -1574,8 +1572,8 @@ int _index_count(const T &) { return T::index_count; }
 PYBINDINGS("so3g")
 {
     EXPORT_BATCH(ProjEng_Flat);
-    EXPORT_BATCH(ProjEng_CAR);
-    EXPORT_BATCH(ProjEng_TAN);
+    // EXPORT_BATCH(ProjEng_CAR);
+    // EXPORT_BATCH(ProjEng_TAN);
     // EXPORT_ENGINE(ProjEng_Flat_T, Flat);
     // EXPORT_ENGINE(ProjEng_Flat_QU, Flat);
     // EXPORT_ENGINE(ProjEng_Flat_TQU, Flat);
@@ -1598,8 +1596,8 @@ PYBINDINGS("so3g")
 //    EXPORT_ENGINE(ProjEng_ZEA_QU);
 //    EXPORT_ENGINE(ProjEng_ZEA_TQU);
 //
-    EXPORT_PRECOMP(ProjEng_Precomp_);
-    EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
+    // EXPORT_PRECOMP(ProjEng_Precomp_);
+    // EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
 
     bp::class_<Pixelizor2_Flat>("Pixelizor2_Flat", bp::init<int,int,double,double,
                           double,double>())
