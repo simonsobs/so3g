@@ -599,7 +599,7 @@ void spin_proj_factors(const double* coords, FSIGNAL *projfacs);
 template <>
 inline void spin_proj_factors<SpinT>(const double* coords, FSIGNAL *projfacs)
 {
-     projfacs[0] = 1.;
+    projfacs[0] = 1.;
 }
 
 template <>
@@ -971,6 +971,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     return _signalspace->ret_val;
 }
 
+
 template<typename C, typename P, typename S>
 static
 void to_map_single_thread(Pointer<C> &pointer,
@@ -1188,7 +1189,6 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map_omp(
     return map;
 }
 
-
 ////Flat.
 //typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
 //  ProjEng_Flat_T;
@@ -1253,37 +1253,39 @@ typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU,No
  * factors for every sample.  This is agnostic of coordinate system,
  * and so not crazily templated.
  */
-/*
-template<typename Z, typename T>
+
+template<typename TilingSys>
 class ProjEng_Precomp {
 public:
     ProjEng_Precomp() {};
-    bp::object to_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                      bp::object signal, bp::object weights);
-    bp::object to_weight_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                             bp::object signal, bp::object weights);
     bp::object from_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
                         bp::object signal, bp::object weights);
+    bp::object to_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
+                      bp::object signal, bp::object weights, bp::object thread_intervals);
+    bp::object to_weight_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
+                             bp::object signal, bp::object weights, bp::object thread_intervals);
 };
 
-template <typename Z, typename T>
-bp::object ProjEng_Precomp<Z,T>::to_map(
+
+template<typename TilingSys>
+bp::object ProjEng_Precomp<TilingSys>::from_map(
     bp::object map, bp::object pixel_index, bp::object spin_proj,
     bp::object signal, bp::object det_weights)
 {
-    // You won't get far without pixel_index, so use that to nail down
+    //You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
     auto pixel_buf_man = SignalSpace<int32_t>(
-        pixel_index, "pixel_index", NPY_INT32, -1, -1, Z::index_count);
+        pixel_index, "pixel_index", NPY_INT32, -1, -1, -1);
     int n_det = pixel_buf_man.dims[0];
     int n_time = pixel_buf_man.dims[1];
+    int n_pix = pixel_buf_man.dims[2];
 
     // Similarly, spin_proj tells you the number of components.
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, -1);
     int n_spin = spin_proj_man.dims[2];
 
-    auto tiling = T();
+    auto tiling = Pixelizor2_Flat<TilingSys>();
     tiling.TestInputs(map, true, false, n_spin);
 
     // Check the signal.
@@ -1297,110 +1299,6 @@ bp::object ProjEng_Precomp<Z,T>::to_map(
     if (pixel_buf_man.steps[1] != 1)
         throw shape_exception("pixel_index",
                               "Fast dimension of pixel indices must be close-packed.");
-
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
-
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            const int *pixel_ofs = pixel_buf_man.data_ptr[i_det] +
-                pixel_buf_man.steps[0]*i_time;
-            if (pixel_ofs[0] < 0)
-                continue;
-            const FSIGNAL sig = *(signal_man.data_ptr[i_det] +
-                                  signal_man.steps[0]*i_time);
-            for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
-                const FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
-                                     spin_proj_man.steps[0] * i_time +
-                                     spin_proj_man.steps[1] * i_spin);
-                *tiling.pix(i_spin, pixel_ofs) += det_wt * sig * sp;
-            }
-        }
-    }
-
-    return map;
-}
-
-template <typename Z, typename T>
-bp::object ProjEng_Precomp<Z,T>::to_weight_map(
-    bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object signal, bp::object det_weights)
-{
-    // You won't get far without pixel_index, so use that to nail down
-    // the n_time and n_det.
-    auto pixel_buf_man = SignalSpace<int32_t>(
-        pixel_index, "pixel_index", NPY_INT32, -1, -1, Z::index_count);
-    int n_det = pixel_buf_man.dims[0];
-    int n_time = pixel_buf_man.dims[1];
-
-    // Similarly, spin_proj tells you the number of components.
-    auto spin_proj_man = SignalSpace<FSIGNAL>(
-        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, -1);
-    int n_spin = spin_proj_man.dims[2];
-
-    auto tiling = T();
-    tiling.TestInputs(map, false, true, n_spin);
-
-    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
-                                        vector<int>{n_det});
-
-    // Below we assume the pixel sub-indices are close-packed.
-    if (pixel_buf_man.steps[1] != 1)
-        throw shape_exception("pixel_index",
-                              "Fast dimension of pixel indices must be close-packed.");
-
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
-
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            const int *pixel_ofs = pixel_buf_man.data_ptr[i_det] +
-                pixel_buf_man.steps[0]*i_time;
-            if (pixel_ofs[0] < 0)
-                continue;
-            const FSIGNAL *sp = (spin_proj_man.data_ptr[i_det] +
-                                 spin_proj_man.steps[0] * i_time);
-            for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
-                for (int j_spin = i_spin; j_spin < n_spin; ++j_spin) {
-                    *tiling.wpix(i_spin, j_spin, pixel_ofs) += det_wt *
-                        sp[spin_proj_man.steps[1] * i_spin] *
-                        sp[spin_proj_man.steps[1] * j_spin];
-                }
-            }
-        }
-    }
-
-    return map;
-}
-
-template <typename Z, typename T>
-bp::object ProjEng_Precomp<Z,T>::from_map(
-    bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object signal, bp::object det_weights)
-{
-    // You won't get far without pixel_index, so use that to nail down
-    // the n_time and n_det.
-    auto pixel_buf_man = SignalSpace<int32_t>(
-        pixel_index, "pixel_index", NPY_INT32, -1, -1, Z::index_count);
-    int n_det = pixel_buf_man.dims[0];
-    int n_time = pixel_buf_man.dims[1];
-
-    // Similarly, spin_proj tells you the number of components.
-    auto spin_proj_man = SignalSpace<FSIGNAL>(
-        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, -1);
-    int n_spin = spin_proj_man.dims[2];
-
-    auto tiling = T();
-    tiling.TestInputs(map, true, false, n_spin);
-
-    // Check the signal.
-    auto signal_man = SignalSpace<FSIGNAL>(
-        signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
-
-    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
-                                        vector<int>{n_det});
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -1415,10 +1313,10 @@ bp::object ProjEng_Precomp<Z,T>::from_map(
                 continue;
             FSIGNAL sig = 0;
             for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
-                FSIGNAL sp = *(spin_proj_man.data_ptr[i_det] +
+                FSIGNAL pf = *(spin_proj_man.data_ptr[i_det] +
                                spin_proj_man.steps[0] * i_time +
                                spin_proj_man.steps[1] * i_spin);
-                sig += sp * *tiling.pix(i_spin, pixel_ofs);
+                sig += pf * *tiling.pix(i_spin, pixel_ofs);
             }
             *(signal_man.data_ptr[i_det] + signal_man.steps[0]*i_time) += sig;
         }
@@ -1426,7 +1324,193 @@ bp::object ProjEng_Precomp<Z,T>::from_map(
 
     return signal_man.ret_val;
 }
-*/
+
+template<typename TilingSys>
+static
+void precomp_to_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
+                                  const SignalSpace<int32_t> &pixel_buf_man,
+                                  const SignalSpace<FSIGNAL> &spin_proj_man,
+                                  vector<RangesInt32> ivals,
+                                  BufferWrapper<FSIGNAL> &_det_weights,
+                                  SignalSpace<FSIGNAL> *_signalspace)
+{
+    int n_det = pixel_buf_man.dims[0];
+    int n_spin = spin_proj_man.dims[2];
+    assert(spin_proj_man.steps[1] == 1); // assumed below
+
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        FSIGNAL det_wt = 1.;
+        if (_det_weights->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
+
+        for (auto const &rng: ivals[i_det].segments) {
+            for (int i_time = rng.first; i_time < rng.second; ++i_time) {
+                const int *pixel_offset = pixel_buf_man.data_ptr[i_det] +
+                    pixel_buf_man.steps[0]*i_time;
+                if (pixel_offset[0] < 0)
+                    continue;
+                const FSIGNAL sig = *(_signalspace->data_ptr[i_det] +
+                                      _signalspace->steps[0]*i_time);
+                const FSIGNAL *pf = (spin_proj_man.data_ptr[i_det] +
+                                     spin_proj_man.steps[0] * i_time);
+                for (int i_spin = 0; i_spin < n_spin; ++i_spin) {
+                    *tiling.pix(i_spin, pixel_offset) += det_wt * sig * pf[i_spin];
+                }
+            }
+        }
+    }
+}
+
+template<typename TilingSys>
+static
+void precomp_to_weight_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
+                                         const SignalSpace<int32_t> &pixel_buf_man,
+                                         const SignalSpace<FSIGNAL> &spin_proj_man,
+                                         vector<RangesInt32> ivals,
+                                         BufferWrapper<FSIGNAL> &_det_weights)
+{
+    int n_det = pixel_buf_man.dims[0];
+    int n_spin = spin_proj_man.dims[2];
+    assert(spin_proj_man.steps[1] == 1); // assumed below
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        FSIGNAL det_wt = 1.;
+        if (_det_weights->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
+
+        for (auto const &rng: ivals[i_det].segments) {
+            for (int i_time = rng.first; i_time < rng.second; ++i_time) {
+                const int *pixel_offset = pixel_buf_man.data_ptr[i_det] +
+                    pixel_buf_man.steps[0]*i_time;
+                if (pixel_offset[0] < 0)
+                    continue;
+                const FSIGNAL *pf = (spin_proj_man.data_ptr[i_det] +
+                                     spin_proj_man.steps[0] * i_time);
+                for (int imap=0; imap < n_spin; ++imap)
+                    for (int jmap=imap; jmap < n_spin; ++jmap)
+                        *tiling.wpix(imap, jmap, pixel_offset) += pf[imap] * pf[jmap] * det_wt;
+            }
+        }
+    }
+}
+
+template<typename TilingSys>
+bp::object ProjEng_Precomp<TilingSys>::to_map(
+    bp::object map, bp::object pixel_index, bp::object spin_proj,
+    bp::object signal, bp::object det_weights, bp::object thread_intervals)
+{
+    // You won't get far without pixel_index, so use that to nail down
+    // the n_time and n_det.
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel_index, "pixel_index", NPY_INT32, -1, -1, -1);
+    int n_det = pixel_buf_man.dims[0];
+    int n_time = pixel_buf_man.dims[1];
+    int n_pix = pixel_buf_man.dims[2];
+
+    // Similarly, spin_proj tells you the number of components.
+    auto spin_proj_man = SignalSpace<FSIGNAL>(
+        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, -1);
+    int n_spin = spin_proj_man.dims[2];
+
+    // Unlike the on-the-fly class, we aren't able to make the map
+    // here, because there's no initialized pixelizor.
+    auto pixelizor = Pixelizor2_Flat<TilingSys>();
+    pixelizor.TestInputs(map, true, false, n_spin);
+
+    // Check the signal.
+    auto _signalspace = new SignalSpace<FSIGNAL>(
+        signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+
+    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
+                                        vector<int>{n_det});
+
+    // Below we assume the pixel sub-indices are close-packed.
+    if (pixel_buf_man.steps[1] != 1)
+        throw shape_exception("pixel_index",
+                              "Fast dimension of pixel indices must be close-packed.");
+
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
+
+    if (ivals.size() <= 1) {
+        // This block may also be used if OMP is disabled.
+        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
+            precomp_to_map_single_thread<TilingSys>(
+                pixelizor, pixel_buf_man, spin_proj_man,
+                ivals[i_thread],_det_weights, _signalspace);
+    } else {
+#pragma omp parallel
+        {
+            // This loop construction handles the (sub-optimal) case
+            // that the number of ivals is not equal to the number of
+            // OMP threads.
+            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
+                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                    precomp_to_map_single_thread<TilingSys>(
+                        pixelizor, pixel_buf_man, spin_proj_man,
+                        ivals[i_thread], _det_weights, _signalspace);
+            }
+        }
+    }
+    return map;
+}
+
+template<typename TilingSys>
+bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
+    bp::object map, bp::object pixel_index, bp::object spin_proj,
+    bp::object signal, bp::object det_weights, bp::object thread_intervals)
+{
+    // You won't get far without pixel_index, so use that to nail down
+    // the n_time and n_det.
+    auto pixel_buf_man = SignalSpace<int32_t>(
+        pixel_index, "pixel_index", NPY_INT32, -1, -1, -1);
+    int n_det = pixel_buf_man.dims[0];
+    int n_time = pixel_buf_man.dims[1];
+    int n_pix = pixel_buf_man.dims[2];
+
+    // Similarly, spin_proj tells you the number of components.
+    auto spin_proj_man = SignalSpace<FSIGNAL>(
+        spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, -1);
+    int n_spin = spin_proj_man.dims[2];
+
+    // Unlike the on-the-fly class, we aren't able to make the map
+    // here, because there's no initialized pixelizor.
+    auto pixelizor = Pixelizor2_Flat<TilingSys>();
+    pixelizor.TestInputs(map, true, false, n_spin);
+
+    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
+                                        vector<int>{n_det});
+
+    // Below we assume the pixel sub-indices are close-packed.
+    if (pixel_buf_man.steps[1] != 1)
+        throw shape_exception("pixel_index",
+                              "Fast dimension of pixel indices must be close-packed.");
+
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
+
+    if (ivals.size() <= 1) {
+        // This block may also be used if OMP is disabled.
+        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
+            precomp_to_weight_map_single_thread<TilingSys>(
+                pixelizor, pixel_buf_man, spin_proj_man,
+                ivals[i_thread],_det_weights);
+    } else {
+#pragma omp parallel
+        {
+            // This loop construction handles the (sub-optimal) case
+            // that the number of ivals is not equal to the number of
+            // OMP threads.
+            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
+                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                    precomp_to_weight_map_single_thread<TilingSys>(
+                        pixelizor, pixel_buf_man, spin_proj_man,
+                        ivals[i_thread], _det_weights);
+            }
+        }
+    }
+    return map;
+}
+
+typedef ProjEng_Precomp<NonTiled> ProjEng_Precomp_NonTiled;
+typedef ProjEng_Precomp<Tiled> ProjEng_Precomp_Tiled;
 
 
 #define TYPEDEF_BATCH(PIX)                                              \
@@ -1453,15 +1537,12 @@ TYPEDEF_BATCH(Flat)
     .def("to_weight_map_omp", &CLASSNAME::to_weight_map_omp)            \
     ;
 
-// typedef ProjEng_Precomp<Pixelizor2_Flat,NonTiled> ProjEng_Precomp_;
-// typedef ProjEng_Precomp<Pixelizor2_Flat_Tiled,Tiled> ProjEng_Precomp_Tiled;
-
 #define EXPORT_PRECOMP(CLASSNAME)                                       \
     bp::class_<CLASSNAME>(#CLASSNAME)                                   \
+    .def("from_map", &CLASSNAME::from_map)                              \
     .def("to_map", &CLASSNAME::to_map)                                  \
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
-    .def("from_map", &CLASSNAME::from_map);
-
+;
 
 #define EXPORT_BATCH(PIX)                                     \
     EXPORT_ENGINE(PIX ## _TQU_NonTiled,   Flat);              \
@@ -1507,6 +1588,6 @@ PYBINDINGS("so3g")
 //    EXPORT_ENGINE(ProjEng_ZEA_QU);
 //    EXPORT_ENGINE(ProjEng_ZEA_TQU);
 //
-    // EXPORT_PRECOMP(ProjEng_Precomp_);
-    // EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
+    EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
+    EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
 }

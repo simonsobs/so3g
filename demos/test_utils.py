@@ -59,6 +59,12 @@ def get_proj(coord_sys, pol_sys, pxz=None, tiled=False):
         return cls
     return cls(pxz)
 
+def get_proj_precomp(tiled=False):
+    tiling_word = '_Tiled' if tiled else '_NonTiled'
+    name = f'ProjEng_Precomp{tiling_word}'
+    cls = getattr(so3g, name) # ProjEng_X_Y
+    return cls()
+
 def get_boresight_quat(system, x, y, gamma=None):
     if gamma is None:
         gamma = 0

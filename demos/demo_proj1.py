@@ -193,33 +193,31 @@ if 1:
     print('yes')
 
 
-if 0:
+if 1:
     print('Cache pointing matrix.', end='\n ...')
     with Timer() as T:
         pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
-
-    print('Forward project using precomputed pointing matrix.',
-          end='\n ...')
-    pp = so3g.ProjEng_Precomp_()
-    map1p = pxz.zeros(3)
-    with Timer() as T:
-        pp.to_map(map1p, pix_idx, spin_proj, sig_list, None)
-
-    print('and also weights', end='\n ... ')
-    map2p = np.zeros((3,3) + pxz.zeros(1).shape[1:])
-    with Timer() as T:
-        map2p = pp.to_weight_map(map2p,pix_idx,spin_proj,None,None)
-
-    print('Checking that precomp and on-the-fly forward calcs agree: ',
-          end='\n ... ')
-    assert abs(map1 - map1p).max() == 0
-    assert abs(map2 - map2p).max() == 0
-    print('yes')
+    pp = test_utils.get_proj_precomp(args.tiled)
 
     print('Reverse projection using precomputed pointing',
           end='\n ...')
     with Timer() as T:
         sig1p = pp.from_map(map1, pix_idx, spin_proj, None, None)
+
+    print('Forward project using precomputed pointing matrix.',
+          end='\n ...')
+    with Timer() as T:
+        map1p = pp.to_map(pe.zeros(3), pix_idx, spin_proj, sig_list, None, Ivals)
+
+    print('and also weights', end='\n ... ')
+    with Timer() as T:
+        map2p = pp.to_weight_map(pe.zeros((3,3)),pix_idx,spin_proj,None,None, Ivals)
+
+    print('Checking that precomp and on-the-fly forward calcs agree: ',
+          end='\n ... ')
+    assert map_delta(map1, map1p) == 0
+    assert map_delta(map2, map2p) == 0
+    print('yes')
 
     print('Checking that it agrees with on-the-fly',
           end='\n ...')
