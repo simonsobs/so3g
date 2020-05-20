@@ -12,44 +12,6 @@ typedef float FSIGNAL;
 #define FSIGNAL_BUFFER_FORMAT "f"
 
 
-class Pixelizor2_Flat {
-public:
-    static const int index_count = 2;
-    Pixelizor2_Flat() {};
-    Pixelizor2_Flat(int ny, int nx,
-                    double dy=1., double dx=1.,
-                    double iy0=0., double ix0=0.);
-    ~Pixelizor2_Flat() {};
-    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &det_weights);
-    bp::object zeros(int count);
-    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index);
-    int crpix[2];
-    double cdelt[2];
-    int naxis[2];
-};
-
-class Pixelizor2_Flat_Tiled {
-public:
-    static const int index_count = 3;
-    Pixelizor2_Flat_Tiled() {};
-    Pixelizor2_Flat_Tiled(Pixelizor2_Flat _parent_pix,
-                          int tiley, int tilex);
-    Pixelizor2_Flat_Tiled(int ny, int nx,
-                          double dy=1., double dx=1.,
-                          double iy0=0., double ix0=0.,
-                          int tiley=0, int tilex=0);
-    ~Pixelizor2_Flat_Tiled() {};
-    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &det_weights);
-    bp::object zeros(int count);
-    bp::object zeros_tiled(int count, bp::object active_tiles);
-    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index);
-private:
-    Pixelizor2_Flat parent_pix;
-    int tile_shape[2];
-};
-
 template <typename DTYPE>
 class SignalSpace {
 public:
@@ -78,25 +40,31 @@ private:
 template<typename CoordSys, typename PixelSys, typename TilingSys, typename SpinSys>
 class ProjectionEngine {
 public:
-    ProjectionEngine(PixelSys pixelizor);
+    //ProjectionEngine(PixelSys pixelizor);
+    ProjectionEngine(bp::object pix_args);
     bp::object coords(bp::object pbore, bp::object pofs,
                       bp::object coord);
     bp::object pixels(bp::object pbore, bp::object pofs, bp::object pixel);
     bp::object pointing_matrix(bp::object pbore, bp::object pofs,
                                bp::object pixel, bp::object proj);
+    bp::object zeros(bp::object shape);
     bp::object from_map(bp::object map, bp::object pbore, bp::object pofs,
                         bp::object signal, bp::object weights);
-    // bp::object to_map(bp::object map, bp::object pbore, bp::object pofs,
-    //                   bp::object signal, bp::object weights);
+    bp::object to_map(bp::object map, bp::object pbore, bp::object pofs,
+                      bp::object signal, bp::object weights);
+    bp::object to_weight_map(bp::object map, bp::object pbore, bp::object pofs,
+                             bp::object signal, bp::object weights);
     // bp::object to_map_omp(bp::object map, bp::object pbore, bp::object pofs,
     //                       bp::object signal, bp::object weights,
     //                       bp::object thread_intervals);
-    // bp::object to_weight_map(bp::object map, bp::object pbore, bp::object pofs,
-    //                          bp::object signal, bp::object weights);
     // bp::object to_weight_map_omp(bp::object map, bp::object pbore, bp::object pofs,
     //                              bp::object signal, bp::object weights,
     //                              bp::object thread_intervals);
     // bp::object pixel_ranges(bp::object pbore, bp::object pofs);
+
+    int comp_count() const;
+    int index_count() const;
+
 private:
     PixelSys _pixelizor;
 };

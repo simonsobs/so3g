@@ -51,7 +51,7 @@ def get_pixelizor(emap):
     ny, nx = emap.shape[1:]
     dy, dx = emap.wcs.wcs.cdelt * np.pi/180
     iy0, ix0 = emap.wcs.wcs.crpix
-    return so3g.Pixelizor2_Flat(ny, nx, dy, dx, iy0, ix0)
+    return (ny, nx, dy, dx, iy0, ix0)
 
 # Use this pixelizor for projections.
 pxz = get_pixelizor(beam)

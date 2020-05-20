@@ -23,8 +23,8 @@ args = parser.parse_args()
 system = args.system
 print('Using system: %s' % system)
 
-# Map space.
-pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0)
+# Map space -- args for Pixelization.
+pxz = (300,250,0.00005,0.00005,0.,0.)
 
 # Samples
 n_det = args.n_det
@@ -59,12 +59,6 @@ else:
     print(' OMP_NUM_THREADS=%i.\n' % n_omp)
 
 
-#print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
-#with Timer():
-#    Ivals = pe.pixel_ranges(ptg, ofs)
-#
-#map0 = pxz.zeros(1)
-#
 if 1:
     coo = np.empty(sig.shape[1:] + (4,), 'double')
     print('Compute and return coordinates only.', end='\n ... ')
@@ -83,7 +77,8 @@ if 1:
     del coo, coo1
 
     print('Compute coords and pixels and return pixels.', end='\n ... ')
-    pix = np.empty(sig.shape[1:] + (pxz.index_count,), 'int32')
+    #pix = np.empty(sig.shape[1:] + (pxz.index_count,), 'int32')
+    pix = np.empty(sig.shape[1:] + (pe.index_count,), 'int32')
     with Timer() as T:
         pe.pixels(ptg,ofs,pix)
 
@@ -114,21 +109,42 @@ if 1:
 
 if 1:
     print('From map into time-domain (TQU)', end='\n ... ')
-    map1 = pxz.zeros(3) + np.array([1,0,0])[:,None,None]
+    map1 = pe.zeros(3) + np.array([1,0,0])[:,None,None]
     with Timer() as T:
         sig1 = pe.from_map(map1, ptg, ofs, None, None)
 
 if 1:
-    print('Forward projection (TQU)', end='\n ... ')
-    map0 = None #pxz.zeros(3)
+    print('From time into map-domain (TQU)', end='\n ... ')
     if args.tiled:
         map0 = pxz.zeros(3)
         map0 = [(map0.shape, map0.shape), [map0]]
     else:
-        map0 = pxz.zeros(3)
+        map0 = pe.zeros(3)
     sig_list = [x for x in sig[0]]
     with Timer() as T:
         map1 = pe.to_map(map0,ptg,ofs,sig_list,None)
+
+if 1:
+    print('Map-domain again but with None for input map', end='\n ... ')
+    with Timer() as T:
+        map1 = pe.to_map(None,ptg,ofs,sig_list,None)
+
+if 1:
+    print('Forward project weights (TQU)', end='\n ... ')
+    map0 = pe.zeros((3, 3))
+    with Timer() as T:
+        map2 = pe.to_weight_map(map0,ptg,ofs,None,None)
+
+if 1:
+    print('Weights again but with None for input map', end='\n ... ')
+    with Timer() as T:
+        map2 = pe.to_weight_map(None,ptg,ofs,None,None)
+
+stop_omp
+
+print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
+with Timer():
+    Ivals = pe.pixel_ranges(ptg, ofs)
 
 if 1:
     print('Forward projection (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
@@ -142,12 +158,6 @@ if 1:
     with Timer() as T:
         #sig1 =
         pe.from_map(map1, ptg, ofs, sig1, None)
-
-if 1:
-    print('Forward project weights (TQU)', end='\n ... ')
-    map0 = None #pxz.zeros(3)
-    with Timer() as T:
-        map2 = pe.to_weight_map(None,ptg,ofs,None,None)
 
 if 1:
     print('Forward project weights (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
