@@ -2,7 +2,7 @@
 # A containerized so3g installation.
 
 # Build on spt3g base image
-FROM simonsobs/spt3g:7678fcc
+FROM simonsobs/spt3g:0.2-11-g3444852
 
 # Set locale
 ENV LANG C.UTF-8
