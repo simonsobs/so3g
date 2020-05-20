@@ -25,6 +25,9 @@ print('Using system: %s' % system)
 
 # Map space -- args for Pixelization.
 pxz = (300,250,0.00005,0.00005,0.,0.)
+if args.tiled:
+    pxz = pxz + ((100,100))
+    tilage = tuple([int(np.ceil(s/t)) for s, t in zip(pxz[:2], pxz[-2:])])
 
 # Samples
 n_det = args.n_det
@@ -82,6 +85,12 @@ if 1:
     with Timer() as T:
         pe.pixels(ptg,ofs,pix)
 
+    # Make a note of what maps are occupied...
+    maps_present = []
+    for s in pix:
+        maps_present.extend(list(set(list(s[:,0]))))
+    maps_present = sorted(list(set(maps_present)))
+
     pix[:] = 0
     pix_list = [p for p in pix]  #listify...
     print('And into a list.', end='\n ... ')
@@ -108,18 +117,26 @@ if 1:
     del pix, pix_list, pix3, pix2, spin_proj
 
 if 1:
+    # Re-instantiate the projector with maps_present so that zeros()
+    # can work.
+    if args.tiled:
+        pe = test_utils.get_proj(system, 'TQU', pxz + (maps_present,), tiled=args.tiled)
+
+if 1:
     print('From map into time-domain (TQU)', end='\n ... ')
-    map1 = pe.zeros(3) + np.array([1,0,0])[:,None,None]
+    map1 = pe.zeros(3)
+    if args.tiled:
+        for m in map1:
+            if m is not None:
+                m += np.array([1,0,0])[:,None,None]
+    else:
+        map1 += np.array([1,0,0])[:,None,None]
     with Timer() as T:
         sig1 = pe.from_map(map1, ptg, ofs, None, None)
 
 if 1:
     print('From time into map-domain (TQU)', end='\n ... ')
-    if args.tiled:
-        map0 = pxz.zeros(3)
-        map0 = [(map0.shape, map0.shape), [map0]]
-    else:
-        map0 = pe.zeros(3)
+    map0 = pe.zeros(3)
     sig_list = [x for x in sig[0]]
     with Timer() as T:
         map1 = pe.to_map(map0,ptg,ofs,sig_list,None)
@@ -207,13 +224,21 @@ if 1:
 
 print('Plotting...')
 import pylab as pl
-gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
+if not args.tiled:
+    gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
+    for axi in range(3):
+        ax = pl.subplot(gs1[0,axi])
+        ax.imshow(map1[axi], cmap='gray')
+        ax.set_title('TQU'[axi])
+    ax = pl.subplot(gs1[1,:])
+    ax.plot(sig1[0])
+else:
+    gs1 = pl.matplotlib.gridspec.GridSpec(*tilage)
+    for y in range(tilage[0]):
+        for x in range(tilage[1]):
+            m = map1[y*tilage[1] + x]
+            if m is not None:
+                ax = pl.subplot(gs1[y, x])
+                ax.imshow(m[0], cmap='gray')
 
-for axi in range(3):
-    ax = pl.subplot(gs1[0,axi])
-    ax.imshow(map1[axi], cmap='gray')
-    ax.set_title('TQU'[axi])
-
-ax = pl.subplot(gs1[1,:])
-ax.plot(sig1[0])
 pl.show()

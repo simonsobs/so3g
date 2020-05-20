@@ -36,8 +36,8 @@ private:
 };
 
 
-// template<typename C, typename P, typename T, typename S>
-template<typename CoordSys, typename PixelSys, typename TilingSys, typename SpinSys>
+// template<typename C, typename P, typename S>
+template<typename CoordSys, typename PixelSys, typename SpinSys>
 class ProjectionEngine {
 public:
     //ProjectionEngine(PixelSys pixelizor);

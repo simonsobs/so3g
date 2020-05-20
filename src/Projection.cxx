@@ -350,9 +350,6 @@ public:
     Pixelizor2_Flat(int ny, int nx,
                     double dy=1., double dx=1.,
                     double iy0=0., double ix0=0.) {
-        std::cout << ny << " "
-                  << nx << "\n";
-
         naxis[0] = ny;
         naxis[1] = nx;
         cdelt[0] = dy;
@@ -371,76 +368,37 @@ public:
         crpix[1] = bp::extract<double>(args_tuple[5])();
     }
     ~Pixelizor2_Flat() {};
-    // bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-    //                 bp::object &signal, bp::object &det_weights) {
-    //     // Flat pixelizor.  Requires:
-    //     // 1. Map has the right shape -- but map can be none.
-    //     // 2. Coords have the right format (unchecked currently).
 
-    //     // If map is provided, it can have any number of leading
-    //     // dimensions but the last two dimensions must match naxis.
-    //     BufferWrapper<double> mapbuf("map", map, true,
-    //                                  vector<int>{-2,naxis[0],naxis[1]});
-    //     if (mapbuf->buf != NULL) {
-    //         // Note these are byte offsets, not index.
-    //         // int ndim = mapbuf->ndim;
-    //         // strides[0] = mapbuf->strides[ndim-2];
-    //         // strides[1] = mapbuf->strides[ndim-1];
-    //     } else {
-    //         // Set it up to return naive C-ordered pixel indices.
-    //         // strides[0] = naxis[1];
-    //         // strides[1] = 1;
-    //     }
+    bp::object zeros(vector<int> shape) {
+        shape.push_back(naxis[0]);
+        shape.push_back(naxis[1]);
+        int ndim = 0;
+        npy_intp dims[32];
+        for (auto d: shape)
+            dims[ndim++] = d;
 
-    //     // [Check/declare coords format.]
-    //     return true;
-    // }
-
-    bp::object zeros(vector<int> shape)
-        {
-            shape.push_back(naxis[0]);
-            shape.push_back(naxis[1]);
-            int ndim = 0;
-            npy_intp dims[32];
-            for (auto d: shape)
-                dims[ndim++] = d;
-            // while (ndim <
-            // for (int i; dimi < shape.size(); dimi++)
-            //     dims[dimi] = shape[dimi];
-            //     size *= shape[dimi];
-            // }
-
-            // dims[dimi++] = naxis[0];
-            // dims[dimi++] = naxis[1];
-
-            int dtype = NPY_FLOAT64;
-            PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
-            return bp::object(bp::handle<>(v));
-        }
+        int dtype = NPY_FLOAT64;
+        PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
+        return bp::object(bp::handle<>(v));
+    }
 
     inline
-    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index)
-        {
-            double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
-            if (ix < 0 || ix >= naxis[1]) {
-                *pixel_index = -1;
-                return;
-            }
-
-            double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
-            if (iy < 0 || iy >= naxis[0]) {
-                *pixel_index = -1;
-                return;
-            }
-
-            pixel_index[0] = int(iy);
-            pixel_index[1] = int(ix);
-            // *pixel_index =  strides[0]*int(iy) + strides[1]*int(ix);
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
+        double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
+        if (ix < 0 || ix >= naxis[1]) {
+            *pixel_index = -1;
+            return;
         }
 
-    int crpix[2];
-    double cdelt[2];
-    int naxis[2];
+        double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
+        if (iy < 0 || iy >= naxis[0]) {
+            *pixel_index = -1;
+            return;
+        }
+
+        pixel_index[0] = int(iy);
+        pixel_index[1] = int(ix);
+    }
 
     // From Tiled/NonTiled
     BufferWrapper<double> mapbuf;
@@ -476,6 +434,10 @@ public:
             return -1;
         return pixel_index[0] * thread_count / (mapbuf->shape[0] / mapbuf->itemsize);
     }
+
+    int crpix[2];
+    double cdelt[2];
+    int naxis[2];
 };
 
 template <>
@@ -483,7 +445,6 @@ class Pixelizor2_Flat<Tiled> {
 public:
     static const int index_count = 3;
     Pixelizor2_Flat() {};
-    ~Pixelizor2_Flat() {};
     Pixelizor2_Flat(int ny, int nx, double dy, double dx,
                     double iy0, double ix0, int tiley, int tilex) {
         parent_pix = Pixelizor2_Flat<NonTiled>(ny, nx, dy, dx, iy0, ix0);
@@ -496,40 +457,17 @@ public:
         tile_shape[1] = tilex;
     };
     Pixelizor2_Flat(bp::object args) {
+        parent_pix = Pixelizor2_Flat<NonTiled>(args); // first 6...
         bp::tuple args_tuple = bp::extract<bp::tuple>(args);
-        Pixelizor2_Flat(bp::extract<int>(args_tuple[0]),
-                        bp::extract<int>(args_tuple[1]),
-                        bp::extract<double>(args_tuple[2]),
-                        bp::extract<double>(args_tuple[3]),
-                        bp::extract<double>(args_tuple[4]),
-                        bp::extract<double>(args_tuple[5]),
-                        bp::extract<int>(args_tuple[6]),
-                        bp::extract<int>(args_tuple[7]));
-    }
 
-    bp::object zeros(int count) {
-        // If a mapping routine tries to generate an empty map, on the
-        // fly, don't let it.
-        throw shape_exception("Flat_Tiled", "Tiled output must be pre-initialized.");
-    }
-
-    bp::object zeros_tiled(int count, bp::object active_tiles) {
-        int base_size = 1;
-        int base_dimi = 0;
-        npy_intp dims[32];
-        int dtype = NPY_FLOAT64;
-
-        if (count >= 0) {
-            dims[base_dimi++] = count;
-            base_size *= count;
-        }
-
-        int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
-        int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
-        vector<bool> populate(n_ty * n_tx, false);
-        if (isNone(active_tiles)) {
-            populate = vector<bool>(populate.size(), true);
-        } else {
+        tile_shape[0] = bp::extract<int>(args_tuple[6])();
+        tile_shape[1] = bp::extract<int>(args_tuple[7])();
+        // Check for tile list as arg[8].
+        if (bp::len(args) >= 9) {
+            int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
+            int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
+            populate = vector<bool>(n_ty * n_tx, false);
+            bp::object active_tiles = bp::extract<bp::object>(args_tuple[8])();
             for (int i=0; i<bp::len(active_tiles); i++) {
                 // We're using C API instead of boost because this:
                 //   bp::extract<int>(active_tiles[i])
@@ -541,14 +479,29 @@ public:
                     populate[idx] = true;
             }
         }
+    }
+    ~Pixelizor2_Flat() {};
+
+    bp::object zeros(vector<int> shape) {
+        int dtype = NPY_FLOAT64;
+        int ndim = 0;
+        npy_intp dims[32];
+        for (auto d: shape)
+            dims[ndim++] = d;
+        ndim += 2;
+
+        int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
+        int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
 
         bp::list maps_out;
+        auto pop_iter = populate.begin();
         for (int i_ty = 0; i_ty < n_ty; i_ty++) {
-            dims[base_dimi] = min(tile_shape[0], parent_pix.naxis[0] - i_ty * tile_shape[0]);
             for (int i_tx = 0; i_tx < n_tx; i_tx++) {
-                dims[base_dimi+1] = min(tile_shape[1], parent_pix.naxis[1] - i_tx * tile_shape[1]);
-                if (populate[i_ty * n_tx + i_tx]) {
-                    PyObject *v = PyArray_ZEROS(base_dimi+2, dims, dtype, 0);
+                bool pop_this = (pop_iter != populate.end()) && *(pop_iter++);
+                if (pop_this) {
+                    dims[ndim-2] = min(tile_shape[0], parent_pix.naxis[0] - i_ty * tile_shape[0]);
+                    dims[ndim-1] = min(tile_shape[1], parent_pix.naxis[1] - i_tx * tile_shape[1]);
+                    PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
                     maps_out.append(bp::handle<>(v));
                 } else
                     maps_out.append(bp::object());
@@ -579,13 +532,6 @@ public:
         pixel_index[2] = int(ix) - sub_x * tile_shape[1];
     }
 
-    Pixelizor2_Flat<NonTiled> parent_pix;
-
-    // From Tiled/NonTiled
-    vector<BufferWrapper<double>> mapbufs;
-    vector<int> shape;
-    vector<int> tile_shape;
-
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
         vector<int> map_shape_req;
         if (need_map) {
@@ -600,47 +546,35 @@ public:
         if (map_shape_req.size() == 0)
             return true;
 
-        // The user must pass in the following, as a list or tuple:
-        //     [(shape, tile_shape), [map0, ..., mapN-1]]
-        //
-        // The shape and tile_shape are both two-tuples of ints.  The
-        // list of maps must be complete (one entry per tile) but can
-        // have null entries.
-
-        bp::object tiling_info = map[0];
-        bp::object map_list = map[1];
-        shape.clear();
-        shape.push_back(bp::extract<int>(tiling_info[0][0]));
-        shape.push_back(bp::extract<int>(tiling_info[0][1]));
-        tile_shape.clear();
-        tile_shape.push_back(bp::extract<int>(tiling_info[1][0]));
-        tile_shape.push_back(bp::extract<int>(tiling_info[1][1]));
-        
-        // int ntile0 = (shape[0] + tile_shape[0] - 1) / tile_shape[0];
-        // int ntile1 = (shape[1] + tile_shape[1] - 1) / tile_shape[1];
-        // for (int i0; i0<ntile0; i++) { }
         mapbufs.clear();
-        for (int i_tile = 0; i_tile < bp::len(map_list); i_tile++) {
-            if (isNone(map_list[i_tile])) {
+        for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
+            if (isNone(map[i_tile])) {
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
+                // You should be checking that presence and size matches expectation.
                 mapbufs.push_back(
-                    BufferWrapper<double>("map", map_list[i_tile], false, map_shape_req));
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
             }
         }
 
         return true;
     }
     double *pix(int imap, const int pixel_index[]) {
-        BufferWrapper<double> mapbuf = mapbufs[pixel_index[0]];
+        const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
+        // This assertion is needed in case the user did not populate
+        // the right set of tiles.
+        assert(mapbuf->buf != nullptr);
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*pixel_index[1] +
                          mapbuf->strides[2]*pixel_index[2]);
     }
     double *wpix(int imap, int jmap, const int pixel_index[]) {
-        // Expensive copy !
-        BufferWrapper<double> mapbuf = mapbufs[pixel_index[0]];
+        // Expensive shared_ptr copy?
+        const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
+        // This assertion is needed in case the user did not populate
+        // the right set of tiles.
+        assert(mapbuf->buf != nullptr);
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*jmap +
@@ -650,121 +584,14 @@ public:
     int stripe(const int pixel_index[], int thread_count) {
         return -1;
     }
+
+    Pixelizor2_Flat<NonTiled> parent_pix;
+    vector<bool> populate;
+    int tile_shape[2];
+
+    vector<BufferWrapper<double>> mapbufs;
 };
 
-/*
-// Tiled Pixelizor
-
-Pixelizor2_Flat_Tiled::Pixelizor2_Flat_Tiled(
-    int ny, int nx,
-    double dy, double dx,
-    double iy0, double ix0,
-    int tiley, int tilex)
-{
-    parent_pix = Pixelizor2_Flat(ny, nx, dy, dx, iy0, ix0);
-    tile_shape[0] = tiley;
-    tile_shape[1] = tilex;
-}
-
-Pixelizor2_Flat_Tiled::Pixelizor2_Flat_Tiled(
-    Pixelizor2_Flat _parent_pix,
-    int tiley, int tilex)
-{
-    parent_pix = _parent_pix;
-    tile_shape[0] = tiley;
-    tile_shape[1] = tilex;
-}
-
-bool Pixelizor2_Flat_Tiled::TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                             bp::object &signal, bp::object &det_weights)
-{
-    // Flat pixelizor.  Requires:
-    // - If map is not None, it must be a list of the right length
-    //   with the right shapes.
-
-    if (isNone(map))
-        return true;
-
-    // [Check/declare coords format.]
-    return true;
-}
-
-bp::object Pixelizor2_Flat_Tiled::zeros(int count)
-{
-    // If a mapping routine tries to generate an empty map, on the
-    // fly, don't let it.
-    throw shape_exception("Flat_Tiled", "Tiled output must be pre-initialized.");
-}
-
-bp::object Pixelizor2_Flat_Tiled::zeros_tiled(int count, bp::object active_tiles)
-{
-    int base_size = 1;
-    int base_dimi = 0;
-    npy_intp dims[32];
-    int dtype = NPY_FLOAT64;
-    
-    if (count >= 0) {
-        dims[base_dimi++] = count;
-        base_size *= count;
-    }
-
-    int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
-    int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
-    vector<bool> populate(n_ty * n_tx, false);
-    if (isNone(active_tiles)) {
-        populate = vector<bool>(populate.size(), true);
-    } else {
-        for (int i=0; i<bp::len(active_tiles); i++) {
-            // We're using C API instead of boost because this:
-            //    bp::extract<int>(active_tiles[i])
-            // does not work on an ndarray, nor even on a list of
-            // elements extracted from an array, unless one carefully
-            // casts them to int first.
-            int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
-            if (idx >= 0 && idx < n_tx*n_ty)
-                populate[idx] = true;
-        }
-    }
-        
-    bp::list maps_out;
-    for (int i_ty = 0; i_ty < n_ty; i_ty++) {
-        dims[base_dimi] = min(tile_shape[0], parent_pix.naxis[0] - i_ty * tile_shape[0]);
-        for (int i_tx = 0; i_tx < n_tx; i_tx++) {
-            dims[base_dimi+1] = min(tile_shape[1], parent_pix.naxis[1] - i_tx * tile_shape[1]);
-            if (populate[i_ty * n_tx + i_tx]) {
-                PyObject *v = PyArray_ZEROS(base_dimi+2, dims, dtype, 0);
-                maps_out.append(bp::handle<>(v));
-            } else
-                maps_out.append(bp::object());
-        }
-    }
-    return maps_out;
-}
-
-
-inline
-void Pixelizor2_Flat_Tiled::GetPixel(int i_det, int i_time, const double *coords, int *pixel_index)
-{
-    double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] + 0.5;
-    if (ix < 0 || ix >= parent_pix.naxis[1]) {
-        pixel_index[0] = -1;
-        return;
-    }
-
-    double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] + 0.5;
-    if (iy < 0 || iy >= parent_pix.naxis[0]) {
-        *pixel_index = -1;
-        return;
-    }
-
-    int sub_y = int(iy) / tile_shape[0];
-    int sub_x = int(ix) / tile_shape[1];
-    pixel_index[0] = sub_y * ((parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1]) + sub_x;
-    //pixel_index[1] = strides[0]*int(iy) + strides[1]*int(ix);
-    pixel_index[1] = int(iy) - sub_y * tile_shape[0];
-    pixel_index[2] = int(ix) - sub_x * tile_shape[1];
-}
-*/
 
 /** Accumulator - transfer signal from map domain to time domain.
  *
@@ -805,7 +632,7 @@ public:
         tile_shape.clear();
         tile_shape.push_back(bp::extract<int>(tiling_info[1][0]));
         tile_shape.push_back(bp::extract<int>(tiling_info[1][1]));
-        
+
         // int ntile0 = (shape[0] + tile_shape[0] - 1) / tile_shape[0];
         // int ntile1 = (shape[1] + tile_shape[1] - 1) / tile_shape[1];
         // for (int i0; i0<ntile0; i++) { }
@@ -964,8 +791,8 @@ SignalSpace<DTYPE>::SignalSpace(
     _Validate(input, var_name, dtype);
 }
 
-template<typename C, typename P, typename T, typename S>
-ProjectionEngine<C,P,T,S>::ProjectionEngine(bp::object pix_args)
+template<typename C, typename P, typename S>
+ProjectionEngine<C,P,S>::ProjectionEngine(bp::object pix_args)
 {
     _pixelizor = P(pix_args);
 }
@@ -1104,18 +931,18 @@ bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
 }
 */
 
-template<typename C, typename P, typename T, typename S>
-int ProjectionEngine<C,P,T,S>::index_count() const {
+template<typename C, typename P, typename S>
+int ProjectionEngine<C,P,S>::index_count() const {
     return P::index_count;
 }
 
-template<typename C, typename P, typename T, typename S>
-int ProjectionEngine<C,P,T,S>::comp_count() const {
+template<typename C, typename P, typename S>
+int ProjectionEngine<C,P,S>::comp_count() const {
     return S::comp_count;
 }
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::coords(
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::coords(
     bp::object pbore, bp::object pofs, bp::object coord)
 {
     auto _none = bp::object();
@@ -1149,8 +976,8 @@ bp::object ProjectionEngine<C,P,T,S>::coords(
     return coord_buf_man.ret_val;
 }
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::pixels(
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::pixels(
     bp::object pbore, bp::object pofs, bp::object pixel)
 {
     auto _none = bp::object();
@@ -1186,8 +1013,8 @@ bp::object ProjectionEngine<C,P,T,S>::pixels(
     return pixel_buf_man.ret_val;
 }
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::pointing_matrix(
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::pointing_matrix(
     bp::object pbore, bp::object pofs, bp::object pixel, bp::object proj)
 {
     auto _none = bp::object();
@@ -1304,8 +1131,8 @@ bp::object ProjectionEngine<P,Z,A>::pixel_ranges(
 }
 */
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::zeros(bp::object shape)
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::zeros(bp::object shape)
 {
     vector<int> dims;
     bp::extract<int> int_ex(shape);
@@ -1325,8 +1152,8 @@ bp::object ProjectionEngine<C,P,T,S>::zeros(bp::object shape)
     return bp::object();  //None on fall-through
 }
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::from_map(
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::from_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
 {
     // Initialize pointer and _pixelizor.
@@ -1367,8 +1194,8 @@ bp::object ProjectionEngine<C,P,T,S>::from_map(
 }
 
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::to_map(
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::to_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
 {
     //Initialize it / check inputs.
@@ -1417,8 +1244,8 @@ bp::object ProjectionEngine<C,P,T,S>::to_map(
     return map;
 }
 
-template<typename C, typename P, typename T, typename S>
-bp::object ProjectionEngine<C,P,T,S>::to_weight_map(
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::to_weight_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
 {
     //Initialize it / check inputs.
@@ -1706,7 +1533,8 @@ bp::object ProjEng_Precomp<Z,T>::from_map(
 
 
 #define TYPEDEF_BATCH(PIX)                                              \
-    typedef ProjectionEngine<Proj ## PIX, Pixelizor2_Flat<NonTiled>, NonTiled, SpinTQU> ProjEng_##PIX##_TQU_NonTiled;
+    typedef ProjectionEngine<Proj ## PIX, Pixelizor2_Flat<NonTiled>, SpinTQU> ProjEng_##PIX##_TQU_NonTiled; \
+    typedef ProjectionEngine<Proj ## PIX, Pixelizor2_Flat<Tiled>, SpinTQU> ProjEng_##PIX##_TQU_Tiled;
 
 TYPEDEF_BATCH(Flat)
 // TYPEDEF_BATCH(CAR)
@@ -1742,7 +1570,8 @@ TYPEDEF_BATCH(Flat)
 
 
 #define EXPORT_BATCH(PIX)                                     \
-    EXPORT_ENGINE(PIX ## _TQU_NonTiled,   Flat);
+    EXPORT_ENGINE(PIX ## _TQU_NonTiled,   Flat);              \
+    EXPORT_ENGINE(PIX ## _TQU_Tiled,   Flat);
 
 /*
     EXPORT_ENGINE(PIX ## _QU,  Flat);                         \
