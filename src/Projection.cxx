@@ -716,79 +716,6 @@ ProjectionEngine<C,P,S>::ProjectionEngine(bp::object pix_args)
     _pixelizor = P(pix_args);
 }
 
-
-/*
-template<typename P, typename Z, typename A>
-bp::object ProjectionEngine<P,Z,A>::to_weight_map_omp(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
-    bp::object thread_intervals)
-{
-    auto _none = bp::object();
-
-    //Initialize it / check inputs.
-    auto pointer = P();
-    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
-    int n_det = pointer.DetCount();
-    int n_time = pointer.TimeCount();
-
-    auto accumulator = A(false, false, true, n_det, n_time);
-
-    //Do we need a map?  Now is the time.
-    if (isNone(map)) {
-        int n_comp = accumulator.ComponentCount();
-        map = _pixelizor.zeros(std::vector<int>{n_comp,n_comp});
-        // auto v0 = (PyArrayObject*)map.ptr();
-        // npy_intp dims[32] = {n_comp, n_comp};
-        // int dimi = 2;
-        // for (int d=1; d<PyArray_NDIM(v0); d++)
-        //     dims[dimi++] = PyArray_DIM(v0, d);
-        // PyArray_Dims padims = {dims, dimi};
-        // PyObject *v1 = PyArray_Newshape(v0, &padims,  NPY_ANYORDER);
-        // map = bp::object(bp::handle<>(v1));
-    }
-
-    _pixelizor.TestInputs(map, pbore, pofs, signal, det_weights);
-    accumulator.TestInputs(map, pbore, pofs, signal, det_weights);
-
-    // Indexed by i_thread, i_det.
-    vector<vector<RangesInt32>> ivals;
-
-    // Descend two levels.. don't assume it's a list, just that it has
-    // len and [].
-    for (int i=0; i<bp::len(thread_intervals); i++) {
-        bp::object ival_list = thread_intervals[i];
-        vector<RangesInt32> v(bp::len(ival_list));
-        for (int j=0; j<bp::len(ival_list); j++)
-            v[j] = bp::extract<RangesInt32>(ival_list[j])();
-        ivals.push_back(v);
-    }
-
-#pragma omp parallel
-    {
-        // The principle here is that all threads loop over all
-        // detectors, but the sample ranges encoded in ivals are
-        // disjoint.
-        const int i_thread = omp_get_thread_num();
-        for (int i_det = 0; i_det < n_det; ++i_det) {
-            double dofs[4];
-            pointer.InitPerDet(i_det, dofs);
-            for (auto const &rng: ivals[i_thread][i_det].segments) {
-                for (int i_time = rng.first; i_time < rng.second; ++i_time) {
-                    double coords[4];
-                    FSIGNAL weights[4];
-                    int pixel_offset[Z::index_count];
-                    pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                    _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-                    accumulator.ForwardWeight(i_det, i_time, pixel_offset, coords, weights);
-                }
-            }
-        }
-    }
-
-    return map;
-}
-*/
-
 template<typename C, typename P, typename S>
 int ProjectionEngine<C,P,S>::index_count() const {
     return P::index_count;
@@ -1078,11 +1005,75 @@ void to_map_single_thread(Pointer<C> &pointer,
     }
 }
 
+template<typename C, typename P, typename S>
+static
+void to_weight_map_single_thread(Pointer<C> &pointer,
+                                 P &_pixelizor,
+                                 vector<RangesInt32> ivals,
+                                 BufferWrapper<FSIGNAL> &_det_weights)
+{
+    int n_det = pointer.DetCount();
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        FSIGNAL det_wt = 1.;
+        if (_det_weights->obj != NULL)
+            det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
+                                 _det_weights->strides[0]*i_det);
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        for (auto const &rng: ivals[i_det].segments) {
+            for (int i_time = rng.first; i_time < rng.second; ++i_time) {
+                double coords[4];
+                int pixel_offset[P::index_count];
+                FSIGNAL pf[S::comp_count];
+                pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+                _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
+                if (pixel_offset[0] < 0) continue;
+                spin_proj_factors<S>(coords, pf);
+                for (int imap=0; imap<S::comp_count; ++imap)
+                    for (int jmap=imap; jmap<S::comp_count; ++jmap)
+                        *_pixelizor.wpix(imap, jmap, pixel_offset) += pf[imap] * pf[jmap] * det_wt;
+            }
+        }
+    }
+}
+
+static
 vector<RangesInt32> extract_ranges(bp::object ival_list) {
     vector<RangesInt32> v(bp::len(ival_list));
     for (int i=0; i<bp::len(ival_list); i++)
         v[i] = bp::extract<RangesInt32>(ival_list[i])();
     return v;
+}
+
+static
+vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
+                                          int n_det, int n_time)
+{
+    // The first index of the returned object should correspond to
+    // (OMP) execution thread; the second index is over detectors.
+    // The input object can be any of the following:
+    //
+    // - None: Result will be full coverage for all detectors in a
+    //   single thread.
+    // - List of Ranges: This will be promoted to a single thread.
+    // - List containing N lists of Ranges: N threads, with each list
+    //   used by corresponding thread.
+
+    vector<vector<RangesInt32>> ivals;
+    if (isNone(thread_intervals)) {
+        auto r = RangesInt32(n_time).add_interval(0, n_time);
+        vector<RangesInt32> v(n_det, r);
+        ivals.push_back(v);
+    } else if (bp::extract<bp::list>(thread_intervals).check()) {
+        if (bp::extract<RangesInt32>(thread_intervals[0]).check()) {
+            ivals.push_back(extract_ranges(thread_intervals));
+        } else {
+            // Assumed it is list of lists of ranges.
+            for (int i=0; i<bp::len(thread_intervals); i++)
+                ivals.push_back(extract_ranges(thread_intervals[i]));
+        }
+    }
+    return ivals;
 }
 
 template<typename C, typename P, typename S>
@@ -1116,29 +1107,10 @@ bp::object ProjectionEngine<C,P,S>::to_map_omp(
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
 
-    // The thread count is determined by the structure of the
-    // thread_intervals that were passed in.  The options are:
-    // - None: single thread, all samples.
-    // - List of Ranges: single thread, one Range per det.
-    // - List containing N lists of Ranges: N threads, with each list
-    //   used by corresponding thread.
-    // Regardless, we create a two-level vector of Ranges.
-
-    vector<vector<RangesInt32>> ivals;
-
-    if (isNone(thread_intervals)) {
-        auto r = RangesInt32(n_time).add_interval(0, n_time);
-        vector<RangesInt32> v(n_det, r);
-        ivals.push_back(v);
-    } else if (bp::extract<bp::list>(thread_intervals).check()) {
-        if (bp::extract<RangesInt32>(thread_intervals[0]).check()) {
-            ivals.push_back(extract_ranges(thread_intervals));
-        } else {
-            // Assumed it is list of lists of ranges.
-            for (int i=0; i<bp::len(thread_intervals); i++)
-                ivals.push_back(extract_ranges(thread_intervals[i]));
-        }
-    }
+    // For multi-threading, the principle here is that all threads
+    // loop over all detectors, but the sample ranges encoded in ivals
+    // are disjoint.
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
 
     if (ivals.size() <= 1) {
         // This block may also be used if OMP is disabled.
@@ -1148,10 +1120,6 @@ bp::object ProjectionEngine<C,P,S>::to_map_omp(
     } else {
 #pragma omp parallel
         {
-            // The principle here is that all threads loop over all
-            // detectors, but the sample ranges encoded in ivals are
-            // disjoint.
-            //
             // This loop construction handles the (sub-optimal) case
             // that the number of ivals is not equal to the number of
             // OMP threads.
@@ -1168,6 +1136,14 @@ bp::object ProjectionEngine<C,P,S>::to_map_omp(
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_weight_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
+{
+    return to_weight_map_omp(map, pbore, pofs, signal, det_weights, bp::object());
+}
+
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::to_weight_map_omp(
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
+    bp::object thread_intervals)
 {
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
@@ -1186,29 +1162,29 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
 
-    for (int i_det = 0; i_det < n_det; ++i_det) {
-        double dofs[4];
-        pointer.InitPerDet(i_det, dofs);
-        for (int i_time = 0; i_time < n_time; ++i_time) {
-            double coords[4];
-            int pixel_offset[P::index_count];
-            FSIGNAL pf[S::comp_count];
-            FSIGNAL det_wt = 1.;
+    // For multi-threading, the principle here is that all threads
+    // loop over all detectors, but the sample ranges encoded in ivals
+    // are disjoint.
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
 
-            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-            _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-
-            if (pixel_offset[0] < 0) continue;
-            if (_det_weights->obj != NULL)
-                det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
-
-            spin_proj_factors<S>(coords, pf);
-            for (int imap=0; imap<S::comp_count; ++imap)
-                for (int jmap=imap; jmap<S::comp_count; ++jmap)
-                    *_pixelizor.wpix(imap, jmap, pixel_offset) += pf[imap] * pf[jmap] * det_wt;
+    if (ivals.size() <= 1) {
+        // This block may also be used if OMP is disabled.
+        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
+            to_weight_map_single_thread<C,P,S>(
+                pointer, _pixelizor, ivals[i_thread],_det_weights);
+    } else {
+#pragma omp parallel
+        {
+            // This loop construction handles the (sub-optimal) case
+            // that the number of ivals is not equal to the number of
+            // OMP threads.
+            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
+                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                    to_weight_map_single_thread<C,P,S>(
+                        pointer, _pixelizor, ivals[i_thread], _det_weights);
+            }
         }
     }
-
     return map;
 }
 
@@ -1474,11 +1450,8 @@ TYPEDEF_BATCH(Flat)
     .def("to_map", &CLASSNAME::to_map)                                  \
     .def("to_map_omp", &CLASSNAME::to_map_omp)                          \
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
-    ;
-
-/*
     .def("to_weight_map_omp", &CLASSNAME::to_weight_map_omp)            \
-*/
+    ;
 
 // typedef ProjEng_Precomp<Pixelizor2_Flat,NonTiled> ProjEng_Precomp_;
 // typedef ProjEng_Precomp<Pixelizor2_Flat_Tiled,Tiled> ProjEng_Precomp_Tiled;

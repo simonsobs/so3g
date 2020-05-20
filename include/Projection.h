@@ -58,9 +58,9 @@ public:
                           bp::object thread_intervals);
     bp::object to_weight_map(bp::object map, bp::object pbore, bp::object pofs,
                              bp::object signal, bp::object weights);
-    // bp::object to_weight_map_omp(bp::object map, bp::object pbore, bp::object pofs,
-    //                              bp::object signal, bp::object weights,
-    //                              bp::object thread_intervals);
+    bp::object to_weight_map_omp(bp::object map, bp::object pbore, bp::object pofs,
+                                 bp::object signal, bp::object weights,
+                                 bp::object thread_intervals);
 
     int comp_count() const;
     int index_count() const;

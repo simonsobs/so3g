@@ -62,6 +62,14 @@ else:
     print(' OMP_NUM_THREADS=%i.\n' % n_omp)
 
 
+if args.tiled:
+    def map_delta(a, b):
+        return max([abs(_a - _b).max() for _a, _b in zip(a, b) if _a is not None])
+else:
+    def map_delta(a, b):
+        return abs(a - b).max()
+
+
 if 1:
     coo = np.empty(sig.shape[1:] + (4,), 'double')
     print('Compute and return coordinates only.', end='\n ... ')
@@ -180,12 +188,12 @@ if 1:
         map2o = pe.to_weight_map_omp(None,ptg,ofs,None,None,Ivals)
 
     print('Checking that OMP and non-OMP forward calcs agree: ', end='\n ... ')
-    assert abs(map1 - map1o).max() == 0
-    assert abs(map2 - map2o).max() == 0
+    assert map_delta(map1, map1o) == 0
+    assert map_delta(map2, map2o) == 0
     print('yes')
 
 
-if 1:
+if 0:
     print('Cache pointing matrix.', end='\n ...')
     with Timer() as T:
         pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
