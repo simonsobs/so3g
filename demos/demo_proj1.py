@@ -157,8 +157,6 @@ if 1:
     with Timer() as T:
         map2 = pe.to_weight_map(None,ptg,ofs,None,None)
 
-stop_omp
-
 print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
 with Timer():
     Ivals = pe.pixel_ranges(ptg, ofs)
