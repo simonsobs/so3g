@@ -1189,63 +1189,6 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map_omp(
     return map;
 }
 
-////Flat.
-//typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
-//  ProjEng_Flat_T;
-//typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
-//  ProjEng_Flat_QU;
-//typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-//  ProjEng_Flat_TQU;
-//
-//typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat_Tiled,Accumulator<SpinT,Tiled>>
-//  ProjEng_Flat_Tiled_T;
-//typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat_Tiled,Accumulator<SpinQU,Tiled>>
-//  ProjEng_Flat_Tiled_QU;
-//typedef ProjectionEngine<Pointer<ProjFlat>,Pixelizor2_Flat_Tiled,Accumulator<SpinTQU,Tiled>>
-//  ProjEng_Flat_Tiled_TQU;
-//
-/*
-//Cylindrical.
-typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
-  ProjEng_CEA_T;
-typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
-  ProjEng_CEA_QU;
-typedef ProjectionEngine<Pointer<ProjCEA>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-  ProjEng_CEA_TQU;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
-  ProjEng_CAR_T;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
-  ProjEng_CAR_QU;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-  ProjEng_CAR_TQU;
-
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinT,Tiled>>
-  ProjEng_CAR_Tiled_T;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinQU,Tiled>>
-  ProjEng_CAR_Tiled_QU;
-typedef ProjectionEngine<Pointer<ProjCAR>,Pixelizor2_Flat,Accumulator<SpinTQU,Tiled>>
-  ProjEng_CAR_Tiled_TQU;
-
-//Zenithal.
-typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
-  ProjEng_ARC_T;
-typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
-  ProjEng_ARC_QU;
-typedef ProjectionEngine<Pointer<ProjARC>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-  ProjEng_ARC_TQU;
-typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
-  ProjEng_TAN_T;
-typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
-  ProjEng_TAN_QU;
-typedef ProjectionEngine<Pointer<ProjTAN>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-  ProjEng_TAN_TQU;
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinT,NonTiled>>
-  ProjEng_ZEA_T;
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinQU,NonTiled>>
-  ProjEng_ZEA_QU;
-typedef ProjectionEngine<Pointer<ProjZEA>,Pixelizor2_Flat,Accumulator<SpinTQU,NonTiled>>
-  ProjEng_ZEA_TQU;
-*/
 
 /*
  * We also have a generic ProjEng_Precomp, which is basically what you
@@ -1512,17 +1455,33 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
 typedef ProjEng_Precomp<NonTiled> ProjEng_Precomp_NonTiled;
 typedef ProjEng_Precomp<Tiled> ProjEng_Precomp_Tiled;
 
+#define PROJENG(PIX, SPIN, TILING) ProjEng_##PIX##_##SPIN##_##TILING
 
-#define TYPEDEF_BATCH(PIX)                                              \
-    typedef ProjectionEngine<Proj ## PIX, Pixelizor2_Flat<NonTiled>, SpinTQU> ProjEng_##PIX##_TQU_NonTiled; \
-    typedef ProjectionEngine<Proj ## PIX, Pixelizor2_Flat<Tiled>, SpinTQU> ProjEng_##PIX##_TQU_Tiled;
+#define TYPEDEF_TILING(PIX, SPIN, TILING)                               \
+    typedef ProjectionEngine<Proj ## PIX,Pixelizor2_Flat<TILING>,Spin##SPIN> \
+        PROJENG(PIX, SPIN, TILING);
 
-TYPEDEF_BATCH(Flat)
-// TYPEDEF_BATCH(CAR)
-// TYPEDEF_BATCH(TAN)
+#define TYPEDEF_SPIN(PIX, SPIN)                 \
+    TYPEDEF_TILING(PIX, SPIN, Tiled)            \
+    TYPEDEF_TILING(PIX, SPIN, NonTiled)
 
-#define EXPORT_ENGINE(CLASSNAME, INIT_CLASS)                            \
-    bp::class_<CLASSNAME>(#CLASSNAME, bp::init<bp::object>())           \
+#define TYPEDEF_PIX(PIX)                         \
+    TYPEDEF_SPIN(PIX, T)                         \
+    TYPEDEF_SPIN(PIX, QU)                        \
+    TYPEDEF_SPIN(PIX, TQU)
+
+TYPEDEF_PIX(Flat)
+TYPEDEF_PIX(Quat)
+TYPEDEF_PIX(CAR)
+TYPEDEF_PIX(CEA)
+TYPEDEF_PIX(ARC)
+TYPEDEF_PIX(TAN)
+TYPEDEF_PIX(ZEA)
+
+#define STRINGIFY(X) #X
+
+#define EXPORT_ENGINE(CLASSNAME)                                        \
+    bp::class_<CLASSNAME>(STRINGIFY(CLASSNAME), bp::init<bp::object>()) \
     .add_property("index_count", &CLASSNAME::index_count)               \
     .add_property("comp_count", &CLASSNAME::comp_count)                 \
     .def("coords", &CLASSNAME::coords)                                  \
@@ -1537,6 +1496,20 @@ TYPEDEF_BATCH(Flat)
     .def("to_weight_map_omp", &CLASSNAME::to_weight_map_omp)            \
     ;
 
+#define EXPORT_TILING(PIX, SPIN, TILING)        \
+    EXPORT_ENGINE(PROJENG(PIX, SPIN, TILING))
+
+
+#define EXPORT_SPIN(PIX, SPIN)                                          \
+    EXPORT_TILING(PIX, SPIN, Tiled)                                     \
+    EXPORT_TILING(PIX, SPIN, NonTiled)
+
+#define EXPORT_PIX(PIX) \
+    EXPORT_SPIN(PIX, T)                                                 \
+    EXPORT_SPIN(PIX, QU)                                                \
+    EXPORT_SPIN(PIX, TQU)
+
+
 #define EXPORT_PRECOMP(CLASSNAME)                                       \
     bp::class_<CLASSNAME>(#CLASSNAME)                                   \
     .def("from_map", &CLASSNAME::from_map)                              \
@@ -1544,17 +1517,6 @@ TYPEDEF_BATCH(Flat)
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
 ;
 
-#define EXPORT_BATCH(PIX)                                     \
-    EXPORT_ENGINE(PIX ## _TQU_NonTiled,   Flat);              \
-    EXPORT_ENGINE(PIX ## _TQU_Tiled,   Flat);
-
-/*
-    EXPORT_ENGINE(PIX ## _QU,  Flat);                         \
-    EXPORT_ENGINE(PIX ## _TQU, Flat);                         \
-    EXPORT_ENGINE(PIX ## _Tiled_T,   Flat_Tiled);             \
-    EXPORT_ENGINE(PIX ## _Tiled_QU,  Flat_Tiled);             \
-    EXPORT_ENGINE(PIX ## _Tiled_TQU, Flat_Tiled);
-*/
 
 // There are probably better ways to do this..
 template<typename T>
@@ -1563,31 +1525,14 @@ int _index_count(const T &) { return T::index_count; }
 
 PYBINDINGS("so3g")
 {
-    EXPORT_BATCH(ProjEng_Flat);
-    // EXPORT_BATCH(ProjEng_CAR);
-    // EXPORT_BATCH(ProjEng_TAN);
-    // EXPORT_ENGINE(ProjEng_Flat_T, Flat);
-    // EXPORT_ENGINE(ProjEng_Flat_QU, Flat);
-    // EXPORT_ENGINE(ProjEng_Flat_TQU, Flat);
-    // EXPORT_ENGINE(ProjEng_Flat_Tiled_T,   Flat_Tiled);
-    // EXPORT_ENGINE(ProjEng_Flat_Tiled_QU,  Flat_Tiled);
-    // EXPORT_ENGINE(ProjEng_Flat_Tiled_TQU, Flat_Tiled);
-//    EXPORT_ENGINE(ProjEng_CAR_T);
-//    EXPORT_ENGINE(ProjEng_CAR_QU);
-//    EXPORT_ENGINE(ProjEng_CAR_TQU);
-//    EXPORT_ENGINE(ProjEng_CEA_T);
-//    EXPORT_ENGINE(ProjEng_CEA_QU);
-//    EXPORT_ENGINE(ProjEng_CEA_TQU);
-//    EXPORT_ENGINE(ProjEng_ARC_T);
-//    EXPORT_ENGINE(ProjEng_ARC_QU);
-//    EXPORT_ENGINE(ProjEng_ARC_TQU);
-//    EXPORT_ENGINE(ProjEng_TAN_T);
-//    EXPORT_ENGINE(ProjEng_TAN_QU);
-//    EXPORT_ENGINE(ProjEng_TAN_TQU);
-//    EXPORT_ENGINE(ProjEng_ZEA_T);
-//    EXPORT_ENGINE(ProjEng_ZEA_QU);
-//    EXPORT_ENGINE(ProjEng_ZEA_TQU);
-//
+    EXPORT_PIX(Flat);
+    EXPORT_PIX(Quat);
+    EXPORT_PIX(CAR);
+    EXPORT_PIX(CEA);
+    EXPORT_PIX(ARC);
+    EXPORT_PIX(TAN);
+    EXPORT_PIX(ZEA);
+
     EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
     EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
 }
