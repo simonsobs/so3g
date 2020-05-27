@@ -328,14 +328,16 @@ class HKArchiveScanner:
         self.counter += 1
         if index_info is None:
             index_info = {'counter': self.counter}
-            
-        f = self.translator(f)[0]
+
+        f = self.translator(f)
+        assert(len(f) == 1)
+        f = f[0]
 
         if f.type == core.G3FrameType.EndProcessing:
             return [f]
 
         if f.type != core.G3FrameType.Housekeeping:
-            return f
+            return [f]
 
         vers = f.get('hkagg_version', 0)
         assert(vers == 1)

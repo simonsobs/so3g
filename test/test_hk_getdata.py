@@ -10,15 +10,15 @@ from spt3g import core
 
 class Seeder(list):
     """Module that can be pre-initialized with frames to feed into a
-    Pipeline.  If it's not the first module, it inserts the frames
-    prior to passing any others on.
+    Pipeline.  If it's not the first module, it passes along incoming
+    frames and then appends its own.
 
     """
-    def Process(self, frames):
+    def Process(self, frame):
+        if frame is not None:
+            return [frame]
         output = [x for x in self]
         self.clear()
-        if frames is not None:
-            output.extend([f for f in frames if f is not None])
         return output
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)

@@ -29,6 +29,18 @@ class HKTranslator:
         """Translates one frame to the target schema.  Irrelevant frames are
         passed through unmodified.
 
+        Args:
+          f: a G3Frame
+
+        Returns:
+          A list containing only the translated frame.  G3Pipeline
+          compatibility would permit us to return a single frame here,
+          instead of a length-1 list.  But we also sometimes call
+          Process outside of a G3Pipeline, where a consistent output
+          type is desirable.  Returning lists is most
+          future-compatible; consumers that want to assume length-1
+          should assert it to be true.
+
         """
         if f.type == core.G3FrameType.EndProcessing:
             core.log_info(str(self.stats))

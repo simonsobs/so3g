@@ -19,6 +19,9 @@ class HKScanner:
           and error (key ``n_error``) events encountered.  The detail
           for such events is logged to ``spt3g.core.log_warning`` /
           ``log_error``.
+        - ``versions`` (dict): The number of frames (value) (value)
+          encountered that have a given hk_agg_version (key).
+
     """
     def __init__(self):
         self.session_id = None
@@ -31,7 +34,7 @@ class HKScanner:
                 'n_error': 0,
                 'n_warning': 0
             },
-            'versions': {}, # Number of frames counted for each hkagg_version.
+            'versions': {},
         }
 
     def report_and_reset(self):
