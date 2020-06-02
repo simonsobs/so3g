@@ -1075,7 +1075,8 @@ vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
         auto r = RangesInt32(n_time).add_interval(0, n_time);
         vector<RangesInt32> v(n_det, r);
         ivals.push_back(v);
-    } else if (bp::extract<bp::list>(thread_intervals).check()) {
+    } else {
+        // Don't convert to a list... just use indexing.
         if (bp::extract<RangesInt32>(thread_intervals[0]).check()) {
             ivals.push_back(extract_ranges(thread_intervals));
         } else {
