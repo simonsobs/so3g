@@ -846,7 +846,7 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::pixel_ranges(
-    bp::object pbore, bp::object pofs)
+    bp::object pbore, bp::object pofs, bp::object map)
 {
     auto _none = bp::object();
 
@@ -854,6 +854,9 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
+
+    bool from_map = !isNone(map);
+    assert(!from_map);  // We'll implement this in a minute...
 
     vector<vector<RangesInt32>> ranges;
 
@@ -881,7 +884,14 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
                 double coords[4];
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                 _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-                int this_slice = _pixelizor.stripe(pixel_offset, n_domain);
+
+                int this_slice = -1;
+                if (from_map) {
+                    if (pixel_offset[0] >= 0)
+                        int this_slice = *_pixelizor.pix(0, pixel_offset);
+                } else {
+                    this_slice = _pixelizor.stripe(pixel_offset, n_domain);
+                }
                 if (this_slice != last_slice) {
                     if (last_slice >= 0)
                         ranges[last_slice][i_det].append_interval_no_check(
@@ -932,11 +942,13 @@ bp::object ProjectionEngine<C,P,S>::zeros(bp::object shape)
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::from_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object signal)
 {
+    auto _none = bp::object();
+
     // Initialize pointer and _pixelizor.
     auto pointer = Pointer<C>();
-    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
+    pointer.TestInputs(map, pbore, pofs, signal, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
@@ -946,8 +958,6 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     // Get pointers to the signal and (optional) per-det weights.
     auto _signalspace = new SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
-    auto _det_weights = BufferWrapper<FSIGNAL>(
-         "det_weights", det_weights, true, vector<int>{n_det});
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -1079,13 +1089,6 @@ vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
-{
-    return to_map_omp(map, pbore, pofs, signal, det_weights, bp::object());
-}
-
-template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::to_map_omp(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
     bp::object thread_intervals)
 {
@@ -1136,19 +1139,14 @@ bp::object ProjectionEngine<C,P,S>::to_map_omp(
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_weight_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights)
-{
-    return to_weight_map_omp(map, pbore, pofs, signal, det_weights, bp::object());
-}
-
-template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::to_weight_map_omp(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
+    bp::object map, bp::object pbore, bp::object pofs, bp::object det_weights,
     bp::object thread_intervals)
 {
+    auto _none = bp::object();
+
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
-    pointer.TestInputs(map, pbore, pofs, signal, det_weights);
+    pointer.TestInputs(map, pbore, pofs, _none, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
@@ -1202,18 +1200,18 @@ class ProjEng_Precomp {
 public:
     ProjEng_Precomp() {};
     bp::object from_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                        bp::object signal, bp::object weights);
+                        bp::object signal);
     bp::object to_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
                       bp::object signal, bp::object weights, bp::object thread_intervals);
     bp::object to_weight_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                             bp::object signal, bp::object weights, bp::object thread_intervals);
+                             bp::object weights, bp::object thread_intervals);
 };
 
 
 template<typename TilingSys>
 bp::object ProjEng_Precomp<TilingSys>::from_map(
     bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object signal, bp::object det_weights)
+    bp::object signal)
 {
     //You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
@@ -1235,9 +1233,6 @@ bp::object ProjEng_Precomp<TilingSys>::from_map(
     auto signal_man = SignalSpace<FSIGNAL>(
         signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
-    BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
-                                        vector<int>{n_det});
-
     // Below we assume the pixel sub-indices are close-packed.
     if (pixel_buf_man.steps[1] != 1)
         throw shape_exception("pixel_index",
@@ -1245,10 +1240,6 @@ bp::object ProjEng_Precomp<TilingSys>::from_map(
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
-        FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
-            det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
-
         for (int i_time = 0; i_time < n_time; ++i_time) {
             const int *pixel_ofs = pixel_buf_man.data_ptr[i_det] +
                 pixel_buf_man.steps[0]*i_time;
@@ -1399,7 +1390,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
 template<typename TilingSys>
 bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
     bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object signal, bp::object det_weights, bp::object thread_intervals)
+    bp::object det_weights, bp::object thread_intervals)
 {
     // You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
@@ -1491,14 +1482,12 @@ TYPEDEF_PIX(ZEA)
     .def("zeros", &CLASSNAME::zeros)                                    \
     .def("from_map", &CLASSNAME::from_map)                              \
     .def("to_map", &CLASSNAME::to_map)                                  \
-    .def("to_map_omp", &CLASSNAME::to_map_omp)                          \
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
-    .def("to_weight_map_omp", &CLASSNAME::to_weight_map_omp)            \
     ;
+
 
 #define EXPORT_TILING(PIX, SPIN, TILING)        \
     EXPORT_ENGINE(PROJENG(PIX, SPIN, TILING))
-
 
 #define EXPORT_SPIN(PIX, SPIN)                                          \
     EXPORT_TILING(PIX, SPIN, Tiled)                                     \
@@ -1508,7 +1497,6 @@ TYPEDEF_PIX(ZEA)
     EXPORT_SPIN(PIX, T)                                                 \
     EXPORT_SPIN(PIX, QU)                                                \
     EXPORT_SPIN(PIX, TQU)
-
 
 #define EXPORT_PRECOMP(CLASSNAME)                                       \
     bp::class_<CLASSNAME>(#CLASSNAME)                                   \

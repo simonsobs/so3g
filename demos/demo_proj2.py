@@ -91,7 +91,7 @@ ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 pe = test_utils.get_proj(system, 'TQU')(pxz)
 
 # Project the map into time-domain.
-sig0 = pe.from_map(beam, ptg, ofs, None, None)
+sig0 = pe.from_map(beam, ptg, ofs, None)
 sig0 = np.array(sig0)
 
 # Add some noise...
@@ -118,10 +118,10 @@ else:
 # Then back to map.
 print('Create timestream...', end='\n ... ')
 with Timer():
-    map1 = pe.to_map(None, ptg, ofs, sig1, det_weights)
+    map1 = pe.to_map(None, ptg, ofs, sig1, det_weights, None)
 
 # Get the weight map (matrix).
-wmap1 = pe.to_weight_map(None, ptg, ofs, None, det_weights)
+wmap1 = pe.to_weight_map(None, ptg, ofs, det_weights, None)
 wmap1[1,0] = wmap1[0,1]  # fill in unpopulated entries...
 wmap1[2,0] = wmap1[0,2]
 wmap1[2,1] = wmap1[1,2]
@@ -160,12 +160,12 @@ pe = test_utils.get_proj(system, 'QU')(pxz)
 # Bin the map again...
 print('to map...', end='\n ... ')
 with Timer():
-    map1d = pe.to_map(None, ptg, ofsd, sigd, det_weights)
+    map1d = pe.to_map(None, ptg, ofsd, sigd, det_weights, None)
 
 # Bin the weights again...
 print('to weight map...', end='\n ... ')
 with Timer():
-    wmap1d = pe.to_weight_map(None, ptg, ofsd, None, det_weights)
+    wmap1d = pe.to_weight_map(None, ptg, ofsd, det_weights, None)
 
 wmap1d[1,0] = wmap1d[0,1] # fill in unpopulated entries again...
 

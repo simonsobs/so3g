@@ -88,7 +88,6 @@ if 1:
     del coo, coo1
 
     print('Compute coords and pixels and return pixels.', end='\n ... ')
-    #pix = np.empty(sig.shape[1:] + (pxz.index_count,), 'int32')
     pix = np.empty(sig.shape[1:] + (pe.index_count,), 'int32')
     with Timer() as T:
         pe.pixels(ptg,ofs,pix)
@@ -131,7 +130,7 @@ if 1:
         pe = test_utils.get_proj(system, 'TQU', pxz + (maps_present,), tiled=args.tiled)
 
 if 1:
-    print('From map into time-domain (TQU)', end='\n ... ')
+    print('Project map-to-TOD (TQU)', end='\n ... ')
     map1 = pe.zeros(3)
     if args.tiled:
         for m in map1:
@@ -140,52 +139,44 @@ if 1:
     else:
         map1 += np.array([1,0,0])[:,None,None]
     with Timer() as T:
-        sig1 = pe.from_map(map1, ptg, ofs, None, None)
+        sig1 = pe.from_map(map1, ptg, ofs, None)
 
 if 1:
-    print('From time into map-domain (TQU)', end='\n ... ')
+    print('Project TOD-to-map (TQU)', end='\n ... ')
     map0 = pe.zeros(3)
     sig_list = [x for x in sig[0]]
     with Timer() as T:
-        map1 = pe.to_map(map0,ptg,ofs,sig_list,None)
+        map1 = pe.to_map(map0,ptg,ofs,sig_list,None,None)
 
 if 1:
-    print('Map-domain again but with None for input map', end='\n ... ')
+    print('TOD-to-map again but with None for input map', end='\n ... ')
     with Timer() as T:
-        map1 = pe.to_map(None,ptg,ofs,sig_list,None)
+        map1 = pe.to_map(None,ptg,ofs,sig_list,None,None)
 
 if 1:
-    print('Forward project weights (TQU)', end='\n ... ')
+    print('Project TOD-to-weights (TQU)', end='\n ... ')
     map0 = pe.zeros((3, 3))
     with Timer() as T:
         map2 = pe.to_weight_map(map0,ptg,ofs,None,None)
 
 if 1:
-    print('Weights again but with None for input map', end='\n ... ')
+    print('TOD-to-weights again but with None for input map', end='\n ... ')
     with Timer() as T:
         map2 = pe.to_weight_map(None,ptg,ofs,None,None)
 
-print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
+print('Compute thread assignments (OMP prep)... ', end='\n ... ')
 with Timer():
-    Ivals = pe.pixel_ranges(ptg, ofs)
+    threads = pe.pixel_ranges(ptg, ofs, None)
 
 if 1:
-    print('Forward projection (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
+    print('TOD-to-map with OMP (%s): ' % n_omp, end='\n ... ')
     with Timer() as T:
-        map1o = pe.to_map_omp(None,ptg,ofs,sig_list,None,Ivals)
+        map1o = pe.to_map(None,ptg,ofs,sig_list,None,threads)
 
 if 1:
-    print('Reverse projection (TQU)', end='\n ... ')
-    sig1 = [x for x in np.zeros((n_det,n_t), 'float32')]
-    sig1 = np.random.uniform(size=(n_det,n_t)).astype('float32')
+    print('TOD-to-weights with OMP (%s): ' % n_omp, end='\n ... ')
     with Timer() as T:
-        #sig1 =
-        pe.from_map(map1, ptg, ofs, sig1, None)
-
-if 1:
-    print('Forward project weights (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
-    with Timer() as T:
-        map2o = pe.to_weight_map_omp(None,ptg,ofs,None,None,Ivals)
+        map2o = pe.to_weight_map(None,ptg,ofs,None,threads)
 
     print('Checking that OMP and non-OMP forward calcs agree: ', end='\n ... ')
     assert map_delta(map1, map1o) == 0
@@ -199,19 +190,19 @@ if 1:
         pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
     pp = test_utils.get_proj_precomp(args.tiled)
 
-    print('Reverse projection using precomputed pointing',
+    print('Map-to-TOD using precomputed pointing matrix',
           end='\n ...')
     with Timer() as T:
-        sig1p = pp.from_map(map1, pix_idx, spin_proj, None, None)
+        sig1p = pp.from_map(map1, pix_idx, spin_proj, None)
 
-    print('Forward project using precomputed pointing matrix.',
+    print('TOD-to-map using precomputed pointing matrix.',
           end='\n ...')
     with Timer() as T:
-        map1p = pp.to_map(pe.zeros(3), pix_idx, spin_proj, sig_list, None, Ivals)
+        map1p = pp.to_map(pe.zeros(3),pix_idx,spin_proj,sig_list,None,threads)
 
-    print('and also weights', end='\n ... ')
+    print('TOD-to-weights using precomputed pointing matrix.', end='\n ... ')
     with Timer() as T:
-        map2p = pp.to_weight_map(pe.zeros((3,3)),pix_idx,spin_proj,None,None, Ivals)
+        map2p = pp.to_weight_map(pe.zeros((3,3)),pix_idx,spin_proj,None,threads)
 
     print('Checking that precomp and on-the-fly forward calcs agree: ',
           end='\n ... ')
@@ -221,7 +212,7 @@ if 1:
 
     print('Checking that it agrees with on-the-fly',
           end='\n ...')
-    sig1f = pe.from_map(map1, ptg, ofs, None, None)
+    sig1f = pe.from_map(map1, ptg, ofs, None)
     thresh = map1[0].std() * 1e-6
     assert max([np.abs(a - b).max() for a, b in zip(sig1f, sig1p)]) < thresh
     print('yes')
