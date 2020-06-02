@@ -851,12 +851,13 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
     auto _none = bp::object();
 
     auto pointer = Pointer<C>();
-    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+    pointer.TestInputs(map, pbore, pofs, _none, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
 
     bool from_map = !isNone(map);
-    assert(!from_map);  // We'll implement this in a minute...
+    if (from_map)
+        _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     vector<vector<RangesInt32>> ranges;
 
@@ -888,7 +889,7 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
                 int this_slice = -1;
                 if (from_map) {
                     if (pixel_offset[0] >= 0)
-                        int this_slice = *_pixelizor.pix(0, pixel_offset);
+                        this_slice = *_pixelizor.pix(0, pixel_offset);
                 } else {
                     this_slice = _pixelizor.stripe(pixel_offset, n_domain);
                 }
