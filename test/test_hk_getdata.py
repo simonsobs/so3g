@@ -4,11 +4,26 @@ import numpy as np
 
 import so3g
 from so3g.hk import HKArchiveScanner
+from so3g.hk import HKTranslator
 
 from spt3g import core
 
+class Seeder(list):
+    """Module that can be pre-initialized with frames to feed into a
+    Pipeline.  If it's not the first module, it passes along incoming
+    frames and then appends its own.
 
-def write_example_file(filename='hk_out.g3'):
+    """
+    def Process(self, frame):
+        if frame is not None:
+            return [frame]
+        output = [x for x in self]
+        self.clear()
+        return output
+    def __call__(self, *args, **kw):
+        return self.Process(*args, **kw)
+
+def write_example_file(filename='hk_out.g3', hkagg_version=1):
     """Generate some example HK data and write to file.
 
     Args:
@@ -19,10 +34,17 @@ def write_example_file(filename='hk_out.g3'):
 
     # Write a stream of HK frames.
     # (Inspect the output with 'spt3g-dump hk_out.g3 so3g'.)
-    w = core.G3Writer(test_file)
+    seeder = Seeder()
+    w = core.G3Pipeline()
+    w.Add(seeder)
+    assert(hkagg_version in [0,1])
+    if hkagg_version == 1:
+        w.Add(HKTranslator)
+    w.Add(core.G3Writer(test_file))
 
     # Create something to help us track the aggregator session.
     hksess = so3g.hk.HKSessionHelper(session_id=1234,
+                                     hkagg_version=0,
                                      description="Test HK data.")
 
     # Register a data provider.
@@ -30,10 +52,8 @@ def write_example_file(filename='hk_out.g3'):
         description='Fake data for the real world.')
 
     # Start the stream -- write the initial session and status frames.
-    f = hksess.session_frame()
-    w.Process(f)
-    f = hksess.status_frame()
-    w.Process(f)
+    seeder.append(hksess.session_frame())
+    seeder.append(hksess.status_frame())
 
     # Now make a data frame.
     f = hksess.data_frame(prov_id=prov_id)
@@ -46,8 +66,9 @@ def write_example_file(filename='hk_out.g3'):
     hk.t = [0, 1, 2, 3, 4]
     f['blocks'].append(hk)
 
-    w.Process(f)
+    seeder.append(f)
 
+    w.Run()
     del w
 
 
@@ -72,24 +93,28 @@ class TestGetData(unittest.TestCase):
     """TestCase for testing hk.getdata.py."""
     def setUp(self):
         """Generate some test HK data."""
-        self._file = 'test.g3'
-        write_example_file(self._file)
+        self._files = ['test_0.g3', 'test_1.g3']
+        write_example_file(self._files[0], 0)
+        write_example_file(self._files[1], 1)
 
     def tearDown(self):
         """Remove the temporary file we made."""
-        os.remove(self._file)
+        for f in self._files:
+            os.remove(f)
 
     def test_hk_getdata_field_array_type(self):
         """Make sure we return the fields as a numpy array when we get_data."""
-        fields, _ = load_data(self._file)
-        assert isinstance(fields['position'], np.ndarray)
+        for f in self._files:
+            fields, _ = load_data(f)
+            assert isinstance(fields['position'], np.ndarray)
 
     def test_hk_getdata_timeline_array_type(self):
         """Make sure we return the timelines as a numpy array when we
         get_data.
         """
-        _, timelines = load_data(self._file)
-        assert isinstance(timelines['group0']['t'], np.ndarray)
+        for f in self._files:
+            _, timelines = load_data(f)
+            assert isinstance(timelines['group0']['t'], np.ndarray)
 
 
 if __name__ == '__main__':
