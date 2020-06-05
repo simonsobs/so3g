@@ -73,15 +73,15 @@ def g3_to_array(g3file, verbose=False):
     biases = []
     biasnums = []
     for num in frames[i]['tes_biases'].keys():
-        biasnums.append(int(num))
+        biasnums.append(num)
     biasnums.sort()
     for b in biasnums:
         if verbose:
-            print('Adding bias number %i'%b)
+            print('Adding bias {}'.format(b))
         bias = []
         for frame in frames:
             if frame.type == core.G3FrameType.Scan:
-                biasdata = frame['tes_biases'][str(b)]
+                biasdata = frame['tes_biases'][b]
                 bias.append(biasdata)
         bias_all = np.hstack(bias)
         biases.append(bias_all)
