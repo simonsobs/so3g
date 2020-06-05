@@ -56,8 +56,8 @@ must define the telescope site.  You can construct an
 your site (see reference).  Or use the classmethod ``get_named`` to
 retrieve some known position::
 
-  # Get a Site object... how about the Atacama Cosmology Telescope
-  site = so3g.proj.EarthlySite.get_named('act')
+  # Get a Site object... perhaps the Simons Observatory.
+  site = so3g.proj.EarthlySite.get_named('so')
 
 In addition to the site position on Earth, the object also contains
 parameters for typical site weather, for refraction calculations.
@@ -90,10 +90,10 @@ rotation quaternion from focal plane to celestial coordinates.  The
 angles::
 
   >>> csl.Q
-  spt3g.core.G3VectorQuat([(-0.0384775,0.941776,0.114177,0.313911)])
+  spt3g.core.G3VectorQuat([(-0.0384748,0.941783,0.114177,0.313891)])
 
   >>> csl.coords()   
-  array([[ 0.24261284, -0.9272257 , -0.99999913, -0.00131945]])
+  array([[ 0.24261138, -0.92726871, -0.99999913, -0.00131952]])
   
 The ``coords()`` call returns an array with shape (n_time, 4); each
 4-tuple contains values ``(lon, lat, cos(gamma), sin(gamma))``.  The
@@ -107,7 +107,7 @@ You can get the vectors of RA and dec, in degrees like this::
 
   >>> ra, dec = csl.coords().transpose()[:2] / DEG
   >>> print(ra, dec)
-  [13.90069189] [-53.12611929]
+  [13.90060809] [-53.12858329]
 
 
 Pointing for many detectors
@@ -122,14 +122,13 @@ orientations::
   gamma = np.array([0,30,60]) * DEG
   fp = so3g.proj.FocalPlane.from_xieta(names, x, y, gamma)
 
-
 This particular function, ``from_xieta``, will apply the SO standard
 coordinate definitions and store a rotation quaternion for each
 detector.  FocalPlane is just a thinly wrapped OrderedDict, where the
 detector name is the key and the value is the rotation quaternion::
 
   >>> fp['c']
-  spt3g.core.quat(0.866017,0.00218168,0.00377878,0.499995)
+  spt3g.core.quat(0.866017,0.00377878,-0.00218168,0.499995)
 
 At this point you could get the celestial coordinates for any one of
 those detectors::
@@ -143,16 +142,16 @@ As expected, these coordinates are close to the ones computed before,
 for the boresight::
 
   >>> print(ra / DEG, dec / DEG)
-  [13.90180432] [-53.6261252]
+  [13.06731917] [-53.12633433]
 
 But the more expedient way to get pointing for multiple detectors is
 to call ``coords()`` with the FocalPlane object as first argument::
 
   >>> csl.coords(fp)
-  OrderedDict([('a', array([[ 0.24263226, -0.93595245, -0.99999911,
-  -0.00133503]])), ('b', array([[ 0.24261284, -0.9272257 , -0.86536493,
-  -0.50114224]])), ('c', array([[ 0.24259387, -0.91849895, -0.49887   ,
-  -0.86667683]]))])
+  OrderedDict([('a', array([[ 0.22806774, -0.92722945, -0.9999468 ,
+  0.01031487]])), ('b', array([[ 0.24261138, -0.92726871, -0.86536489,
+  -0.5011423 ]])), ('c', array([[ 0.25715457, -0.92720643, -0.48874018,
+  -0.87242939]]))])
 
 To be clear, ``coords()`` now returns a dictionary whose keys are the
 detector names.  Each value is an array with shape (n_time,4), and at
@@ -184,7 +183,7 @@ wcs is an astropy.wcs object, but decorated with a more useful repr
 provided by pixell::
 
   >>> shape
-  (150, 100)
+  (100, 200)
   >>> wcs
   car:{cdelt:[-0.02,0.02],crval:[14,0],crpix:[101,2701]}
 
@@ -210,19 +209,17 @@ from the pixels in pmap, which are the coordinates of the centers of
 the pixels::
 
   >>> [x/DEG for x in pix_ra]
-  [array([13.88], dtype=float32), array([13.88], dtype=float32),
-  array([13.88], dtype=float32)]
+  [array([13.04], dtype=float32), array([13.88], dtype=float32), array([14.72], dtype=float32)]
   >>> [x/DEG for x in pix_dec]
-  [array([-53.6], dtype=float32), array([-53.100002], dtype=float32),
-  array([-52.600002], dtype=float32)]
+  [array([-53.100002], dtype=float32), array([-53.100002], dtype=float32), array([-53.100002], dtype=float32)]
 
 If you are not getting what you expect, you can grab the pixel indices
 inferred by the projector -- perhaps your pointing is taking you off
 the map (in which case the pixel indices would return value -1)::
 
   >>> p.get_pixels(asm)
-  [array([4106], dtype=int32), array([9106], dtype=int32),
-  array([14106], dtype=int32)]
+  [array([[ 45, 148]], dtype=int32), array([[ 45, 106]], dtype=int32),
+  array([[45, 64]], dtype=int32)]
 
 Let's project signal into an intensity map::
 
@@ -236,20 +233,22 @@ Inspecting the map, we see our signal values occupy the three non-zero
 pixels:
 
   >>> map_out.nonzero()
-  (array([0, 0, 0]), array([20, 45, 70]), array([106, 106, 106]))
+  (array([0, 0, 0]), array([45, 45, 45]), array([ 64, 106, 148]))
   >>> map_out[map_out!=0]
-  array([  1.,  10., 100.])
+  array([100.,  10.,   1.])
+
 
 If we run this projection again, but pass in this map as a starting
 point, the signal will be added to the map:
 
-  >>> p.to_map(signal, asm, dest_map=map_out, comps='T')
+  >>> p.to_map(signal, asm, output=map_out, comps='T')
   array([[[0., 0., 0., ..., 0.]]])
   >>> map_out[map_out!=0]
-  array([  2.,  20., 200.])
+  array([200.,  20.,   2.])
 
 If we instead want to treat the signal as coming from
-polarization-sensitive detectors, we can request components ``'TQU'``:
+polarization-sensitive detectors, we can request components
+``'TQU'``::
 
   map_pol = p.to_map(signal, asm, comps='TQU')
 
@@ -259,7 +258,7 @@ according to the projected detector angle on the sky::
   >>> map_pol.shape
   (3, 100, 200)
   >>> map_pol[:,45,106]
-  array([10.        ,  4.97712898,  8.67341805])
+  array([10.        ,  4.97712803,  8.673419  ])
 
 For the most basic map-making, the other useful operation is the
 ``to_weights_map()`` method.  This is used to compute the weights
@@ -283,10 +282,10 @@ the upper diagonal has been filled in, for efficiency reasons...::
 
   >>> weight_out.shape
   (3, 3, 100, 200)
-  >>> weight_out[:,45,106]
-  array([[1.        , 0.49771291, 0.86734182],
-         [0.        , 0.24771814, 0.43168721],
-         [0.        , 0.        , 0.75228184]])
+  >>> weight_out[...,45,106]
+  array([[1.        , 0.49771279, 0.86734194],
+         [0.        , 0.24771802, 0.43168718],
+         [0.        , 0.        , 0.75228202]])
 
 OpenMP
 ------
@@ -324,26 +323,59 @@ scan pattern.  So OMP should be used with care.
 The assignment of pixels to threads, and thus of sample-ranges to
 threads, is encoded in a RangesMatrix object.  To get one, try
 the ``Projectionist.get_prec_omp()`` method, then pass the result to
-``to_map`` or ``from_map`` argument ``omp=``::
+``to_map`` or ``from_map`` argument ``threads=``::
 
-  omp_precomp = p.get_prec_omp(asm)
-  map_pol2 = p.to_map(signal, asm, comps='TQU', omp=omp_precomp)
+  threads = p.assign_threads(asm)
+  map_pol2 = p.to_map(signal, asm, comps='TQU', threads=threads)
 
 Inspecting::
 
-  >>> omp_precomp
+  >>> threads
   RangesMatrix(4,3,1)
   >>> map_pol2[:,45,106]
   array([10.        ,  4.97712898,  8.67341805])
 
 
-Class reference
-===============
+The default algorithm for thread assignment is not very smart... it
+simply cuts the maps into horizontal blocks.  If you know there's a
+better way to assign pixels than this, you can create a map that has
+the thread number for each pixel, and pass that to the method
+``assign_threads_from_map``.
 
-*The core classes from* ``so3g.proj`` *are auto-documented here.  If
-you see a bunch of headings and no docstrings, then it's likely
-because the Sphinx could not import so3g properly when building the
-docs!*
+For example, we might know that slicing the map into wide columns is a
+good way to assign threads.  So we make a map with 0s, 1s, 2s and 3s
+in broad columns, and than use that to produce a thread assignment
+RangesMatrix::
+
+  # Get a blank map to start from...
+  thread_map = map_out * 0
+
+  # Stripe it.
+  full_width = thread_map.shape[-1]
+  thread_count = 4
+  for i in range(thread_count):
+    thread_map[...,i*full_width//thread_count:] = i
+
+  # Convert to RangesMatrix
+  threads = p.assign_threads_from_map(asm, thread_map)
+
+
+Coordinate Systems
+==================
+
+We endeavor to limit the expression of rotations in terms of tuples of
+angles to three representations: ``iso``, ``lonlat``, and ``xieta``.
+These are defined and applied in tod2maps_docs/coord_sys.  Routines
+are moving between angle tuples and quaternions are provided in the
+:mod:`so3g.proj.quat` submodule.
+
+Class and module reference
+==========================
+
+*The core classes and submodules from* ``so3g.proj`` *are
+auto-documented here.  If you see a bunch of headings and no
+docstrings, then probably Sphinx could not import so3g properly when
+building the docs!*
 
 Assembly
 --------
@@ -360,9 +392,19 @@ EarthlySite
 .. autoclass:: so3g.proj.EarthlySite
    :members:
 
+FocalPlane
+-----------
+.. autoclass:: so3g.proj.FocalPlane
+   :members:
+
 Projectionist
 -------------
 .. autoclass:: so3g.proj.Projectionist
+   :members:
+
+quat
+----
+.. automodule:: so3g.proj.quat
    :members:
 
 Ranges

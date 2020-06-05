@@ -223,7 +223,7 @@ class FocalPlane(OrderedDict):
 
         """
         qs = quat.rotation_xieta(xi, eta, gamma)
-        return cls(zip(names, qs))
+        return cls([(n,q) for n, q in zip(names, qs)])
 
 
 class Assembly:
