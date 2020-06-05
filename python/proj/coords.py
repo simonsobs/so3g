@@ -24,11 +24,28 @@ class EarthlySite:
         return SITES[name]
 
 
+def _debabyl(deg, arcmin, arcsec):
+    return deg + arcmin/60 + arcsec/3600
+
 SITES = {
     'act': EarthlySite(-67.7876, -22.9585, 5188.,
-                       typical_weather=weather_factory('toco'))
+                       typical_weather=weather_factory('toco')),
+    # SO coords taken from SO-SITE-HEF-003A on 2020-06-02; altitude
+    # set to same as ACT.
+    'so_lat': EarthlySite(-_debabyl(67,47,15.68), -_debabyl(22,57,39.47), 5188.,
+                          typical_weather=weather_factory('toco')),
+    'so_sat1': EarthlySite(-_debabyl(67,47,18.11), -_debabyl(22,57,36.38), 5188.,
+                           typical_weather=weather_factory('toco')),
+    'so_sat2': EarthlySite(-_debabyl(67,47,17.28), -_debabyl(22,57,36.35), 5188.,
+                           typical_weather=weather_factory('toco')),
+    'so_sat3': EarthlySite(-_debabyl(67,47,16.53), -_debabyl(22,57,35.97), 5188.,
+                           typical_weather=weather_factory('toco')),
 }
-DEFAULT_SITE = 'act'
+# Take LAT as default.  It makes most sense to use a single position
+# for all telescopes and absorb the discrepancy into the pointing
+# model as a few seconds of base tilt.
+SITES['so'] = SITES['so_lat']
+DEFAULT_SITE = 'so'
 
 # These definitions are used for the naive horizon -> celestial
 # conversion.
@@ -144,8 +161,7 @@ class CelestialSightLine:
 
         """
         # Get a projector, in CAR.
-        px = so3g.Pixelizor2_Flat(1, 1, 1., 1., 1., 1.)
-        p = so3g.ProjEng_CAR_TQU(px)
+        p = so3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
         # Pre-process the offsets
         collapse = (det_offsets is None)
         if collapse:
@@ -192,27 +208,21 @@ class FocalPlane(OrderedDict):
         """Creates a FocalPlane object for a set of detector positions
         provided in xieta projection plane coordinates.
 
-        Arguments:
-          names: vector of detector names.
-          xi: vector of xi positions, in radians.
-          eta: vector of eta positions, in radians.
-          gamma: vector or scalar detector orientation, in radians.
+        Args:
+            names: vector of detector names.
+            xi: vector of xi positions, in radians.
+            eta: vector of eta positions, in radians.
+            gamma: vector or scalar detector orientation, in radians.
 
         The (xi,eta) coordinates are Cartesian projection plane
         coordinates.  When looking at the sky along the telescope
-        boresight, xi parallel to increasing elevation and eta is
-        parallel to increasing azimuth.  (xi, eta, boresight) form a
-        right-handed cartesian system.  The angle gamma, indicating
-        the sensitivity direction, is measured from the xi axis,
-        increasing towards the eta axis.
+        boresight, xi parallel to increasing azimuth and eta is
+        parallel to increasing elevation.  The angle gamma, which
+        specifies the angle of polarization sensitivity, is measured
+        from the eta axis, increasing towards the xi axis.
 
         """
-        x, y = np.asarray(xi), np.asarray(eta)
-        theta = np.arcsin((x**2 + y**2)**.5)
-        phi = np.arctan2(y, x)
-        if gamma is None:
-            gamma = 0.
-        qs = quat.rotation_iso(theta, phi, gamma - phi)
+        qs = quat.rotation_xieta(xi, eta, gamma)
         return cls(zip(names, qs))
 
 

@@ -9,13 +9,51 @@ class Projectionist:
     """This class assists with analyzing WCS information to populate data
     structures needed for accelerated pointing routines.
 
-    The optimized pointing code only needs to know about the Native
-    Celestial Coordinate system, because the projection plane and thus
-    the pixel indices are defined relative to that.
+    On instantiation, it carries information about the relation
+    between celestial spherical coordinates and the Native Spherical
+    coordinates of the projection, as and also the pixelization scheme
+    for the projection.
 
-    As in pixell, the code below uses the term "geometry" to refer to
-    the combination of an astropy.WCS and object and a 2-d array
-    shape.
+    As in pixell, the code and discussion here uses the term
+    "geometry" to refer to the combination of an astropy.WCS object
+    and a 2-d array shape.
+
+    When coordinate computation or projection routines are called, a
+    ProjEng (a wrapped C++ object) is instantiated to perform the
+    accelerated computations.  The spin-composition (i.e. is this a
+    'T' map or a 'TQU' map) must be specified at this time, to
+    instantiate the correct accelerated object.
+
+    Some method parameters are common to many functions and are documented
+    here for consistency:
+
+    * ``assembly`` - an Assembly, providing a focal plane (quaternion
+      offsets for each detector) as well as a boresight vector
+      (quaternion for each time sample).
+    * ``comps`` - a string specifying the Stokes components of the
+      map, for example 'T' or 'TQU'.  When absent, this will be
+      guessed from the map shape; with 1|2|3 mapping to 'T'|'QU'|'TQU'
+      respectively.
+    * ``proj_name`` - a string specifying a projection.  The
+      nomenclature is mostly the same as the FITS CTYPE identifiers.
+      Accepted values: ARC, CAR, CEA, TAN, ZEA, Flat, Quat.
+    * ``threads`` - a RangesMatrix with shape
+      (n_threads,n_dets,n_samps), used to specify which samples should
+      be treated by each thread in TOD-to-map operations.  Such
+      objects should satisfy the condition that
+      threads[x,j]*threads[y,j] is the empty Range; i.e. each
+      detector-sample is assigned to exactly one thread.
+
+    Attributes:
+        naxis: 2-element integer array specifying the map shape (for
+            the 2 celestial axes).
+        cdelt: 2-element float array specifying the pixel pitch.
+        crpix: 2-element float array specifying the pixel coordinates
+            of the reference point.
+        proj_name: string, name of the projection.
+        q_celestial_to_native: quaternion rotation taking celestial
+            coordinates to the native spherical coordinates of the
+            projection.
 
     """
     @staticmethod
@@ -50,12 +88,19 @@ class Projectionist:
 
     @classmethod
     def for_geom(cls, shape, wcs):
+        """Return a Projectionist for use with the specified "geometry".
+
+        The shape and wcs are the core information required to prepare
+        a Projectionist, so this method is likely to be called by
+        other constructors.
+
+        """
         self = cls()
         ax1, ax2 = wcs.wcs.lng, wcs.wcs.lat
-        self.ndim = len(shape)
+        ndim = len(shape)
         # The axes are numbered from outside in...
-        self.naxis = np.array([shape[self.ndim - ax1 - 1],
-                               shape[self.ndim - ax2 - 1]], dtype=int)
+        self.naxis = np.array([shape[ndim - ax1 - 1],
+                               shape[ndim - ax2 - 1]], dtype=int)
         # Get just the celestial part.
         wcs = wcs.celestial
 
@@ -76,6 +121,17 @@ class Projectionist:
 
     @classmethod
     def for_map(cls, emap, wcs=None):
+        """Return a Projectionist for use with maps having the same geometry
+        as the provided enmap.
+
+        Args:
+          emap: enmap from which to extract shape and wcs information.
+            It is acceptable to pass a bare ndarray here (or anything
+            with shape attribute), provided that wcs is provided
+            separately.
+          wcs: optional WCS object to use instead of emap.wcs.
+
+        """
         if wcs is None:
             wcs = emap.wcs
         return cls.for_geom(emap.shape, wcs)
@@ -83,9 +139,11 @@ class Projectionist:
     @classmethod
     def for_source_at(cls, alpha0, delta0, gamma0=0.,
                       proj_name='TAN'):
-        """Return a projection that places the specified source position at
-        the North Pole."""
+        """Return a pointing-only Projectionist where some particular
+        equatorial position will be put at the North Pole of the
+        Native spherical coordinates.
 
+        """
         self = cls()
         self.proj_name = proj_name
         assert(gamma0 == 0.)
@@ -95,17 +153,16 @@ class Projectionist:
             * quat.euler(2, -alpha0 * quat.DEG))
         return self
 
-    def get_pixelizor(self):
-
-        """Returns the so3g.Pixelizor appropriate for use with the configured
-        geometry.
+    def _get_pixelizor_args(self):
+        """Returns a tuple of arguments that may be passed to the ProjEng
+        constructor to define the pixelization.
 
         """
         # All these casts are required because boost-python doesn't
         # like numpy scalars.
-        return so3g.Pixelizor2_Flat(int(self.naxis[1]), int(self.naxis[0]),
-                                    float(self.cdelt[1]), float(self.cdelt[0]),
-                                    float(self.crpix[1]), float(self.crpix[0]))
+        return (int(self.naxis[1]), int(self.naxis[0]),
+                float(self.cdelt[1]), float(self.cdelt[0]),
+                float(self.crpix[1]), float(self.crpix[0]))
 
     def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
                     instance=True):
@@ -115,18 +172,18 @@ class Projectionist:
         """
         if proj_name is None:
             proj_name = self.proj_name
-        projeng_name = f'ProjEng_{proj_name}_{comps}'
+        projeng_name = f'ProjEng_{proj_name}_{comps}_NonTiled'
         if not get:
             return projeng_name
         try:
             projeng_cls = getattr(so3g, projeng_name)
         except AttributeError:
             raise ValueError(f'There is no projector implemented for '
-                             'pixelization "{proj_name}", components '
-                             '"{comps}" (tried "{projeng_name}").')
+                             f'pixelization "{proj_name}", components '
+                             f'"{comps}" (tried "{projeng_name}").')
         if not instance:
             return projeng_cls
-        return projeng_cls(self.get_pixelizor())
+        return projeng_cls(self._get_pixelizor_args())
 
     def _get_cached_q(self, new_q0):
         if new_q0 is not self._q0:
@@ -216,80 +273,53 @@ class Projectionist:
         projeng = self.get_ProjEng('TQU')
         return projeng.coords(q1, assembly.dets, None)
 
-    def get_prec_omp(self, assembly):
-        """Perform a quick analysis of the pointing in order to enable OMP in
-        tod-to-map operations.  Returns a special object that can be
-        passed as the omp= argument of to_map and to_weight_map.
-        (Other operations can use OMP without this precomputed object,
-        because there are no thread-safety issues.)
-
-        See class documentation for description of standard arguments.
-
-        """
-        projeng = self.get_ProjEng('T')
-        q1 = self._get_cached_q(assembly.Q)
-        omp_ivals = projeng.pixel_ranges(q1, assembly.dets)
-        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
-
-    def to_map(self, signal, assembly, dest_map=None, omp=None, comps=None):
+    def to_map(self, signal, assembly, output=None, det_weights=None,
+               threads=None, comps=None):
         """Project signal into a map.
 
         Arguments:
           signal (Signal-like): The signal to project.
-          dest_map (Map-like): The map into which to accumulate the
+          output (Map-like): The map into which to accumulate the
             projected signal.  If None, a map will be initialized internally.
-          comps: The projection component string, e.g. 'T', 'QU',
-            'TQU'.
-          omp (ProjectionOmpData): The OMP information (returned by
-            get_prec_omp), if OMP acceleration is to be used.
+          det_weights (shape n_det): Weights to use for each detector.
 
         See class documentation for description of standard arguments.
 
         """
-        if dest_map is None and comps is None:
+        if output is None and comps is None:
             raise ValueError("Provide an output map or specify component of "
                              "interest (e.g. comps='TQU').")
         if comps is None:
-            comps = self._guess_comps(dest_map.shape)
+            comps = self._guess_comps(output.shape)
         projeng = self.get_ProjEng(comps)
         q1 = self._get_cached_q(assembly.Q)
-        if omp is None:
-            map_out = projeng.to_map(
-                dest_map, q1, assembly.dets, signal, None)
-        else:
-            map_out = projeng.to_map_omp(
-                dest_map, q1, assembly.dets, signal, None, omp)
+        map_out = projeng.to_map(
+            output, q1, assembly.dets, signal, det_weights, threads)
         return map_out
 
-    def to_weights(self, assembly, dest_map=None, omp=None, comps=None):
+    def to_weights(self, assembly, output=None, det_weights=None,
+                   threads=None, comps=None):
         """Project pointing into a weights map.
 
         Arguments:
-          dest_map (Map-like): The weights map into which to
-            accumulate the projected signal.  If None, a map will be
-            initialized internally.
-          comps: The projection component string, e.g. 'T', 'QU',
-            'TQU'.
-          omp (ProjectionOmpData): The OMP information (returned by
-            get_prec_omp), if OMP acceleration is to be used.
+          output (Map-like): The weights map into which to accumulate
+            the projected signal.  If None, a map will be initialized
+            internally.
+          det_weights (shape n_det): Weights to use for each detector.
 
         See class documentation for description of standard arguments.
 
         """
-        if dest_map is None and comps is None:
+        if output is None and comps is None:
             raise ValueError("Provide an output map or specify component of "
                              "interest (e.g. comps='TQU').")
         if comps is None:
-            assert(dest_map.shape[0] == dest_map.shape[1])
-            comps = self._guess_comps(dest_map.shape[1:])
+            assert(output.shape[0] == output.shape[1])
+            comps = self._guess_comps(output.shape[1:])
         projeng = self.get_ProjEng(comps)
         q1 = self._get_cached_q(assembly.Q)
-        if omp is None:
-            map_out = projeng.to_weight_map(
-                dest_map, q1, assembly.dets, None, None)
-        else:
-            map_out = projeng.to_weight_map_omp(
-                dest_map, q1, assembly.dets, None, None, omp)
+        map_out = projeng.to_weight_map(
+            output, q1, assembly.dets, det_weights, threads)
         return map_out
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
@@ -300,10 +330,6 @@ class Projectionist:
           signal (Signal-like): The object into which to accumulate
             the signal.  If not provided, a suitable object will be
             created and initialized to zero.
-          comps: The projection component string, e.g. 'T', 'QU',
-            'TQU'.
-          omp: The OMP information (returned by get_prec_omp), if OMP
-            acceleration is to be used.
 
         See class documentation for description of standard arguments.
 
@@ -316,5 +342,39 @@ class Projectionist:
         projeng = self.get_ProjEng(comps)
         q1 = self._get_cached_q(assembly.Q)
         signal_out = projeng.from_map(
-            src_map, q1, assembly.dets, signal, None)
+            src_map, q1, assembly.dets, signal)
         return signal_out
+
+    def assign_threads(self, assembly):
+        """Get a thread assignment RangesMatrix, using simple information
+        returned by the underlying pixelization.
+
+        The returned object can be passed to the ``threads`` argument
+        of the projection methods in this object.
+
+        See class documentation for description of standard arguments.
+
+        """
+        projeng = self.get_ProjEng('T')
+        q1 = self._get_cached_q(assembly.Q)
+        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None)
+        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+
+    def assign_threads_from_map(self, assembly, tmap):
+        """Assign threads based on a map.
+
+        The returned object can be passed to the ``threads`` argument
+        of the projection methods in this object.
+
+        See class documentation for description of standard arguments.
+
+        Args:
+          tmap: Map structure with shape (1,m,n) where each pixel,
+            when converted to integer, species the index of the thread
+            to which that pixel should be assigned.
+
+        """
+        projeng = self.get_ProjEng('T')
+        q1 = self._get_cached_q(assembly.Q)
+        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap)
+        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
