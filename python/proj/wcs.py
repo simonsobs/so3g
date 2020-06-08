@@ -18,6 +18,20 @@ class Projectionist:
     "geometry" to refer to the combination of an astropy.WCS object
     and a 2-d array shape.
 
+    The following symbols are used in docstrings to represent shapes:
+
+    * ``n_dets`` - Number of detectors in the focal plane.
+    * ``n_samps`` - Number of samples in the signal space of each detector.
+    * ``n_threads`` - Number of threads to use in parallelized computation.
+    * ``n_mapidx`` - Number of indices required to specify a pixel in
+      a map.  For simple maps this is probably 2, with the first index
+      specifying row and the second index specifying column.  But for
+      tiled maps n_mapidx is 3, with the first axis specifying the
+      tile number.
+    * ``n_comp`` - Number of map components, such as Stokes components
+      or other spin components.  This takes the value 3, for example,
+      if projection into TQU space has been requested.
+
     When coordinate computation or projection routines are called, a
     ProjEng (a wrapped C++ object) is instantiated to perform the
     accelerated computations.  The spin-composition (i.e. is this a
@@ -37,6 +51,11 @@ class Projectionist:
     * ``proj_name`` - a string specifying a projection.  The
       nomenclature is mostly the same as the FITS CTYPE identifiers.
       Accepted values: ARC, CAR, CEA, TAN, ZEA, Flat, Quat.
+    * ``shape`` - the shape describing the celestial axes of the map.
+      (For tiled representation this specifies the parent footprint.)
+    * ``wcs`` - the WCS describing the celestial axes of the map.
+      Together with ``shape`` this is a geometry; see pixell.enmap
+      documentation.
     * ``threads`` - a RangesMatrix with shape
       (n_threads,n_dets,n_samps), used to specify which samples should
       be treated by each thread in TOD-to-map operations.  Such
@@ -54,6 +73,10 @@ class Projectionist:
         q_celestial_to_native: quaternion rotation taking celestial
             coordinates to the native spherical coordinates of the
             projection.
+        tiled: bool, indicates if map is tiled.
+        tile_shape: 2-element integer array specifying the tile shape
+            (this is the shape of one full-size sub-tile, not the
+            decimation factor on each axis).
 
     """
     @staticmethod
@@ -82,13 +105,14 @@ class Projectionist:
 
     def __init__(self):
         self._q0 = None
+        self.tiled = False
         self.naxis = np.array([0, 0])
         self.cdelt = np.array([0., 0.])
         self.crpix = np.array([0., 0.])
 
     @classmethod
     def for_geom(cls, shape, wcs):
-        """Return a Projectionist for use with the specified "geometry".
+        """Construct a Projectionist for use with the specified "geometry".
 
         The shape and wcs are the core information required to prepare
         a Projectionist, so this method is likely to be called by
@@ -121,8 +145,8 @@ class Projectionist:
 
     @classmethod
     def for_map(cls, emap, wcs=None):
-        """Return a Projectionist for use with maps having the same geometry
-        as the provided enmap.
+        """Construct a Projectionist for use with maps having the same
+        geometry as the provided enmap.
 
         Args:
           emap: enmap from which to extract shape and wcs information.
@@ -153,6 +177,39 @@ class Projectionist:
             * quat.euler(2, -alpha0 * quat.DEG))
         return self
 
+    @classmethod
+    def for_tiled(cls, shape, wcs, tile_shape, pop_opts=True):
+        """Construct a Projectionist for use with the specified geometry
+        (shape, wcs), cut into tiles of shape tile_shape.
+
+        See class documentation for description of standard arguments.
+
+        Args:
+            tile_shape: tuple of ints, giving the shape of each tile.
+            pop_opts: bool or list of ints.  Specifies which tiles
+                should be considered active.  If True, all tiles are
+                populated.  If None or False, this will remain
+                uninitialized and attempts to generate blank maps
+                (such as calls to zeros or to projection functions
+                without a target map set) will fail.  Otherwise this
+                must be a list of integers specifying which tiles to
+                populate on such calls.
+
+        """
+        self = cls.for_geom(shape, wcs)
+        self.tiled = True
+        self.tile_shape = np.array(tile_shape, 'int')
+        nt0 = int(np.ceil(shape[0] / self.tile_shape[0]))
+        nt1 = int(np.ceil(shape[1] / self.tile_shape[1]))
+        if pop_opts is True:
+            self.pop_list = list(range(nt0*nt1))
+        elif pop_opts in [False, None]:
+            self.pop_list = None
+        else:
+            # Presumably a list of tile numbers.
+            self.pop_list = pop_opts
+        return self
+
     def _get_pixelizor_args(self):
         """Returns a tuple of arguments that may be passed to the ProjEng
         constructor to define the pixelization.
@@ -160,9 +217,14 @@ class Projectionist:
         """
         # All these casts are required because boost-python doesn't
         # like numpy scalars.
-        return (int(self.naxis[1]), int(self.naxis[0]),
+        args = (int(self.naxis[1]), int(self.naxis[0]),
                 float(self.cdelt[1]), float(self.cdelt[0]),
                 float(self.crpix[1]), float(self.crpix[0]))
+        if self.tiled:
+            args += tuple(map(int, self.tile_shape))
+            if self.pop_list is not None:
+                args += (self.pop_list,)
+        return args
 
     def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
                     instance=True):
@@ -172,7 +234,8 @@ class Projectionist:
         """
         if proj_name is None:
             proj_name = self.proj_name
-        projeng_name = f'ProjEng_{proj_name}_{comps}_NonTiled'
+        tile_suffix = 'Tiled' if self.tiled else 'NonTiled'
+        projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}'
         if not get:
             return projeng_name
         try:
@@ -206,7 +269,10 @@ class Projectionist:
 
     def get_pixels(self, assembly):
         """Get the pixel indices for the provided pointing Assembly.  For each
-        detector, an int32 array of shape [n_time] is returned.
+        detector, an int32 array of shape (n_samps, n_mapidx) is
+        returned.  The value of the first slot of the second axis will
+        be -1 if and only if the sample's projected position is
+        outside the map footprint.
 
         See class documentation for description of standard arguments.
 
@@ -219,11 +285,10 @@ class Projectionist:
         """Get the pointing matrix information, which is to say both the pixel
         indices and the "spin projection factors" for the provided
         pointing Assembly.  Returns (pixel_indices, spin_proj) where
-        pixel_indices is a list of int32 arrays of shape [n_time] and
-        spin_proj is a list of float arrays of shape [n_time,
-        n_component].  As an alternative to on-the-fly computation,
-        this information can be cached and used for very fast
-        projection operations.
+        pixel_indices is as returned by get_pixels() and spin_proj is
+        a list of float arrays of shape [n_samps, n_comp].  As an
+        alternative to on-the-fly computation, this information can be
+        cached and used for very fast projection operations.
 
         See class documentation for description of standard arguments.
 
@@ -234,7 +299,7 @@ class Projectionist:
 
     def get_coords(self, assembly, use_native=False):
         """Get the spherical coordinates for the provided pointing Assembly.
-        For each detector, a float64 array of shape [n_time,4] is
+        For each detector, a float64 array of shape [n_samps,4] is
         returned.  In the right-most index, the first two components
         are the longitude and latitude in radians.  The next two
         components are the cosine and sine of the parallactic angle.
@@ -260,7 +325,7 @@ class Projectionist:
 
     def get_planar(self, assembly):
         """Get projection plane coordinates for all detectors at all times.
-        For each detector, a float64 array of shape [n_time,4] is
+        For each detector, a float64 array of shape [n_samps,4] is
         returned.  The first two elements are the x and y projection
         plane coordiantes, similar to the "intermediate world
         coordinates", in FITS language.  Insofar as FITS ICW has units
@@ -272,6 +337,16 @@ class Projectionist:
         q1 = self._get_cached_q(assembly.Q)
         projeng = self.get_ProjEng('TQU')
         return projeng.coords(q1, assembly.dets, None)
+
+    def zeros(self, super_shape):
+        """Return a map, filled with zeros, with shape (super_shape,) +
+        self.shape.  For tiled maps, this will be a list of map tiles
+        (with shape (super_shape, ) + tile_shape.  If any tiles are
+        not active, None is returned in the corresponding slots.
+
+        """
+        projeng = self.get_ProjEng('T')
+        return projeng.zeros(super_shape)
 
     def to_map(self, signal, assembly, output=None, det_weights=None,
                threads=None, comps=None):
@@ -378,3 +453,13 @@ class Projectionist:
         q1 = self._get_cached_q(assembly.Q)
         omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap)
         return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+
+    def get_active_tiles(self, assembly):
+        assert(self.tiled)  # Only makes sense for Tiled maps.
+        # Count the samples entering each Tile.
+        p = self.get_pixels(assembly)
+        tiles_hit = set()
+        for _p in p:
+            # First index of each sample's tuple is the tile index.
+            tiles_hit.update(_p[:,0])
+        return sorted([i for i in tiles_hit if i >= 0])

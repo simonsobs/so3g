@@ -204,7 +204,7 @@ class FocalPlane(OrderedDict):
 
     """
     @classmethod
-    def from_xieta(cls, names, xi, eta, gamma=None):
+    def from_xieta(cls, names, xi, eta, gamma=0):
         """Creates a FocalPlane object for a set of detector positions
         provided in xieta projection plane coordinates.
 
@@ -222,7 +222,7 @@ class FocalPlane(OrderedDict):
         from the eta axis, increasing towards the xi axis.
 
         """
-        qs = quat.rotation_xieta(xi, eta, gamma)
+        qs = quat.rotation_xieta(np.asarray(xi), np.asarray(eta), np.asarray(gamma))
         return cls([(n,q) for n, q in zip(names, qs)])
 
 

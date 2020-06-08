@@ -492,6 +492,10 @@ public:
         int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
         int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
 
+        if (populate.size() == 0)
+            throw shape_exception("zeros", "Cannot create blank tiled map unless "
+                                  "user has specified what tiles to populate.");
+
         bp::list maps_out;
         auto pop_iter = populate.begin();
         for (int i_ty = 0; i_ty < n_ty; i_ty++) {
