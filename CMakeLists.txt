@@ -3,6 +3,12 @@ project (so3g)
 
 include(local.cmake OPTIONAL)
 
+# Default to Release because we want that -O3.  This is what spt3g_software does too.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+    "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel" FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
 # For this to be found, make sure the spt3g build directory can be
 # searched; i.e. -DCMAKE_PREFIX_PATH=/path/to/spt3g_software/build
 find_package(Spt3g REQUIRED)
