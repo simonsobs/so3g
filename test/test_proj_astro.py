@@ -153,6 +153,16 @@ class TestProjAstrometry(unittest.TestCase):
                 dist/DEG, dist/ARCSEC))
             self.assertLess(dist, 1*ARCSEC)
 
+    def test_trig_interp(self):
+        """This test verifies that the trig approximation (a linear
+        interpolation table) is working properly.  It just calls a C++
+        function that returns the largest deviation in radians.
+
+        """
+        deviation = so3g.test_trig(2**14, 0)
+        print('Max inverse trig deviation is %.3f arcsec' % (deviation / ARCSEC))
+        self.assertLess(deviation, 0.2*ARCSEC)
+
     def test_horizon(self):
         """This test is not astrometric so much as a test that coordinate
         systems are accurately implemented; e.g. that the focal plane
