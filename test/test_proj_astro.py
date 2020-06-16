@@ -27,7 +27,7 @@ ARCSEC = DEG / 3600.
 SIDEREAL_MIDNIGHT_IN_LONDON = 1501299200.0
 
 # Useful sites.
-SOBS = so3g.proj.EarthlySite.get_named('act')
+SOBS = so3g.proj.SITES['so']
 LONDON = so3g.proj.EarthlySite(0., 51.5, 0.)
 
 
@@ -96,7 +96,7 @@ class TestProjAstrometry(unittest.TestCase):
         enough with pyephem.
 
         """
-        site = so3g.proj.EarthlySite.get_named('act')
+        site = SOBS
         weather = site.typical_weather
 
         for year in [0, .25, .5, .75, -30, 30, 60]:
@@ -128,7 +128,7 @@ class TestProjAstrometry(unittest.TestCase):
         pyephem.
 
         """
-        site = so3g.proj.EarthlySite.get_named('act')
+        site = SOBS
         for weather in [so3g.proj.weather_factory('vacuum'),
                         so3g.proj.weather_factory('toco')]:
             print('  Weather: %s' % weather)

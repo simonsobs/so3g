@@ -19,10 +19,6 @@ class EarthlySite:
         self.lon, self.lat, self.elev = lon, lat, elev
         self.typical_weather = typical_weather
 
-    @classmethod
-    def get_named(cls, name):
-        return SITES[name]
-
 
 def _debabyl(deg, arcmin, arcsec):
     return deg + arcmin/60 + arcsec/3600
@@ -63,7 +59,15 @@ class CelestialSightLine:
     """
     @staticmethod
     def decode_site(site=None):
-        """Convert site argument to a Site object."""
+        """Convert site argument to a Site object.  The argument must be one
+        of:
+
+        - an EarthlySite object
+        - a string, corresponding to the name of an internally known
+          site
+        - None, in which casethe default site info will be loaded.
+
+        """
         if site is None:
             site = DEFAULT_SITE
         if isinstance(site, EarthlySite):
@@ -257,6 +261,10 @@ class Assembly:
 
     @classmethod
     def for_boresight(cls, sight_line):
+        """Returns an Assembly where a single detector serves as a dummy for
+        the boresight.
+
+        """
         self = cls(collapse=True)
         self.Q = sight_line.Q
         self.dets = [np.array([1., 0, 0, 0])]

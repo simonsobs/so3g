@@ -1,3 +1,5 @@
+.. py:module:: so3g.proj
+
 ====================================
 Pointing and Projections (so3g.proj)
 ====================================
@@ -38,6 +40,12 @@ packages:
 Tutorial
 ========
 
+.. Links for text below.
+
+.. _pixell:  https://pixell.readthedocs.io/
+.. _WCS:  https://docs.astropy.org/en/stable/wcs/
+
+
 Import
 ------
 
@@ -47,25 +55,10 @@ explicitly imported for use.  It is likely you'll also need numpy::
   import so3g.proj
   import numpy as np
 
-Site object
------------
-
-For anything involving both horizon and celestial coordinates, you
-must define the telescope site.  You can construct an
-:py:class:`so3g.proj.EarthlySite` with the longitude and latitude of
-your site (see reference).  Or use the classmethod ``get_named`` to
-retrieve some known position::
-
-  # Get a Site object... perhaps the Simons Observatory.
-  site = so3g.proj.EarthlySite.get_named('so')
-
-In addition to the site position on Earth, the object also contains
-parameters for typical site weather, for refraction calculations.
-
 Horizon to equatorial coordinates
 ---------------------------------
 
-The :py:class:`so3g.proj.CelestialSightLine` class is used to store a
+The :class:`CelestialSightLine` class is used to store a
 time-dependent rotation from focal plane coordinates to celestial
 coordinates.  To create such an object based on the horizon
 coordinates of a telescope boresight, you must pass in the az, el, and
@@ -81,13 +74,13 @@ site and the weather conditions::
   el = [60. * DEG]
 
   # Construct a SightLine from this information.
-  csl = so3g.proj.CelestialSightLine.az_el(t, az, el, site=site,
-      weather='typical')
+  csl = so3g.proj.CelestialSightLine.az_el(t, az, el,
+      site='so', weather='typical')
 
 After instantiation, ``csl`` will have a member ``Q`` that holds the
 rotation quaternion from focal plane to celestial coordinates.  The
-``coords()`` method can decompose such quaternions into rotation
-angles::
+:func:`coords() <CelestialSightLine.coords>` method can decompose such
+quaternions into rotation angles::
 
   >>> csl.Q
   spt3g.core.G3VectorQuat([(-0.0384748,0.941783,0.114177,0.313891)])
@@ -95,13 +88,14 @@ angles::
   >>> csl.coords()   
   array([[ 0.24261138, -0.92726871, -0.99999913, -0.00131952]])
   
-The ``coords()`` call returns an array with shape (n_time, 4); each
-4-tuple contains values ``(lon, lat, cos(gamma), sin(gamma))``.  The
-``lon`` and ``lat`` are the celestial longitude and latitude
-coordinates (typically Right Ascension and Declination), in radians,
-and gamma is the parallactic angle (the angle between the directions
-of increasing declination and increasing elevation at that point, with
-0 corresponding to North, increasing towards West).
+The :func:`coords() <CelestialSightLine.coords>` returns an array with
+shape (n_time, 4); each 4-tuple contains values ``(lon, lat,
+cos(gamma), sin(gamma))``.  The ``lon`` and ``lat`` are the celestial
+longitude and latitude coordinates (typically Right Ascension and
+Declination), in radians, and gamma is the parallactic angle (the
+angle between the directions of increasing declination and increasing
+elevation at that point, with 0 corresponding to North, increasing
+towards West).
 
 You can get the vectors of RA and dec, in degrees like this::
 
@@ -113,7 +107,7 @@ You can get the vectors of RA and dec, in degrees like this::
 Pointing for many detectors
 ---------------------------
 
-Create a FocalPlane object, with some detector positions and
+Create a :class:`FocalPlane` object, with some detector positions and
 orientations::
 
   names = ['a', 'b', 'c']
@@ -122,10 +116,11 @@ orientations::
   gamma = np.array([0,30,60]) * DEG
   fp = so3g.proj.FocalPlane.from_xieta(names, x, y, gamma)
 
-This particular function, ``from_xieta``, will apply the SO standard
-coordinate definitions and store a rotation quaternion for each
-detector.  FocalPlane is just a thinly wrapped OrderedDict, where the
-detector name is the key and the value is the rotation quaternion::
+This particular function, :func:`from_xieta()
+<FocalPlane.from_xieta>`, will apply the SO standard coordinate
+definitions and store a rotation quaternion for each detector.
+FocalPlane is just a thinly wrapped OrderedDict, where the detector
+name is the key and the value is the rotation quaternion::
 
   >>> fp['c']
   spt3g.core.quat(0.866017,0.00377878,-0.00218168,0.499995)
@@ -145,7 +140,8 @@ for the boresight::
   [13.06731917] [-53.12633433]
 
 But the more expedient way to get pointing for multiple detectors is
-to call ``coords()`` with the FocalPlane object as first argument::
+to call :func:`coords() <CelestialSightLine.coords>` with the
+FocalPlane object as first argument::
 
   >>> csl.coords(fp)
   OrderedDict([('a', array([[ 0.22806774, -0.92722945, -0.9999468 ,
@@ -164,9 +160,13 @@ Projecting to Maps
 
 Accelerated projection routines for various pixelizations have been
 written using C++ templates.  Abstraction at the Python level is
-provided by the :py:class:`so3g.proj.Projectionist` class, which
-decodes the map WCS description in order to choose the right
-accelerated pointing projection routines.
+provided by the :class:`Projectionist` class, which decodes the map
+WCS description in order to choose the right accelerated pointing
+projection routines (encapsulated in a C++ class called a ProjEng).
+
+This code relies on `pixell`_ library for working with sky maps that
+are represented as numpy arrays tied to astropy `WCS`_ objects describing the
+rectangular pixelization.
 
 Let's start by creating a suitable map; we choose a supported
 projection, and make sure it contains the particular points touched by
@@ -176,30 +176,36 @@ our example from above::
   shape, wcs = enmap.geometry([[-54*DEG, 16.*DEG], [-52*DEG, 12.*DEG]],
     res=.02*DEG, proj='car')
 
-The ``shape`` is a simple tuple, and will be used like a numpy array
-shape.  Because we typically expect array columns (fastest index) to
-correspond to longitude, the ordering of the points is (dec, RA).  The
-wcs is an astropy.wcs object, but decorated with a more useful repr
-provided by pixell::
+Note that arguments to most ``enmap`` functions are specified in (dec,
+RA) order, because of the typical correspondence between the RA
+direction and matrix column (the fastest index of the map array).  The
+``shape`` is a simple tuple, and will be used like a numpy array
+shape.  The wcs is an astropy WCS_ object, but decorated with a short
+descriptive ``__repr__`` provided by pixell::
 
   >>> shape
   (100, 200)
   >>> wcs
   car:{cdelt:[-0.02,0.02],crval:[14,0],crpix:[101,2701]}
 
-We can do lots of stuff with this ``(shape, wcs)`` pair... see the
-`pixell documentation <https://pixell.readthedocs.io/>`__ .  One thing
-we can do is get a map whose values provide the coordinates of each
-pixel::
+In pixell nomenclature, the combination ``(shape, wcs)`` is called a
+geometry and is used in many different ``enmap`` functions.
 
-  pmap = enmap.posmap(shape, wcs)
-
-You will see the shape is (2,100,200); the first dimension is because
-there is a separate celestial map for the dec and the RA values.
-Let's project those maps back into the time domain::
+Let us create a :class:`Projectionist` that can be used to project between the time-domain of our detectors and the map specified by this geometry::
 
   p = so3g.proj.Projectionist.for_geom(shape, wcs)
   asm = so3g.proj.Assembly.attach(csl, fp)
+
+As a first example, let's project a map into the time domain.  For a
+map to project from, let's ask ``enmap`` to give us the maps that
+specifiy the coordinate values of every pixell (this will be an array
+with shape (2,100,200), where the first index (0 or 1) selects the
+coordinate (dec or RA))::
+
+  pmap = enmap.posmap(shape, wcs)
+
+Now projecting into the time domain::
+
   pix_dec = p.from_map(pmap[0], asm)
   pix_ra = p.from_map(pmap[1], asm)
 
@@ -221,7 +227,8 @@ the map (in which case the pixel indices would return value -1)::
   [array([[ 45, 148]], dtype=int32), array([[ 45, 106]], dtype=int32),
   array([[45, 64]], dtype=int32)]
 
-Let's project signal into an intensity map::
+Let's project signal into an intensity map using
+:func:`Projectionist.to_map`::
 
   # Create dummy signal for our 3 detectors at 1 time points:
   signal = np.array([[1.], [10.], [100.]], dtype='float32')
@@ -261,17 +268,17 @@ according to the projected detector angle on the sky::
   array([10.        ,  4.97712803,  8.673419  ])
 
 For the most basic map-making, the other useful operation is the
-``to_weights_map()`` method.  This is used to compute the weights
-matrix in each pixel, returned as a (n_comp,n_comp,n_dec,n_ra) map.
-Mathematically this corresponds to:
+:func:`Projectionist.to_weights` method.  This is used to compute
+the weights matrix in each pixel, returned as a
+(n_comp,n_comp,n_dec,n_ra) map.  Mathematically this corresponds to:
 
 .. math::
 
    W = s^T\,P\,P^T\,s
 
 where *s* is the time-ordered signal matrix with value 1 at every
-position.  (Future extensions of this function will provide more
-control over *s*.)
+position.  (If ``det_weights`` is specified in the call, then *s*
+is filled with the detector weight.)
 
 The weights map can be obtained like this::
 
@@ -321,9 +328,10 @@ best way to assign pixels to threads depends on the particulars of the
 scan pattern.  So OMP should be used with care.
 
 The assignment of pixels to threads, and thus of sample-ranges to
-threads, is encoded in a RangesMatrix object.  To get one, try
-the ``Projectionist.get_prec_omp()`` method, then pass the result to
-``to_map`` or ``from_map`` argument ``threads=``::
+threads, is encoded in a RangesMatrix object.  To get one, try the
+LINK THIS :func:`Projectionist.assign_threads` method, then pass the
+result to :func:`to_map() <Projectionist.to_map>` or :func:`from_map()
+<Projectionist.from_map>` argument ``threads=``::
 
   threads = p.assign_threads(asm)
   map_pol2 = p.to_map(signal, asm, comps='TQU', threads=threads)
@@ -340,7 +348,8 @@ The default algorithm for thread assignment is not very smart... it
 simply cuts the maps into horizontal blocks.  If you know there's a
 better way to assign pixels than this, you can create a map that has
 the thread number for each pixel, and pass that to the method
-``assign_threads_from_map``.
+:func:`assign_threads_from_map()
+<Projectionist.assign_threads_from_map>``.
 
 For example, we might know that slicing the map into wide columns is a
 good way to assign threads.  So we make a map with 0s, 1s, 2s and 3s
@@ -360,14 +369,83 @@ RangesMatrix::
   threads = p.assign_threads_from_map(asm, thread_map)
 
 
+Tiled Maps
+----------
+
+This projection code supports tiling of maps.  Tiles cover some parent
+geometry.  Suppose the parent geometry is obtained like this::
+
+  from pixell import enmap
+  shape, wcs = enmap.geometry([[-54*DEG, 16.*DEG], [-52.2*DEG, 12.2*DEG]],
+    res=.02*DEG, proj='car')
+
+As above, this produces a footprint with a particular shape::
+
+  >>> shape
+  (90, 190)
+
+And we use classmethod :func:`Projectionist.for_tiled` to specify the
+parent geometry as well as the tile size (which is (20, 50) here)::
+
+  p = so3g.proj.Projectionist.for_tiled(shape, wcs, (20, 50))
+
+The 3rd argument gives the shape of the tile.  In cases where the
+tiles don't precisely cover the parent footprint, the tiles at the end
+of each row or column will be smaller than the specified tile size.
+Tiles are indexed from 0 to n_tile - 1, and in standard display (where
+the parent shape corner index (0,0) is in the lower left), the tile
+index increases to the right and then upwards.  See the diagram below,
+which shows how parent shape (90, 190) is tiled with tile shape (20,
+50).
+
+.. image:: images/tiled_maps.png
+  :width: 500
+  :alt: Tiling of map
+
+
+For the projection routines between TOD and map space, arguments or
+returned values representing a map now return a list of maps, with one
+entry per size of the tile grid.  In the example above, we can get a
+blank map::
+
+  >>> tms = p.zeros((1,))
+  >>> len(tms)
+  20
+  >>> tms[0].shape
+  (1, 20, 50)
+  >>> tms[-1].shape
+  (1, 10, 40)
+
+The advantage of tiling is that one does not need to track all the
+tiles; to specify which tiles you care about, pass them in as a list
+to ``for_tiled``.  For example, if I know I can leave off the upper
+right and lower left corners::
+
+  p = so3g.proj.Projectionist.for_tiled(shape, wcs, (20, 50),
+      [0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 18, 19])
+
+Such a list can be generated automatically using ``get_active_tiles``,
+which can then be used to construct a new Projectionist::
+
+  # Construct without tile list...
+  p = so3g.proj.Projectionist.for_tiled(shape, wcs, (20, 50))
+
+  # Get active tiles (does not require creating a map)
+  tile_list = p.get_active_tiles(asm)
+
+  # Re-construct with tiles selected.
+  p = so3g.proj.Projectionist.for_tiled(shape, wcs, (20, 50), tile_list)
+
+
 Coordinate Systems
 ==================
 
 We endeavor to limit the expression of rotations in terms of tuples of
 angles to three representations: ``iso``, ``lonlat``, and ``xieta``.
 These are defined and applied in tod2maps_docs/coord_sys.  Routines
-are moving between angle tuples and quaternions are provided in the
-:mod:`so3g.proj.quat` submodule.
+for converting between angle tuples and quaternions are provided in
+the :mod:`quat` submodule.
+
 
 Class and module reference
 ==========================
@@ -384,7 +462,7 @@ Assembly
 
 CelestialSightLine
 ------------------
-.. autoclass:: so3g.proj.CelestialSightLine
+.. autoclass:: CelestialSightLine
    :members:
 
 EarthlySite
