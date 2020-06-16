@@ -17,8 +17,21 @@ using namespace std;
 #include <Projection.h>
 #include <Ranges.h>
 #include "exceptions.h"
+#include <so_linterp.h>
 
 #include <boost/math/quaternion.hpp>
+
+#define TRIG_TABLE_SIZE (1 << 14)
+
+#ifdef TRIG_TABLE_SIZE
+static asinTable asin_lookup(TRIG_TABLE_SIZE);
+static atan2Table atan2_lookup(TRIG_TABLE_SIZE);
+#  define ASIN asin_lookup.get
+#  define ATAN2 atan2_lookup.get
+#else
+#  define ASIN asin
+#  define ATAN2 atan2
+#endif
 
 
 typedef boost::math::quaternion<double> quatd;
@@ -182,7 +195,7 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
     if (half_sin_theta < 1e-8)
         R_factor = 2 + 1.33333333333*half_sin_theta*half_sin_theta;
     else
-        R_factor = asin(half_sin_theta*2) / half_sin_theta;
+        R_factor = ASIN(half_sin_theta*2) / half_sin_theta;
 
     coords[0] = ss * R_factor;
     coords[1] = sc * R_factor;
@@ -331,8 +344,8 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
     const double cos_theta = a*a - b*b - c*c + d*d;
     const double half_sin_theta = 0.5 * sqrt(1 - cos_theta*cos_theta);
 
-    coords[0] = atan2(c*d - a*b, c*a + d*b);
-    coords[1] = asin(cos_theta);   // Yes, cos(theta) = sin(lat).
+    coords[0] = ATAN2(c*d - a*b, c*a + d*b);
+    coords[1] = ASIN(cos_theta);   // Yes, cos(theta) = sin(lat).
     coords[2] = (a*c - b*d) / half_sin_theta;
     coords[3] = (c*d + a*b) / half_sin_theta;
 }
@@ -597,7 +610,7 @@ public:
 
 
 template <typename SpinSys>
-inline
+static inline
 void spin_proj_factors(const double* coords, FSIGNAL *projfacs);
 
 template <>
@@ -607,7 +620,8 @@ inline void spin_proj_factors<SpinT>(const double* coords, FSIGNAL *projfacs)
 }
 
 template <>
-inline void spin_proj_factors<SpinQU>(const double* coords, FSIGNAL *projfacs)
+inline
+void spin_proj_factors<SpinQU>(const double* coords, FSIGNAL *projfacs)
 {
     const double c = coords[2];
     const double s = coords[3];
@@ -616,7 +630,8 @@ inline void spin_proj_factors<SpinQU>(const double* coords, FSIGNAL *projfacs)
 }
 
 template <>
-inline void spin_proj_factors<SpinTQU>(const double* coords, FSIGNAL *projfacs)
+inline
+void spin_proj_factors<SpinTQU>(const double* coords, FSIGNAL *projfacs)
 {
      const double c = coords[2];
      const double s = coords[3];
@@ -786,7 +801,7 @@ bp::object ProjectionEngine<C,P,S>::pixels(
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
         int* const pix_buf = pixel_buf_man.data_ptr[i_det];
-        int pixel_offset[P::index_count];
+        int pixel_offset[P::index_count] = {-1};
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
@@ -827,7 +842,7 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
         int* const pix_buf = pixel_buf_man.data_ptr[i_det];
         FSIGNAL* const proj_buf = proj_buf_man.data_ptr[i_det];
         const int step = pixel_buf_man.steps[0];
-        int pixel_offset[P::index_count];
+        int pixel_offset[P::index_count] = {-1};
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             FSIGNAL pf[S::comp_count];
@@ -884,7 +899,7 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
             pointer.InitPerDet(i_det, dofs);
             int last_slice = -1;
             int slice_start = 0;
-            int pixel_offset[P::index_count];
+            int pixel_offset[P::index_count] = {-1};
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
@@ -968,7 +983,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
-        int pixel_offset[P::index_count];
+        int pixel_offset[P::index_count] = {-1};
         FSIGNAL pf[S::comp_count]; 
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
@@ -1002,12 +1017,12 @@ void to_map_single_thread(Pointer<C> &pointer,
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
                                  _det_weights->strides[0]*i_det);
         double dofs[4];
+        double coords[4];
+        int pixel_offset[P::index_count] = {-1};
+        FSIGNAL pf[S::comp_count];
         pointer.InitPerDet(i_det, dofs);
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
-                double coords[4];
-                int pixel_offset[P::index_count];
-                FSIGNAL pf[S::comp_count];
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                 _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
                 if (pixel_offset[0] < 0) continue;
@@ -1035,12 +1050,12 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
                                  _det_weights->strides[0]*i_det);
         double dofs[4];
+        double coords[4];
+        int pixel_offset[P::index_count] = {-1};
+        FSIGNAL pf[S::comp_count];
         pointer.InitPerDet(i_det, dofs);
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
-                double coords[4];
-                int pixel_offset[P::index_count];
-                FSIGNAL pf[S::comp_count];
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                 _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
                 if (pixel_offset[0] < 0) continue;
