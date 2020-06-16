@@ -423,7 +423,7 @@ template <typename intType, typename std::enable_if<std::is_integral<intType>::v
 static inline bp::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 {
     vector<int> indexes;
-    int count;
+    int count = 0;
     
     for (long i=0; i<ivals.size(); i++) {
         indexes.push_back(0);
