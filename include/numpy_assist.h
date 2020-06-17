@@ -180,7 +180,7 @@ public:
                 shape_string(vshape) << ".";
             throw shape_exception(name, s.str());
         }
-    }        
+    }
 
 private:
     std::shared_ptr<Py_buffer> view;

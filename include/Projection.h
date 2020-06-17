@@ -4,9 +4,10 @@
 
 namespace bp = boost::python;
 
-/* For detector timestreams, a.k.a. "signal", float32 is sufficient in
- * most cases.  We don't want to template this, but let's leave our
- * options open by using this typedef. */
+// For detector timestreams, a.k.a. "signal", float32 is sufficient in
+// most cases.  We don't want to template this, but let's leave our
+// options open by using this typedef.
+
 typedef float FSIGNAL;
 #define FSIGNAL_NPY_TYPE NPY_FLOAT32
 #define FSIGNAL_BUFFER_FORMAT "f"

@@ -10,17 +10,23 @@ using namespace std;
 #include <math.h>
 
 #include <omp.h>
+#include <boost/math/quaternion.hpp>
 
 #include <container_pybindings.h>
 
 #include "so3g_numpy.h"
-#include <Projection.h>
-#include <Ranges.h>
+#include "Projection.h"
+#include "Ranges.h"
 #include "exceptions.h"
-#include <so_linterp.h>
+#include "so_linterp.h"
 
-#include <boost/math/quaternion.hpp>
 
+// TRIG_TABLE_SIZE
+//
+// Set this macro to enable trig interpolation tables.  Studies show
+// that a table sizeof 16k gives errors below .1 arcsecond.  To use
+// math library asin and atan2, leave the macro undefined.
+//
 #define TRIG_TABLE_SIZE (1 << 14)
 
 #ifdef TRIG_TABLE_SIZE
@@ -42,17 +48,42 @@ inline bool isNone(const bp::object &pyo)
 }
 
 
+// ProjEng template system
+//
+// ProjEng classes will be templated like:
+//
+//     template<typename C, typename P, typename S>
+//
+// Parameters C, P, S are shorthands for:
+//
+// - C: CoordSys, determines how the boresight position and detector
+//   offsets are interpreted and combined.  The most obvious cases
+//   (e.g. ProjTAN, ProjCAR), labeled with FITS projection codes,
+//   imply that boresight and detector offsets should be treated as
+//   rotation quaternions, multiplied together, and interpreted as
+//   celestial positions within a particular projection.  Other cases
+//   include ProjFlat (where boresight and detector offsets live in a
+//   flat 2-d space) and ProjQuat (where requests for coordinates will
+//   simply return the composed quaternion, without celestial
+//   interpretation).  See Pointer<C> implementation for more details.
+//
+// - P: PixelSys, determining how computed coordinates (in a
+//   projection plane, say) should be turned into pixel indices.  This
+//   is the bit that actually needs to know the footprint of a
+//   specific map -- the equivalent of CRVAL, CRPIX and CDELT.
+//
+// - S: SpinSys, determining the number of spin-components and the
+//   equations for their weights.  This provides the abstraction for
+//   T-only, TQU, and QU-only mapping, by specifying how to compute
+//   "pointing matrix" projection factors for each active map
+//   component.  The input here is the polarized detector's position
+//   angle, gamma, relative to the reference axis of the active
+//   projection.  This system can support mapping of other spin fields
+//   quite easily; the most obvious candidate being spin-1, to carry
+//   information such as in-plane pointing displacements.
 
-// Proto-templates.
-template <int N>
-class SpinClass {
-public:
-    static const int comp_count = N;
-};
 
-
-
-// template<CoordSys> options
+// State the template<CoordSys> options
 class ProjQuat;
 class ProjFlat;
 class ProjCEA;
@@ -61,15 +92,18 @@ class ProjARC;
 class ProjTAN;
 class ProjZEA;
 
-// template<PixelSys> options
-// class Pixelizor2_Flat;
-// class Pixelizor2_Flat_Tiled;
-
-// template<TilingSys> options
+// State the template<TilingSys> options
 class Tiled;
 class NonTiled;
 
-// template<SpinSys> options
+// Helper template for SpinSys...
+template <int N>
+class SpinClass {
+public:
+    static const int comp_count = N;
+};
+
+// State the template<SpinSys> options
 class SpinT : public SpinClass<1> {};
 class SpinQU : public SpinClass<2> {};
 class SpinTQU : public SpinClass<3> {};
@@ -117,9 +151,8 @@ void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
         dofs[ic] = *(double*)(det + _pdetbuf->strides[1] * ic);
 }
 
-/* ProjQuat: Not a projection -- returns the quaternion rotation
- * components.
- */
+// ProjQuat: Not a projection -- returns the quaternion rotation
+// components.
 
 template <>
 inline
@@ -139,8 +172,8 @@ void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
     *qdet =(*qbore) * (*qofs);
 }
 
-/* ProjFlat: Not a spherical projection -- assumes flat space (as in
- * FITS X,Y type coordinates). */
+// ProjFlat: Not a spherical projection -- assumes flat space (as in
+// FITS X,Y type coordinates).
 
 template <>
 inline
@@ -158,12 +191,11 @@ void Pointer<ProjFlat>::GetCoords(int i_det, int i_time,
     coords[3] = coords[3] * dofs[2] + coords_2_ * dofs[3];
 }
 
-/* ProjARC: the zenithal equidistant projection.
- *
- * The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
- * [see FITS-II].  Then cos and sin of parallactic angle.  For ARC,
- * R(lat) = 90 - lat = theta.
- */
+// ProjARC: the zenithal equidistant projection.
+//
+// The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+// [see FITS-II].  Then cos and sin of parallactic angle.  For ARC,
+// R(lat) = 90 - lat = theta.
 
 template <>
 inline
@@ -203,12 +235,11 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
     coords[3] = (2*a*d) / cos_theta2_sq;
 }
 
-/* ProjTAN: the tangent plane (gnomonic) projection.  It is zenithal.
- *
- * The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
- * [see FITS-II].  Then cos and sin of parallactic angle.  For TAN,
- * R(lat) = tan(lat) = cot(theta).
- */
+// ProjTAN: the tangent plane (gnomonic) projection.  It is zenithal.
+//
+// The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+// [see FITS-II].  Then cos and sin of parallactic angle.  For TAN,
+// R(lat) = tan(lat) = cot(theta).
 
 template <>
 inline
@@ -240,12 +271,11 @@ void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
     coords[3] = (2*a*d) / cos_theta2_sq;
 }
 
-/* ProjZEA: the zenithal equal area projection.
- *
- * The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
- * [see FITS-II].  Then cos and sin of parallactic angle.  For ZEA,
- * R(lat) = sqrt(2(1-cos(lat))) = sqrt(2(1-sin(theta))).
- */
+// ProjZEA: the zenithal equal area projection.
+//
+// The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+// [see FITS-II].  Then cos and sin of parallactic angle.  For ZEA,
+// R(lat) = sqrt(2(1-cos(lat))) = sqrt(2(1-sin(theta))).
 
 template <>
 inline
@@ -278,11 +308,10 @@ void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
     coords[3] = (2*a*d) / cos_theta2_sq;
 }
 
-/* ProjCEA: Cylindrical projection.
- *
- * First two coordinates are lon (in radians) and sin(lat).  Then cos
- * and sin of parallactic angle.
- */
+// ProjCEA: Cylindrical projection.
+//
+// First two coordinates are lon (in radians) and sin(lat).  Then cos
+// and sin of parallactic angle.
 
 template <>
 inline
@@ -314,11 +343,10 @@ void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
     coords[3] = (c*d + a*b) / half_sin_theta;
 }
 
-/* ProjCAR: Cylindrical projection.
- *
- * First two coordinates are lon and lat (in radians).  Then cos and
- * sin of parallactic angle.
- */
+// ProjCAR: Cylindrical projection.
+//
+// First two coordinates are lon and lat (in radians).  Then cos and
+// sin of parallactic angle.
 
 template <>
 inline
@@ -956,7 +984,7 @@ bp::object ProjectionEngine<C,P,S>::zeros(bp::object shape)
             dims.push_back(bp::extract<int>(tuple[i])());
         return _pixelizor.zeros(dims);
     }
-    
+
     return bp::object();  //None on fall-through
 }
 
@@ -984,7 +1012,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
         int pixel_offset[P::index_count] = {-1};
-        FSIGNAL pf[S::comp_count]; 
+        FSIGNAL pf[S::comp_count];
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
@@ -1209,12 +1237,13 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
 }
 
 
-/*
- * We also have a generic ProjEng_Precomp, which is basically what you
- * can use if you have precomputed pixel index and spin projection
- * factors for every sample.  This is agnostic of coordinate system,
- * and so not crazily templated.
- */
+// ProjEng_Precomp
+//
+// The ProjEng_Precomp may be used for very fast projection
+// operations, provided you have precomputed pixel index and spin
+// projection factors for every sample.  This is agnostic of
+// coordinate system, and so not crazily templated.
+//
 
 template<typename TilingSys>
 class ProjEng_Precomp {
@@ -1234,7 +1263,7 @@ bp::object ProjEng_Precomp<TilingSys>::from_map(
     bp::object map, bp::object pixel_index, bp::object spin_proj,
     bp::object signal)
 {
-    //You won't get far without pixel_index, so use that to nail down
+    // You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
     auto pixel_buf_man = SignalSpace<int32_t>(
         pixel_index, "pixel_index", NPY_INT32, -1, -1, -1);
