@@ -1,9 +1,15 @@
 import unittest
 
 from so3g import proj
-from pixell import enmap
 
 import numpy as np
+
+# Don't require pixell for testing
+try:
+    from pixell import enmap
+    pixell_found = True
+except ModuleNotFoundError:
+    pixell_found = False
 
 DEG = np.pi/180
 
@@ -41,6 +47,7 @@ class TestProjEng(unittest.TestCase):
     """Test the Projectionist and supporting structures.
 
     """
+    @unittest.skipIf(pixell_found is False, "pixell not found")
     def test_00_basic(self):
         scan, asm, (shape, wcs) = get_basics()
         p = proj.Projectionist.for_geom(shape, wcs)
@@ -51,6 +58,7 @@ class TestProjEng(unittest.TestCase):
             w = p.to_weights(asm, comps=comps)[0, 0]
             assert(np.any(w != 0))
 
+    @unittest.skipIf(pixell_found is False, "pixell not found")
     def test_10_tiled(self):
         scan, asm, (shape, wcs) = get_basics()
         p = proj.Projectionist.for_tiled(shape, wcs, (150, 150))
