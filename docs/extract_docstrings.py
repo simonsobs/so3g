@@ -9,7 +9,14 @@ def install_fake_spt3g(dest_dir):
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
     with open('%s/__init__.py' % dest_dir, 'w') as fout:
-        for core_class in ['G3Frame', 'quat', 'G3VectorQuat']:
+        for core_class in [
+                'G3Frame',
+                'quat',
+                'G3VectorQuat',
+                'core.G3VectorDouble',
+                'core.G3VectorInt',
+                'core.G3VectorString',
+        ]:
             fout.write('class %s:\n    pass\n' % core_class)
 
 
