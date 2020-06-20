@@ -70,18 +70,19 @@ def rotation_lonlat(lon, lat, psi=0.):
     return rotation_iso(np.pi/2 - lat, lon, psi)
 
 def rotation_xieta(xi, eta, gamma=0):
-    """Returns the quaternion that rotates the center of focal 
-    plane to (xi, eta, psi)
+    """Returns the quaternion that rotates the center of focal plane to
+    (xi, eta, gamma).  This is equivalent to composed Euler rotations:
+
+        Qz(phi) Qy(theta) Qz (psi)
+
+    where
 
         xi = - sin(theta) * sin(phi)
         eta = - sin(theta) * cos(phi)
         gamma = psi + phi
-    
-    The corresponding Euler rotations are:
-
-        Qz(phi) Qy(theta) Qz (psi)
 
     Note arguments are in radians.
+
     """
     phi = np.arctan2(-xi, -eta)
     theta = np.arcsin(np.sqrt(xi**2 + eta**2))
@@ -92,9 +93,8 @@ def decompose_iso(q):
     """Decomposes the rotation encoded by q into the product of Euler
     rotations:
     
-        q = Qz(phi) Qy(-theta) Qz(psi)
+        q = Qz(phi) Qy(theta) Qz(psi)
     
-    and returns theta, phi, psi.  Why that order?  Because ISO.
     Parameters
     ----------
     q : quat or G3VectorQuat
@@ -121,12 +121,20 @@ def decompose_iso(q):
     return (theta, phi, psi)
 
 def decompose_lonlat(q):
-    """Like decompose_iso, but returns (lon, lat, psi)."""
+    """Like decompose_iso, but returns (lon, lat, psi) assuming that the
+    input quaternion(s) were constructed as rotation_lonlat(lon, lat,
+    psi).
+
+    """
     theta, phi, psi = decompose_iso(q)
     return (phi, np.pi/2 - theta, psi)
 
 def decompose_xieta(q):
-    """Like decompose_iso, but returns (xi, eta, gamma)."""
+    """Like decompose_iso, but returns (xi, eta, gamma) assuming that the
+    input quaternion(s) were constructed as rotation_xieta(xi, eta,
+    gamma).
+
+    """
     theta, phi, psi = decompose_iso(q)
     xi = -np.sin(theta) * np.sin(phi)
     eta = -np.sin(theta) * np.cos(phi)

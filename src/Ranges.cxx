@@ -212,14 +212,15 @@ inline int get_dtype<std::int32_t>() {
     return NPY_INT32;
 }
 
-static int format_to_dtype(const Py_buffer &view)
+template <typename T>
+static int format_to_dtype(const BufferWrapper<T> &view)
 {
-    if (strcmp(view.format, "b") == 0 ||
-        strcmp(view.format, "h") == 0 ||
-        strcmp(view.format, "i") == 0 ||
-        strcmp(view.format, "l") == 0 ||
-        strcmp(view.format, "q") == 0) {
-        switch(view.itemsize) {
+    if (strcmp(view->format, "b") == 0 ||
+        strcmp(view->format, "h") == 0 ||
+        strcmp(view->format, "i") == 0 ||
+        strcmp(view->format, "l") == 0 ||
+        strcmp(view->format, "q") == 0) {
+        switch(view->itemsize) {
         case 1:
             return NPY_INT8;
         case 2:
@@ -229,13 +230,13 @@ static int format_to_dtype(const Py_buffer &view)
         case 8:
             return NPY_INT64;
         }
-    } else if (strcmp(view.format, "c") == 0 ||
-               strcmp(view.format, "B") == 0 ||
-               strcmp(view.format, "H") == 0 ||
-               strcmp(view.format, "I") == 0 ||
-               strcmp(view.format, "L") == 0 ||
-               strcmp(view.format, "Q") == 0) {
-        switch(view.itemsize) {
+    } else if (strcmp(view->format, "c") == 0 ||
+               strcmp(view->format, "B") == 0 ||
+               strcmp(view->format, "H") == 0 ||
+               strcmp(view->format, "I") == 0 ||
+               strcmp(view->format, "L") == 0 ||
+               strcmp(view->format, "Q") == 0) {
+        switch(view->itemsize) {
         case 1:
             return NPY_UINT8;
         case 2:
@@ -255,27 +256,13 @@ template <typename T>
 Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
 {
     Ranges<T> output;
+    BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
 
-    // Get a view...
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(src.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
-
-    if (buf.view.ndim != 2 || buf.view.shape[1] != 2)
-        throw shape_exception("src", "must have shape (n,2)");
-
-    int dtype = format_to_dtype(buf.view);
-    if (dtype != get_dtype<T>())
-        throw dtype_exception("src", "matching Interval class");
-
-    char *d = (char*)buf.view.buf;
-    int n_seg = buf.view.shape[0];
+    char *d = (char*)buf->buf;
+    int n_seg = buf->shape[0];
     for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
-        d += buf.view.strides[0];
+        output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
+        d += buf->strides[0];
     }
     output.count = count;
 
@@ -368,7 +355,7 @@ bp::object Ranges<T>::from_bitmask(const bp::object &src, int n_bits)
 {
     // Buffer protocol doesn't work directly on bool arrays, so if
     // what we've been passed is definitely a bool array, get a view
-    // of it as a uint8 array and work with thtat.  (Wrap it with
+    // of it as a uint8 array and work with that.  (Wrap it with
     // bp::object so references are counted properly.)
     bp::object target(src);
     PyObject* obj_ptr = target.ptr();
@@ -378,20 +365,15 @@ bp::object Ranges<T>::from_bitmask(const bp::object &src, int n_bits)
             target = bp::object(bp::handle<>(obj_ptr));
         }
 
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(target.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
+    BufferWrapper<T> buf("src", target, false);
 
-    if (buf.view.ndim != 1)
+    if (buf->ndim != 1)
         throw shape_exception("src", "must be 1-d");
 
-    int p_count = buf.view.shape[0];
-    void *p = buf.view.buf;
+    int p_count = buf->shape[0];
+    void *p = buf->buf;
 
-    int dtype = format_to_dtype(buf.view);
+    int dtype = format_to_dtype(buf);
     switch(dtype) {
     case NPY_BOOL:
     case NPY_UINT8:
@@ -441,7 +423,7 @@ template <typename intType, typename std::enable_if<std::is_integral<intType>::v
 static inline bp::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 {
     vector<int> indexes;
-    int count;
+    int count = 0;
     
     for (long i=0; i<ivals.size(); i++) {
         indexes.push_back(0);
