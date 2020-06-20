@@ -13,9 +13,9 @@ def install_fake_spt3g(dest_dir):
                 'G3Frame',
                 'quat',
                 'G3VectorQuat',
-                'core.G3VectorDouble',
-                'core.G3VectorInt',
-                'core.G3VectorString',
+                'G3VectorDouble',
+                'G3VectorInt',
+                'G3VectorString',
         ]:
             fout.write('class %s:\n    pass\n' % core_class)
 
