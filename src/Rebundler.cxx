@@ -51,7 +51,7 @@ bp::object Rebundler<G3TimestreamMap>::ExtractIntervalTime(
 
     vector<pair<int,int>> slices;
     int n = 0;
-    double rate;
+    double rate = 1.;
     pair<G3Time,G3Time> times;
     for (auto tm_ptr: buffer) {
         auto tm = dynamic_cast<G3TimestreamMap *>(tm_ptr.get());

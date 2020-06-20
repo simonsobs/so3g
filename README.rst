@@ -22,9 +22,9 @@ Requirements
 - spt3g_software and its dependencies.
 
   - N.B. When compiling ``spt3g_software``, you may have to explicitly
-    tell it to use python3 via ``cmake`` in order for it to run
-    properly with `so3g`. The invocation is:
-    ``cmake .. -DPYTHON_EXECUTABLE=`which python3```
+    tell it to prefer Python3, rather than Python2, when you run
+    ``cmake``.  It may be enough to do
+    ``cmake .. -DPYTHON_EXECUTABLE=`which python3```.
 
 - (Optional) ``environment-modules`` - Load ``spt3g`` environment
   automatically. For details see the README in `modules/`_
@@ -44,16 +44,14 @@ To compile the library run::
 
   mkdir build
   cd build
-  cmake ..
+  cmake .. -DCMAKE_PREFIX_PATH=${SPT3G_SOFTWARE_BUILD_PATH}
   make
   make install
 
-The build process will try to find boost, python, and spt3g.  For
-spt3g, environment variable SPT3G_SOFTWARE_PATH and
-SPT3G_SOFTWARE_BUILD_PATH must both be defined.  The first variable
-should point to the root of spt3g repository, for finding header
-files.  The second variable should point to the cmake build directory,
-for finding libraries.
+The definition of `CMAKE_PREFIX_PATH` must point to the build
+directory for `spt3g`, because cmake output there will be used to
+generate best compilation and/or linking instructions for Boost and
+other dependencies of spt3g/so3g.
 
 
 Local configuration through local.cmake
@@ -68,13 +66,15 @@ like this one::
 
   set(PYTHON_INSTALL_DEST $ENV{HOME}/.local/lib/python3.7/site-packages/)
 
-If you need to hard-code the boost python package name, add a line
-like this one::
+To point cmake to the spt3g build directory, add a line like this
+one::
 
-  set(Boost_PYTHON_TYPE python-py35)
+  set(CMAKE_PREFIX_PATH $ENV{HOME}/code/spt3g_software/build)
+
 
 Testing
 =======
+
 We use the built-in python unittest for testing. To run the tests install so3g
 and run::
 

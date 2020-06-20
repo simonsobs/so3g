@@ -120,6 +120,62 @@ Ranges<T>& Ranges<T>::merge(const Ranges<T> &src)
     return *this;
 }
 
+//Buffer Range in place
+template <typename T>
+Ranges<T>& Ranges<T>::buffer(const T buff)
+{
+    auto p0 = this->segments.begin();
+    while (p0 != this->segments.end()) {
+        p0->first -= buff;
+        p0->second += buff;
+        p0++;
+    }
+    cleanup();
+    return *this;
+}
+
+//Return newly buffered range
+template <typename T>
+Ranges<T> Ranges<T>::buffered(const T buff)
+{
+    Ranges<T> output(count, reference);
+
+    for (auto p: segments) {
+        output.segments.push_back(make_pair(p.first - buff, p.second + buff));
+    }
+    output.cleanup();
+    return output;
+}
+
+//Close gaps between Ranges if they are leq gap
+template <typename T>
+Ranges<T>& Ranges<T>::close_gaps(const T gap)
+{
+    auto p = segments.begin();
+    while (p != segments.end()) {
+        // Check for distance from the front
+        if (p->first <= gap){
+            p->first = 0;
+        }
+        if (p->second >= count-gap) {
+            p->second = count;
+        }
+        // Check for distances from the next interval.
+        auto q = p+1;
+        if (q == segments.end())
+            break;
+        // if distance is leq gap, close interval
+        if (q->first - p->second <= gap) {
+            p->second = q->second;
+            segments.erase(q);
+        } else{
+            p++;
+        }
+    }
+    
+    return *this;
+}
+
 //
 // Machinery for converting between Interval vector<pair>
 // representation and buffers (such as numpy arrays).
@@ -156,14 +212,15 @@ inline int get_dtype<std::int32_t>() {
     return NPY_INT32;
 }
 
-static int format_to_dtype(const Py_buffer &view)
+template <typename T>
+static int format_to_dtype(const BufferWrapper<T> &view)
 {
-    if (strcmp(view.format, "b") == 0 ||
-        strcmp(view.format, "h") == 0 ||
-        strcmp(view.format, "i") == 0 ||
-        strcmp(view.format, "l") == 0 ||
-        strcmp(view.format, "q") == 0) {
-        switch(view.itemsize) {
+    if (strcmp(view->format, "b") == 0 ||
+        strcmp(view->format, "h") == 0 ||
+        strcmp(view->format, "i") == 0 ||
+        strcmp(view->format, "l") == 0 ||
+        strcmp(view->format, "q") == 0) {
+        switch(view->itemsize) {
         case 1:
             return NPY_INT8;
         case 2:
@@ -173,13 +230,13 @@ static int format_to_dtype(const Py_buffer &view)
         case 8:
             return NPY_INT64;
         }
-    } else if (strcmp(view.format, "c") == 0 ||
-               strcmp(view.format, "B") == 0 ||
-               strcmp(view.format, "H") == 0 ||
-               strcmp(view.format, "I") == 0 ||
-               strcmp(view.format, "L") == 0 ||
-               strcmp(view.format, "Q") == 0) {
-        switch(view.itemsize) {
+    } else if (strcmp(view->format, "c") == 0 ||
+               strcmp(view->format, "B") == 0 ||
+               strcmp(view->format, "H") == 0 ||
+               strcmp(view->format, "I") == 0 ||
+               strcmp(view->format, "L") == 0 ||
+               strcmp(view->format, "Q") == 0) {
+        switch(view->itemsize) {
         case 1:
             return NPY_UINT8;
         case 2:
@@ -199,27 +256,13 @@ template <typename T>
 Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
 {
     Ranges<T> output;
+    BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
 
-    // Get a view...
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(src.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
-
-    if (buf.view.ndim != 2 || buf.view.shape[1] != 2)
-        throw shape_exception("src", "must have shape (n,2)");
-
-    int dtype = format_to_dtype(buf.view);
-    if (dtype != get_dtype<T>())
-        throw dtype_exception("src", "matching Interval class");
-
-    char *d = (char*)buf.view.buf;
-    int n_seg = buf.view.shape[0];
+    char *d = (char*)buf->buf;
+    int n_seg = buf->shape[0];
     for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf.view.strides[1]));
-        d += buf.view.strides[0];
+        output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
+        d += buf->strides[0];
     }
     output.count = count;
 
@@ -312,7 +355,7 @@ bp::object Ranges<T>::from_bitmask(const bp::object &src, int n_bits)
 {
     // Buffer protocol doesn't work directly on bool arrays, so if
     // what we've been passed is definitely a bool array, get a view
-    // of it as a uint8 array and work with thtat.  (Wrap it with
+    // of it as a uint8 array and work with that.  (Wrap it with
     // bp::object so references are counted properly.)
     bp::object target(src);
     PyObject* obj_ptr = target.ptr();
@@ -322,20 +365,15 @@ bp::object Ranges<T>::from_bitmask(const bp::object &src, int n_bits)
             target = bp::object(bp::handle<>(obj_ptr));
         }
 
-    BufferWrapper buf;
-    if (PyObject_GetBuffer(target.ptr(), &buf.view,
-                           PyBUF_FORMAT | PyBUF_ANY_CONTIGUOUS) == -1) {
-        PyErr_Clear();
-        throw buffer_exception("src");
-    }
+    BufferWrapper<T> buf("src", target, false);
 
-    if (buf.view.ndim != 1)
+    if (buf->ndim != 1)
         throw shape_exception("src", "must be 1-d");
 
-    int p_count = buf.view.shape[0];
-    void *p = buf.view.buf;
+    int p_count = buf->shape[0];
+    void *p = buf->buf;
 
-    int dtype = format_to_dtype(buf.view);
+    int dtype = format_to_dtype(buf);
     switch(dtype) {
     case NPY_BOOL:
     case NPY_UINT8:
@@ -385,7 +423,7 @@ template <typename intType, typename std::enable_if<std::is_integral<intType>::v
 static inline bp::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 {
     vector<int> indexes;
-    int count;
+    int count = 0;
     
     for (long i=0; i<ivals.size(); i++) {
         indexes.push_back(0);
@@ -490,6 +528,25 @@ Ranges<T> Ranges<T>::complement() const
     output.segments.push_back(make_pair(next_start, count));
     output.cleanup();
     return output;
+}
+
+// Make empty range to match this range
+template <typename T>
+Ranges<T> Ranges<T>::zeros_like() const
+{
+    Ranges<T> output(count, reference);
+    return output;
+    
+}
+
+//make "full" range to match this range
+template <typename T>
+Ranges<T> Ranges<T>::ones_like() const
+{
+    Ranges<T> output(count, reference);
+    output.add_interval(0, count);
+    return output;
+    
 }
 
 
@@ -672,12 +729,27 @@ using namespace boost::python;
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \
          "Merge ranges from another " #CLASSNAME " into this one.")     \
+    .def("buffer", &CLASSNAME::buffer,                                  \
+        return_internal_reference<>(),                                  \
+        args("self", "buff"),                                           \
+        "Buffer each interval by an amount specified by buff")          \
+    .def("buffered", &CLASSNAME::buffered,                              \
+        args("self", "buff"),                                           \
+        "Return an interval buffered by buff")                          \
+    .def("close_gaps", &CLASSNAME::close_gaps,                          \
+        return_internal_reference<>(),                                  \
+        args("self", "gap"),                                            \
+        "Remove gaps between ranges less than gap")                     \
     .def("intersect", &CLASSNAME::intersect,                            \
          return_internal_reference<>(),                                 \
          args("self", "src"),                                           \
          "Intersect another " #CLASSNAME " with this one.")             \
     .def("complement", &CLASSNAME::complement,                          \
          "Return the complement (over domain).")                        \
+    .def("zeros_like", &CLASSNAME::zeros_like,                          \
+         "Return range of same length but no intervals")                \
+    .def("ones_like", &CLASSNAME::ones_like,                            \
+         "Return range of same length and interval spanning count")     \
     .def("ranges", &CLASSNAME::ranges,                                  \
          "Return the intervals as a 2-d numpy array of ranges.")        \
     .def("from_array", &CLASSNAME::from_array,                          \

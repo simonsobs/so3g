@@ -14,16 +14,24 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--system', '-s',
                     choices=proj_dict.keys(),
                     default=list(proj_dict.keys())[0])
+parser.add_argument('--n-det', '-d',
+                    type=int, default=2000)
+parser.add_argument('--n-time', '-t',
+                    type=int, default=25000)
+parser.add_argument('--tiled', action='store_true')
 args = parser.parse_args()
 system = args.system
 print('Using system: %s' % system)
 
-# Map space.
-pxz = so3g.Pixelizor2_Flat(300,250,0.00005,0.00005,0,0)
+# Map space -- args for Pixelization.
+pxz = (300,250,0.00005,0.00005,0.,0.)
+if args.tiled:
+    pxz = pxz + ((100,100))
+    tilage = tuple([int(np.ceil(s/t)) for s, t in zip(pxz[:2], pxz[-2:])])
 
 # Samples
-n_det = 2000
-n_t = 25000
+n_det = args.n_det
+n_t = args.n_time
 
 # Boresight
 phi = np.arange(n_t) / n_t * 6.28 * 3
@@ -36,7 +44,7 @@ dr = .002
 polphi = 6.28 * np.arange(n_det) / n_det
 dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 
-pe = test_utils.get_proj(system, 'TQU', pxz)
+pe = test_utils.get_proj(system, 'TQU', pxz, tiled=args.tiled)
 ptg = test_utils.get_boresight_quat(system, x, y)
 ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 
@@ -54,11 +62,13 @@ else:
     print(' OMP_NUM_THREADS=%i.\n' % n_omp)
 
 
-print('Compute pixel_ranges (OMP prep)... ', end='\n ... ')
-with Timer():
-    Ivals = pe.pixel_ranges(ptg, ofs)
+if args.tiled:
+    def map_delta(a, b):
+        return max([abs(_a - _b).max() for _a, _b in zip(a, b) if _a is not None])
+else:
+    def map_delta(a, b):
+        return abs(a - b).max()
 
-map0 = pxz.zeros(1)
 
 if 1:
     coo = np.empty(sig.shape[1:] + (4,), 'double')
@@ -73,14 +83,20 @@ if 1:
 
     pl.plot(coo[0,:,0],
             coo[0,:,1])
-    pl.show()
+    #pl.show()
 
     del coo, coo1
 
     print('Compute coords and pixels and return pixels.', end='\n ... ')
-    pix = np.empty(sig.shape[1:], 'int32')
+    pix = np.empty(sig.shape[1:] + (pe.index_count,), 'int32')
     with Timer() as T:
         pe.pixels(ptg,ofs,pix)
+
+    # Make a note of what maps are occupied...
+    maps_present = []
+    for s in pix:
+        maps_present.extend(list(set(list(s[:,0]))))
+    maps_present = sorted(list(set(maps_present)))
 
     pix[:] = 0
     pix_list = [p for p in pix]  #listify...
@@ -100,53 +116,124 @@ if 1:
     except RuntimeError as e:
         print('Failure successful.')
 
-    del pix, pix_list, pix3
+    print('Get spin projection factors, too.',
+          end='\n ... ')
+    with Timer() as T:
+        pix2, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
+
+    del pix, pix_list, pix3, pix2, spin_proj
 
 if 1:
-    print('Forward projection (TQU)', end='\n ... ')
-    map0 = None #pxz.zeros(3)
+    # Re-instantiate the projector with maps_present so that zeros()
+    # can work.
+    if args.tiled:
+        pe = test_utils.get_proj(system, 'TQU', pxz + (maps_present,), tiled=args.tiled)
+
+if 1:
+    print('Project map-to-TOD (TQU)', end='\n ... ')
+    map1 = pe.zeros(3)
+    if args.tiled:
+        for m in map1:
+            if m is not None:
+                m += np.array([1,0,0])[:,None,None]
+    else:
+        map1 += np.array([1,0,0])[:,None,None]
+    with Timer() as T:
+        sig1 = pe.from_map(map1, ptg, ofs, None)
+
+if 1:
+    print('Project TOD-to-map (TQU)', end='\n ... ')
+    map0 = pe.zeros(3)
     sig_list = [x for x in sig[0]]
     with Timer() as T:
-        map1 = pe.to_map(None,ptg,ofs,sig_list,None)
+        map1 = pe.to_map(map0,ptg,ofs,sig_list,None,None)
 
 if 1:
-    print('Forward projection (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
+    print('TOD-to-map again but with None for input map', end='\n ... ')
     with Timer() as T:
-        map1o = pe.to_map_omp(None,ptg,ofs,sig_list,None,Ivals)
+        map1 = pe.to_map(None,ptg,ofs,sig_list,None,None)
 
 if 1:
-    print('Reverse projection (TQU)', end='\n ... ')
-    sig1 = [x for x in np.zeros((n_det,n_t), 'float32')]
-    sig1 = np.random.uniform(size=(n_det,n_t)).astype('float32')
+    print('Project TOD-to-weights (TQU)', end='\n ... ')
+    map0 = pe.zeros((3, 3))
     with Timer() as T:
-        #sig1 =
-        pe.from_map(map1, ptg, ofs, sig1, None)
+        map2 = pe.to_weight_map(map0,ptg,ofs,None,None)
 
 if 1:
-    print('Forward project weights (TQU)', end='\n ... ')
-    map0 = None #pxz.zeros(3)
+    print('TOD-to-weights again but with None for input map', end='\n ... ')
     with Timer() as T:
         map2 = pe.to_weight_map(None,ptg,ofs,None,None)
 
+print('Compute thread assignments (OMP prep)... ', end='\n ... ')
+with Timer():
+    threads = pe.pixel_ranges(ptg, ofs, None)
+
 if 1:
-    print('Forward project weights (TQU) with OMP (%s): ' % n_omp, end='\n ... ')
+    print('TOD-to-map with OMP (%s): ' % n_omp, end='\n ... ')
     with Timer() as T:
-        map2o = pe.to_weight_map_omp(None,ptg,ofs,None,None,Ivals)
+        map1o = pe.to_map(None,ptg,ofs,sig_list,None,threads)
+
+if 1:
+    print('TOD-to-weights with OMP (%s): ' % n_omp, end='\n ... ')
+    with Timer() as T:
+        map2o = pe.to_weight_map(None,ptg,ofs,None,threads)
 
     print('Checking that OMP and non-OMP forward calcs agree: ', end='\n ... ')
-    assert abs(map1 - map1o).max() == 0
-    assert abs(map2 - map2o).max() == 0
+    assert map_delta(map1, map1o) == 0
+    assert map_delta(map2, map2o) == 0
+    print('yes')
+
+
+if 1:
+    print('Cache pointing matrix.', end='\n ...')
+    with Timer() as T:
+        pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
+    pp = test_utils.get_proj_precomp(args.tiled)
+
+    print('Map-to-TOD using precomputed pointing matrix',
+          end='\n ...')
+    with Timer() as T:
+        sig1p = pp.from_map(map1, pix_idx, spin_proj, None)
+
+    print('TOD-to-map using precomputed pointing matrix.',
+          end='\n ...')
+    with Timer() as T:
+        map1p = pp.to_map(pe.zeros(3),pix_idx,spin_proj,sig_list,None,threads)
+
+    print('TOD-to-weights using precomputed pointing matrix.', end='\n ... ')
+    with Timer() as T:
+        map2p = pp.to_weight_map(pe.zeros((3,3)),pix_idx,spin_proj,None,threads)
+
+    print('Checking that precomp and on-the-fly forward calcs agree: ',
+          end='\n ... ')
+    assert map_delta(map1, map1p) == 0
+    assert map_delta(map2, map2p) == 0
+    print('yes')
+
+    print('Checking that it agrees with on-the-fly',
+          end='\n ...')
+    sig1f = pe.from_map(map1, ptg, ofs, None)
+    thresh = map1[0].std() * 1e-6
+    assert max([np.abs(a - b).max() for a, b in zip(sig1f, sig1p)]) < thresh
     print('yes')
 
 print('Plotting...')
 import pylab as pl
-gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
+if not args.tiled:
+    gs1 = pl.matplotlib.gridspec.GridSpec(2, 3)
+    for axi in range(3):
+        ax = pl.subplot(gs1[0,axi])
+        ax.imshow(map1[axi], cmap='gray')
+        ax.set_title('TQU'[axi])
+    ax = pl.subplot(gs1[1,:])
+    ax.plot(sig1[0])
+else:
+    gs1 = pl.matplotlib.gridspec.GridSpec(*tilage)
+    for y in range(tilage[0]):
+        for x in range(tilage[1]):
+            m = map1[y*tilage[1] + x]
+            if m is not None:
+                ax = pl.subplot(gs1[y, x])
+                ax.imshow(m[0], cmap='gray')
 
-for axi in range(3):
-    ax = pl.subplot(gs1[0,axi])
-    ax.imshow(map1[axi], cmap='gray')
-    ax.set_title('TQU'[axi])
-
-ax = pl.subplot(gs1[1,:])
-ax.plot(sig1[0,500])
 pl.show()

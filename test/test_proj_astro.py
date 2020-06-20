@@ -27,7 +27,7 @@ ARCSEC = DEG / 3600.
 SIDEREAL_MIDNIGHT_IN_LONDON = 1501299200.0
 
 # Useful sites.
-SOBS = so3g.proj.EarthlySite.get_named('act')
+SOBS = so3g.proj.SITES['so']
 LONDON = so3g.proj.EarthlySite(0., 51.5, 0.)
 
 
@@ -96,7 +96,7 @@ class TestProjAstrometry(unittest.TestCase):
         enough with pyephem.
 
         """
-        site = so3g.proj.EarthlySite.get_named('act')
+        site = SOBS
         weather = site.typical_weather
 
         for year in [0, .25, .5, .75, -30, 30, 60]:
@@ -128,7 +128,7 @@ class TestProjAstrometry(unittest.TestCase):
         pyephem.
 
         """
-        site = so3g.proj.EarthlySite.get_named('act')
+        site = SOBS
         for weather in [so3g.proj.weather_factory('vacuum'),
                         so3g.proj.weather_factory('toco')]:
             print('  Weather: %s' % weather)
@@ -152,6 +152,16 @@ class TestProjAstrometry(unittest.TestCase):
             print('   delta:    %12.6f deg = %7.3f arcsec' % (
                 dist/DEG, dist/ARCSEC))
             self.assertLess(dist, 1*ARCSEC)
+
+    def test_trig_interp(self):
+        """This test verifies that the trig approximation (a linear
+        interpolation table) is working properly.  It just calls a C++
+        function that returns the largest deviation in radians.
+
+        """
+        deviation = so3g.test_trig(2**14, 0)
+        print('Max inverse trig deviation is %.3f arcsec' % (deviation / ARCSEC))
+        self.assertLess(deviation, 0.2*ARCSEC)
 
     def test_horizon(self):
         """This test is not astrometric so much as a test that coordinate
