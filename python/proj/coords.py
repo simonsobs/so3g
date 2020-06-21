@@ -100,7 +100,7 @@ class CelestialSightLine:
             quat.euler(2, np.pi) *
             quat.euler(2, -az) *
             quat.euler(1, np.pi/2 - el) *
-            quat.euler(2, np.pi + roll)
+            quat.euler(2, roll)
             )
         return self
 
@@ -136,9 +136,12 @@ class CelestialSightLine:
 
         # Apply boresight roll manually (note qpoint pitch/roll refer
         # to the platform rather than to something about the boresight
-        # axis).
+        # axis).  Regardless we need a pi rotation because of our
+        # definition of boresight coordinates.
+        if roll is None:
+            self.Q *= quat.euler(2, np.pi)
         if roll is not None:
-            self.Q *= quat.euler(2, roll)
+            self.Q *= quat.euler(2, np.pi + roll)
 
         return self
 
@@ -245,6 +248,15 @@ class Assembly:
 
     @classmethod
     def attach(cls, sight_line, det_offsets):
+        """Create an Assembly based on a CelestialSightLine and a FocalPlane.
+
+        Args:
+            sight_line (CelestialSightLine): The position and
+                orientation of the boresight.
+            det_offsets (FocalPlane): The "offsets" of each detector
+                relative to the boresight.
+
+        """
         keyed = isinstance(det_offsets, dict)
         self = cls(keyed=keyed)
         self.Q = sight_line.Q
