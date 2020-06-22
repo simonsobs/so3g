@@ -297,7 +297,7 @@ class Projectionist:
         q1 = self._get_cached_q(assembly.Q)
         return projeng.pointing_matrix(q1, assembly.dets, None, None)
 
-    def get_coords(self, assembly, use_native=False):
+    def get_coords(self, assembly, use_native=False, output=None):
         """Get the spherical coordinates for the provided pointing Assembly.
         For each detector, a float64 array of shape [n_samps,4] is
         returned.  In the right-most index, the first two components
@@ -321,9 +321,9 @@ class Projectionist:
             q1 = self._get_cached_q(assembly.Q)
         else:
             q1 = assembly.Q
-        return projeng.coords(q1, assembly.dets, None)
+        return projeng.coords(q1, assembly.dets, output)
 
-    def get_planar(self, assembly):
+    def get_planar(self, assembly, output=None):
         """Get projection plane coordinates for all detectors at all times.
         For each detector, a float64 array of shape [n_samps,4] is
         returned.  The first two elements are the x and y projection
@@ -336,7 +336,7 @@ class Projectionist:
         """
         q1 = self._get_cached_q(assembly.Q)
         projeng = self.get_ProjEng('TQU')
-        return projeng.coords(q1, assembly.dets, None)
+        return projeng.coords(q1, assembly.dets, output)
 
     def zeros(self, super_shape):
         """Return a map, filled with zeros, with shape (super_shape,) +
