@@ -162,6 +162,7 @@ class TestProjAstrometry(unittest.TestCase):
         print('Max inverse trig deviation is %.3f arcsec' % (deviation / ARCSEC))
         self.assertLess(deviation, 0.2*ARCSEC)
 
+    @unittest.skipIf(not HAS_QPOINT, "qpoint not found")
     def test_horizon(self):
         """This test is not astrometric so much as a test that coordinate
         systems are accurately implemented; e.g. that the focal plane
