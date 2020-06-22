@@ -145,6 +145,27 @@ class CelestialSightLine:
 
         return self
 
+    @classmethod
+    def for_horizon(cls, t, az, el, roll=None, site=None, weather=None):
+        """Construct the trivial SightLine, where "celestial" coordinates are
+        taken to simply be local horizon coordinates (without any
+        effects of atmosphere).  Although this accepts site and
+        weather arguments, they are ignored.
+
+        """
+        self = cls()
+        az, el, t = map(np.asarray, [az, el, t])
+        if roll is None:
+            roll = 0.
+        else:
+            roll = np.asarray(roll)
+        self.Q = (
+            quat.euler(2, -az) *
+            quat.euler(1, np.pi/2 - el) *
+            quat.euler(2, roll)
+            )
+        return self
+
     def coords(self, det_offsets=None, output=None):
         """Get the celestial coordinates of each detector at each time.
 
