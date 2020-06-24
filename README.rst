@@ -5,6 +5,10 @@ so3g
 .. image:: https://travis-ci.com/simonsobs/so3g.svg?branch=master
     :target: https://travis-ci.com/simonsobs/so3g
 
+.. image:: https://readthedocs.org/projects/so3g/badge/?version=latest
+    :target: https://so3g.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 .. image:: https://coveralls.io/repos/github/simonsobs/so3g/badge.svg?branch=master
     :target: https://coveralls.io/github/simonsobs/so3g?branch=master
 
