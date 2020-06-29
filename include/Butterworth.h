@@ -3,6 +3,8 @@
 
 #include <boost/python.hpp>
 
+#include "numpy_assist.h"
+
 class BFilterParams {
 public:
     BFilterParams(int32_t b0, int32_t b1, int b_bits, int p_bits, int shift)

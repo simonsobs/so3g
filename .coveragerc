@@ -1,0 +1,7 @@
+[run]
+source = python
+
+[paths]
+source =
+  python/
+  /usr/lib/python3/dist-packages/so3g/

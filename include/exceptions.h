@@ -3,22 +3,6 @@
 #include <boost/python.hpp>
 #include <exception>
 
-// Wrap a Py_buffer view with a destructor that releases the buffer.
-// This allows us to do RAII; without it we'd have to explicitly
-// cleanup any successful buffer views before throwing exceptions
-// related to the content of the buffer.
-
-class BufferWrapper {
-public:
-    Py_buffer view;
-    BufferWrapper() {
-        view.obj = NULL;
-    }
-    ~BufferWrapper() {
-        PyBuffer_Release(&view);
-    }
-};
-
 // so3g_exception is our internal base class, which defines the
 // interface we use for converting C++ exceptions to python.
 

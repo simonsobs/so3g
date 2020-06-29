@@ -7,14 +7,46 @@ frames.  Use the resulting HKArchive to perform random I/O over a
 sisock-style API.
 
 """
+import os
+import pytz
+import yaml
+import logging
+
+import numpy as np
+import datetime as dt
+
 
 import so3g
 from spt3g import core
-import numpy as np
+
+
+hk_logger = logging.getLogger('hk_logger')
+hk_logger.setLevel(logging.INFO)
 
 SPAN_BUFFER_SECONDS = 1.0
 
+def is_sub_seq(full_seq, sub_seq):
+    """Return true if sub_seq is a sub-sequence of full_seq.
+
+    """
+    if len(sub_seq) == 0:
+        return True
+    for idx0,x0 in enumerate(full_seq):
+        if x0 == sub_seq[0]:
+            if is_sub_seq(full_seq[idx0+1:], sub_seq[1:]):
+                return True
+    return False
+
+
+_SCHEMA_V1_BLOCK_TYPES = [
+    core.G3VectorDouble,
+    core.G3VectorInt,
+    core.G3VectorString,
+]
+
+
 class HKArchive:
+
     """Contains information necessary to determine what data fields are
     present in a data archive at what times.  It also knows how to
     group fields that share a commong timeline.
@@ -23,8 +55,12 @@ class HKArchive:
     def __init__(self, field_groups=None):
         if field_groups is not None:
             self.field_groups = list(field_groups)
+        # A translator is used to update frames, on the fly, to the
+        # modern schema assumed here.
+        self.translator = so3g.hk.HKTranslator()
 
-    def _get_groups(self, fields=None, start=None, end=None):
+    def _get_groups(self, fields=None, start=None, end=None,
+                    short_match=False):
         """Helper for get_fields and get_data.  Determines which fields, of
         those listed in fields, are present in the archive between the
         specified times.
@@ -38,6 +74,14 @@ class HKArchive:
               consider arbitrarily late times.  Note that ``start``
               and ``end`` form a semi-closed interval that includes
               start but excludes end.
+            short_match (bool): If True, then a requested field will
+              be considered to match an archive field if its
+              "."-tokenized form is a sub-sequence of the
+              "."-tokenized field in the archive.  For example, the
+              archive field "obs.agentX.feeds.therms.c1" may be
+              matched by the requested field "agentX.c1".  In the case
+              that multiple archive fields match a requested field, a
+              ValueError is thrown.
 
         Returns:
             List of (group_name, group_fields, fgs).  The
@@ -53,17 +97,38 @@ class HKArchive:
         if end is None:
             end = span.domain[1]
         span.add_interval(start, end)
+
+        if short_match and (fields is not None):
+            field_seqs = [f.split('.') for f in fields]
+            short_match_map = {}  # map from shortened name to full field name.
+
         field_map = {}
         for fg in self.field_groups:
             both = span * fg.cover
             if len(both.array()) > 0:
                 for f in fg.fields:
-                    if fields is not None and f not in fields:
-                        continue
-                    if not f in field_map:
-                        field_map[f] = [fg]
+                    full_field = fg.prefix + '.' + f
+                    key_field = full_field
+                    if fields is not None:
+                        # User is interested only in particular fields.
+                        if short_match:
+                            for seq in field_seqs:
+                                if is_sub_seq(full_field.split('.'), seq):
+                                    key_field = '.'.join(seq)
+                                    prev_short_match = short_match_map.get(key_field)
+                                    if prev_short_match not in [None, full_field]:
+                                        raise ValueError("Multiple matches for soft key: %s [%s, %s]." %
+                                                         (key_field, prev_short_match, full_field))
+                                    short_match_map[key_field] = full_field
+                                    break
+                            else:
+                                continue
+                        elif full_field not in fields:
+                            continue
+                    if not key_field in field_map:
+                        field_map[key_field] = [fg]
                     else:
-                        field_map[f].append(fg)
+                        field_map[key_field].append(fg)
 
         # Sort each list of field_groups by object id -- all we care
         # about is whether two fields have the same field group set.
@@ -110,11 +175,11 @@ class HKArchive:
         return field_map, timeline_map
 
     def get_data(self, field=None, start=None, end=None, min_stride=None,
-                 raw=False):
+                 raw=False, short_match=False):
         """Load data from specified field(s) between specified times.
 
-        Arguments ``field``, ``start``, ``end`` are as described in
-        _get_groups.
+        Arguments ``field``, ``start``, ``end``, ``short_match`` are
+        as described in _get_groups.
 
         Returns:
             Pair of dictionaries, (data, timelines).  The ``data``
@@ -132,7 +197,7 @@ class HKArchive:
               streams that are being updated in real time.
 
         """
-        grouped = self._get_groups(field, start, end)
+        grouped = self._get_groups(field, start, end, short_match=short_match)
         handles = {}  # filename -> G3IndexedReader map.
         blocks_out = []
         for group_name, fields, fgrps in grouped:
@@ -144,17 +209,29 @@ class HKArchive:
                         handles[fn] = so3g.G3IndexedReader(fn)
                     handles[fn].Seek(off)
                     fn = handles[fn].Process(None)
+                    fn = self.translator(fn[0])
                     assert(len(fn) == 1)
                     # Find the right block.
                     for blk in fn[0]['blocks']:
-                        if fields[0] in blk.data.keys():
+                        assert(isinstance(blk, core.G3TimesampleMap))
+                        test_f = fields[0].split('.')[-1]   ## dump prefix.
+                        if test_f in blk.keys():
                             blocks_in.append(blk)
                             break
+            # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
+            blocks_in.sort(key=lambda b: b.times[0].time)
             # Create a new Block for this group.
-            blk = so3g.IrregBlockDouble()
-            blk.t = np.hstack([b.t for b in blocks_in])
+            blk = core.G3TimesampleMap()
+            blk.times = core.G3VectorTime(np.hstack([np.array(b.times) for b in blocks_in]))
             for f in fields:
-                blk.data[f] = np.hstack([b.data[f] for b in blocks_in])
+                f_short = f.split('.')[-1]
+                for _type in _SCHEMA_V1_BLOCK_TYPES:
+                    if isinstance(blocks_in[0][f_short], _type):
+                        break
+                else:
+                    raise RuntimeError('Field "%s" is of unsupported type %s.' %
+                                       (f_short, type(blocks_in[0][f_short])))
+                blk[f] = _type(np.hstack([np.array(b[f_short]) for b in blocks_in]))
             blocks_out.append((group_name, blk))
         if raw:
             return blocks_out
@@ -163,13 +240,64 @@ class HKArchive:
         timelines = {}
         for group_name, block in blocks_out:
             timelines[group_name] = {
-                't': block.t,
-                'finalized_until': block.t[-1],
-                'fields': list(block.data.keys()),
+                't': np.array([t.time for t in block.times]) / core.G3Units.seconds,
+                'finalized_until': block.times[-1].time / core.G3Units.seconds,
+                'fields': list(block.keys()),
             }
-            for k,v in block.data.items():
-                data[k] = v
+            for k,v in block.items():
+                data[k] = np.array(v)
+
         return (data, timelines)
+
+    def simple(self, fields=None, start=None, end=None, min_stride=None,
+               raw=False, short_match=True):
+        """Load data from specified field(s) between specified times, and
+        unpack the data for ease of use.  Use get_data if you want to
+        preserve the co-sampling structure.
+
+        Arguments ``field``, ``start``, ``end``, ``short_match`` are
+        as described in _get_groups.  However, ``fields`` can be a
+        single string rather than a list of strings.
+
+        Note that ``short_match`` defaults to True (which is not the
+        case for getdata).x
+
+        Returns:
+            List of pairs of numpy arrays (t,y) corresponding to each
+            field in the ``fields`` list.  If ``fields`` is a string,
+            a simple pair (t,y) is returned.  ``t`` and ``y`` are
+            numpy arrays of equal length containing the timestamps and
+            field readings, respectively.  In cases where two fields
+            are co-sampled, the time vector will be the same object.
+        """
+        unpack = isinstance(fields, str)
+        if unpack:
+            fields = [fields]
+        data, timelines = self.get_data(fields, start, end, min_stride, raw, short_match)
+        output = {}
+        for timeline in timelines.values():
+            # Make the array here, so that the same object is returned
+            # for all fields in this group.
+            _t = np.array(timeline['t'])
+            for f in timeline['fields']:
+                output[f] = (_t, np.array(data[f]))
+        output = [output[f] for f in fields]
+        if unpack:
+            output = output[0]
+        return output
+
+
+class _HKProvider:
+    def __init__(self, prov_id, prefix):
+        self.prov_id = prov_id
+        self.prefix = prefix
+        self.blocks = {}
+
+    @classmethod
+    def from_g3(cls, element):
+        prov_id = element['prov_id'].value
+        prefix = element['description'].value
+        return cls(prov_id, prefix)
 
 
 class HKArchiveScanner:
@@ -184,10 +312,10 @@ class HKArchiveScanner:
     def __init__(self):
         self.session_id = None
         self.providers = {}
-        self.catalog = HKArchive()
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
+        self.translator = so3g.hk.HKTranslator()
 
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
@@ -203,18 +331,25 @@ class HKArchiveScanner:
         self.counter += 1
         if index_info is None:
             index_info = {'counter': self.counter}
-            
+
+        f = self.translator(f)
+        assert(len(f) == 1)
+        f = f[0]
+
         if f.type == core.G3FrameType.EndProcessing:
             return [f]
 
         if f.type != core.G3FrameType.Housekeeping:
-            return f
+            return [f]
+
+        vers = f.get('hkagg_version', 0)
+        assert(vers == 1)
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
-                    self.flush()
+                    self.flush()  # Note that this sets self.session_id=None.
             if self.session_id is None:
                 core.log_info('New HK Session id = %i, timestamp = %i' %
                               (session_id, f['start_time']), unit='HKScanner')
@@ -223,39 +358,39 @@ class HKArchiveScanner:
         elif f['hkagg_type'] == so3g.HKFrameType.status:
             # If a provider has disappeared, flush its information into a
             # FieldGroup.
-            now_prov_id = [p['prov_id'].value for p in f['providers']]
-            to_flush = [p for p in self.providers
-                        if not p in now_prov_id]
-            for p in to_flush:
-                self.flush([p])
-                    
-            # New providers?
-            for p in now_prov_id:
-                blocks = self.providers.get(p)
-                if blocks is None:
-                    self.providers[p] = []
+            prov_cands = [_HKProvider.from_g3(p) for p in f['providers']]
+            to_flush = list(self.providers.keys())  # prov_ids...
+            for p in prov_cands:
+                if p.prov_id in to_flush:
+                    to_flush.remove(p.prov_id) # no, don't.
+                else:
+                    self.providers[p.prov_id] = p
+            for prov_id in to_flush:
+                self.flush([prov_id])
 
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
-            blocks = self.providers[f['prov_id']]
-            representatives = [block['fields'][0] for block in blocks]
+            prov = self.providers[f['prov_id']]
+            representatives = prov.blocks.keys()
+
             for b in f['blocks']:
-                fields = b.data.keys()
-                if len(b.t) == 0 or len(fields) == 0:
+                assert(isinstance(b, core.G3TimesampleMap))
+                fields = b.keys()
+                if len(b.times) == 0 or len(fields) == 0:
                     continue
                 for block_index,rep in enumerate(representatives):
                     if rep in fields:
                         break
                 else:
-                    block_index = len(blocks)
-                    blocks.append({'fields': fields,
-                                   'start': b.t[0],
-                                   'index_info': []})
+                    rep = fields[0]
+                    prov.blocks[rep] = {'fields': fields,
+                                        'start': b.times[0].time / core.G3Units.seconds,
+                                        'index_info': []}
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                blocks[block_index]['end'] = b.t[-1] + SPAN_BUFFER_SECONDS
-                blocks[block_index]['index_info'].append(index_info)
+                prov.blocks[rep]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
+                prov.blocks[rep]['index_info'].append(index_info)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
@@ -267,23 +402,27 @@ class HKArchiveScanner:
         information.  Delete the provider information.  This will be
         called automatically during frame processing if a provider
         session ends.  Once frame processing has completed, this
-        fnuction should be called, with no arguments, to flush any
+        function should be called, with no arguments, to flush any
         remaining provider sessions.
 
         Args:
             provs (list or None): list of provider identifiers to
-              flush.  If None, flush all.
+              flush.  If None, flush all and also reset the
+              self.session_id.
 
         Returns:
             None
+
         """
         if provs is None:
             provs = list(self.providers.keys())
+            self.session_id = None
         for p in provs:
-            blocks = self.providers.pop(p)
-            for info in blocks:
-                fg = _FieldGroup(info['fields'], info['start'],
-                                   info['end'], info['index_info'])
+            prov = self.providers.pop(p)
+            blocks = prov.blocks
+            for k, info in blocks.items():
+                fg = _FieldGroup(prov.prefix, info['fields'], info['start'],
+                                 info['end'], info['index_info'])
                 self.field_groups.append(fg)
 
     def finalize(self):
@@ -294,11 +433,16 @@ class HKArchiveScanner:
         self.flush()
         return HKArchive(self.field_groups)
 
-    def process_file(self, filename):
+    def process_file(self, filename, flush_after=True):
         """Process the file specified by ``filename`` using a G3IndexedReader.
         Each frame from the file is passed to self.Process, with the
         optional index_info argument set to a dictionary containing
         the filename and byte_offset of the frame.
+
+        Internal data grouping will be somewhat cleaner if the
+        multiple files from a single aggregator "session" are passed
+        to this function in acquisition order.  In that case, call
+        with flush_after=False.
 
         """
         reader = so3g.G3IndexedReader(filename)
@@ -310,6 +454,13 @@ class HKArchiveScanner:
             if len(frames) == 0:
                 break
             self(frames[0], info)
+        # Calling flush() here protects us against the odd case that
+        # we process files from a single session in non-consecutive
+        # order.  In that case the start' and 'end' times will get
+        # messed up because we can't tell the stream has been
+        # re-initialized.
+        if flush_after:
+            self.flush()
 
 
 class _FieldGroup:
@@ -322,30 +473,213 @@ class _FieldGroup:
       (perhaps a filename and byte_offset?).
 
     """
-    def __init__(self, fields, start, end, index_info):
+    def __init__(self, prefix, fields, start, end, index_info):
+        self.prefix = prefix
         self.fields = list(fields)
         self.cover = so3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
 
-if __name__ == '__main__':
-    import sys
+        
+def to_timestamp(some_time, str_format=None): 
+    '''
+    Args:
+        some_time - if datetime, converted to UTC and used
+                    if int or float - assumed to be ctime, no change
+                    if string - trys to parse into datetime object
+                              - assumed to be in UTC
+        str_format - allows user to define a string format if they don't
+                    want to use a default option
+    Returns:
+        ctime of some_time
+    '''
+    
+    if type(some_time) == dt.datetime:
+        return some_time.astimezone(dt.timezone.utc).timestamp()
+    if type(some_time) == int or type(some_time) == float:
+        return some_time
+    if type(some_time) == str:
+        if str_format is not None:
+            return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, str_format )))
+        str_options = ['%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f']
+        for option in str_options:
+            try:
+                return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, option )))
+            except:
+                continue
+        raise ValueError('Could not process string into date object, options are: {}'.format(str_options))
+        
+    raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
-    hkcs = HKArchiveScanner()
-    for filename in sys.argv[1:]:
-        hkcs.process_file(filename)
-    cat = hkcs.finalize()
+def load_range(start, stop, fields=None, alias=None, 
+               data_dir=None,config=None,):
+    '''
+    Args:
+        start - datetime object to start looking
+                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
+        stop - datetime object to stop looking
+                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
+        fields - fields to return, if None, returns all fields
+        alias - if not None, needs to be the length of fields
+        data_dir - directory where all the ctime folders are. 
+                If None, tries to use $OCS_DATA_DIR
+        config - a .yaml configuration file for loading data_dir / fields / alias
+                
+    Returns - Dictionary of the format:
+        {
+            alias[i] : (time[i], data[i])
+        }
+        It will be masked to only have data between start and stop
+        
+    Example use:
+    fields = [
+        'observatory.HAN.feeds.temperatures.Channel 1 T',
+        'observatory.HAN.feeds.temperatures.Channel 2 T',
+    ]
+
+    alias = [
+        'HAN 1', 'HAN 2',
+    ]
+
+    start = dt.datetime(2020,2,19,18,48)
+    stop = dt.datetime(2020,2,22)
+    data = load_range(start, stop, fields=fields, alias=alias)
+    
+    plt.figure()
+    for name in alias:
+        plt.plot( data[name][0], data[name][1])
+    '''
+    if config is not None:
+        if not (data_dir is None and fields is None and alias is None):
+            hk_logger.warning('''load_range has a config file - data_dir, fields, and alias are ignored''')
+        with open(config, 'r') as f:
+            setup = yaml.load(f, Loader=yaml.FullLoader)
+        
+        if 'data_dir' not in setup.keys():
+            raise ValueError('load_range config file requires data_dir entry')
+        data_dir = setup['data_dir']
+        if 'field_list' not in setup.keys():
+            raise ValueError('load_range config file requires field_list entry')
+        fields = []
+        alias = []
+        for k in setup['field_list']:
+            fields.append( setup['field_list'][k])
+            alias.append( k )
+            
+    if data_dir is None and 'OCS_DATA_DIR' not in os.environ.keys():
+        raise ValueError('if $OCS_DATA_DIR is not defined a data directory must be passed to getdata')
+    if data_dir is None:
+        data_dir = os.environ['OCS_DATA_DIR']
+
+    hk_logger.debug('Loading data from {}'.format(data_dir))
+    
+    start_ctime = to_timestamp(start) - 3600
+    stop_ctime = to_timestamp(stop) + 3600
+
+    hksc = HKArchiveScanner()
+    
+    for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
+        base = data_dir+'/'+str(folder)
+        if not os.path.exists(base):
+            hk_logger.debug('{} does not exist, skipping'.format(base))
+            continue
+    
+        for file in sorted(os.listdir(base)):
+            try:
+                t = int(file[:-3])
+            except:
+                hk_logger.debug('{} does not have the right format, skipping'.format(file))
+                continue
+            if t >= start_ctime-3600 and t <=stop_ctime+3600:
+                hk_logger.debug('Processing {}'.format(base+'/'+file))
+                hksc.process_file( base+'/'+file)
+    
+    
+    cat = hksc.finalize()
+    start_ctime = to_timestamp(start)
+    stop_ctime = to_timestamp(stop)
+    
+    all_fields,_ = cat.get_fields()
+    
+    if fields is None:
+        fields = all_fields
+    if alias is not None:
+        if len(alias) != len(fields):
+            hk_logger.error('if provided, alias needs to be the length of fields')
+    else:
+        alias = fields
+    
+    data = {}
+    for name, field in zip(alias, fields):
+        if field not in all_fields:
+            hk_logger.info('`{}` not in available fields, skipping'.format(field))
+            continue
+        t,x = cat.simple(field)
+        msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
+        data[name] = t[msk],x[msk]
+        
+    return data
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(
+        usage='This demo can be used to plot data from SO HK files.')
+    parser.add_argument('--field')
+    parser.add_argument('files', nargs='+', help=
+                        "SO Housekeeping files to load.")
+    args = parser.parse_args()
+
+    # Scan the file set.
+    hkas = HKArchiveScanner()
+    for filename in args.files:
+        print(f'Scanning {filename}...')
+        hkas.process_file(filename)
+
+    print(' ... finalizing.')
+    cat = hkas.finalize()
+
     # Get list of fields, timelines, spanning all times:
     fields, timelines = cat.get_fields()
+
     # Show
     for field_name in sorted(fields):
         group_name = fields[field_name]['timeline']
         print(field_name, timelines[group_name]['interval'])
-    field_name = list(fields.keys())[0]
-    fields, timelines = cat.get_data([field_name])
-    x = list(timelines.values())[0]['t']
-    y = fields[field_name]
+
+    if args.field is None:
+        full_name = list(fields.keys())[0]
+        print('Pretending interest in:', full_name)
+    else:
+        full_name = args.field
+        print('User requests:', full_name)
+
+    # Identify the shortest form of this field that also works.
+    f_toks = full_name.split('.')
+    field_name = full_name
+    for i in range(1, 2**len(f_toks)):
+        short_name = '.'.join([t for b,t in enumerate(f_toks) if (i >> b) & 1])
+        try:
+            fields, timelines = cat.get_data([short_name], short_match=True)
+        except Exception:
+            continue
+        if len(short_name) < len(field_name):
+            field_name = short_name
+            print(field_name)
+
+    print('Name shortened to:', field_name)
+
+    # This is the awkward way, which preserves co-sampled
+    # relationships (and is thus annoying to decode in simple cases).
+    fields, timelines = cat.get_data([field_name], short_match=True)
+    x0 = list(timelines.values())[0]['t']
+    y0 = fields[field_name]
+
+    # This is the easy way, which just gives you one timeline per
+    # requested field.
+    x1, y1 = cat.simple(field_name)
     
+    assert np.all(np.array(x0) == x1) and np.all(np.array(y0) == y1)
+
     import pylab as pl
-    pl.plot(x, y)
+    pl.plot(x1, y1)
     pl.title(field_name)
     pl.show()

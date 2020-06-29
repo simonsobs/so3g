@@ -83,6 +83,7 @@ def set_frame_hooks(config={}):
     use_astropy = config.get('use_astropy', 'try')
     astropy = _try_import('astropy.wcs', use_astropy)
     if astropy is not None:
+        has_astropy = True
         G3Frame.setitem_converters[astropy.wcs.WCS] = \
             lambda a: so3g.G3WCS(a.to_header_string())
         G3Frame.getitem_converters[so3g.G3WCS] = \

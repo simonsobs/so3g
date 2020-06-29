@@ -91,14 +91,16 @@ class _HKProvBundle:
 
 
 class HKReframer:
-    """The purpose of this module is to rebundle HK frames in order to
-    increase or decrease the number of samples in each data frame.
+    """A module to rebundle SO HK frames, to decrease or increase the
+    number of samples in each data frame.
 
     """
-    cache = {}
 
-    # A G3Pipeline module.
     def __init__(self, target=60.):
+        """
+        Arguments:
+          target (float): The target frame duration, in seconds.
+        """
         self.target = target
         self.session_id = None
         self.providers = {}

@@ -1,8 +1,19 @@
+## build directory
+build/
+
+## Testing files
+.coverage
+*.g3
+
 ## Local config files.
 local.cmake
 
 ## Common backup / temporary files.
 *~
+
+## python & doc stuff
+**/__pycache__
+docs/_build
 
 ## github's default C++ stuff.
 

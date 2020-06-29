@@ -2,7 +2,10 @@
 # A containerized so3g installation.
 
 # Build on spt3g base image
-FROM grumpy.physics.yale.edu/spt3g:ee03194
+FROM simonsobs/spt3g:0.2-11-g3444852
+
+# Set locale
+ENV LANG C.UTF-8
 
 # Set the working directory
 WORKDIR /app_lib/so3g

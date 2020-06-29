@@ -2,8 +2,25 @@ import so3g
 from spt3g import core
 import numpy as np
 
+from so3g import hk
+
 class HKScanner:
     """Module that scans and reports on HK archive contents and compliance.
+    
+    Attributes:
+      stats (dict): A nested dictionary of statistics that are updated as
+        frames are processed by the module.  Elements:
+
+        - ``n_hk`` (int): The number of HK frames encountered.
+        - ``n_other`` (int): The number of non-HK frames encountered.
+        - ``n_session`` (int): The number of distinct HK sessions
+          processed.
+        - ``concerns`` (dict): The number of warning (key ``n_warning``)
+          and error (key ``n_error``) events encountered.  The detail
+          for such events is logged to ``spt3g.core.log_warning`` /
+          ``log_error``.
+        - ``versions`` (dict): The number of frames (value) (value)
+          encountered that have a given hk_agg_version (key).
 
     """
     def __init__(self):
@@ -13,9 +30,14 @@ class HKScanner:
             'n_hk': 0,
             'n_other': 0,
             'n_session': 0,
+            'concerns': {
+                'n_error': 0,
+                'n_warning': 0
+            },
+            'versions': {},
         }
 
-    def report(self):
+    def report_and_reset(self):
         core.log_info('Report for session_id %i:\n' % self.session_id +
                       str(self.stats) + '\n' +
                       str(self.providers) + '\nEnd report.',
@@ -29,7 +51,7 @@ class HKScanner:
 
         """
         if f.type == core.G3FrameType.EndProcessing:
-            self.report()
+            self.report_and_reset()
             return [f]
 
         if f.type != core.G3FrameType.Housekeeping:
@@ -37,12 +59,14 @@ class HKScanner:
             return f
 
         self.stats['n_hk'] += 1
+        vers = f.get('hkagg_version', 0)
+        self.stats['versions'][vers] = self.stats['versions'].get(vers, 0) + 1
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
-                    self.report()
+                    self.report_and_reset()  # note this does clear self.session_id.
             if self.session_id is None:
                 core.log_info('New HK Session id = %i, timestamp = %i' %
                               (session_id, f['start_time']), unit='HKScanner')
@@ -63,6 +87,7 @@ class HKScanner:
                     if not info['active']:
                         core.log_warn('prov_id %i came back to life.' % p,
                                       unit='HKScanner')
+                        self.stats['concerns']['n_warning'] += 1
                         info['n_active'] += 1
                         info['active'] = True
                 else:
@@ -78,6 +103,8 @@ class HKScanner:
 
         elif f['hkagg_type'] == so3g.HKFrameType.data:
             info = self.providers[f['prov_id']]
+            vers = f.get('hkagg_version', 0)
+
             info['n_frames'] += 1
             t_this = f['timestamp']
             if info['timestamp_data'] is None:
@@ -86,42 +113,68 @@ class HKScanner:
                     core.log_warn('data timestamp (%.1f) precedes provider '
                                   'timestamp by %f seconds.' % (t_this, t_this - t_ref),
                                   unit='HKScanner')
+                    self.stats['concerns']['n_warning'] += 1
             elif t_this <= info['timestamp_data']:
                 core.log_warn('data frame timestamps are not strictly ordered.',
                               unit='HKScanner')
+                self.stats['concerns']['n_warning'] += 1
             info['timestamp_data'] = t_this # update
 
             t_check = []
-            for b in f['blocks']:
-                if len(b.t):
+
+            blocks = f['blocks']
+            if vers == 0:
+                block_timef = lambda block: block.t
+                block_itemf = lambda block: [(k, block.data[k]) for k in block.data.keys()]
+            elif vers == 1:
+                block_timef = lambda block: np.array([t.time / core.G3Units.seconds for t in b.times])
+                block_itemf = lambda block: [(k, block[k]) for k in block.keys()]
+
+            for b in blocks:
+                times = block_timef(b)
+                if len(times):
                     if info['span'] is None:
-                        info['span'] = b.t[0], b.t[-1]
+                        info['span'] = times[0], times[-1]
                     else:
                         t0, t1 = info['span']
-                        info['span'] = min(b.t[0], t0), max(b.t[-1], t1)
-                    t_check.append(b.t[0])
-                info['ticks'] += len(b.t)
-                for k,v in b.data.items():
-                    if len(v) != len(b.t):
+                        info['span'] = min(times[0], t0), max(times[-1], t1)
+                    t_check.append(times[0])
+                info['ticks'] += len(times)
+                for k,v in block_itemf(b):
+                    if len(v) != len(times):
                         core.log_error('Field "%s" has %i samples but .t has %i samples.' %
-                                       (k, len(v), len(b.t)))
+
+                                       (k, len(v), len(times)))
+                        self.stats['concerns']['n_error'] += 1
             if len(t_check) and abs(min(t_check) - t_this) > 60:
                 core.log_warn('data frame timestamp (%.1f) does not correspond to '
                               'data timestamp vectors (%s) .' % (t_this, t_check),
                               unit='HKScanner')
+                self.stats['concerns']['n_warning'] += 1
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
                           unit='HKScanner')
+            self.stats['concerns']['n_warning'] += 1
 
         return [f]
 
 if __name__ == '__main__':
-    # Run me on a G3File containing a Housekeeping stream.
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--translate', action='store_true')
+    parser.add_argument('files', nargs='+')
+    args = parser.parse_args()
+
+    # The report is displayed at level LOG_INFO.
     core.set_log_level(core.G3LogLevel.LOG_INFO)
-    import sys
-    for f in sys.argv[1:]:
+
+    # Run me on a G3File containing a Housekeeping stream.
+    for f in args.files:
         p = core.G3Pipeline()
         p.Add(core.G3Reader(f))
+        if args.translate:
+            p.Add(hk.HKTranslator())
         p.Add(HKScanner())
         p.Run()

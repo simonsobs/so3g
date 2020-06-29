@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#include "numpy_assist.h"
+
 using namespace std;
 namespace bp = boost::python;
 
@@ -31,6 +33,7 @@ public:
     Intervals<T>& merge(const Intervals<T> &src);
     Intervals<T>& intersect(const Intervals<T> &src);
     Intervals<T>& add_interval(const T start, const T end);
+    Intervals<T>& append_interval_no_check(const T start, const T end);
     Intervals<T> complement() const;
 
     void set_domain(T start, T end);
@@ -40,6 +43,8 @@ public:
 
     bp::object array() const;
  
+    Intervals<T> getitem(bp::object indices);
+
     // Operators.
     Intervals<T> operator~() const;
     Intervals<T> operator-() const;

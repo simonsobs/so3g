@@ -1,13 +1,18 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.1)
 project (so3g)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+include(local.cmake OPTIONAL)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused -Werror")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
+# Default to Release because we want that -O3.  This is what spt3g_software does too.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+    "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel" FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
 
+# For this to be found, make sure the spt3g build directory can be
+# searched; i.e. -DCMAKE_PREFIX_PATH=/path/to/spt3g_software/build
 find_package(Spt3g REQUIRED)
+
 find_package(PythonInterp 3)
 find_package(PythonLibs 3)
 
@@ -25,27 +30,6 @@ execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig impo
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
                  OUTPUT_VARIABLE NUMPY_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-foreach(candidate
-    python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}
-    python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}
-    python${PYTHON_VERSION_MAJOR}
-    python
-    )
-  if (NOT DEFINED Boost_PYTHON_TYPE)
-    message(STATUS "Searching for boost-" ${candidate})
-    find_package(Boost COMPONENTS ${candidate})
-    if (${Boost_FOUND})
-      message(STATUS "Using boost-" ${candidate})
-      set(Boost_PYTHON_TYPE ${candidate})
-    endif()
-  endif()
-endforeach(candidate)
-
-find_package(Boost COMPONENTS system iostreams filesystem
-                   ${Boost_PYTHON_TYPE} REQUIRED)
-
-include_directories(${SPT3G_INCLUDES})
-include_directories(${Boost_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS} ${PYTHON_INCLUDE_PATH})
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 include_directories(${NUMPY_INCLUDE_DIR})
 
@@ -64,7 +48,10 @@ add_library(so3g SHARED
   src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
+  src/Ranges.cxx
   src/Rebundler.cxx
+  src/Projection.cxx
+  src/so_linterp.cxx
   src/exceptions.cxx
 )
 
@@ -76,9 +63,13 @@ file(GLOB MY_PYTHONS
   "${CMAKE_CURRENT_SOURCE_DIR}/python/*.py")
 file(GLOB MY_PYTHONS_HK
   "${CMAKE_CURRENT_SOURCE_DIR}/python/hk/*.py")
+file(GLOB MY_PYTHONS_PROJ
+  "${CMAKE_CURRENT_SOURCE_DIR}/python/proj/*.py")
+file(GLOB MY_PYTHONS_SMURF
+  "${CMAKE_CURRENT_SOURCE_DIR}/python/smurf/*.py")
 
 # Provide list of libs to link against.
-target_link_libraries(so3g pthread ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${SPT3G_LIBRARIES})
+target_link_libraries(so3g spt3g::core)
 
 # This custom target generates _version.h, in the build tree.  That is all.
 add_custom_target(so3g-version
@@ -91,7 +82,6 @@ add_dependencies(so3g so3g-version)
 
 # Define the install rules.
 
-include(local.cmake OPTIONAL)
 if(DEFINED PYTHON_INSTALL_DEST)
   get_filename_component(INSTALL_DEST ${PYTHON_INSTALL_DEST}/so3g
                          ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
@@ -107,3 +97,12 @@ install(FILES ${MY_PYTHONS}
         DESTINATION ${INSTALL_DEST})
 install(FILES ${MY_PYTHONS_HK}
         DESTINATION ${INSTALL_DEST}/hk)
+install(FILES ${MY_PYTHONS_PROJ}
+        DESTINATION ${INSTALL_DEST}/proj)
+install(FILES ${MY_PYTHONS_SMURF}
+        DESTINATION ${INSTALL_DEST}/smurf)
+
+add_custom_target(prep-readthedocs
+  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py
+          --prep-rtd --source-branch=master
+  )

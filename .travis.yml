@@ -8,6 +8,7 @@ python:
   - "3.6"
 
 stages:
+  - test
   - name: dockerize
     if: |
       branch = master AND \
@@ -15,6 +16,28 @@ stages:
 
 jobs:
   include:
+    - stage: test
+      install:
+        # Build the docker images with docker-compose
+        - docker-compose build
+
+      script:
+        # Run tests via pytest runner with coverage in a docker container
+        - docker run -v $PWD:/coverage --rm so3g sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov /usr/lib/python3/dist-packages/so3g/ test/"
+
+      after_success:
+        # Install coveralls
+        - pip install coveralls
+
+        # Combine results from suffixed .coverage.docker to fix paths from container testing
+        - coverage combine
+
+        # Show report with updated paths
+        - coverage report
+
+        # Publish results to coveralls
+        - coveralls
+
     - stage: dockerize
       install: true
 
@@ -22,20 +45,21 @@ jobs:
         # Use the git tag to tag docker image
         - export DOCKER_TAG=`git describe --tags --always`
         # Login to docker
-        - echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" -u "${REGISTRY_USER}" --password-stdin;
+        - echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin;
 
       script:
         # Build the docker image
-        - docker build -t so3g .
+        - docker-compose build
+
         # Test import within container
         - docker run --rm so3g /usr/bin/python3 -c 'import so3g'
 
       after_success:
         # Tag all images for upload to the registry
-        - "docker tag so3g:latest ${REGISTRY_URL}/so3g:latest"
-        - "docker tag so3g:latest ${REGISTRY_URL}/so3g:${DOCKER_TAG}"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:latest"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker tag {}:latest ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}"
 
         # Upload to docker registry
-        - "docker push ${REGISTRY_URL}/so3g:${DOCKER_TAG}"
-        - "docker push ${REGISTRY_URL}/so3g:latest"
-        - "echo ${REGISTRY_URL}/so3g:${DOCKER_TAG} pushed"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:${DOCKER_TAG}"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} docker push ${DOCKERHUB_ORG}/{}:latest"
+        - "docker-compose config | grep 'image: ' | awk -F ': ' '{ print $2 }' | xargs -I {} echo ${DOCKERHUB_ORG}/{}:${DOCKER_TAG} pushed"
