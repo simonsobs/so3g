@@ -343,7 +343,7 @@ class HKArchiveScanner:
             return [f]
 
         vers = f.get('hkagg_version', 0)
-        assert(vers == 1)
+        assert(vers == 2)
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']

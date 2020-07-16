@@ -25,7 +25,7 @@ class TestHKSessionHelper(unittest.TestCase):
 
         # Create something to help us track the aggregator session.
         hksess = so3g.hk.HKSessionHelper(session_id=None,
-                                         hkagg_version=1,
+                                         hkagg_version=2,
                                          description="Test HK data.")
 
         # Register a data provider.
@@ -50,6 +50,7 @@ class TestHKSessionHelper(unittest.TestCase):
             hk['mode_str'] = core.G3VectorString(['ok'] * len(speed))
             t_next += len(hk)
             f['blocks'].append(hk)
+            f['block_names'].append('main_block')
             w.Process(f)
 
         w.Flush()

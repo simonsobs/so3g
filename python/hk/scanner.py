@@ -99,6 +99,7 @@ class HKScanner:
                         'timestamp_data': None, # Timestamp of most recent data frame.
                         'ticks': 0,   # Total number of timestamps in all blocks.
                         'span': None, # (earliest_time, latest_time)
+                        'block_streams_map': {},  # Map from field name to block name.
                     }
 
         elif f['hkagg_type'] == so3g.HKFrameType.data:
@@ -126,11 +127,28 @@ class HKScanner:
             if vers == 0:
                 block_timef = lambda block: block.t
                 block_itemf = lambda block: [(k, block.data[k]) for k in block.data.keys()]
-            elif vers == 1:
+            elif vers >= 1:
                 block_timef = lambda block: np.array([t.time / core.G3Units.seconds for t in b.times])
                 block_itemf = lambda block: [(k, block[k]) for k in block.keys()]
 
-            for b in blocks:
+            if vers in [0]:
+                block_name  = lambda block_idx: list(sorted(blocks[block_idx].data.keys()))[0]
+            if vers in [1]:
+                block_name  = lambda block_idx: list(sorted(blocks[block_idx].keys()))[0]
+            elif vers >= 2:
+                block_names = f.get('block_names', [])
+                if len(block_names) != len(blocks):
+                    # This is a schema error in its own right.
+                    core.log_error('Frame does not have "block_names" entry, '
+                                   'or it is not the same length as "blocks".',
+                                   unit='HKScanner')
+                    self.stats['concerns']['n_error'] += 1
+                    # Fall back on v1 strategy.
+                    block_name  = lambda block_idx: list(sorted(blocks[block_idx].keys()))[0]
+                else:
+                    block_name  = lambda block_idx: f['block_names'][block_idx]
+
+            for block_idx, b in enumerate(blocks):
                 times = block_timef(b)
                 if len(times):
                     if info['span'] is None:
@@ -140,11 +158,20 @@ class HKScanner:
                         info['span'] = min(times[0], t0), max(times[-1], t1)
                     t_check.append(times[0])
                 info['ticks'] += len(times)
-                for k,v in block_itemf(b):
+                bname = block_name(block_idx)
+                for k, v in block_itemf(b):
                     if len(v) != len(times):
                         core.log_error('Field "%s" has %i samples but .t has %i samples.' %
 
                                        (k, len(v), len(times)))
+                        self.stats['concerns']['n_error'] += 1
+                    # Make sure field has a block_stream registered.
+                    if k not in info['block_streams_map']:
+                        info['block_streams_map'][k] = bname
+                    if info['block_streams_map'][k] != bname:
+                        core.log_error('Field "%s" appeared in block_name %s '
+                                       'and later in block_name %s.' %
+                                       (k, info['block_streams_map'][k], bname))
                         self.stats['concerns']['n_error'] += 1
             if len(t_check) and abs(min(t_check) - t_this) > 60:
                 core.log_warn('data frame timestamp (%.1f) does not correspond to '
@@ -164,6 +191,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--translate', action='store_true')
+    parser.add_argument('--target-version', type=int, default=2)
     parser.add_argument('files', nargs='+')
     args = parser.parse_args()
 
@@ -175,6 +203,6 @@ if __name__ == '__main__':
         p = core.G3Pipeline()
         p.Add(core.G3Reader(f))
         if args.translate:
-            p.Add(hk.HKTranslator())
+            p.Add(hk.HKTranslator(target_version=args.target_version))
         p.Add(HKScanner())
         p.Run()
