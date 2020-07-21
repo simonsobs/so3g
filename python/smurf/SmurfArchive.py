@@ -190,7 +190,7 @@ class SmurfArchive:
         if load_biases:
             biases = np.full((num_bias_lines, samples), 0, dtype=np.int32)
         else:
-            baises = None
+            biases = None
 
         cur_sample = 0
         cur_file = None
