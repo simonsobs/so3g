@@ -82,7 +82,8 @@ class HKTranslator:
 
         # Always update the version, even if that's our only change...
         if 'hkagg_version' in f:
-            f['hkagg_version_orig'] = orig_version
+            if 'hkagg_version_orig' not in f:
+                f['hkagg_version_orig'] = orig_version
             del f['hkagg_version']
         f['hkagg_version'] = self.target_version
 
