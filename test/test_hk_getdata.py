@@ -38,9 +38,7 @@ def write_example_file(filename='hk_out.g3', hkagg_version=2):
     seeder = Seeder()
     w = core.G3Pipeline()
     w.Add(seeder)
-    assert(hkagg_version in [0, 1, 2])
-    if hkagg_version in [1, 2]:
-        w.Add(HKTranslator)
+    w.Add(HKTranslator(target_version=hkagg_version))
     w.Add(core.G3Writer(test_file))
 
     # Create something to help us track the aggregator session.
