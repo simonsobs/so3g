@@ -204,7 +204,7 @@ class HKArchive:
             blocks_in = []
             for fg in fgrps:
                 for r in fg.index_info:
-                    fn,off = r['filename'], r['byte_offset']
+                    fn, off, bidx = r['filename'], r['byte_offset'], r['block_index']
                     if not fn in handles:
                         handles[fn] = so3g.G3IndexedReader(fn)
                     handles[fn].Seek(off)
@@ -212,12 +212,8 @@ class HKArchive:
                     fn = self.translator(fn[0])
                     assert(len(fn) == 1)
                     # Find the right block.
-                    for blk in fn[0]['blocks']:
-                        assert(isinstance(blk, core.G3TimesampleMap))
-                        test_f = fields[0].split('.')[-1]   ## dump prefix.
-                        if test_f in blk.keys():
-                            blocks_in.append(blk)
-                            break
+                    blocks_in.append(fn[0]['blocks'][bidx])
+
             # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
             blocks_in.sort(key=lambda b: b.times[0].time)
             # Create a new Block for this group.
@@ -343,7 +339,7 @@ class HKArchiveScanner:
             return [f]
 
         vers = f.get('hkagg_version', 0)
-        assert(vers == 1)
+        assert(vers == 2)
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']
@@ -373,24 +369,19 @@ class HKArchiveScanner:
             prov = self.providers[f['prov_id']]
             representatives = prov.blocks.keys()
 
-            for b in f['blocks']:
+            for bidx, (bname, b) in enumerate(zip(f['block_names'], f['blocks'])):
                 assert(isinstance(b, core.G3TimesampleMap))
-                fields = b.keys()
-                if len(b.times) == 0 or len(fields) == 0:
-                    continue
-                for block_index,rep in enumerate(representatives):
-                    if rep in fields:
-                        break
-                else:
-                    rep = fields[0]
-                    prov.blocks[rep] = {'fields': fields,
-                                        'start': b.times[0].time / core.G3Units.seconds,
-                                        'index_info': []}
+                if bname not in prov.blocks:
+                    prov.blocks[bname] = {'fields': list(b.keys()),
+                                          'start': b.times[0].time / core.G3Units.seconds,
+                                          'index_info': []}
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                prov.blocks[rep]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
-                prov.blocks[rep]['index_info'].append(index_info)
+                prov.blocks[bname]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
+                ii = {'block_index': bidx}
+                ii.update(index_info)
+                prov.blocks[bname]['index_info'].append(ii)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
