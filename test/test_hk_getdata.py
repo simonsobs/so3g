@@ -23,11 +23,12 @@ class Seeder(list):
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
 
-def write_example_file(filename='hk_out.g3', hkagg_version=1):
+def write_example_file(filename='hk_out.g3', hkagg_version=2):
     """Generate some example HK data and write to file.
 
     Args:
         filename (str): filename to write data to
+        hkagg_version (int): which HK version to write to file
 
     """
     test_file = filename
@@ -37,9 +38,7 @@ def write_example_file(filename='hk_out.g3', hkagg_version=1):
     seeder = Seeder()
     w = core.G3Pipeline()
     w.Add(seeder)
-    assert(hkagg_version in [0,1])
-    if hkagg_version == 1:
-        w.Add(HKTranslator)
+    w.Add(HKTranslator(target_version=hkagg_version))
     w.Add(core.G3Writer(test_file))
 
     # Create something to help us track the aggregator session.
@@ -93,9 +92,10 @@ class TestGetData(unittest.TestCase):
     """TestCase for testing hk.getdata.py."""
     def setUp(self):
         """Generate some test HK data."""
-        self._files = ['test_0.g3', 'test_1.g3']
+        self._files = ['test_0.g3', 'test_1.g3', 'test_2.g3']
         write_example_file(self._files[0], 0)
         write_example_file(self._files[1], 1)
+        write_example_file(self._files[2], 2)
 
     def tearDown(self):
         """Remove the temporary file we made."""

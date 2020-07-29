@@ -122,4 +122,6 @@ class HKSessionHelper:
         f['prov_id'] = prov_id
         f['timestamp'] = timestamp
         f['blocks'] = core.G3VectorFrameObject()
+        if self.hkagg_version >= 2:
+            f['block_names'] = core.G3VectorString()
         return f

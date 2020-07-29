@@ -46,10 +46,12 @@ _SCHEMA_V1_BLOCK_TYPES = [
 
 
 class HKArchive:
+    """Container for information necessary to determine what data fields
+    are present in a data archive at what times.  This object has
+    methods that can determine what fields have data over a given time
+    range, and can group fields that share a timeline (i.e. are
+    co-sampled) over that range.
 
-    """Contains information necessary to determine what data fields are
-    present in a data archive at what times.  It also knows how to
-    group fields that share a commong timeline.
     """
     field_groups = None
     def __init__(self, field_groups=None):
@@ -90,6 +92,13 @@ class HKArchive:
             fields belonging to this group.  ``fgs`` is a list of
             _FieldGroup objects relevant to the fields in this
             group.
+
+        Notes:
+            Each entry in the returned list carries information for
+            set of fields that are co-sampled over the requested time
+            interval.  Each of the requested fields will thus appear
+            in at most one group.
+
         """
         span = so3g.IntervalsDouble()
         if start is None:
@@ -204,7 +213,7 @@ class HKArchive:
             blocks_in = []
             for fg in fgrps:
                 for r in fg.index_info:
-                    fn,off = r['filename'], r['byte_offset']
+                    fn, off, bidx = r['filename'], r['byte_offset'], r['block_index']
                     if not fn in handles:
                         handles[fn] = so3g.G3IndexedReader(fn)
                     handles[fn].Seek(off)
@@ -212,12 +221,8 @@ class HKArchive:
                     fn = self.translator(fn[0])
                     assert(len(fn) == 1)
                     # Find the right block.
-                    for blk in fn[0]['blocks']:
-                        assert(isinstance(blk, core.G3TimesampleMap))
-                        test_f = fields[0].split('.')[-1]   ## dump prefix.
-                        if test_f in blk.keys():
-                            blocks_in.append(blk)
-                            break
+                    blocks_in.append(fn[0]['blocks'][bidx])
+
             # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
             blocks_in.sort(key=lambda b: b.times[0].time)
             # Create a new Block for this group.
@@ -301,12 +306,15 @@ class _HKProvider:
 
 
 class HKArchiveScanner:
-    """Consume SO Housekeeping streams and create a record of what fields
+    """Consumes SO Housekeeping streams and creates a record of what fields
     cover what time ranges.  This can run as a G3Pipeline module, but
     will not be able to record stream indexing information in that
     case.  If it's populated through the process_file method, then
     index information (in the sense of filenames and byte offsets)
     will be stored.
+
+    After processing frames, calling .finalize() will return an
+    HKArchive that can be used to load data more efficiently.
 
     """
     def __init__(self):
@@ -343,7 +351,7 @@ class HKArchiveScanner:
             return [f]
 
         vers = f.get('hkagg_version', 0)
-        assert(vers == 1)
+        assert(vers == 2)
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']
@@ -373,24 +381,19 @@ class HKArchiveScanner:
             prov = self.providers[f['prov_id']]
             representatives = prov.blocks.keys()
 
-            for b in f['blocks']:
+            for bidx, (bname, b) in enumerate(zip(f['block_names'], f['blocks'])):
                 assert(isinstance(b, core.G3TimesampleMap))
-                fields = b.keys()
-                if len(b.times) == 0 or len(fields) == 0:
-                    continue
-                for block_index,rep in enumerate(representatives):
-                    if rep in fields:
-                        break
-                else:
-                    rep = fields[0]
-                    prov.blocks[rep] = {'fields': fields,
-                                        'start': b.times[0].time / core.G3Units.seconds,
-                                        'index_info': []}
+                if bname not in prov.blocks:
+                    prov.blocks[bname] = {'fields': list(b.keys()),
+                                          'start': b.times[0].time / core.G3Units.seconds,
+                                          'index_info': []}
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                prov.blocks[rep]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
-                prov.blocks[rep]['index_info'].append(index_info)
+                prov.blocks[bname]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
+                ii = {'block_index': bidx}
+                ii.update(index_info)
+                prov.blocks[bname]['index_info'].append(ii)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
@@ -464,13 +467,26 @@ class HKArchiveScanner:
 
 
 class _FieldGroup:
-    """Track a set of readout fields that share a timeline.  Attributes
-    are:
+    """Container object for look-up information associated with a group of
+    fields that share a timeline (i.e. a group of fields that are
+    co-sampled over some requested time range).
 
-    - fields (list of str): the field names.
-    - cover (IntervalsDouble): time range over which these fields have data.
-    - index_info (dict): description of how to find the actual data
-      (perhaps a filename and byte_offset?).
+    Attributes:
+        prefix (str): Not used.
+        fields (list of str): The field names.
+        cover (IntervalsDouble): The time range (as unix timestamps)
+          over which these fields have data.  This is expressed as an
+          IntervalsDouble to enable the use of Intervals arithmetic.
+          The range is created from the "start" and "end" arguments of
+          the constructor.
+        index_info (list of dict): Information that the consumer will
+          use to locate and load the data efficiently.  The entries in
+          the list represent time-ordered frames.  The look-up
+          information in each dict includes 'filename' (string; the
+          filename where the HKData frame lives), 'byte_offset' (int;
+          the offset into the file where the frame starts), and
+          'block_index' (int; the index of the frame.blocks where the
+          fields' data lives).
 
     """
     def __init__(self, prefix, fields, start, end, index_info):
