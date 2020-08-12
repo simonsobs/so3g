@@ -136,6 +136,7 @@ if __name__ == '__main__':
         usage='This program can be used to convert SO HK Frames to the '
         'latest schema version.')
     parser.add_argument('--output-file', '-o', default='out.g3')
+    parser.add_argument('--target-version', type=int)
     parser.add_argument('files', nargs='+', help=
                         "SO Housekeeping files to convert.")
     args = parser.parse_args()
@@ -143,9 +144,13 @@ if __name__ == '__main__':
     # Run me on a G3File containing a Housekeeping stream.
     core.set_log_level(core.G3LogLevel.LOG_INFO)
 
+    translator_args = {}
+    if args.target_version is not None:
+        translator_args['target_version'] = args.target_version
+
     print(f'Streaming to {args.output_file}')
     p = core.G3Pipeline()
     p.Add(core.G3Reader(args.files))
-    p.Add(HKTranslator())
+    p.Add(HKTranslator(**translator_args))
     p.Add(core.G3Writer(args.output_file))
     p.Run()
