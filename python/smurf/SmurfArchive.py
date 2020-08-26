@@ -1,7 +1,7 @@
 import sqlalchemy as db
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship, backref
 
 from spt3g import core
 import so3g
@@ -21,26 +21,6 @@ type_key = {
 
 Base = declarative_base()
 Session = sessionmaker()
-class Frame(Base):
-    """Table to store frame indexing info"""
-    __tablename__ = 'frames'
-    id = db.Column(db.Integer, primary_key=True)
-
-    # location is "<path>:<index>" and this must be unique
-    location = db.Column(db.String, nullable=False, unique=True)
-    offset = db.Column(db.Integer, nullable=False)
-    type = db.Column(db.SmallInteger, nullable=False)
-    time = db.Column(db.DateTime, nullable=False)
-
-    # Specific to data frames
-    samples = db.Column(db.Integer)
-    channels = db.Column(db.Integer)
-    start = db.Column(db.DateTime)
-    stop = db.Column(db.DateTime)
-
-    def __repr__(self):
-        return f"Frame({list(type_key.keys())[self.type]})<{self.location}>"
-
 
 class Files(Base):
     """Table to store file indexing info"""
@@ -53,7 +33,31 @@ class Files(Base):
     frames = db.Column(db.Integer)
     channels = db.Column(db.Integer)
 
+class Frame(Base):
+    """Table to store frame indexing info"""
+    __tablename__ = 'frames'
+    __table_args__ = (
+        db.UniqueConstraint('file_id', 'frame_idx', name='_frame_loc'),
+    )
 
+    id = db.Column(db.Integer, primary_key=True)
+
+    file_id = db.Column(db.Integer, db.ForeignKey('files.id'))
+    file = relationship("Files")
+
+    frame_idx = db.Column(db.Integer, nullable=False)
+    offset = db.Column(db.Integer, nullable=False)
+    type = db.Column(db.SmallInteger, nullable=False)
+    time = db.Column(db.DateTime, nullable=False)
+
+    # Specific to data frames
+    samples = db.Column(db.Integer)
+    channels = db.Column(db.Integer)
+    start = db.Column(db.DateTime)
+    stop = db.Column(db.DateTime)
+
+    def __repr__(self):
+        return f"Frame({list(type_key.keys())[self.type]})<{self.location}>"
 
 class SmurfArchive:
     def __init__(self, archive_path, db_path=None, echo=False):
@@ -85,13 +89,16 @@ class SmurfArchive:
         ----
         path (path): Path of the file to index
         """
+        db_file = Files(path=path)
+        session.add(db_file)
+
         reader = so3g.G3IndexedReader(path)
 
         total_channels = 0
         file_start, file_stop = None, None
         frame_idx = 0
         while True:
-            db_frame = Frame()
+            db_frame = Frame(frame_idx=frame_idx, file=db_file)
             db_frame.offset = reader.Tell()
 
             frames = reader.Process(None)
@@ -99,8 +106,8 @@ class SmurfArchive:
                 break
             frame = frames[0]
 
-            db_frame.location = f"{path}:{frame_idx:0>4}"
             frame_idx += 1
+
 
             if frame.type not in type_key.keys():
                 continue
@@ -122,9 +129,11 @@ class SmurfArchive:
 
             session.add(db_frame)
 
-        db_file = Files(path=path, frames=frame_idx, channels=total_channels,
-                        start=file_start, stop=file_stop)
-        session.add(db_file)
+        db_file.start = file_start
+        db_file.stop = file_stop
+        db_file.channels = total_channels
+        db_file.frames = frame_idx
+
 
     def index_archive(self, verbose=False):
         """
@@ -195,7 +204,7 @@ class SmurfArchive:
         cur_sample = 0
         cur_file = None
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
-            file = frame_info.location.split(':')[0]
+            file = frame_info.file.path
             if file != cur_file:
                 reader = so3g.G3IndexedReader(file)
                 cur_file = file
@@ -214,7 +223,7 @@ class SmurfArchive:
         timestamps /= core.G3Units.s
         return timestamps, data, biases
 
-    def load_status(self, time):
+    def load_status(self, time, show_pb=False):
         """
         Returns the status dict at specified unix timestamp.
         Loads all status frames between session start frame and specified time.
@@ -239,8 +248,8 @@ class SmurfArchive:
 
         status = {}
         cur_file = None
-        for frame_info in tqdm(status_frames.all()):
-            file = frame_info.location.split(':')[0]
+        for frame_info in tqdm(status_frames.all(), disable=(not show_pb)):
+            file = frame_info.file.path
             if file != cur_file:
                 reader = so3g.G3IndexedReader(file)
                 cur_file = file
