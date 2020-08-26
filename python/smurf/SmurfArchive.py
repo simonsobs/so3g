@@ -13,11 +13,7 @@ import yaml
 
 
 num_bias_lines = 16
-type_key = {
-    core.G3FrameType.Observation: 0,
-    core.G3FrameType.Wiring: 1,
-    core.G3FrameType.Scan: 2
-}
+
 
 Base = declarative_base()
 Session = sessionmaker()
@@ -33,6 +29,13 @@ class Files(Base):
     frames = db.Column(db.Integer)
     channels = db.Column(db.Integer)
 
+type_key = ['Observation', 'Wiring', 'Scan']
+class FrameType(Base):
+    """Enum table for storing frame types"""
+    __tablename__ = "frame_type"
+    id = db.Column(db.Integer, primary_key=True)
+    type_name = db.Column(db.String, unique=True, nullable=True)
+
 class Frame(Base):
     """Table to store frame indexing info"""
     __tablename__ = 'frames'
@@ -47,7 +50,10 @@ class Frame(Base):
 
     frame_idx = db.Column(db.Integer, nullable=False)
     offset = db.Column(db.Integer, nullable=False)
-    type = db.Column(db.SmallInteger, nullable=False)
+
+    type_name = db.Column(db.String, db.ForeignKey('frame_type.type_name'))
+    frame_type = relationship('FrameType')
+
     time = db.Column(db.DateTime, nullable=False)
 
     # Specific to data frames
@@ -57,7 +63,7 @@ class Frame(Base):
     stop = db.Column(db.DateTime)
 
     def __repr__(self):
-        return f"Frame({list(type_key.keys())[self.type]})<{self.location}>"
+        return f"Frame({self.type_name})<{self.location}>"
 
 class SmurfArchive:
     def __init__(self, archive_path, db_path=None, echo=False):
@@ -81,6 +87,18 @@ class SmurfArchive:
         self.Session = sessionmaker(bind=self.engine)
         Base.metadata.create_all(self.engine)
 
+        # Defines frame_types
+        self._create_frame_types()
+
+    def _create_frame_types(self):
+        session = self.Session()
+        if not session.query(FrameType).all():
+            print("Creating FrameType table...")
+            for k in type_key:
+                ft = FrameType(type_name=k)
+                session.add(ft)
+            session.commit()
+
     def add_file(self, path, session):
         """
         Indexes a single file and adds it to the sqlite database.
@@ -89,6 +107,11 @@ class SmurfArchive:
         ----
         path (path): Path of the file to index
         """
+
+        frame_types = {
+            ft.type_name: ft for ft in session.query(FrameType).all()
+        }
+
         db_file = Files(path=path)
         session.add(db_file)
 
@@ -105,13 +128,13 @@ class SmurfArchive:
             if not frames:
                 break
             frame = frames[0]
-
             frame_idx += 1
 
-
-            if frame.type not in type_key.keys():
+            if str(frame.type) not in type_key:
                 continue
-            db_frame.type = type_key[frame.type]
+
+            db_frame.frame_type = frame_types[str(frame.type)]
+
             timestamp = frame['time'].time / core.G3Units.s
             db_frame.time = dt.datetime.fromtimestamp(timestamp)
 
@@ -180,8 +203,9 @@ class SmurfArchive:
         show_pb (bool, optional): If True, will show progress bar.
         """
         session = self.Session()
+
         frames = session.query(Frame).filter(
-            Frame.type == type_key[core.G3FrameType.Scan],
+            Frame.type_name == 'Scan',
             Frame.stop >= dt.datetime.fromtimestamp(start),
             Frame.start < dt.datetime.fromtimestamp(end)
         ).order_by(Frame.time)
@@ -236,12 +260,12 @@ class SmurfArchive:
         """
         session = self.Session()
         session_start,  = session.query(Frame.time).filter(
-            Frame.type == type_key[core.G3FrameType.Observation],
+            Frame.type_name == 'Observation',
             Frame.time <= dt.datetime.fromtimestamp(time)
         ).order_by(Frame.time.desc()).first()
 
         status_frames = session.query(Frame).filter(
-            Frame.type == type_key[core.G3FrameType.Wiring],
+            Frame.type_name == 'Wiring',
             Frame.time >= session_start,
             Frame.time <= dt.datetime.fromtimestamp(time)
         ).order_by(Frame.time)
