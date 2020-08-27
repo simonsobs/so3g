@@ -201,6 +201,18 @@ class SmurfArchive:
         start (timestamp): start timestamp
         end   (timestamp): end timestamp
         show_pb (bool, optional): If True, will show progress bar.
+        load_biases (bool, optional): If True, will return biases.
+
+        Returns
+        --------
+        times (np.ndarray[samples]):
+            Array of unix timestamps for loaded data
+        data (np.ndarray[channels, samples]):
+            Array of data for each channel sending data in the specified
+            time range. The index of the array is the readout channel number.
+        biases (optional, np.ndarray[NTES, samples]):
+            An array containing the TES bias values.
+            This will only return if ``load_biases`` is set to True.
         """
         session = self.Session()
 
@@ -245,7 +257,10 @@ class SmurfArchive:
             cur_sample += nsamp
 
         timestamps /= core.G3Units.s
-        return timestamps, data, biases
+        if load_biases:
+            return timestamps, data, biases
+        else:
+            return timestamps, data
 
     def load_status(self, time, show_pb=False):
         """
