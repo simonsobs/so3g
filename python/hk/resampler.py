@@ -379,6 +379,7 @@ class HKResampler:
         below).
 
         To do: 
+        - Integrate into hk.getdata.
         - Look at how to deal with gaps and provide different options.
           o Current behaviour when there are timestamps but no data:
             * If there is a frame of timestamps but no data at all available in
@@ -392,7 +393,7 @@ class HKResampler:
           o If there are no timestamps but there are data, no data gets written.
             I think this is always the right behaviour.
         - Filtering of the data for the case when you are downsampling.
-        - Integrate into hk.getdata.
+        - Allow for different interpolation schemes.
 
         Efficiencies:
         - Currently everything is done in python with numpy. Can probably get
