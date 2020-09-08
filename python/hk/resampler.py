@@ -89,6 +89,9 @@ class _LinearInterpolator:
         return _scipy_interpolate(self.x_in, self.y_in, x_out,
                                   kind="linear")
 
+def _plural_s(l):
+    return "" if len(l) == 1 else "s"
+
 def _full_prov_id(sess, prov_id):
     """Simple book-keeping device: unique handle for session+provider pair."""
     return "%d.%d" % (sess, prov_id)
@@ -175,10 +178,27 @@ class _Provider:
     def ref_time_idx_done(self, idx):
         # Check to see if all block streams have been interpolated for this
         # reference time chunk.
+        core.log_trace("Checking for idx %d in PI %d." % (idx, self.pi))
         for bs in self.block_streams.values():
+            core.log_trace("  Checking %s ::: " % (bs.name),
+                           [i for i in bs.ref_time_idx_done])
             if idx not in bs.ref_time_idx_done:
                 return False
         return True
+
+    def up_to_date(self):
+        """Check to see if all data have been processed for this provider.
+
+        Returns: `False` if there are data that have not been processed;
+        otherwise `True`.
+        """
+        for bs in self.block_streams.values():
+            core.log_trace("Checking if %s is up-to-date()." % bs.name)
+            if not bs.up_to_date():
+                core.log_trace("No, %s not up-to-date()." % bs.name)
+                return False
+        else:
+            return True
 
     def process(self, ref_time, flush=False):
         """Compile interpolated frames to be emitted.
@@ -196,7 +216,11 @@ class _Provider:
         for bs in self.block_streams.values():
             # Only process the block stream if it has not already been processed
             # for this particular section of the reference time vector.
+            core.log_trace("%d in %s ? ::: " % (ref_time.idx, bs.name),
+                           [i for i in bs.ref_time_idx_done])
             if ref_time.idx not in bs.ref_time_idx_done:
+                core.log_trace("Attempting to process block stream %s." %\
+                               bs.name)
                 b = bs.process(ref_time, flush=flush)
                 if b:
                     # The block stream has emitted some data to be output. Add
@@ -234,8 +258,6 @@ class _BlockStream:
         self.name = name
         self.pi = prov_id
         self._times = np.array([])
-        self._data = {}
-        self._type = {}
         self.have_ref_time = False
 
     def add_block(self, block):
@@ -253,6 +275,17 @@ class _BlockStream:
                 self._type[k] = type(block[k])
             self._data[k] = np.append(self._data[k], np.array(block[k]))
 
+    def up_to_date(self):
+        """Check to see if any data have not yet been processed.
+
+        Returns: `False` if there are data that have not been processed;
+        otherwise `True`.
+        """
+        core.log_debug("Block stream %s has %d unprocessed timestamp%s." %\
+                        (self.name, len(self._times), _plural_s(self._times)))
+        return True if len(self._times) == 0 else False
+
+
     def process(self, ref_time, flush=False):
         """Interpolate data, if possible.
 
@@ -266,12 +299,17 @@ class _BlockStream:
           time or if no reference time is provided; otherwise, an (interpolated)
           block of data.
         """
-        if len(self._times) == 0:
+        if self.up_to_date():
             return None
 
         # Return nothing if we are not caught up, unless we have been asked to
         # flush.
         ref_t_max = ref_time.t[-1].time
+        core.log_trace("Reference time idx %d difference (%f, %f) seconds "\
+                       "(%.0f)." % (ref_time.idx,
+                                    (ref_time.t[0].time - self._times[0]) / 1e8,
+                                    (ref_t_max - self._times[-1]) / 1e8,
+                                    self._times[-1]))
         if self._times[-1] < ref_t_max:
             if not flush:
                  # Should we do the following?
@@ -280,10 +318,14 @@ class _BlockStream:
             else:
                 core.log_info("Flushing blockstream %d.%s." %\
                               (self.pi, self.name))
+        core.log_trace("Proceding with interpolation!")
 
         # Once we are done interpolating, we will be able to discard all data
         # before the index last_i.
-        last_i = bisect.bisect_left(self._times, ref_t_max) - 1
+        last_i = bisect.bisect_left(self._times, ref_t_max)
+        if not flush:
+            last_i -= 1
+        core.log_trace("   last_i == %d (%d)" % (last_i, self._times.shape[0]))
         if last_i < 0:
             last_i = 0
 
@@ -321,61 +363,79 @@ class _BlockStream:
 
 
 class HKResampler:
-    def __init__(self, t_ref_field):
+    def __init__(self, t_ref):
         """Interpolate HK data frames.
 
-        This is in progress. Currently you can do the following:
+        Currently you can do the following:
         - Interpolate all data so that it has the same time-axis as a field
-          chosen by the user (`t_ref_field`)
+          chosen by the user (`t_ref`)
           + The interpolation is basic: it doesn't try to do anything clever if
             there are large gaps in the data being interpolated.
           + There is not filtering for the case when you are downsampling, so
             there will be antialiasing.
-        - It works on the "test_data" from simons1 (barring bug(s) listed
-          below).
+        - Interpolate to user-supplied timestamps.
+        
+        It works on the "test_data" from simons1 (barring bug(s) listed
+        below).
 
-        Bugs to fix:
-        - Currently, if a provider is dropped at the appearance of a new
-          status frame, all its data are
-          just flushed immediately. However, if there is no recent data from the
-          field providing the reference times, then not all the data can be
-          processed in the provider that is dropped, and data will be missing.
-          The correct solution is to delay writing the status frame (and frames
-          from non-dropped providers) until dropped provider can write out all
-          its data. But this requires more book-keeping. See comment labelled
-          "FIX1".
-        - _Possible_ bug: should all providers be flushed when a new session
-          starts? Technically frames from the previous session could still
-          appear in the stream. See comment labelled "FIX2".
-
-        Functionality to add:
-        - In addition to using the times of one of the fields, add the option to
-          specify:
-          + A vector of times provided by the user.
-          + A cadence, with the grid of times automatically generated.
+        To do: 
+        - Look at how to deal with gaps and provide different options.
+          o Current behaviour when there are timestamps but no data:
+            * If there is a frame of timestamps but no data at all available in
+              a provider, currently that provider writes out nothing. Add the
+              option to output null?
+            * If there is a frame of timestamps but large gaps in the providers
+              data, currently:
+              + If the gap is at the beginning of the block stream (so that
+                there are no previous data), write NaN's.
+              + Otherwise, write the previous value (however long ago).
+          o If there are no timestamps but there are data, no data gets written.
+            I think this is always the right behaviour.
         - Filtering of the data for the case when you are downsampling.
-        - More options for how to handle large gaps in the data.
+        - Integrate into hk.getdata.
 
         Efficiencies:
         - Currently everything is done in python with numpy. Can probably get
           speed-ups by writing sections in C++.
+        - It gets a _lot_ slower if you have lots of frames of timestamps, so
+          the python looping over timesteamp frames is probably slowing things
+          down are probably 
 
         Arguments:
-            t_ref_field : The field to use for a reference timeline, in the
-              format {full-provider-name}.{field-name}. E.g., 
-              observatory.LSA2761.feeds.temperatures.Channel_05_R.
+            t_ref : One of the following:
+              - A string: The field to use for a reference timeline, in the
+                format {full-provider-name}.{field-name}. E.g., 
+                observatory.LSA2761.feeds.temperatures.Channel_05_R.
+              - A list of numpy arrays of C-Time. Each numpy array will
+                constitute a frame in the output.
         """
-        self._t_ref_prov = ".".join(t_ref_field.split(".")[0:-1])
-        self._t_ref_sfield = t_ref_field.split(".")[-1]
-        self._sessions = {}
         self._ref_time = []
+        if isinstance(t_ref, str):
+            self._t_ref_prov = ".".join(t_ref.split(".")[0:-1])
+            self._t_ref_sfield = t_ref.split(".")[-1]
+        else:
+            self._t_ref_prov = None
+            self._t_ref_sfield = None
+            for t, idx in zip(t_ref, range(len(t_ref))):
+                t_g3 = so3g.hk.util.get_g3_time(t)
+                self._ref_time.append(_RefTime(t_g3, idx))
+
+        self._sessions = {}
+        self._ref_time_missing_providers = []
+        self._discontinued_providers = []
         self._providers = {}
+        self._delayed_frames = []
 
     def _process_provider(self, prov, flush=False):
         """Process provider ready for interpolation. Return frames for
         output."""
         f_out = []
+        core.log_debug("Processing provider #%d (with flush = %d)." %\
+                       (prov.pi, flush))
+        core.log_trace("Reference times are: ", 
+                       [t.t[-1].time / 1e8 for t in self._ref_time])
         for rt in self._ref_time:
+            core.log_trace("Trying idx %d." % rt.idx)
             if not prov.ref_time_idx_done(rt.idx):
                 f = prov.process(rt, flush=flush)
                 # If the provider was not ready to interpolate this time
@@ -388,7 +448,7 @@ class HKResampler:
 
     def _process_all_providers(self, flush=False):
         """Processing all providers."""
-        core.log_info("Processing providers for new frames.")
+        core.log_debug("Processing providers for new frames.")
         f_out = []
         for prov in self._providers.values():
             f_out += self._process_provider(prov, flush=flush)
@@ -408,8 +468,14 @@ class HKResampler:
         # If we are at the end: flush everything regardless.
         if f_in.type == core.G3FrameType.EndProcessing:
             f_out = self._process_all_providers(flush=True)
+#    CONTINUE HERE: if user has provided time-stamps that extend after the data
+#    end, do the right thing. ??
+#    `-> Also for the case when the time-stamps begin before … ??
             core.log_info("End of processing: returning %d frames." %\
                           len(f_out))
+            for p in self._providers.values():
+                for i in self._ref_time:
+                    p.ref_time_idx_done(i.idx)
             return f_out + [f_in]
 
         # Pass through non-HK frames.
@@ -436,9 +502,9 @@ class HKResampler:
                                                      hkagg_version=hkagg_vers,
             
                                                      description=hkagg_desc)
-                # Process remaining providers and then pass through the session
-                # frame.
-                # FIX2? Or not? Perhaps don't flush!
+                # Pass through the session frame.
+                # Don't flush old providers, because in principle two different
+                # sessions can have interleaved frames.
                 #f_out += self._process_all_providers(flush=True)
                 f_out.append(f_in)
             else:
@@ -467,35 +533,66 @@ class HKResampler:
                                    "exists for this session. Doing nothing." %\
                                    (pi, f["description"]))
 
-                # Check for reference time provider.
-                if f["description"].value == self._t_ref_prov:
-                    core.log_info("Reference time provider == %s." %\
-                                  full_pi)
-                    self._providers[full_pi].has_ref_time(self._t_ref_sfield)
-                    t_ref_pi = True
-            if not t_ref_pi:
+                # Check for reference time provider, if the user asked for one.
+                if self._t_ref_prov:
+                    if f["description"].value == self._t_ref_prov:
+                        core.log_info("Reference time provider == %s." %\
+                                      full_pi)
+                        self._providers[full_pi].has_ref_time(\
+                          self._t_ref_sfield)
+                        t_ref_pi = True
+            if self._t_ref_prov and not t_ref_pi:
                 raise RuntimeError("No provider named \"%s\" found." % \
                                    self._t_ref_prov)
 
-            # If any providers have been discontinued, flush them and remove
+            # Check for discontinued providers and figure out how to handle
             # them.
-            # FIX1: don't do flush=True. Delay writing out this status frame
-            # until we can process the whole provider.
-            discontinued = []
+            discontinued_del = []
             for k, prov in self._providers.items():
                 if prov.sess.session_id == sess_id:
+                    core.log_debug("Checking Provider ", prov.pi)
                     if prov.pi not in curr_providers:
-                        core.log_info("Provider %d discontinued. Flushing." %\
-                                      prov.pi)
-                        self._process_provider(prov, flush=True)
-                        discontinued.append(k)
-            for k in discontinued:
+                        # Process what can be processed.
+                        if self._t_ref_prov:
+                            # If we are using another field as the time
+                            # reference, we need to account for the scenario
+                            # where we don't yet have the time stamps for the 
+                            # last bit of data in this provider …
+                            f_out += self._process_provider(prov)
+                        
+                            # Check to see if it has finished.
+                            if prov.up_to_date():
+                                core.log_info("Provider %d discontinued and "\
+                                              "finished interpolating. "\
+                                              "Removing." % prov.pi)
+                                discontinued_del.append(k)
+                            elif k not in self._discontinued_providers:
+                                core.log_info("Provider %d discontinued, but "\
+                                              "interpolation still to be "\
+                                              "done. Delaying removal." %\
+                                              prov.pi)
+                                self._discontinued_providers.append(k)
+                        else:
+                            # If we have reference timestamps provided by the
+                            # user, nothing complicated to do: just flush.
+                            f_out += self._process_provider(prov, flush=True)
+                            core.log_info("Provider %d discontinued and "\
+                                          "finished interpolating. "\
+                                          "Removing." % prov.pi)
+                            discontinued_del.append(k)
+
+            for k in discontinued_del:
                 del self._providers[k]
 
-            # Pass the provider frame through.
-            # FIX1: delay emitting the provider frame until dropped providers
-            # can be finished up.
-            f_out.append(f_in)
+            # Pass the provider frame through … unless there are providers that
+            # haven't finished interpolating, in which case queue it up.
+            if len(self._discontinued_providers) == 0:
+                core.log_trace("Emitting status frame.")
+                f_out.append(f_in)
+            else:
+                core.log_debug("Discontinued providers not finished: delaying "\
+                               "emission of status frame.")
+                self._delayed_frames.append(f_in)
 
         elif f_in["hkagg_type"] == so3g.HKFrameType.data:
             # Add the frame data to the relevenant _Provider.
@@ -504,16 +601,61 @@ class HKResampler:
             curr_prov = self._providers[full_pi]
             curr_prov.add_frame(f_in)
 
-            # If we have just gotten a new chunk of reference times, go through
-            # and process all our providers to do any new interpolation.
-            if curr_prov.have_ref_time:
+            if not self._t_ref_prov:
+                # Scenario 1: the user provided the timestamps for
+                # interpolation. In this case, just do the interpolation as the
+                # data frames come in. Easy peasy.
+                f_out += self._process_all_providers()
+            elif curr_prov.have_ref_time:
+                # Scenario 2: the user has asked us to interpolate to a 
+                # reference field. In this case, if we have just gotten a new
+                # chunk of reference times, go through and process all our
+                # providers to do any new interpolation.
                 if curr_prov.last_ref_times:
                     idx = len(self._ref_time)
                     self._ref_time.append(_RefTime(curr_prov.last_ref_times,
                                                    idx))
-                    f_out += self._process_all_providers()
+
+                    has_discontinued = True \
+                      if len(self._discontinued_providers) else False
+
+                    core.log_info("New reference times read in. "\
+                                  "Processing providers for new frames.")
+                    for k, prov in self._providers.items():
+                        core.log_debug("Provider: %s." % k)
+                        if k in self._discontinued_providers:
+                            core.log_debug("(Provider %s was discontinued). " %\
+                                           k)
+                            f = self._process_provider(prov, flush=True)
+                            f_out += f
+                            if prov.up_to_date():
+                                core.log_info("Discontinued provider %d "\
+                                              "now caught up." % prov.pi)
+                                self._discontinued_providers.remove(k)
+                        else:
+                            f = self._process_provider(prov)
+                            if has_discontinued:
+                                core.log_debug("Pushing %d frame%s into queue "\
+                                               "while old providers catch "\
+                                               "up." % (len(f), _plural_s(f)))
+                                self._delayed_frames += f
+                            else:
+                                f_out += f
+
+                    # Check to see if discontinued providers have been all
+                    # caught up.
+                    if has_discontinued and \
+                       not len(self._discontinued_providers):
+                        core.log_info("All discontinued providers now caught "\
+                                      "up. Emitting %d delayed, queued "\
+                                      "frame%s." % (len(self._delayed_frames),
+                                      _plural_s(self._delayed_frames)))
+                        f_out += self._delayed_frames
+                        self._delayed_frames = []
         
-        core.log_debug("Returning %d frames." % len(f_out))
+        core.log_debug("Returning %d frame%s (%d queued)." %\
+                       (len(f_out), _plural_s(f_out), \
+                        len(self._delayed_frames)))
         return f_out
 
 
@@ -523,15 +665,31 @@ if __name__ == '__main__':
 
     # Usage: python resampler.py [output_filename] [input_filenames]…
 
-    core.set_log_level(core.G3LogLevel.LOG_DEBUG)
+    core.set_log_level(core.G3LogLevel.LOG_INFO)
 
     path = sys.argv[2:]
+
+    # Define the interpolation timestamps: a day long at 3-minute cadence,
+    # broken into frames of six hours' length.
+    t_start = 1572002772.0
+    t_end = t_start + 86400.0
+    ref_time = []
+    frame_len = 3600 * 2
+    cadence = 150.0
+    for chunk_start in np.arange(t_start, t_end, frame_len):
+        ref_time.append(np.arange(chunk_start, chunk_start + frame_len,
+                                  cadence))
 
     p = core.G3Pipeline()
     p.Add(core.G3Reader(path))
     p.Add(so3g.hk.HKTranslator())
-    p.Add(HKResampler("observatory.LSA2761.feeds.temperatures.Channel_05_R"))
-#    p.Add(HKResampler("observatory.LSA22YE.feeds.temperatures.Channel_01_R"))
-#    p.Add(HKResampler("observatory.bluefors.feeds.bluefors.pressure_ch1"))
+
+    # The following call uses the user-defined reference times. 
+    p.Add(HKResampler(ref_time))
+
+    # If instead you wish to use the time stamps from an existing field, comment
+    # out the above line and uncomment below (modifying the field as you wish).
+    # p.Add(HKResampler("observatory.LSA2761.feeds.temperatures.Channel_05_R"))
     p.Add(core.G3Writer, filename=sys.argv[1])
+
     p.Run()
