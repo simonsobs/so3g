@@ -72,12 +72,12 @@ class SmurfArchive:
 
         Args
         -----
-        archive_path (path):
-            Path to the data directory
-        db_path (path, optional):
-            Path to the sqlite file. Defaults to ``<archive_path>/frames.db``
-        echo (bool, optional):
-            If true, all sql statements will print to stdout.
+            archive_path (path):
+                Path to the data directory
+            db_path (path, optional):
+                Path to the sqlite file. Defaults to ``<archive_path>/frames.db``
+            echo (bool, optional):
+                If true, all sql statements will print to stdout.
         """
         if db_path is None:
             db_path = os.path.join(archive_path, 'frames.db')
@@ -105,7 +105,7 @@ class SmurfArchive:
 
         Args
         ----
-        path (path): Path of the file to index
+            path (path): Path of the file to index
         """
 
         frame_types = {
@@ -198,21 +198,21 @@ class SmurfArchive:
 
         Args
         -----
-        start (timestamp): start timestamp
-        end   (timestamp): end timestamp
-        show_pb (bool, optional): If True, will show progress bar.
-        load_biases (bool, optional): If True, will return biases.
+            start (timestamp): start timestamp
+            end   (timestamp): end timestamp
+            show_pb (bool, optional): If True, will show progress bar.
+            load_biases (bool, optional): If True, will return biases.
 
         Returns
         --------
-        times (np.ndarray[samples]):
-            Array of unix timestamps for loaded data
-        data (np.ndarray[channels, samples]):
-            Array of data for each channel sending data in the specified
-            time range. The index of the array is the readout channel number.
-        biases (optional, np.ndarray[NTES, samples]):
-            An array containing the TES bias values.
-            This will only return if ``load_biases`` is set to True.
+            times (np.ndarray[samples]):
+                Array of unix timestamps for loaded data
+            data (np.ndarray[channels, samples]):
+                Array of data for each channel sending data in the specified
+                time range. The index of the array is the readout channel number.
+            biases (optional, np.ndarray[NTES, samples]):
+                An array containing the TES bias values.
+                This will only return if ``load_biases`` is set to True.
         """
         session = self.Session()
 

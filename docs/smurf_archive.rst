@@ -2,7 +2,15 @@ Loading Detector Data
 ======================
 
 The SmurfArchive module contains code for indexing and quickly loading detector
-data from an archive.
+data from an archive of streamed data written by the smurf-recorder OCS agent.
+A `data archive` should contain all timestream data recorded on a given system.
+The file paths within a data archive will look like::
+
+    <archive_path>/<date-code>/<stream-id>/<filename>.g3
+
+For each stream-id, it is important that the time ranges of different files do
+not overlap or else data may not be returned in the correct order.
+
 
 Indexing Timestream Data
 --------------------------
@@ -13,7 +21,7 @@ is needed for each archive. The following snippet will write an index database
 to ``<archive_path>/frames.db`` or update an existing database with new frames
 if it already exists::
 
-    from so3g.smurf.SmurfArchive import SmurfArchive
+    from so3g.smurf import SmurfArchive
     arc = SmurfArchive('/data/timestreams')
     arc.index_archive()
 
@@ -29,14 +37,15 @@ Loading Data
 
 To load detector data that includes the range ``[start, stop]``, use::
 
-    from so3g.smurf.SmurfArchive import SmurfArchive
+    from so3g.smurf import SmurfArchive
     arc = SmurfArchive('/data/timestreams')
     times, data = arc.load_data(start, end)
 
 The following will load the a dicitonary of the ``status`` variables at a
 specified time::
 
-    from so3g.smurf.SmurfArchive import SmurfArchive
+    from so3g.smurf import SmurfArchive
+    arc = SmurfArchive('/data/timestreams')
     arc = SmurfArchive('/data/timestreams')
     status = arc.load_status(time)
 
