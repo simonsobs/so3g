@@ -3,6 +3,8 @@ matplotlib
 ephem
 pytz
 pyaml
+sqlalchemy
+pysqlite3
 
 # testing
 pytest

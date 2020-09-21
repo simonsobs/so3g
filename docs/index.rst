@@ -12,6 +12,7 @@ Welcome to so3g
    proj
    cpp_objects
    maintenance_notes
+   smurf_archive
 
 
 Indices and tables
