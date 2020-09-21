@@ -6,10 +6,14 @@ data from an archive of streamed data written by the smurf-recorder OCS agent.
 A `data archive` should contain all timestream data recorded on a given system.
 The file paths within a data archive will look like::
 
-    <archive_path>/<date-code>/<stream-id>/<filename>.g3
+    <archive-path>/<date-code>/<stream-id>/<filename>.g3
 
 For each stream-id, it is important that the time ranges of different files do
-not overlap or else data may not be returned in the correct order.
+not overlap or else data may not be returned in the correct order. This current
+version of the SmurfArchive system only works for a single stream-id, however
+future changes to the SmurfRecorder OCS agent and the SmurfArchive class will
+provide support for archives containing timestreams from multiple stream-id's.
+This change will be necessary for systems with multiple smurf cards.
 
 
 Indexing Timestream Data
