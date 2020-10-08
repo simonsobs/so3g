@@ -53,6 +53,7 @@ add_library(so3g SHARED
   src/Projection.cxx
   src/so_linterp.cxx
   src/exceptions.cxx
+  src/array_ops.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.
@@ -70,6 +71,14 @@ file(GLOB MY_PYTHONS_SMURF
 
 # Provide list of libs to link against.
 target_link_libraries(so3g spt3g::core)
+
+# link openblas
+set(BLA_VENDOR OpenBLAS)
+find_package(BLAS REQUIRED)
+if(BLAS_FOUND)
+    message("OpenBLAS found.")
+    target_link_libraries(so3g ${BLAS_LIBRARIES})
+endif(BLAS_FOUND)
 
 # This custom target generates _version.h, in the build tree.  That is all.
 add_custom_target(so3g-version
