@@ -1004,7 +1004,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
-    auto _signalspace = new SignalSpace<FSIGNAL>(
+    auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
 #pragma omp parallel for
@@ -1019,14 +1019,14 @@ bp::object ProjectionEngine<C,P,S>::from_map(
             _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
             if (pixel_offset[0] < 0) continue;
             spin_proj_factors<S>(coords, pf);
-            FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
-                            _signalspace->steps[0]*i_time);
+            FSIGNAL *sig = (_signalspace.data_ptr[i_det] +
+                            _signalspace.steps[0]*i_time);
             for (int imap=0; imap<S::comp_count; ++imap)
                 *sig += *_pixelizor.pix(imap, pixel_offset) * pf[imap];
         }
     }
 
-    return _signalspace->ret_val;
+    return _signalspace.ret_val;
 }
 
 
@@ -1155,7 +1155,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
-    auto _signalspace = new SignalSpace<FSIGNAL>(
+    auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
@@ -1169,7 +1169,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
         // This block may also be used if OMP is disabled.
         for (int i_thread=0; i_thread < ivals.size(); i_thread++)
             to_map_single_thread<C,P,S>(
-                pointer, _pixelizor, ivals[i_thread],_det_weights, _signalspace);
+                pointer, _pixelizor, ivals[i_thread],_det_weights, &_signalspace);
     } else {
 #pragma omp parallel
         {
@@ -1179,7 +1179,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
             for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
                 if (i_thread % omp_get_num_threads() == omp_get_thread_num())
                     to_map_single_thread<C,P,S>(
-                        pointer, _pixelizor, ivals[i_thread], _det_weights, _signalspace);
+                        pointer, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
             }
         }
     }
@@ -1401,7 +1401,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
     pixelizor.TestInputs(map, true, false, n_spin);
 
     // Check the signal.
-    auto _signalspace = new SignalSpace<FSIGNAL>(
+    auto _signalspace = SignalSpace<FSIGNAL>(
         signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
     BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
@@ -1419,7 +1419,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
         for (int i_thread=0; i_thread < ivals.size(); i_thread++)
             precomp_to_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
-                ivals[i_thread],_det_weights, _signalspace);
+                ivals[i_thread],_det_weights, &_signalspace);
     } else {
 #pragma omp parallel
         {
@@ -1430,7 +1430,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
                 if (i_thread % omp_get_num_threads() == omp_get_thread_num())
                     precomp_to_map_single_thread<TilingSys>(
                         pixelizor, pixel_buf_man, spin_proj_man,
-                        ivals[i_thread], _det_weights, _signalspace);
+                        ivals[i_thread], _det_weights, &_signalspace);
             }
         }
     }
