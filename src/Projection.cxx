@@ -1007,7 +1007,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
