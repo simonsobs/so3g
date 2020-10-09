@@ -125,8 +125,9 @@ class CelestialSightLine:
                              '\'vacuum\'.')
 
         self = cls()
+        # Note that passing num_threads explicitly to qpoint will
+        # cause openmp_set_thread_count to be called!
         qp = qpoint.QPoint(accuracy='high', fast_math=True, mean_aber=True,
-                           num_threads=4,
                            rate_ref='always', **weather.to_qpoint())
 
         az, el, t = map(np.asarray, [az, el, t])

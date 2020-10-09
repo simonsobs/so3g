@@ -3,6 +3,7 @@ from spt3g import core
 
 from . import quat
 from . import util
+from . import mapthreads
 
 from .wcs import Projectionist, Ranges, RangesMatrix
 from .coords import CelestialSightLine, EarthlySite, Assembly, FocalPlane, SITES

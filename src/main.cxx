@@ -1,4 +1,5 @@
 #include <boost/python.hpp>
+#include <omp.h>
 
 // See this header file for discussion of numpy compilation issues.
 #include "so3g_numpy.h"
@@ -20,8 +21,25 @@ const std::string version()
     return SO3G_VERSION_STRING;
 }
 
+bp::object useful_info() {
+    int omp_num_threads = -1;
+#pragma omp parallel
+    {
+        if (omp_get_thread_num() == 0)
+            omp_num_threads = omp_get_num_threads();
+    }
+    bp::dict output;
+    output["omp_num_threads"] = omp_num_threads;
+    output["version"] = version();
+    return output;
+}
+
+
+
+
 PYBINDINGS("so3g") {
     bp::def("version", version);
+    bp::def("useful_info", useful_info);
 }
 
 static void* _so3g_import_array() {
