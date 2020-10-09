@@ -324,6 +324,7 @@ class HKArchiveScanner:
         self.frame_info = []
         self.counter = -1
         self.translator = so3g.hk.HKTranslator()
+        self.scanner = so3g.hk.HKScanner()
 
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
@@ -339,6 +340,14 @@ class HKArchiveScanner:
         self.counter += 1
         if index_info is None:
             index_info = {'counter': self.counter}
+
+        # Show any errors that the scanner finds
+        core.set_log_level(core.G3LogLevel.LOG_ERROR)
+        f = self.scanner(f)
+        assert(len(f) == 1)
+        f = f[0]
+        # Reset to default log level
+        core.set_log_level(core.G3LogLevel.LOG_NOTICE)
 
         f = self.translator(f)
         assert(len(f) == 1)
