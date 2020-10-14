@@ -63,7 +63,7 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
 		float * Q = new float[nvec*nm];
 		cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, nvec, nm, ndet, 1.0f, biV, nvec, ft_+b1, nmode, 0.0f, Q, nm);
 		// Handle the uncorrelated part
-		#pragma omp parallel for
+		//#pragma omp parallel for
 		for(int di = 0; di < ndet; di++)
 			for(int i = b1; i < b2; i++)
 				ft_[di*nmode+i] *= biD[di]/norm;
