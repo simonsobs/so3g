@@ -1097,14 +1097,6 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
 }
 
 static
-vector<RangesInt32> extract_ranges(bp::object ival_list) {
-    vector<RangesInt32> v(bp::len(ival_list));
-    for (int i=0; i<bp::len(ival_list); i++)
-        v[i] = bp::extract<RangesInt32>(ival_list[i])();
-    return v;
-}
-
-static
 vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
                                           int n_det, int n_time)
 {
@@ -1126,11 +1118,11 @@ vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
     } else {
         // Don't convert to a list... just use indexing.
         if (bp::extract<RangesInt32>(thread_intervals[0]).check()) {
-            ivals.push_back(extract_ranges(thread_intervals));
+            ivals.push_back(extract_ranges<int32_t>(thread_intervals));
         } else {
             // Assumed it is list of lists of ranges.
             for (int i=0; i<bp::len(thread_intervals); i++)
-                ivals.push_back(extract_ranges(thread_intervals[i]));
+                ivals.push_back(extract_ranges<int32_t>(thread_intervals[i]));
         }
     }
     return ivals;
