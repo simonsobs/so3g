@@ -7,7 +7,10 @@
 #include "array_ops.h"
 #include "numpy_assist.h"
 #include <vector>
-#include <cblas.h>
+
+extern "C" {
+  #include <cblas.h>
+}
 
 #if 0
 enum {CblasRowMajor=101, CblasColMajor=102};
