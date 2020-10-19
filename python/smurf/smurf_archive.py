@@ -158,9 +158,16 @@ class SmurfArchive:
         db_file.frames = frame_idx
 
 
-    def index_archive(self, verbose=False):
+    def index_archive(self, verbose=False, stop_at_error=False):
         """
         Adds all files from an archive to the sqlite database.
+
+        Args
+        ----
+        verbose: bool
+            Verbose mode
+        stop_at_error: bool
+            If True, will stop if there is an error indexing a file.
         """
         session = self.Session()
         indexed_files = [f[0] for f in session.query(Files.path).all()]
@@ -187,7 +194,10 @@ class SmurfArchive:
                 print(f"Failed on file {f} due to end of stream error!")
             except Exception as e:
                 session.rollback()
-                raise e
+                if stop_at_error:
+                    raise e
+                elif verbose:
+                    print(f"Failed on file {f}:\n{e}")
 
         session.close()
 
