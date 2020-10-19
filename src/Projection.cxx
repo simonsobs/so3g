@@ -425,13 +425,15 @@ public:
 
     inline
     void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
-        double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
+        //double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
+        double ix = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
         if (ix < 0 || ix >= naxis[1]) {
             *pixel_index = -1;
             return;
         }
 
-        double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
+        //double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
+        double iy = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
         if (iy < 0 || iy >= naxis[0]) {
             *pixel_index = -1;
             return;
@@ -556,13 +558,15 @@ public:
 
     inline
     void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
-        double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] + 0.5;
+        //double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] + 0.5;
+        double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5;
         if (ix < 0 || ix >= parent_pix.naxis[1]) {
             pixel_index[0] = -1;
             return;
         }
 
-        double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] + 0.5;
+        //double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] + 0.5;
+        double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] - 1 + 0.5;
         if (iy < 0 || iy >= parent_pix.naxis[0]) {
             *pixel_index = -1;
             return;
