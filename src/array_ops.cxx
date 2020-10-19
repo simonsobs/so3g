@@ -126,7 +126,7 @@ int process_cuts(const bp::object & range_matrix, const std::string & operation,
 		if(dtype == NPY_FLOAT) {
 			BufferWrapper<float> tod_buf  ("tod",  tod,  false, std::vector<int>{-1,-1});
 			BufferWrapper<float> vals_buf ("vals", vals, false, std::vector<int>{-1});
-			int nsamp = tod_buf->shape[0], ndet = tod_buf->shape[1];
+			int ndet = tod_buf->shape[0], nsamp = tod_buf->shape[1];
 			if(operation == "insert") {
 				if     (model == "full")
 					pcut_full_vals2tod_helper(ranges, (float*)tod_buf->buf, ndet, nsamp, (float*) vals_buf->buf);
@@ -143,7 +143,7 @@ int process_cuts(const bp::object & range_matrix, const std::string & operation,
 		} else if(dtype == NPY_DOUBLE) {
 			BufferWrapper<double> tod_buf  ("tod",  tod,  false, std::vector<int>{-1,-1});
 			BufferWrapper<double> vals_buf ("vals", vals, false, std::vector<int>{-1});
-			int nsamp = tod_buf->shape[0], ndet = tod_buf->shape[1];
+			int ndet = tod_buf->shape[0], nsamp = tod_buf->shape[1];
 			if(operation == "insert") {
 				if     (model == "full")
 					pcut_full_vals2tod_helper(ranges, (double*)tod_buf->buf, ndet, nsamp, (double*) vals_buf->buf);
@@ -168,6 +168,8 @@ int get_dtype(const bp::object & arr) {
 	PyObject *ob = PyArray_FromAny(arr.ptr(), NULL, 0, 0, 0, NULL);
 	if (ob == NULL) throw exception();
 	PyArrayObject * a = reinterpret_cast<PyArrayObject*>(ob);
+	int res = PyArray_TYPE(a);
+	Py_DECREF(a);
 	return PyArray_TYPE(a);
 }
 
