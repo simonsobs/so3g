@@ -187,12 +187,17 @@ class SmurfArchive:
                 self.add_file(os.path.join(root, f), session)
                 session.commit()
             except IntegrityError as e:
+                # Database Integrity Errors, such as duplicate entries
                 session.rollback()
                 print(e)
             except RuntimeError as e:
+                # End of stream errors, for G3Files that were not fully flushed
                 session.rollback()
                 print(f"Failed on file {f} due to end of stream error!")
             except Exception as e:
+                # This will catch generic errors such as attempting to load
+                # out-of-date files that do not have the required frame
+                # structure specified in the TOD2MAPS docs.
                 session.rollback()
                 if stop_at_error:
                     raise e
