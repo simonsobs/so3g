@@ -20,7 +20,7 @@ jobs:
       run: |
         docker-compose build
 
-    - name: Test with pytest wtihin a docker container
+    - name: Test with pytest within a docker container
       run: |
         docker run -v $PWD:/coverage --rm so3g sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov /usr/lib/python3/dist-packages/so3g/ test/"
 
