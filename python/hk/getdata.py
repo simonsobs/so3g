@@ -494,8 +494,14 @@ class _FieldGroup:
         self.fields = list(fields)
         self.cover = so3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
+    def __repr__(self):
+        try:
+            return '_FieldGroup("%s", %i fields, %i segments)' % (
+                self.prefix, len(self.fields), len(self.index_info))
+        except:
+            return '_FieldGroup(<bad internal state!>)'
 
-        
+
 def to_timestamp(some_time, str_format=None): 
     '''
     Args:
