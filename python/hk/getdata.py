@@ -211,9 +211,11 @@ class HKArchive:
         blocks_out = []
         for group_name, fields, fgrps in grouped:
             blocks_in = []
+            count = 0
             for fg in fgrps:
                 for r in fg.index_info:
                     fn, off, bidx = r['filename'], r['byte_offset'], r['block_index']
+                    count += r['count']
                     if not fn in handles:
                         handles[fn] = so3g.G3IndexedReader(fn)
                     handles[fn].Seek(off)
@@ -227,7 +229,12 @@ class HKArchive:
             blocks_in.sort(key=lambda b: b.times[0].time)
             # Create a new Block for this group.
             blk = core.G3TimesampleMap()
-            blk.times = core.G3VectorTime(np.hstack([np.array(b.times) for b in blocks_in]))
+            blk.times = core.G3VectorTime(blocks_in[0].times)
+            for f in fields:
+                f_short = f.split('.')[-1]
+                blk[f] = blocks_in[0][f_short]
+            for b in blocks_in[1:]:
+                blk.times.extend(b.times)
             for f in fields:
                 f_short = f.split('.')[-1]
                 for _type in _SCHEMA_V1_BLOCK_TYPES:
@@ -236,7 +243,8 @@ class HKArchive:
                 else:
                     raise RuntimeError('Field "%s" is of unsupported type %s.' %
                                        (f_short, type(blocks_in[0][f_short])))
-                blk[f] = _type(np.hstack([np.array(b[f_short]) for b in blocks_in]))
+                for b in blocks_in[1:]:
+                    blk[f].extend(b[f_short])
             blocks_out.append((group_name, blk))
         if raw:
             return blocks_out
@@ -244,13 +252,25 @@ class HKArchive:
         data = {}
         timelines = {}
         for group_name, block in blocks_out:
+            fields = block.keys()
             timelines[group_name] = {
                 't': np.array([t.time for t in block.times]) / core.G3Units.seconds,
                 'finalized_until': block.times[-1].time / core.G3Units.seconds,
-                'fields': list(block.keys()),
+                'fields': fields,
             }
-            for k,v in block.items():
-                data[k] = np.array(v)
+            for f in fields:
+                g3in = block[f]
+                if isinstance(g3in, core.G3VectorDouble):
+                    d = np.zeros(len(g3in))
+                elif isinstance(g3in, core.G3VectorInt):
+                    d = np.zeros(len(g3in), 'int')
+                elif isinstance(g3in, core.G3VectorString):
+                    n = max(map(len, g3in))
+                    d = np.zeros(len(g3in), 'U%i' % n)
+                else:
+                    raise
+                d[:] = g3in
+                data[f] = d
 
         return (data, timelines)
 
@@ -391,7 +411,9 @@ class HKArchiveScanner:
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
                 prov.blocks[bname]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
-                ii = {'block_index': bidx}
+                ii = {'block_index': bidx,
+                      'timestamp': b.times[0].time,
+                      'count': len(b.times)}
                 ii.update(index_info)
                 prov.blocks[bname]['index_info'].append(ii)
                 
