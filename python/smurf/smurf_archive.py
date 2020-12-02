@@ -158,9 +158,16 @@ class SmurfArchive:
         db_file.frames = frame_idx
 
 
-    def index_archive(self, verbose=False):
+    def index_archive(self, verbose=False, stop_at_error=False):
         """
         Adds all files from an archive to the sqlite database.
+
+        Args
+        ----
+        verbose: bool
+            Verbose mode
+        stop_at_error: bool
+            If True, will stop if there is an error indexing a file.
         """
         session = self.Session()
         indexed_files = [f[0] for f in session.query(Files.path).all()]
@@ -180,14 +187,22 @@ class SmurfArchive:
                 self.add_file(os.path.join(root, f), session)
                 session.commit()
             except IntegrityError as e:
+                # Database Integrity Errors, such as duplicate entries
                 session.rollback()
                 print(e)
             except RuntimeError as e:
+                # End of stream errors, for G3Files that were not fully flushed
                 session.rollback()
                 print(f"Failed on file {f} due to end of stream error!")
             except Exception as e:
+                # This will catch generic errors such as attempting to load
+                # out-of-date files that do not have the required frame
+                # structure specified in the TOD2MAPS docs.
                 session.rollback()
-                raise e
+                if stop_at_error:
+                    raise e
+                elif verbose:
+                    print(f"Failed on file {f}:\n{e}")
 
         session.close()
 
