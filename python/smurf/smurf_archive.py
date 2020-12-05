@@ -10,6 +10,8 @@ import os
 from tqdm import tqdm
 import numpy as np
 import yaml
+import re
+import ast
 
 
 num_bias_lines = 16
@@ -271,11 +273,13 @@ class SmurfArchive:
                 biases[bias_order, cur_sample:cur_sample + nsamp] = frame['tes_biases']
             cur_sample += nsamp
 
+        status = self.load_status(start)
+
         timestamps /= core.G3Units.s
         if load_biases:
-            return timestamps, data, biases
+            return timestamps, data, status, biases
         else:
-            return timestamps, data
+            return timestamps, data, status
 
     def load_status(self, time, show_pb=False):
         """
@@ -311,5 +315,106 @@ class SmurfArchive:
             frame = reader.Process(None)[0]
             status.update(yaml.safe_load(frame['status']))
 
-        return status
+        return SmurfStatus(status)
+
+
+class SmurfStatus:
+    """
+    This is a class that attempts to extract essential information from the
+    SMuRF status dictionary so it is more easily accessible. If the necessary
+    information for an attribute is not present in the dictionary, the
+    attribute will be set to None.
+
+    Args
+    -----
+        status  : dict
+            A SMuRF status dictionary
+
+    Attributs
+    ----------
+        status : dict
+            Full smurf status dictionary
+        mask : Optional[np.ndarray]
+            Array with length ``num_chans`` that describes the mapping
+            of readout channel to absolute smurf channel.
+        freq_map : Optional[np.ndarray]
+            An array of size (8, 512) that has the mapping from (band, channel)
+            to resonator frequency. If the mapping is not present in the status
+            dict, the array will full of np.nan.
+        filter_a : Optional[float]
+            The A parameter of the readout filter.
+        filter_b : Optional[float]
+            The A parameter of the readout filter.
+        filter_gain : Optional[float]
+            The gain of the readout filter.
+        filter_order : Optional[int]
+            The order of the readout filter.
+        filter_enabled : Optional[bool]
+            True if the readout filter is enabled.
+        downsample_factor : Optional[int]
+            Downsampling factor
+        downsample_enabled: : Optional[bool]
+            Whether downsampler is enabled
+    """
+    def __init__(self, status):
+        self.status = status
+
+        # Reads in useful status values as attributes
+        mapper_root = 'AMCc.SmurfProcessor.ChannelMapper'
+        self.num_chans = self.status.get(f'{mapper_root}.NumChannels')
+
+        # Tries to set values based on expected rogue tree
+        self.mask = self.status.get(f'{mapper_root}.Mask')
+        if self.mask is not None:
+            self.mask = np.array(ast.literal_eval(self.mask))
+
+        filter_root = 'AMCc.SmurfProcessor.Filter'
+        self.filter_a = self.status.get(f'{filter_root}.A')
+        self.filter_b = self.status.get(f'{filter_root}.B')
+        self.filter_gain = self.status.get(f'{filter_root}.Gain')
+        self.filter_order = self.status.get(f'{filter_root}.Order')
+        self.filter_enabled = not self.status.get('{filter_root}.Disabled')
+
+        ds_root = 'AMCc.SmurfProcessor.Downsampler'
+        self.downsample_factor = self.status.get(f'{ds_root}.Factor')
+        self.downsample_enabled = not self.status.get(f'{ds_root}.Disabled')
+
+        rtm_root = 'AMCc.FpgaTopLevel.AppTop.AppCore.RtmCryoDet'
+        self.flux_ramp_freq = self.status.get(f'{rtm_root}.RampMaxCnt')
+
+        # Tries to make resonator frequency map
+        nbands = 8
+        chans_per_band = 512
+        self.freq_map = np.full((nbands, chans_per_band), np.nan)
+        for band in range(nbands):
+            band_root = f'AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.Base[{band}]'
+            band_center = self.status.get(f'{band_root}.bandCenterMHz')
+            subband_offset = self.status.get(f'{band_root}.toneFrequencyOffsetMHz')
+            channel_offset = self.status.get(f'{band_root}.CryoChannels.centerFrequencyArray')
+
+            # Skip band if one of these fields is None
+            if None in [band_center, subband_offset, channel_offset]:
+                continue
+
+            subband_offset = np.array(ast.literal_eval(subband_offset))
+            channel_offset = np.array(ast.literal_eval(channel_offset))
+            self.freq_map[band] = band_center + subband_offset + channel_offset
+
+    def readout_to_smurf(self, rchan):
+        """
+        Converts from a readout channel number to (band, channel).
+        """
+        abs_smurf_chan = self.mask[rchan]
+        return abs_smurf_chan // 512, abs_smurf_chan % 512
+
+    def smurf_to_readout(self, band, chan):
+        """
+        Converts from (band, channel) to a readout channel number.
+        """
+        abs_smurf_chan = band * 512 + chan
+        res = np.where(self.mask == abs_smurf_chan)[0]
+        if not res:
+            return None
+        else:
+            return res[0]
 
