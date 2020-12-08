@@ -10,9 +10,8 @@ import os
 from tqdm import tqdm
 import numpy as np
 import yaml
-import re
 import ast
-
+from collections import namedtuple
 
 num_bias_lines = 16
 
@@ -208,7 +207,7 @@ class SmurfArchive:
 
         session.close()
 
-    def load_data(self, start, end, show_pb=True, load_biases=False):
+    def load_data(self, start, end, show_pb=True, load_biases=True):
         """
         Loads smurf G3 data for a given time range. For the specified time range
         this will return a chunk of data that includes that time range.
@@ -256,6 +255,7 @@ class SmurfArchive:
 
         cur_sample = 0
         cur_file = None
+        first_scan_time = None
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
@@ -266,20 +266,29 @@ class SmurfArchive:
             frame = reader.Process(None)[0]
             nsamp = frame['data'].n_samples
             timestamps[cur_sample:cur_sample + nsamp] = frame['data'].times()
+            if first_scan_time is None:
+                first_scan_time = timestamps[0]
+
             key_order = [int(k[1:]) for k in frame['data'].keys()]
             data[key_order, cur_sample:cur_sample + nsamp] = frame['data']
+
             if load_biases:
                 bias_order = [int(k[-2:]) for k in frame['tes_biases'].keys()]
                 biases[bias_order, cur_sample:cur_sample + nsamp] = frame['tes_biases']
             cur_sample += nsamp
 
-        status = self.load_status(start)
+        if first_scan_time is not None:
+            # At this point the status dump should have already come
+            status = self.load_status(first_scan_time)
+        else:
+            status = None
 
         timestamps /= core.G3Units.s
+        SmurfData = namedtuple('SmurfData', 'times data status biases')
         if load_biases:
-            return timestamps, data, status, biases
+            return SmurfData(timestamps, data, status, biases)
         else:
-            return timestamps, data, status
+            return SmurfData(timestamps, data, status, None)
 
     def load_status(self, time, show_pb=False):
         """
@@ -330,21 +339,27 @@ class SmurfStatus:
         status  : dict
             A SMuRF status dictionary
 
-    Attributs
-    ----------
+    Attributes
+    ------------
         status : dict
             Full smurf status dictionary
+        num_chans: int
+            Number of channels that are streaming
         mask : Optional[np.ndarray]
             Array with length ``num_chans`` that describes the mapping
             of readout channel to absolute smurf channel.
+        mask_inv : np.ndarray
+            Array with dimensions (NUM_BANDS, CHANS_PER_BAND) where
+            ``mask_inv[band, chan]`` tells you the readout channel for a given
+            band, channel combination.
         freq_map : Optional[np.ndarray]
             An array of size (8, 512) that has the mapping from (band, channel)
             to resonator frequency. If the mapping is not present in the status
             dict, the array will full of np.nan.
-        filter_a : Optional[float]
+        filter_a : Optional[np.ndarray]
             The A parameter of the readout filter.
-        filter_b : Optional[float]
-            The A parameter of the readout filter.
+        filter_b : Optional[np.ndarray]
+            The B parameter of the readout filter.
         filter_gain : Optional[float]
             The gain of the readout filter.
         filter_order : Optional[int]
@@ -353,9 +368,15 @@ class SmurfStatus:
             True if the readout filter is enabled.
         downsample_factor : Optional[int]
             Downsampling factor
-        downsample_enabled: : Optional[bool]
+        downsample_enabled : Optional[bool]
             Whether downsampler is enabled
+        flux_ramp_rate_hz : float
+            Flux Ramp Rate calculated from the RampMaxCnt and the digitizer
+            frequency.
     """
+    NUM_BANDS = 8
+    CHANS_PER_BAND = 512
+
     def __init__(self, status):
         self.status = status
 
@@ -365,12 +386,23 @@ class SmurfStatus:
 
         # Tries to set values based on expected rogue tree
         self.mask = self.status.get(f'{mapper_root}.Mask')
+        self.mask_inv = np.full((8, 512), -1)
         if self.mask is not None:
             self.mask = np.array(ast.literal_eval(self.mask))
 
+            # Creates inverse mapping
+            for i, chan in enumerate(self.mask):
+                b = chan // self.CHANS_PER_BAND
+                c = chan % self.CHANS_PER_BAND
+                self.mask_inv[b, c] = i
+
         filter_root = 'AMCc.SmurfProcessor.Filter'
         self.filter_a = self.status.get(f'{filter_root}.A')
+        if self.filter_a is not None:
+            self.filter_a = np.array(ast.literal_eval(self.filter_a))
         self.filter_b = self.status.get(f'{filter_root}.B')
+        if self.filter_b is not None:
+            self.filter_b = np.array(ast.literal_eval(self.filter_b))
         self.filter_gain = self.status.get(f'{filter_root}.Gain')
         self.filter_order = self.status.get(f'{filter_root}.Order')
         self.filter_enabled = not self.status.get('{filter_root}.Disabled')
@@ -379,15 +411,13 @@ class SmurfStatus:
         self.downsample_factor = self.status.get(f'{ds_root}.Factor')
         self.downsample_enabled = not self.status.get(f'{ds_root}.Disabled')
 
-        rtm_root = 'AMCc.FpgaTopLevel.AppTop.AppCore.RtmCryoDet'
-        self.flux_ramp_freq = self.status.get(f'{rtm_root}.RampMaxCnt')
-
         # Tries to make resonator frequency map
-        nbands = 8
-        chans_per_band = 512
-        self.freq_map = np.full((nbands, chans_per_band), np.nan)
-        for band in range(nbands):
-            band_root = f'AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.Base[{band}]'
+        self.freq_map = np.full((self.NUM_BANDS, self.CHANS_PER_BAND), np.nan)
+        band_roots = [
+            f'AMCc.FpgaTopLevel.AppTop.AppCore.SysgenCryo.Base[{band}]'
+            for band in range(self.NUM_BANDS)]
+        for band in range(self.NUM_BANDS):
+            band_root = band_roots[band]
             band_center = self.status.get(f'{band_root}.bandCenterMHz')
             subband_offset = self.status.get(f'{band_root}.toneFrequencyOffsetMHz')
             channel_offset = self.status.get(f'{band_root}.CryoChannels.centerFrequencyArray')
@@ -400,21 +430,36 @@ class SmurfStatus:
             channel_offset = np.array(ast.literal_eval(channel_offset))
             self.freq_map[band] = band_center + subband_offset + channel_offset
 
+        # Calculates flux ramp reset rate (Pulled from psmurf's code)
+        rtm_root = 'AMCc.FpgaTopLevel.AppTop.AppCore.RtmCryoDet'
+        ramp_max_cnt = self.status.get(f'{rtm_root}.RampMaxCnt')
+        digitizer_freq_mhz = float(self.status.get(f'{band_roots[0]}.digitizerFrequencyMHz', 614.4))
+        ramp_max_cnt_rate_hz = 1.e6*digitizer_freq_mhz / 2.
+        self.flux_ramp_rate_hz = ramp_max_cnt_rate_hz / (ramp_max_cnt + 1)
+
     def readout_to_smurf(self, rchan):
         """
         Converts from a readout channel number to (band, channel).
+
+        Args
+        -----
+            rchans : int or List[int]
+                Readout channel to convert. If a list or array is passed,
+                this will return an array of bands and array of smurf channels.
+
+        Returns
+        --------
+            band, channel : (int, int) or (List[int], List[int])
+                The band, channel combination that is has readout channel
+                ``rchan``.
         """
         abs_smurf_chan = self.mask[rchan]
-        return abs_smurf_chan // 512, abs_smurf_chan % 512
+        return (abs_smurf_chan // self.CHANS_PER_BAND,
+                abs_smurf_chan % self.CHANS_PER_BAND)
 
     def smurf_to_readout(self, band, chan):
         """
         Converts from (band, channel) to a readout channel number.
+        If the channel is not streaming, returns -1.
         """
-        abs_smurf_chan = band * 512 + chan
-        res = np.where(self.mask == abs_smurf_chan)[0]
-        if not res:
-            return None
-        else:
-            return res[0]
-
+        return self.mask_inv[band, chan]
