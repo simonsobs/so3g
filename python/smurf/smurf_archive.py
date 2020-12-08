@@ -252,7 +252,6 @@ class SmurfArchive:
 
         cur_sample = 0
         cur_file = None
-        first_scan_time = None
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
@@ -263,8 +262,6 @@ class SmurfArchive:
             frame = reader.Process(None)[0]
             nsamp = frame['data'].n_samples
             timestamps[cur_sample:cur_sample + nsamp] = frame['data'].times()
-            if first_scan_time is None:
-                first_scan_time = timestamps[0]
 
             key_order = [int(k[1:]) for k in frame['data'].keys()]
             data[key_order, cur_sample:cur_sample + nsamp] = frame['data']
@@ -274,13 +271,12 @@ class SmurfArchive:
                 biases[bias_order, cur_sample:cur_sample + nsamp] = frame['tes_biases']
             cur_sample += nsamp
 
-        if first_scan_time is not None:
-            # At this point the status dump should have already come
-            status = self.load_status(first_scan_time)
+        timestamps /= core.G3Units.s
+        if len(timestamps) > 0:
+            status = self.load_status(timestamps[0])
         else:
             status = None
 
-        timestamps /= core.G3Units.s
         SmurfData = namedtuple('SmurfData', 'times data status biases')
         if load_biases:
             return SmurfData(timestamps, data, status, biases)
@@ -458,5 +454,12 @@ class SmurfStatus:
         """
         Converts from (band, channel) to a readout channel number.
         If the channel is not streaming, returns -1.
+
+        Args:
+            band : int, List[int]
+                The band number, or list of band numbers corresopnding to
+                channel input array.
+            chan : int, List[int]
+                Channel number or list of channel numbers.
         """
         return self.mask_inv[band, chan]
