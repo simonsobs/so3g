@@ -207,7 +207,7 @@ class SmurfArchive:
 
         session.close()
 
-    def load_data(self, start, end, show_pb=True, load_biases=True):
+    def load_data(self, start, end, show_pb=True, load_biases=False):
         """
         Loads smurf G3 data for a given time range. For the specified time range
         this will return a chunk of data that includes that time range.
@@ -221,14 +221,11 @@ class SmurfArchive:
 
         Returns
         --------
-            times (np.ndarray[samples]):
-                Array of unix timestamps for loaded data
-            data (np.ndarray[channels, samples]):
-                Array of data for each channel sending data in the specified
-                time range. The index of the array is the readout channel number.
-            biases (optional, np.ndarray[NTES, samples]):
-                An array containing the TES bias values.
-                This will only return if ``load_biases`` is set to True.
+            smurf_data : namedtuple
+                Returns a tuple ``SmurfData(times, data, status, biases)``.
+                If load_biases is False, ``biases`` will be None.
+                If there are no Scan frames in the time range, ``status`` will
+                be None.
         """
         session = self.Session()
 
