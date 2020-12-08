@@ -13,11 +13,10 @@ import yaml
 import ast
 from collections import namedtuple
 
-num_bias_lines = 16
-
 
 Base = declarative_base()
 Session = sessionmaker()
+num_bias_lines = 16
 
 class Files(Base):
     """Table to store file indexing info"""
