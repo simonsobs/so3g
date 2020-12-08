@@ -207,7 +207,7 @@ class SmurfArchive:
 
         session.close()
 
-    def load_data(self, start, end, show_pb=True, load_biases=False):
+    def load_data(self, start, end, show_pb=True, load_biases=True):
         """
         Loads smurf G3 data for a given time range. For the specified time range
         this will return a chunk of data that includes that time range.
@@ -221,11 +221,22 @@ class SmurfArchive:
 
         Returns
         --------
-            smurf_data : namedtuple
-                Returns a tuple ``SmurfData(times, data, status, biases)``.
-                If load_biases is False, ``biases`` will be None.
-                If there are no Scan frames in the time range, ``status`` will
-                be None.
+            Returns a tuple ``SmurfData(times, data, status, biases)``
+            with the following fields:
+
+                times (np.ndarray[samples]):
+                    Array of unix timestamps for loaded data
+                data (np.ndarray[channels, samples]):
+                    Array of data for each channel sending data in the
+                    specified time range. The index of the array is the readout
+                    channel number.
+                status (SmurfStatus):
+                    SmurfStatus object containing metadata info at the time of
+                    the first Scan frame in the requested interval. If there
+                    are no Scan frames in the interval, this will be None.
+                biases (optional, np.ndarray[NTES, samples]):
+                    An array containing the TES bias values.
+                    If ``load_biases`` is False, this will be None.
         """
         session = self.Session()
 
@@ -346,9 +357,9 @@ class SmurfStatus:
             ``mask_inv[band, chan]`` tells you the readout channel for a given
             band, channel combination.
         freq_map : Optional[np.ndarray]
-            An array of size (8, 512) that has the mapping from (band, channel)
-            to resonator frequency. If the mapping is not present in the status
-            dict, the array will full of np.nan.
+            An array of size (NUM_BANDS, CHANS_PER_BAND) that has the mapping
+            from (band, channel) to resonator frequency. If the mapping is not
+            present in the status dict, the array will full of np.nan.
         filter_a : Optional[np.ndarray]
             The A parameter of the readout filter.
         filter_b : Optional[np.ndarray]
@@ -379,7 +390,7 @@ class SmurfStatus:
 
         # Tries to set values based on expected rogue tree
         self.mask = self.status.get(f'{mapper_root}.Mask')
-        self.mask_inv = np.full((8, 512), -1)
+        self.mask_inv = np.full((self.NUM_BANDS, self.CHANS_PER_BAND), -1)
         if self.mask is not None:
             self.mask = np.array(ast.literal_eval(self.mask))
 
