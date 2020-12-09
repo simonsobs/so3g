@@ -77,12 +77,12 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
 // Forward declarations of helper functions
 int get_dtype(const bp::object &);
 int pcut_full_measure_helper(const vector<RangesInt32> &);
-template <typename T> int pcut_full_tod2vals_helper(const vector<RangesInt32> &, T *, int, int, T *);
-template <typename T> int pcut_full_vals2tod_helper(const vector<RangesInt32> &, T *, int, int, T *);
+template <typename T> void pcut_full_tod2vals_helper(const vector<RangesInt32> &, T *, int, int, T *);
+template <typename T> void pcut_full_vals2tod_helper(const vector<RangesInt32> &, T *, int, int, T *);
 int pcut_poly_measure_helper(const vector<RangesInt32> &, int, int nmax);
 template <typename T> void pcut_poly_tod2vals_helper(const vector<RangesInt32> &, int, int, T *, int, int, T *);
 template <typename T> void pcut_poly_vals2tod_helper(const vector<RangesInt32> &, int, int, T *, int, int, T *);
-template <typename T> int pcut_clear_helper(const vector<RangesInt32> &, T *, int, int);
+template <typename T> void pcut_clear_helper(const vector<RangesInt32> &, T *, int, int);
 
 // The main cuts processing function. In Maximum-likelihood map-making cuts are handled
 // as special degrees of freedom, and are part of the pointing matrix. This function
@@ -104,6 +104,19 @@ template <typename T> int pcut_clear_helper(const vector<RangesInt32> &, T *, in
 //        Order of poly determined by params["resolution"] (samples per order) and params["nmax"] (max order)
 //  tod:  numpy array with shape [ndet,nsamp] of dtype float32 or float64
 //  vals: numpy array with shape [:] of same dtype as tod. Holds the model degrees of freedom.
+
+void test_cuts(const bp::object & range_matrix) {
+	auto ranges = extract_ranges<int32_t>(range_matrix);
+	for(int di = 0; di < ranges.size(); di++) {
+		fprintf(stderr, "di loop di %4d/%d\n", di, ranges.size());
+		fprintf(stderr, "nseg %d\n", ranges[di].segments.size());
+		for (auto const &r: ranges[di].segments) {
+			fprintf(stderr, "seg loop %p\n", &r);
+		}
+	}
+	fprintf(stderr, "done\n");
+}
+
 //
 // TODO: To be able to process cuts in parallel, we need a lookup table for where in vals each
 // cut range starts. This will be fast enough to build on the fly. Would pass this as an extra
@@ -192,7 +205,7 @@ int pcut_full_measure_helper(const vector<RangesInt32> & rangemat) {
 	return n;
 }
 template <typename T>
-int pcut_full_tod2vals_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, int nsamp, T * vals) {
+void pcut_full_tod2vals_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, int nsamp, T * vals) {
 	int i = 0;
 	for(int di = 0; di < rangemat.size(); di++)
 		for (auto const &r: rangemat[di].segments)
@@ -200,7 +213,7 @@ int pcut_full_tod2vals_helper(const vector<RangesInt32> & rangemat, T * tod, int
 				vals[i] = tod[di*nsamp+j];
 }
 template <typename T>
-int pcut_full_vals2tod_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, int nsamp, T * vals) {
+void pcut_full_vals2tod_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, int nsamp, T * vals) {
 	int i = 0;
 	for(int di = 0; di < rangemat.size(); di++)
 		for (auto const &r: rangemat[di].segments)
@@ -276,7 +289,7 @@ void pcut_poly_vals2tod_helper(const vector<RangesInt32> & rangemat, int resolut
 	}
 }
 template <typename T>
-int pcut_clear_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, int nsamp) {
+void pcut_clear_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, int nsamp) {
 	#pragma omp parallel for
 	for(int di = 0; di < rangemat.size(); di++)
 		for (auto const &r: rangemat[di].segments)
@@ -289,4 +302,5 @@ PYBINDINGS("so3g")
 {
 	bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
 	bp::def("process_cuts",  process_cuts);
+	bp::def("test_cuts",  test_cuts);
 }
