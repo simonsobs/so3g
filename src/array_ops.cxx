@@ -4,15 +4,16 @@
 #include <complex>
 #include <stdint.h>
 #include <stdio.h>
-#include "array_ops.h"
-#include "numpy_assist.h"
-#include "Ranges.h"
 #include <vector>
+#include <string>
+
 extern "C" {
   #include <cblas.h>
 }
-#include <string>
-#include <cblas.h>
+
+#include "array_ops.h"
+#include "numpy_assist.h"
+#include "Ranges.h"
 #include "so3g_numpy.h"
 
 // TODO: Generalize to double precision too.
