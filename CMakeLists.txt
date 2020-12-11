@@ -72,12 +72,23 @@ file(GLOB MY_PYTHONS_SMURF
 # Provide list of libs to link against.
 target_link_libraries(so3g spt3g::core)
 
-# link openblas
-set(BLA_VENDOR OpenBLAS)
+# You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)
 if(BLAS_FOUND)
-    message("OpenBLAS found.")
-    target_link_libraries(so3g ${BLAS_LIBRARIES})
+  message("-- BLAS found: ${BLAS_LIBRARIES}")
+  target_link_libraries(so3g ${BLAS_LIBRARIES})
+
+  # The BLAS library may or may not include the cblas_ bindings.
+  # This variable set is needed by check_function_exists; starting in
+  # cmake v3.18 you can say BLAS::BLAS instead of the lib path...
+  set(CMAKE_REQUIRED_LIBRARIES ${BLAS_LIBRARIES})
+  check_function_exists(cblas_sgemm CBLAS_OK)
+  if(${CBLAS_OK})
+    message("-- cblas bindings are included in the BLAS library")
+  else()
+    message("-- cblas bindings not found in BLAS; adding cblas.")
+    target_link_libraries(so3g cblas)
+  endif()
 endif(BLAS_FOUND)
 
 # This custom target generates _version.h, in the build tree.  That is all.
