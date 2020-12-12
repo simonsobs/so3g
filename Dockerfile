@@ -7,8 +7,8 @@ FROM simonsobs/spt3g:0.3-16-g1341ea5
 # Set locale
 ENV LANG C.UTF-8
 
-# Additional system packages
-RUN apt install -y libopenblas-dev
+# Build tools needed for pixell; blas needed for so3g.
+RUN apt install -y build-essential automake gfortran libopenblas-dev
 
 # Set the working directory
 WORKDIR /app_lib/so3g
@@ -18,6 +18,9 @@ ADD . /app_lib/so3g
 
 # Install any needed packages specified in requirements.txt
 RUN pip3 install -r requirements.txt
+
+# Install qpoint
+RUN /bin/bash /app_lib/so3g/docker/qpoint-setup.sh
 
 # Build so3g
 RUN /bin/bash /app_lib/so3g/docker/so3g-setup.sh

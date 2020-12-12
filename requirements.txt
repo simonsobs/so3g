@@ -7,7 +7,7 @@ sqlalchemy
 pysqlite3
 
 # Required for full pointing support and testing
-#pixell
+pixell
 #qpoint
 
 # testing
