@@ -5,6 +5,8 @@ pytz
 pyaml
 sqlalchemy
 pysqlite3
+pixell
+qpoint
 
 # testing
 pytest
