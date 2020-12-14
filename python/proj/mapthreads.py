@@ -5,7 +5,6 @@ objects suitable for use with the Projection code and OpenMP.
 
 import so3g
 import numpy as np
-from pixell import enmap
 
 def get_num_threads(n_threads=None):
     if n_threads is None:
@@ -91,7 +90,7 @@ def get_threads_domdir(sight, offs, shape, wcs, n_threads=None,
     superbins.append(bins[-1])
 
     # Convert the idx map.
-    tidx_map = enmap.zeros(idx.shape, wcs)
+    tidx_map = np.zeros(idx.shape)
     for i in range(n_threads):
         s = (superbins[i] <= idx)*(idx < superbins[i+1])
         tidx_map[s] = i
