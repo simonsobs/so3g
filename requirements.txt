@@ -5,8 +5,10 @@ pytz
 pyaml
 sqlalchemy
 pysqlite3
-pixell
-qpoint
+
+# Required for full pointing support and testing
+#pixell
+#qpoint
 
 # testing
 pytest
