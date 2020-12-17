@@ -14,8 +14,8 @@ yum install -y flac-devel bzip2-devel zlib-devel sqlite3-devel netcdf-devel
 
 #export PATH=/opt/python/cp38-cp38/bin:${PATH}
 
-# Get newer cmake with pip
-pip install cmake numpy scipy
+# Install requirements
+pip install -r requirements.txt
 
 # Build options
 

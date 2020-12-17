@@ -11,4 +11,5 @@ popd >/dev/null 2>&1
 mkdir -p dist
 rm -f dist/*
 
+pip install -r requirements.txt
 python setup.py sdist

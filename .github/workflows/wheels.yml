@@ -18,6 +18,10 @@ jobs:
     name: Python source dist
     runs-on: ubuntu-latest
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.4.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout
         uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -50,6 +54,10 @@ jobs:
       CIBW_BEFORE_TEST:
       CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from so3g.spt3g import core'
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.4.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout
         uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -84,6 +92,10 @@ jobs:
       CIBW_BEFORE_TEST:
       CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from so3g.spt3g import core'
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.4.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout
         uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -118,6 +130,10 @@ jobs:
       CIBW_BEFORE_TEST:
       CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from so3g.spt3g import core'
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.4.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout
         uses: actions/checkout@v2
       - uses: actions/setup-python@v2

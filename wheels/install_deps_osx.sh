@@ -13,6 +13,10 @@ popd >/dev/null 2>&1
 brew install flac
 brew install bzip2
 brew install netcdf
+brew install sqlite3
+
+# Install requirements
+pip install -r requirements.txt
 
 # Build options
 
