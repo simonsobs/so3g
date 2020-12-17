@@ -3,6 +3,8 @@
 # This script is designed to run within a container managed by cibuildwheel.
 #
 
+set -e
+
 # Location of this script
 pushd $(dirname $0) >/dev/null 2>&1
 topdir=$(pwd)
