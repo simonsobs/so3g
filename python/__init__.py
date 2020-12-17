@@ -4,6 +4,7 @@ if os.getenv('DOCS_BUILD') == '1':
     from ._libso3g_docstring_shells import *
 else:
     # For our compiled libraries to load, the spt3g.core library must already be loaded.
+    from .spt3g_import import spt3g
     from spt3g import core as spt3g_core
 
     # Our library is called libso3g.{suffix}, but will load into module

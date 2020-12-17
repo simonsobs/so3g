@@ -9,7 +9,7 @@ can add realism or whatever.
 """
 
 import so3g
-from ..spt3g_import import spt3g
+from .spt3g_import import spt3g
 from spt3g import core
 from spt3g import coordinateutils as cu3g
 

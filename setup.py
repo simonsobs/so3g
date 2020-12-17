@@ -217,10 +217,10 @@ class BuildExt(build_ext):
         for ext in self.extensions:
             ext.extra_compile_args.extend(opts)
             # If we are building libso3g, add linking to spt3g/core.so
-            if ext.name == "libso3g":
+            if ext.name == "so3g.libso3g":
                 ext_path = Path(self.get_ext_fullpath(ext.name)).resolve()
                 ext_dir = os.path.dirname(ext_path)
-                ext_file = os.path.filename(ext_path)
+                ext_file = os.path.basename(ext_path)
                 ext_suffix = "so"
                 if sys.platform.lower() == "darwin":
                     ext_suffix = "dylib"
@@ -247,27 +247,35 @@ for g3sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
     spt3g_includes.append(os.path.join(spt3g_src_dir, g3sub, "include"))
     spt3g_includes.append(os.path.join(spt3g_src_dir, g3sub, "include", g3sub))
 
-ext_modules = list()
+spt3g_sources = dict()
 for g3sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
-    g3srcs = glob.glob(os.path.join(spt3g_src_dir, g3sub, "src", "*.c*"))
-    # Special exception for an Apple-specific source file...
+    spt3g_sources[g3sub] = glob.glob(os.path.join(spt3g_src_dir, g3sub, "src", "*.c*"))
     if g3sub == "core" and sys.platform.lower() != "darwin":
-        g3srcs.remove(
+        # Special exception for an Apple-specific source file...
+        spt3g_sources[g3sub].remove(
             os.path.join(spt3g_src_dir, "core", "src", "ApplePthreadBarrier.cxx")
         )
+
+ext_modules = list()
+for g3sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
     ext_modules.append(
         Extension(
             "so3g.spt3g.{}".format(g3sub),
-            g3srcs,
+            spt3g_sources[g3sub],
             include_dirs=[os.path.join(spt3g_src_dir, g3sub, "src")] + spt3g_includes,
             language="c++",
         )
     )
 
+# For libso3g, we include the spt3g/core objects directly, rather than trying to link
+# to a compiled extension.
+libso3g_sources = glob.glob(os.path.join("src", "*.cxx"))
+libso3g_sources.extend(spt3g_sources[g3sub])
+
 ext_modules.append(
     Extension(
         "so3g.libso3g",
-        glob.glob(os.path.join("src", "*.cxx")),
+        libso3g_sources,
         include_dirs=["include"] + spt3g_includes,
         language="c++",
     ),
