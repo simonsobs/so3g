@@ -55,5 +55,5 @@ tar xjf ${boost_pkg} \
     --prefix=${PREFIX} \
     && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
     $(python3-config --includes | sed -e 's/-I//g' -e 's/\([^[:space:]]\+\)/ include=\1/g') \
-    variant=release threading=multi link=shared runtime-link=shared install \
+    toolset=clang variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1
