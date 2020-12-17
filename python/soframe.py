@@ -16,6 +16,7 @@ with the config variable patch_g3frame.
 """
 
 import so3g
+from ..spt3g_import import spt3g
 from spt3g.core import G3Frame
 
 orig_getitem = None

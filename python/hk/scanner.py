@@ -1,4 +1,5 @@
 import so3g
+from ..spt3g_import import spt3g
 from spt3g import core
 import numpy as np
 
@@ -6,7 +7,7 @@ from so3g import hk
 
 class HKScanner:
     """Module that scans and reports on HK archive contents and compliance.
-    
+
     Attributes:
       stats (dict): A nested dictionary of statistics that are updated as
         frames are processed by the module.  Elements:
@@ -79,7 +80,7 @@ class HKScanner:
             for p, info in self.providers.items():
                 if p not in now_prov_id:
                     info['active'] = False
-            
+
             # New providers?
             for p in now_prov_id:
                 info = self.providers.get(p)
@@ -178,7 +179,7 @@ class HKScanner:
                               'data timestamp vectors (%s) .' % (t_this, t_check),
                               unit='HKScanner')
                 self.stats['concerns']['n_warning'] += 1
-                
+
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
                           unit='HKScanner')

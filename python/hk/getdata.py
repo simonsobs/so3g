@@ -18,6 +18,7 @@ import datetime as dt
 
 
 import so3g
+from ..spt3g_import import spt3g
 from spt3g import core
 
 
@@ -515,7 +516,7 @@ class HKArchiveScanner:
                       'count': len(b.times)}
                 ii.update(index_info)
                 prov.blocks[bname]['index_info'].append(ii)
-                
+
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
                           unit='HKScanner')
@@ -623,7 +624,7 @@ class _FieldGroup:
             return '_FieldGroup(<bad internal state!>)'
 
 
-def to_timestamp(some_time, str_format=None): 
+def to_timestamp(some_time, str_format=None):
     '''
     Args:
         some_time - if datetime, converted to UTC and used
@@ -635,7 +636,7 @@ def to_timestamp(some_time, str_format=None):
     Returns:
         ctime of some_time
     '''
-    
+
     if type(some_time) == dt.datetime:
         return some_time.astimezone(dt.timezone.utc).timestamp()
     if type(some_time) == int or type(some_time) == float:
@@ -650,10 +651,10 @@ def to_timestamp(some_time, str_format=None):
             except:
                 continue
         raise ValueError('Could not process string into date object, options are: {}'.format(str_options))
-        
+
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
-def load_range(start, stop, fields=None, alias=None, 
+def load_range(start, stop, fields=None, alias=None,
                data_dir=None,config=None,):
     '''
     Args:
@@ -663,16 +664,16 @@ def load_range(start, stop, fields=None, alias=None,
                 (should set tzinfo=dt.timezone.utc if your computer is not in utc)
         fields - fields to return, if None, returns all fields
         alias - if not None, needs to be the length of fields
-        data_dir - directory where all the ctime folders are. 
+        data_dir - directory where all the ctime folders are.
                 If None, tries to use $OCS_DATA_DIR
         config - a .yaml configuration file for loading data_dir / fields / alias
-                
+
     Returns - Dictionary of the format:
         {
             alias[i] : (time[i], data[i])
         }
         It will be masked to only have data between start and stop
-        
+
     Example use:
     fields = [
         'observatory.HAN.feeds.temperatures.Channel 1 T',
@@ -686,7 +687,7 @@ def load_range(start, stop, fields=None, alias=None,
     start = dt.datetime(2020,2,19,18,48)
     stop = dt.datetime(2020,2,22)
     data = load_range(start, stop, fields=fields, alias=alias)
-    
+
     plt.figure()
     for name in alias:
         plt.plot( data[name][0], data[name][1])
@@ -696,7 +697,7 @@ def load_range(start, stop, fields=None, alias=None,
             hk_logger.warning('''load_range has a config file - data_dir, fields, and alias are ignored''')
         with open(config, 'r') as f:
             setup = yaml.load(f, Loader=yaml.FullLoader)
-        
+
         if 'data_dir' not in setup.keys():
             raise ValueError('load_range config file requires data_dir entry')
         data_dir = setup['data_dir']
@@ -707,25 +708,25 @@ def load_range(start, stop, fields=None, alias=None,
         for k in setup['field_list']:
             fields.append( setup['field_list'][k])
             alias.append( k )
-            
+
     if data_dir is None and 'OCS_DATA_DIR' not in os.environ.keys():
         raise ValueError('if $OCS_DATA_DIR is not defined a data directory must be passed to getdata')
     if data_dir is None:
         data_dir = os.environ['OCS_DATA_DIR']
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
-    
+
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
     hksc = HKArchiveScanner()
-    
+
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
         base = data_dir+'/'+str(folder)
         if not os.path.exists(base):
             hk_logger.debug('{} does not exist, skipping'.format(base))
             continue
-    
+
         for file in sorted(os.listdir(base)):
             try:
                 t = int(file[:-3])
@@ -735,14 +736,14 @@ def load_range(start, stop, fields=None, alias=None,
             if t >= start_ctime-3600 and t <=stop_ctime+3600:
                 hk_logger.debug('Processing {}'.format(base+'/'+file))
                 hksc.process_file( base+'/'+file)
-    
-    
+
+
     cat = hksc.finalize()
     start_ctime = to_timestamp(start)
     stop_ctime = to_timestamp(stop)
-    
+
     all_fields,_ = cat.get_fields()
-    
+
     if fields is None:
         fields = all_fields
     if alias is not None:
@@ -750,7 +751,7 @@ def load_range(start, stop, fields=None, alias=None,
             hk_logger.error('if provided, alias needs to be the length of fields')
     else:
         alias = fields
-    
+
     data = {}
     for name, field in zip(alias, fields):
         if field not in all_fields:
@@ -759,7 +760,7 @@ def load_range(start, stop, fields=None, alias=None,
         t,x = cat.simple(field)
         msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
         data[name] = t[msk],x[msk]
-        
+
     return data
 
 if __name__ == '__main__':
@@ -819,7 +820,7 @@ if __name__ == '__main__':
     # This is the easy way, which just gives you one timeline per
     # requested field.
     x1, y1 = cat.simple(field_name)
-    
+
     assert np.all(np.array(x0) == x1) and np.all(np.array(y0) == y1)
 
     import pylab as pl

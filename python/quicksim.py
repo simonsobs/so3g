@@ -9,6 +9,7 @@ can add realism or whatever.
 """
 
 import so3g
+from ..spt3g_import import spt3g
 from spt3g import core
 from spt3g import coordinateutils as cu3g
 
@@ -125,7 +126,7 @@ class ScanPatternGenerator:
             benc.data['corot'] = el_vec[i0:i1] - 50.
             f0['vertex_enc_raw'] = benc
             output.append(f0)
-            
+
         return output
 
 class SignalInjector:
@@ -141,7 +142,7 @@ class SignalInjector:
     def __init__(self, f_samp=200.):
         self.f_samp = f_samp
         self.tick_step = max(1, int(np.floor(core.G3Units.sec / f_samp)))
-        
+
     def __call__(self, f):
         if f.type == FT.Calibration and f['cal_type'] == 'focal_plane':
             self.focal_plane = f
@@ -210,7 +211,7 @@ class NaiveBoresightPointingModel:
             flush = False
             self.frame_buffer.append(f)
         self.raw_buffer.append(f[self.enc_name])
-        
+
         # Figure out what frames we're able to process, given info we have.
         frames_out = []
 
@@ -266,7 +267,7 @@ class NaiveBoresightPointingModel:
             )
             # Note that there's no "TimestreamQuat" class.  So no timestamps.
             f[self.boresight_name + '_q'] = q   # f['boresight_q']
-            
+
         # Discard raw data we're not using any more.  Out of caution,
         # keep one more frame than we have buffered.
         while len(self.raw_buffer)  - len(self.frame_buffer) > 2:
@@ -280,7 +281,7 @@ class Inspector:
         print('The frame is called "f".')
         import pdb
         pdb.set_trace()
-        
+
 if __name__ == '__main__':
     #core.set_log_level(core.G3LogLevel.LOG_TRACE)
 
@@ -298,7 +299,7 @@ if __name__ == '__main__':
         create_CES_observation(start_ctime,start_ctime+length_s,
                                45,66,45),
     ]))
-    
+
     p.Add(ScanPatternGenerator)
     p.Add(SignalInjector)
     #p.Add(Inspector)
@@ -308,7 +309,7 @@ if __name__ == '__main__':
 
     p.Run()
     del p
-    
+
     print('Reading back:')
     for f in core.G3File(test_file):
         if f.type == FT.Observation:

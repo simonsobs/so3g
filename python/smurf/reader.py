@@ -1,4 +1,5 @@
 import so3g
+from ..spt3g_import import spt3g
 from spt3g import core
 import numpy as np
 import pickle
@@ -22,7 +23,7 @@ def g3_to_array(g3file, verbose=False):
     data : array of arrays, where each internal array is a SMuRF channel
     """
     frames = [fr for fr in core.G3File(g3file)]
-    
+
     data=[]
 
     frametimes = []
@@ -35,13 +36,13 @@ def g3_to_array(g3file, verbose=False):
         warnings.warn('Wrong frame type')
 
     strtimes = np.hstack(frametimes)
-    
+
     times = []
     for strt in strtimes:
         t=core.G3Time(strt).time/core.G3Units.s
         times.append(t)
     times = np.asarray(times)
-    
+
     channums = []
 
     i=0
@@ -102,4 +103,3 @@ if __name__ == '__main__':
     with open(newfile_name+'.pkl','wb') as f:
         pickle.dump({'times':times, 'data':data, 'tes_biases':biases},f)
     f.close()
-

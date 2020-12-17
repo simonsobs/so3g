@@ -1,0 +1,24 @@
+diff -urN spt3g_software_orig/core/python/load_pybindings.py spt3g_software/core/python/load_pybindings.py
+--- spt3g_software_orig/core/python/load_pybindings.py	2020-12-10 07:52:41.000000000 -0800
++++ spt3g_software/core/python/load_pybindings.py	2020-12-17 09:41:56.484108612 -0800
+@@ -1,4 +1,5 @@
+ import platform,sys
++import glob
+ 
+ if platform.system().startswith('freebsd') or platform.system().startswith('FreeBSD'):
+ 	# C++ modules are extremely fragile when loaded with RTLD_LOCAL,
+@@ -17,11 +18,12 @@
+ 
+ def load_pybindings(name, path):
+ 	import imp, sys
++	# The shared library may have other identifiers if built with setuptools
++	fullpath = glob.glob("{}*{}".format(path[0], lib_suffix))[0]
+ 	mod = sys.modules[name]
+-	m = imp.load_dynamic(name, path[0] + lib_suffix)
++	m = imp.load_dynamic(name, fullpath)
+ 	sys.modules[name] = mod # Don't override Python mod with C++
+ 
+ 	for (k,v) in m.__dict__.items():
+ 		if not k.startswith("_"):
+ 			mod.__dict__[k] = v
+-

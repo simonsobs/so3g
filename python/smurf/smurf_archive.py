@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, backref
 
+from ..spt3g_import import spt3g
 from spt3g import core
 import so3g
 import datetime as dt

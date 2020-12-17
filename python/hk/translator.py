@@ -4,6 +4,7 @@
 
 import so3g
 import so3g.hk
+from ..spt3g_import import spt3g
 from spt3g import core
 
 

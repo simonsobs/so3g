@@ -1,5 +1,6 @@
 import numpy as np
 
+from ..spt3g_import import spt3g
 from spt3g import core
 
 

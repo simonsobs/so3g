@@ -2,12 +2,13 @@
 # Based on spt3g.core.load_bindings.
 #
 import platform, sys, imp, os
+import glob
 
 if platform.system().startswith('freebsd') or platform.system().startswith('FreeBSD'):
     # C++ modules are extremely fragile when loaded with RTLD_LOCAL,
     # which is what Python uses on FreeBSD by default, and maybe other
     # systems. Convince it to use RTLD_GLOBAL.
-    
+
     # See thread by Abrahams et al:
     # http://mail.python.org/pipermail/python-dev/2002-May/024074.html
     sys.setdlopenflags(0x102)
@@ -30,9 +31,11 @@ def load_pybindings(paths, name=None, lib_suffix=None):
     for path in paths:
         if name is None:
             name = os.path.split(path)[1]
+        # The shared library may have other identifiers if built with setuptools
+        fullpath = glob.glob("{}*{}".format(path, lib_suffix))[0]
         # Save copy of current module def
         mod = sys.modules[name]
-        m = imp.load_dynamic(name, path + lib_suffix)
+        m = imp.load_dynamic(name, fullpath)
         sys.modules[name] = mod # Don't override Python mod with C++
 
         for (k,v) in m.__dict__.items():
