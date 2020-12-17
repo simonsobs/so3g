@@ -1,20 +1,19 @@
 #define NO_IMPORT_ARRAY
 
-#include <pybindings.h>
 #include <complex>
 #include <stdint.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
-
 extern "C" {
   #include <cblas.h>
 }
+#include <boost/python.hpp>
 
-#include "array_ops.h"
+#include <pybindings.h>
+#include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"
-#include "so3g_numpy.h"
 
 // TODO: Generalize to double precision too.
 // This implements Jon's noise model for ACT. It takes in
@@ -105,23 +104,11 @@ template <typename T> void pcut_clear_helper(const vector<RangesInt32> &, T *, i
 //        Order of poly determined by params["resolution"] (samples per order) and params["nmax"] (max order)
 //  tod:  numpy array with shape [ndet,nsamp] of dtype float32 or float64
 //  vals: numpy array with shape [:] of same dtype as tod. Holds the model degrees of freedom.
-
-void test_cuts(const bp::object & range_matrix) {
-	auto ranges = extract_ranges<int32_t>(range_matrix);
-	for(int di = 0; di < ranges.size(); di++) {
-		fprintf(stderr, "di loop di %4d/%d\n", di, ranges.size());
-		fprintf(stderr, "nseg %d\n", ranges[di].segments.size());
-		for (auto const &r: ranges[di].segments) {
-			fprintf(stderr, "seg loop %p\n", &r);
-		}
-	}
-	fprintf(stderr, "done\n");
-}
-
 //
 // TODO: To be able to process cuts in parallel, we need a lookup table for where in vals each
 // cut range starts. This will be fast enough to build on the fly. Would pass this as an extra
 // argument to the helper functions.
+
 int process_cuts(const bp::object & range_matrix, const std::string & operation, const std::string & model, const bp::dict & params, const bp::object & tod, const bp::object & vals) {
 	auto ranges = extract_ranges<int32_t>(range_matrix);
 	// Decoding these up here lets us avoid some duplication later
@@ -303,5 +290,4 @@ PYBINDINGS("so3g")
 {
 	bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
 	bp::def("process_cuts",  process_cuts);
-	bp::def("test_cuts",  test_cuts);
 }
