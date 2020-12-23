@@ -436,9 +436,13 @@ class SmurfStatus:
         # Calculates flux ramp reset rate (Pulled from psmurf's code)
         rtm_root = 'AMCc.FpgaTopLevel.AppTop.AppCore.RtmCryoDet'
         ramp_max_cnt = self.status.get(f'{rtm_root}.RampMaxCnt')
-        digitizer_freq_mhz = float(self.status.get(f'{band_roots[0]}.digitizerFrequencyMHz', 614.4))
-        ramp_max_cnt_rate_hz = 1.e6*digitizer_freq_mhz / 2.
-        self.flux_ramp_rate_hz = ramp_max_cnt_rate_hz / (ramp_max_cnt + 1)
+        if ramp_max_cnt is None:
+            self.flux_ramp_rate_hz = 4000
+        else:
+            digitizer_freq_mhz = float(self.status.get(
+                f'{band_roots[0]}.digitizerFrequencyMHz', 614.4))
+            ramp_max_cnt_rate_hz = 1.e6*digitizer_freq_mhz / 2.
+            self.flux_ramp_rate_hz = ramp_max_cnt_rate_hz / (ramp_max_cnt + 1)
 
     def readout_to_smurf(self, rchan):
         """
