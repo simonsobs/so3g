@@ -437,7 +437,7 @@ class SmurfStatus:
         rtm_root = 'AMCc.FpgaTopLevel.AppTop.AppCore.RtmCryoDet'
         ramp_max_cnt = self.status.get(f'{rtm_root}.RampMaxCnt')
         if ramp_max_cnt is None:
-            self.flux_ramp_rate_hz = 4000
+            self.flux_ramp_rate_hz = None
         else:
             digitizer_freq_mhz = float(self.status.get(
                 f'{band_roots[0]}.digitizerFrequencyMHz', 614.4))
