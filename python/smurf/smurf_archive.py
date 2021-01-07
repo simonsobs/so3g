@@ -12,6 +12,7 @@ import numpy as np
 import yaml
 import ast
 from collections import namedtuple
+from enum import Enum
 
 
 Base = declarative_base()
@@ -64,6 +65,53 @@ class Frame(Base):
 
     def __repr__(self):
         return f"Frame({self.type_name})<{self.location}>"
+
+
+class TimingParadigm(Enum):
+    TimingSystem = 3
+    SmurfUnixTime = 2
+    G3Timestream = 1
+
+def get_sample_timestamps(frame):
+    """
+    Gets timestamps of samples in a G3Frame. This will try to get highest
+    precision first and move to lower precision methods if that fails.
+
+    Args
+    ------
+        frame (core.G3Frame):
+            A G3Frame(Scan) containing streamed detector data.
+
+    Returns
+    ---------
+        times (np.ndarray):
+            numpy array containing timestamps in seconds
+        paradigm (TimingParadigm):
+            Paradigm used to calculate timestamps.
+    """
+    if 'primary' in frame.keys():
+        if False:
+            # Do high precision timing calculation here when we have real data
+            pass
+        else:
+            # Try to calculate the timestamp based on the SmurfProcessor's
+            # "UnixTime" and the G3Timestream start time.  "UnixTime" is a
+            # 32-bit nanosecond clock that steadily increases mod 2**32.
+            unix_times = np.array(frame['primary']['UnixTime'])
+            for i in np.where(np.diff(unix_times) < 0)[0]:
+                # This corrects for any wrap around
+                unix_times[i+1:] += 2**32
+            times = frame['data'].start.time / core.G3Units.s \
+                + (unix_times - unix_times[0]) / 1e9
+
+            return times, TimingParadigm.SmurfUnixTime
+    else:
+        # Calculate timestamp based on G3Timestream.times(). Note that this
+        # only uses the timestream start and end time, and assumes samples are
+        # equispaced.
+        times = np.array([t.time / core.G3Units.s
+                          for t in frame['data'].times()])
+        return times, TimingParadigm.G3Timestream
 
 class SmurfArchive:
     def __init__(self, archive_path, db_path=None, echo=False):
@@ -253,15 +301,18 @@ class SmurfArchive:
             samples += f.samples
             channels = max(f.channels, channels)
 
-        timestamps = np.full((samples,), np.nan)
+        timestamps = np.full((samples,), np.nan, dtype=np.float64)
         data = np.full((channels, samples), 0, dtype=np.int32)
         if load_biases:
             biases = np.full((num_bias_lines, samples), 0, dtype=np.int32)
         else:
             biases = None
 
+        primary = {}
+
         cur_sample = 0
         cur_file = None
+        timing_paradigm = None
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
@@ -271,7 +322,6 @@ class SmurfArchive:
             reader.Seek(frame_info.offset)
             frame = reader.Process(None)[0]
             nsamp = frame['data'].n_samples
-            timestamps[cur_sample:cur_sample + nsamp] = frame['data'].times()
 
             key_order = [int(k[1:]) for k in frame['data'].keys()]
             data[key_order, cur_sample:cur_sample + nsamp] = frame['data']
@@ -279,19 +329,29 @@ class SmurfArchive:
             if load_biases:
                 bias_order = [int(k[-2:]) for k in frame['tes_biases'].keys()]
                 biases[bias_order, cur_sample:cur_sample + nsamp] = frame['tes_biases']
+
+            # Loads primary data
+            if 'primary' in frame.keys():
+                for k, v in frame['primary'].items():
+                    if k not in primary:
+                        primary[k] = np.zeros(samples,)
+                    primary[k][cur_sample:cur_sample + nsamp] = v
+
+            ts, timing_paradigm = get_sample_timestamps(frame)
+            timestamps[cur_sample:cur_sample + nsamp] = ts
+
             cur_sample += nsamp
 
-        timestamps /= core.G3Units.s
         if len(timestamps) > 0:
-            status = self.load_status(timestamps[0])
+            status = self.load_status(timestamps[-1])
         else:
             status = None
 
-        SmurfData = namedtuple('SmurfData', 'times data status biases')
+        SmurfData = namedtuple('SmurfData', 'times data primary status biases timing_paradigm')
         if load_biases:
-            return SmurfData(timestamps, data, status, biases)
+            return SmurfData(timestamps, data, primary, status, biases, timing_paradigm)
         else:
-            return SmurfData(timestamps, data, status, None)
+            return SmurfData(timestamps, data, primary, status, None, timing_paradigm)
 
     def load_status(self, time, show_pb=False):
         """
