@@ -343,7 +343,7 @@ class SmurfArchive:
             cur_sample += nsamp
 
         if len(timestamps) > 0:
-            status = self.load_status(timestamps[-1])
+            status = self.load_status(timestamps[0])
         else:
             status = None
 
