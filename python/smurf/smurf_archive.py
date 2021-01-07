@@ -268,7 +268,7 @@ class SmurfArchive:
 
         Returns
         --------
-            Returns a tuple ``SmurfData(times, data, status, biases)``
+            Returns a tuple ``SmurfData(times, data, primary, status, biases, timing_paradigm)``
             with the following fields:
 
                 times (np.ndarray[samples]):
@@ -277,6 +277,12 @@ class SmurfArchive:
                     Array of data for each channel sending data in the
                     specified time range. The index of the array is the readout
                     channel number.
+                primary (Dict[np.ndarray]):
+                    Dict of numpy arrays holding the "primary" data included in
+                    the packet headers, including 'AveragingResetBits',
+                    'Counter0', 'Counter1', 'Counter2', 'FluxRampIncrement',
+                    'FluxRampOffset', 'FrameCounter', 'TESRelaySetting',
+                    'UnixTime'
                 status (SmurfStatus):
                     SmurfStatus object containing metadata info at the time of
                     the first Scan frame in the requested interval. If there
@@ -284,6 +290,9 @@ class SmurfArchive:
                 biases (optional, np.ndarray[NTES, samples]):
                     An array containing the TES bias values.
                     If ``load_biases`` is False, this will be None.
+                timing_paradigm(TimingParadigm):
+                    Tells you the method used to extract timestamps from the
+                    frame data.
         """
         session = self.Session()
 
