@@ -68,9 +68,10 @@ class Frame(Base):
 
 
 class TimingParadigm(Enum):
-    TimingSystem = 3
-    SmurfUnixTime = 2
     G3Timestream = 1
+    SmurfUnixTime = 2
+    TimingSystem = 3
+    Mixed = 4
 
 def get_sample_timestamps(frame):
     """
@@ -343,10 +344,15 @@ class SmurfArchive:
             if 'primary' in frame.keys():
                 for k, v in frame['primary'].items():
                     if k not in primary:
-                        primary[k] = np.zeros(samples,)
+                        primary[k] = np.zeros(samples, dtype=np.int64)
                     primary[k][cur_sample:cur_sample + nsamp] = v
 
-            ts, timing_paradigm = get_sample_timestamps(frame)
+            ts, paradigm = get_sample_timestamps(frame)
+            if timing_paradigm is None:
+                timing_paradigm = paradigm
+            elif timing_paradigm != paradigm:
+                timing_paradigm = TimingParadigm.Mixed
+
             timestamps[cur_sample:cur_sample + nsamp] = ts
 
             cur_sample += nsamp
