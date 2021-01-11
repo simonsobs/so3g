@@ -275,9 +275,9 @@ class SmurfArchive:
                 times (np.ndarray[samples]):
                     Array of unix timestamps for loaded data
                 data (np.ndarray[channels, samples]):
-                    Array of data for each channel sending data in the
-                    specified time range. The index of the array is the readout
-                    channel number.
+                    Array of the squid phase in units of radiansa for each
+                    channel with data in the specified time range. The index of
+                    the array is the readout channel number.
                 primary (Dict[np.ndarray]):
                     Dict of numpy arrays holding the "primary" data included in
                     the packet headers, including 'AveragingResetBits',
@@ -356,6 +356,10 @@ class SmurfArchive:
             timestamps[cur_sample:cur_sample + nsamp] = ts
 
             cur_sample += nsamp
+
+        # Conversion from DAC counts to squid phase
+        rad_per_count = np.pi / 2**15
+        data = data * rad_per_count
 
         if len(timestamps) > 0:
             status = self.load_status(timestamps[0])

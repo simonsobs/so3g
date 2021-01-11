@@ -43,17 +43,12 @@ To load detector data that includes the range ``[start, stop]``, use::
 
     from so3g.smurf import SmurfArchive
     arc = SmurfArchive('/data/timestreams')
-    times, data = arc.load_data(start, end)
+    d = arc.load_data(start, end)
 
-The following will load the a dicitonary of the ``status`` variables at a
-specified time::
-
-    from so3g.smurf import SmurfArchive
-    arc = SmurfArchive('/data/timestreams')
-    arc = SmurfArchive('/data/timestreams')
-    status = arc.load_status(time)
-
-See the API for descriptions of possible keyword arguments
+The data will be loaded into a named_tuple which contains the detector data,
+primary data, and TES bias values, and metadata status. See the `load_data` Api
+for a more detailed description of allowed keyword arguments and the return
+value.
 
 API
 ---
