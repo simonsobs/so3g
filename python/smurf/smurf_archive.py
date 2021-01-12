@@ -275,7 +275,7 @@ class SmurfArchive:
                 times (np.ndarray[samples]):
                     Array of unix timestamps for loaded data
                 data (np.ndarray[channels, samples]):
-                    Array of the squid phase in units of radiansa for each
+                    Array of the squid phase in units of radians for each
                     channel with data in the specified time range. The index of
                     the array is the readout channel number.
                 primary (Dict[np.ndarray]):
