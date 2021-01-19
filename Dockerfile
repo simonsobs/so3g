@@ -7,6 +7,9 @@ FROM simonsobs/spt3g:0.2-11-g3444852
 # Set locale
 ENV LANG C.UTF-8
 
+# Additional system packages
+RUN apt install -y libopenblas-dev
+
 # Set the working directory
 WORKDIR /app_lib/so3g
 
@@ -15,8 +18,6 @@ ADD . /app_lib/so3g
 
 # Install any needed packages specified in requirements.txt
 RUN pip3 install -r requirements.txt
-
-RUN apt install -y libopenblas-dev
 
 # Build so3g
 RUN /bin/bash /app_lib/so3g/docker/so3g-setup.sh
