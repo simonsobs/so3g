@@ -36,7 +36,7 @@ jobs:
         pip install coveralls
         coverage combine
         coverage report
-        coveralls
+        coveralls --service=github
 
     # Dockerize
     - name: Build and push official docker image
