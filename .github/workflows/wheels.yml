@@ -48,7 +48,7 @@ jobs:
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX:
-      CIBW_ENVIRONMENT_MACOS:
+      CIBW_ENVIRONMENT_MACOS: "CC=clang"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_BEFORE_TEST:
@@ -86,7 +86,7 @@ jobs:
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX:
-      CIBW_ENVIRONMENT_MACOS:
+      CIBW_ENVIRONMENT_MACOS: "CC=clang"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_BEFORE_TEST:
@@ -124,7 +124,7 @@ jobs:
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX:
-      CIBW_ENVIRONMENT_MACOS:
+      CIBW_ENVIRONMENT_MACOS: "CC=clang"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_BEFORE_TEST:
