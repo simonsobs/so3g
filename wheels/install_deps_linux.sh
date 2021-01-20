@@ -12,7 +12,7 @@ popd >/dev/null 2>&1
 
 # Install library dependencies
 yum update -y
-yum install -y flac-devel bzip2-devel zlib-devel sqlite3-devel netcdf-devel
+yum install -y flac-devel bzip2-devel zlib-devel sqlite-devel netcdf-devel
 
 #export PATH=/opt/python/cp38-cp38/bin:${PATH}
 
@@ -56,5 +56,5 @@ tar xjf ${boost_pkg} \
     --prefix=${PREFIX} \
     && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
     $(python3-config --includes | sed -e 's/-I//g' -e 's/\([^[:space:]]\+\)/ include=\1/g') \
-    variant=release threading=multi link=shared runtime-link=shared install \
+    toolset=gcc variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1

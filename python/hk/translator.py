@@ -2,10 +2,9 @@
 
 """
 
-import so3g
-import so3g.hk
-from ..spt3g_import import spt3g
-from spt3g import core
+from .. import libso3g
+from .. import hk
+from ..spt3g import core
 
 
 class HKTranslator:
@@ -90,7 +89,7 @@ class HKTranslator:
         f['hkagg_version'] = self.target_version
 
         # No difference in Session/Status for v0, v1, v2.
-        if f.get('hkagg_type') != so3g.HKFrameType.data:
+        if f.get('hkagg_type') != libso3g.HKFrameType.data:
             return [f]
 
         if self.target_version == 0:
@@ -104,7 +103,7 @@ class HKTranslator:
             # Now process the data blocks.
             for block in orig_blocks:
                 new_block = core.G3TimesampleMap()
-                new_block.times = so3g.hk.util.get_g3_time(block.t)
+                new_block.times = hk.util.get_g3_time(block.t)
                 for k in block.data.keys():
                     v = block.data[k]
                     new_block[k] = core.G3VectorDouble(v)

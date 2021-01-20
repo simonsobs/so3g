@@ -1,7 +1,6 @@
 import numpy as np
 
-from ..spt3g_import import spt3g
-from spt3g import core
+from ..spt3g import core
 
 
 def get_unix_time(g3_time):

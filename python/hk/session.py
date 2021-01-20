@@ -1,6 +1,5 @@
-import so3g
-from ..spt3g_import import spt3g
-from spt3g import core
+from .. import libso3g
+from ..spt3g import core
 import time
 import os
 import binascii
@@ -94,7 +93,7 @@ class HKSessionHelper:
         """
         f = core.G3Frame()
         f.type = core.G3FrameType.Housekeeping
-        f['hkagg_type'] = so3g.HKFrameType.session
+        f['hkagg_type'] = libso3g.HKFrameType.session
         f['hkagg_version'] = self.hkagg_version
         f['session_id'] = self.session_id
         f['start_time'] = self.start_time
@@ -111,7 +110,7 @@ class HKSessionHelper:
             timestamp = time.time()
         f = core.G3Frame()
         f.type = core.G3FrameType.Housekeeping
-        f['hkagg_type'] = so3g.HKFrameType.status
+        f['hkagg_type'] = libso3g.HKFrameType.status
         f['hkagg_version'] = self.hkagg_version
         f['session_id'] = self.session_id
         f['timestamp'] = timestamp
@@ -137,7 +136,7 @@ class HKSessionHelper:
         f = core.G3Frame()
         f.type = core.G3FrameType.Housekeeping
         f['hkagg_version'] = self.hkagg_version
-        f['hkagg_type'] = so3g.HKFrameType.data
+        f['hkagg_type'] = libso3g.HKFrameType.data
         f['session_id'] = self.session_id
         f['prov_id'] = prov_id
         f['timestamp'] = timestamp

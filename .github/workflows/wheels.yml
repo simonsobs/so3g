@@ -44,8 +44,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     env:
       CIBW_BUILD: cp36-macosx_x86_64 cp36-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2010
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2010
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX:
       CIBW_ENVIRONMENT_MACOS:
@@ -82,8 +82,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     env:
       CIBW_BUILD: cp37-macosx_x86_64 cp37-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2010
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2010
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX:
       CIBW_ENVIRONMENT_MACOS:
@@ -120,8 +120,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     env:
       CIBW_BUILD: cp38-macosx_x86_64 cp38-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2010
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2010
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX:
       CIBW_ENVIRONMENT_MACOS:

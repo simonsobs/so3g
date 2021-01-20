@@ -24,7 +24,7 @@ topdir = Path(__file__).resolve().parent
 upstream_spt3g_version = "master"
 
 # The name of the spt3g source and package dirs
-spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g")
+spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g_internal")
 spt3g_src_dir = os.path.join(topdir, "spt3g_software")
 
 
@@ -216,24 +216,6 @@ class BuildExt(build_ext):
         # Build our extensions
         for ext in self.extensions:
             ext.extra_compile_args.extend(opts)
-            # If we are building libso3g, add linking to spt3g/core.so
-            if ext.name == "so3g.libso3g":
-                ext_path = Path(self.get_ext_fullpath(ext.name)).resolve()
-                ext_dir = os.path.dirname(ext_path)
-                ext_file = os.path.basename(ext_path)
-                ext_suffix = "so"
-                if sys.platform.lower() == "darwin":
-                    ext_suffix = "dylib"
-                mat = re.match(r".*\.(.*)\..*", ext_file)
-                if mat is None:
-                    raise RuntimeError(
-                        "Cannot determine compiled extension system string"
-                    )
-                shared_sys = mat.group(1)
-                spt3g_core = os.path.join(
-                    ext_dir, "spt3g", "core.{}.{}".format(shared_sys, ext_suffix)
-                )
-                ext.extra_link_args.append(spt3g_core)
             ext.extra_link_args.extend(linkopts)
         build_ext.build_extensions(self)
 
@@ -260,7 +242,7 @@ ext_modules = list()
 for g3sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
     ext_modules.append(
         Extension(
-            "so3g.spt3g.{}".format(g3sub),
+            "so3g.spt3g_internal.{}.lib{}".format(g3sub, g3sub),
             spt3g_sources[g3sub],
             include_dirs=[os.path.join(spt3g_src_dir, g3sub, "src")] + spt3g_includes,
             language="c++",
@@ -270,7 +252,7 @@ for g3sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
 # For libso3g, we include the spt3g/core objects directly, rather than trying to link
 # to a compiled extension.
 libso3g_sources = glob.glob(os.path.join("src", "*.cxx"))
-libso3g_sources.extend(spt3g_sources[g3sub])
+libso3g_sources.extend(spt3g_sources["core"])
 
 ext_modules.append(
     Extension(
@@ -316,11 +298,11 @@ conf["install_requires"] = [
 # normal find_packages() function to recursively set these up.  Instead we specify them
 # manually.
 
-conf["packages"] = ["so3g", "so3g.spt3g"]
-conf["package_dir"] = {"so3g": "python", "so3g.spt3g": os.path.join("python", "spt3g")}
+conf["packages"] = ["so3g", "so3g.spt3g_internal"]
+conf["package_dir"] = {"so3g": "python", "so3g.spt3g_internal": os.path.join("python", "spt3g_internal")}
 for sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
-    psub = "so3g.spt3g.{}".format(sub)
-    pdir = os.path.join("python", "spt3g", sub)
+    psub = "so3g.spt3g_internal.{}".format(sub)
+    pdir = os.path.join("python", "spt3g_internal", sub)
     conf["packages"].append(psub)
     conf["package_dir"][psub] = pdir
 for sub in ["hk", "proj", "smurf"]:

@@ -1,4 +1,4 @@
-import so3g
+from .. import libso3g
 from . import quat
 
 import numpy as np
@@ -239,7 +239,7 @@ class Projectionist:
         if not get:
             return projeng_name
         try:
-            projeng_cls = getattr(so3g, projeng_name)
+            projeng_cls = getattr(libso3g, projeng_name)
         except AttributeError:
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '

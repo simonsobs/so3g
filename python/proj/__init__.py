@@ -1,6 +1,4 @@
-import so3g
-from ..spt3g_import import spt3g
-from spt3g import core
+from ..spt3g import core
 
 from . import quat
 from . import util
