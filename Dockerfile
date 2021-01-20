@@ -7,6 +7,9 @@ FROM simonsobs/spt3g:0.3-16-g1341ea5
 # Set locale
 ENV LANG C.UTF-8
 
+# Additional system packages
+RUN apt install -y libopenblas-dev
+
 # Set the working directory
 WORKDIR /app_lib/so3g
 

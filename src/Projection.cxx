@@ -425,13 +425,15 @@ public:
 
     inline
     void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
-        double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
+        //double ix = coords[0] / cdelt[1] + crpix[1] + 0.5;
+        double ix = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
         if (ix < 0 || ix >= naxis[1]) {
             *pixel_index = -1;
             return;
         }
 
-        double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
+        //double iy = coords[1] / cdelt[0] + crpix[0] + 0.5;
+        double iy = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
         if (iy < 0 || iy >= naxis[0]) {
             *pixel_index = -1;
             return;
@@ -556,13 +558,15 @@ public:
 
     inline
     void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
-        double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] + 0.5;
+        //double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] + 0.5;
+        double ix = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5;
         if (ix < 0 || ix >= parent_pix.naxis[1]) {
             pixel_index[0] = -1;
             return;
         }
 
-        double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] + 0.5;
+        //double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] + 0.5;
+        double iy = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] - 1 + 0.5;
         if (iy < 0 || iy >= parent_pix.naxis[0]) {
             *pixel_index = -1;
             return;
@@ -1004,10 +1008,10 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
-    auto _signalspace = new SignalSpace<FSIGNAL>(
+    auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
@@ -1019,14 +1023,14 @@ bp::object ProjectionEngine<C,P,S>::from_map(
             _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
             if (pixel_offset[0] < 0) continue;
             spin_proj_factors<S>(coords, pf);
-            FSIGNAL *sig = (_signalspace->data_ptr[i_det] +
-                            _signalspace->steps[0]*i_time);
+            FSIGNAL *sig = (_signalspace.data_ptr[i_det] +
+                            _signalspace.steps[0]*i_time);
             for (int imap=0; imap<S::comp_count; ++imap)
                 *sig += *_pixelizor.pix(imap, pixel_offset) * pf[imap];
         }
     }
 
-    return _signalspace->ret_val;
+    return _signalspace.ret_val;
 }
 
 
@@ -1097,14 +1101,6 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
 }
 
 static
-vector<RangesInt32> extract_ranges(bp::object ival_list) {
-    vector<RangesInt32> v(bp::len(ival_list));
-    for (int i=0; i<bp::len(ival_list); i++)
-        v[i] = bp::extract<RangesInt32>(ival_list[i])();
-    return v;
-}
-
-static
 vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
                                           int n_det, int n_time)
 {
@@ -1126,11 +1122,11 @@ vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
     } else {
         // Don't convert to a list... just use indexing.
         if (bp::extract<RangesInt32>(thread_intervals[0]).check()) {
-            ivals.push_back(extract_ranges(thread_intervals));
+            ivals.push_back(extract_ranges<int32_t>(thread_intervals));
         } else {
             // Assumed it is list of lists of ranges.
             for (int i=0; i<bp::len(thread_intervals); i++)
-                ivals.push_back(extract_ranges(thread_intervals[i]));
+                ivals.push_back(extract_ranges<int32_t>(thread_intervals[i]));
         }
     }
     return ivals;
@@ -1155,7 +1151,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
-    auto _signalspace = new SignalSpace<FSIGNAL>(
+    auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
@@ -1169,7 +1165,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
         // This block may also be used if OMP is disabled.
         for (int i_thread=0; i_thread < ivals.size(); i_thread++)
             to_map_single_thread<C,P,S>(
-                pointer, _pixelizor, ivals[i_thread],_det_weights, _signalspace);
+                pointer, _pixelizor, ivals[i_thread],_det_weights, &_signalspace);
     } else {
 #pragma omp parallel
         {
@@ -1179,7 +1175,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
             for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
                 if (i_thread % omp_get_num_threads() == omp_get_thread_num())
                     to_map_single_thread<C,P,S>(
-                        pointer, _pixelizor, ivals[i_thread], _det_weights, _signalspace);
+                        pointer, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
             }
         }
     }
@@ -1401,7 +1397,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
     pixelizor.TestInputs(map, true, false, n_spin);
 
     // Check the signal.
-    auto _signalspace = new SignalSpace<FSIGNAL>(
+    auto _signalspace = SignalSpace<FSIGNAL>(
         signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
 
     BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
@@ -1419,7 +1415,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
         for (int i_thread=0; i_thread < ivals.size(); i_thread++)
             precomp_to_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
-                ivals[i_thread],_det_weights, _signalspace);
+                ivals[i_thread],_det_weights, &_signalspace);
     } else {
 #pragma omp parallel
         {
@@ -1430,7 +1426,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
                 if (i_thread % omp_get_num_threads() == omp_get_thread_num())
                     precomp_to_map_single_thread<TilingSys>(
                         pixelizor, pixel_buf_man, spin_proj_man,
-                        ivals[i_thread], _det_weights, _signalspace);
+                        ivals[i_thread], _det_weights, &_signalspace);
             }
         }
     }

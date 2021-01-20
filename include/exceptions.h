@@ -23,10 +23,10 @@ public:
     buffer_exception(std::string var_name) : var_name{var_name} {}
 
     std::string msg_for_python() const throw() {
-	std::ostringstream s;
+        std::ostringstream s;
         s << "Argument '" << var_name << "' does not expose buffer protocol, "
             "is not contiguous, or does not export a format.";
-	return s.str();
+        return s.str();
     }
 };
 
@@ -39,10 +39,10 @@ public:
         var_name{var_name}, detail(detail) {}
 
     std::string msg_for_python() const throw() {
-	std::ostringstream s;
+        std::ostringstream s;
         s << "Buffer '" << var_name << "' has incompatible shape: "
           << detail << ".";
-	return s.str();
+        return s.str();
     }
 };
 
@@ -55,10 +55,10 @@ public:
         var_name{var_name}, type_str{type_str} {}
 
     std::string msg_for_python() const throw() {
-	std::ostringstream s;
+        std::ostringstream s;
         s << "Expected buffer '" << var_name << "' to contain items of type "
           << type_str << ".";
-	return s.str();
+        return s.str();
     }
 };
 
@@ -70,10 +70,10 @@ public:
         var1{var1}, var2{var2}, prop{prop} {}
 
     std::string msg_for_python() const throw() {
-	std::ostringstream s;
+        std::ostringstream s;
         s << "Expected buffers '" << var1 << "' and '" << var2 << "' to have "
           << "the same " << prop << ".";
-	return s.str();
+        return s.str();
     }
 };
 
@@ -85,6 +85,18 @@ public:
         text{text} {}
 
     std::string msg_for_python() const throw() {
-	return text;
+        return text;
+    }
+};
+
+class general_exception : public so3g_exception
+{
+public:
+    std::string text;
+    general_exception(std::string text) :
+        text{text} {}
+
+    std::string msg_for_python() const throw() {
+        return text;
     }
 };
