@@ -21,7 +21,7 @@ from distutils.command.clean import clean
 topdir = Path(__file__).resolve().parent
 
 # The version of spt3g we will be installing
-upstream_spt3g_version = "master"
+upstream_spt3g_version = "1341ea5fc1584f2fce2454a9032ad0abe03bfe89"
 
 # The name of the spt3g source and package dirs
 spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g_internal")
@@ -140,7 +140,7 @@ def has_flag(compiler, flagname):
                 oldstderr = os.dup(sys.stderr.fileno())
                 os.dup2(devnull.fileno(), sys.stderr.fileno())
                 compiler.compile([f.name], extra_postargs=[flagname])
-            except CompileError:
+            except:
                 return False
             return True
     finally:
@@ -150,14 +150,9 @@ def has_flag(compiler, flagname):
             devnull.close()
 
 
-def cpp_flag(compiler):
-    """Return the -std=c++[11/14] compiler flag.
-
-    The c++14 is prefered over c++11 (when it is available).
-    """
-    if has_flag(compiler, "-std=c++14"):
-        return "-std=c++14"
-    elif has_flag(compiler, "-std=c++11"):
+def cpp11_flag(compiler):
+    """Return the -std=c++11 compiler flag."""
+    if has_flag(compiler, "-std=c++11"):
         return "-std=c++11"
     else:
         raise RuntimeError("Unsupported compiler -- at least C++11 support is needed!")
@@ -202,7 +197,7 @@ class BuildExt(build_ext):
 
         if ct == "unix":
             opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
-            opts.append(cpp_flag(self.compiler))
+            opts.append(cpp11_flag(self.compiler))
             if has_flag(self.compiler, "-fvisibility=hidden"):
                 opts.append("-fvisibility=hidden")
             if has_flag(self.compiler, "-fopenmp"):
@@ -210,6 +205,9 @@ class BuildExt(build_ext):
                 linkopts.append("-fopenmp")
             if sys.platform.lower() == "darwin":
                 linkopts.append("-stdlib=libc++")
+                linkopts.append("-framework Accelerate")
+            else:
+                linkopts.append("-lopenblas")
         elif ct == "msvc":
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
 
@@ -299,7 +297,10 @@ conf["install_requires"] = [
 # manually.
 
 conf["packages"] = ["so3g", "so3g.spt3g_internal"]
-conf["package_dir"] = {"so3g": "python", "so3g.spt3g_internal": os.path.join("python", "spt3g_internal")}
+conf["package_dir"] = {
+    "so3g": "python",
+    "so3g.spt3g_internal": os.path.join("python", "spt3g_internal"),
+}
 for sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
     psub = "so3g.spt3g_internal.{}".format(sub)
     pdir = os.path.join("python", "spt3g_internal", sub)

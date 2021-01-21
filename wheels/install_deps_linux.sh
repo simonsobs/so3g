@@ -31,6 +31,31 @@ MAKEJ=2
 
 PREFIX=/usr
 
+# Install Openblas
+
+openblas_version=0.3.13
+openblas_dir=OpenBLAS-${openblas_version}
+openblas_pkg=${openblas_dir}.tar.gz
+
+echo "Fetching OpenBLAS..."
+
+if [ ! -e ${openblas_pkg} ]; then
+    curl -SL https://github.com/xianyi/OpenBLAS/archive/v${openblas_version}.tar.gz -o ${openblas_pkg}
+fi
+
+echo "Building OpenBLAS..."
+
+rm -rf ${openblas_dir}
+tar xzf ${openblas_pkg} \
+    && pushd ${openblas_dir} >/dev/null 2>&1 \
+    && make USE_OPENMP=1 NO_SHARED=1 \
+    MAKE_NB_JOBS=${MAKEJ} \
+    CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 \
+    COMMON_OPT="${CFLAGS}" FCOMMON_OPT="${FCFLAGS}" \
+    LDFLAGS="-fopenmp -lm" \
+    && make NO_SHARED=1 PREFIX="${PREFIX}" install \
+    && popd >/dev/null 2>&1
+
 # Install boost
 
 boost_version=1_72_0
