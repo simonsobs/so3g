@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
-git clone https://github.com/arahlin/qpoint.git
+QP_VER=1.11.2
+git clone https://github.com/arahlin/qpoint.git  --branch $QP_VER
 cd qpoint
 python3 setup.py install
