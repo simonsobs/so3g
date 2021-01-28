@@ -190,3 +190,46 @@ class RangesMatrix():
         return {
             'samples': samples,
             'intervals': intervals}
+
+    @staticmethod
+    def full(shape, fill_value):
+        """Construct a RangesMatrix with the specified shape, initialized to
+        fill_value.
+
+        Args:
+          shape (tuple of int): The shape.  Must have at least one
+            element.  If there is only one element, a Ranges object is
+            returned, not a RangesMatrix.
+          fill_value (bool): True or False.  If False, the wrapped
+            Ranges objects will have no intervals.  If True, the
+            wrapped Ranges objects will all have a single interval
+            spanning their entire domain.
+
+        Returns:
+          Ranges object (if shape has a single element) or a
+          RangesMatrix object (len(shape) > 1).
+
+        See also: zeros, ones.
+
+        """
+        assert fill_value in [True, False]
+        if isinstance(shape, int):
+            shape = (shape,)
+        assert(len(shape) > 0)
+        if len(shape) == 1:
+            r = Ranges(shape[0])
+            if fill_value:
+                r = ~r
+            return r
+        return RangesMatrix([RangesMatrix.full(shape[1:], fill_value)
+                             for i in range(shape[0])])
+
+    @classmethod
+    def zeros(cls, shape):
+        """Equivalent to full(shape, False)."""
+        return cls.full(shape, False)
+
+    @classmethod
+    def ones(cls, shape):
+        """Equivalent to full(shape, True)."""
+        return cls.full(shape, True)
