@@ -84,14 +84,34 @@ class RangesMatrix():
                 if 0 in self.shape:
                     return self.__class__([], self.shape)
                 return self.__class__([self[index[1:]]], self.shape)
-            elif isinstance(index[0], np.ndarray):
+
+            if len(self.shape) == 2 and len(index) > 1 and index[1] is None:
+                # This case corresponds to trying to inject a new
+                # dimension before the last one, e.g. if shape is
+                # (100, 10000) and index is [:,None].  This requires
+                # special treatment because a simple Ranges object
+                # can't self-promote like Ranges(10000)[None,:] ->
+                # RangesMatrix(1,10000).
+                new_index = tuple([index[0], slice(0,1)] + list(index[2:]))
+                new_shape = (self.shape[0], 1, self.shape[1])
+                new_self = RangesMatrix([RangesMatrix([r], new_shape[2:])
+                                         for r in self.ranges], new_shape[1:])
+                return new_self[new_index]
+
+            if len(self.shape) == 2 and len(index) > 2:
+                raise IndexError("Too many indices to RangesMatrix.")
+
+            if isinstance(index[0], np.ndarray):
                 if index[0].dtype is np.bool:
                     return RangesMatrix([self.ranges[i][index[1:]]
                                            for i in index[0].nonzero()[0]])
                 return RangesMatrix([self.ranges[i][index[1:]] for i in index[0]],
                                     self.shape[1:])
-            return RangesMatrix([d[index[1:]] for d in self.ranges[index[0]]],
-                                self.shape[1:])
+            elif isinstance(index[0], slice):
+                return RangesMatrix([d[index[1:]] for d in self.ranges[index[0]]],
+                                    self.shape[1:])
+            else:
+                return self.ranges[index[0]][index[1:]]
         return self.ranges[index]
     
     def __add__(self, x):
@@ -151,7 +171,7 @@ class RangesMatrix():
         s = list(items[0].shape)
         s[axis] = -1
         for item in items[1:]:
-            s1 = list(items[0].shape)
+            s1 = list(item.shape)
             s1[axis] = -1
             if s != s1:
                 raise ValueError('Contributed items must have same shape on non-cat axis.')
