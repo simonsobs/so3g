@@ -147,6 +147,24 @@ class CelestialSightLine:
         return self
 
     @classmethod
+    def for_lonlat(cls, lon, lat, psi=0):
+        """Construct a SightLine directly from lonlat angles representing
+        celestial coordinates.
+
+        This is appropriate if you want a SightLine that takes focal
+        plane coordinates directly to some celestial pointing.  In
+        that case, lon and lat are RA and dec, and psi is the
+        parallactic rotation of the focal plane on the sky at the
+        target position.  psi=0 will correspond to focal plane "up"
+        (+eta axis) mapping parallel to lines of longitude; psi > 0
+        is a clockwise rotation of the focal plane on the sky.
+
+        """
+        self = cls()
+        self.Q = quat.euler(2, lon) * quat.euler(1, np.pi/2 - lat) * quat.euler(2, psi)
+        return self
+
+    @classmethod
     def for_horizon(cls, t, az, el, roll=None, site=None, weather=None):
         """Construct the trivial SightLine, where "celestial" coordinates are
         taken to simply be local horizon coordinates (without any
@@ -186,7 +204,7 @@ class CelestialSightLine:
           keys is returned.  Otherwise a list is returned.  For each
           detector, the corresponding returned object is an array with
           shape (n_samp, 4) where the four components correspond to
-          longitude, latitude, cos(gamma), sin(gamma).
+          longitude, latitude, cos(psi), sin(psi).
 
         """
         # Get a projector, in CAR.
@@ -274,14 +292,19 @@ class Assembly:
 
         Args:
             sight_line (CelestialSightLine): The position and
-                orientation of the boresight.
+                orientation of the boresight.  This can just be a
+                G3VectorQuat if you don't have a whole
+                CelestialSightLine handy.
             det_offsets (FocalPlane): The "offsets" of each detector
                 relative to the boresight.
 
         """
         keyed = isinstance(det_offsets, dict)
         self = cls(keyed=keyed)
-        self.Q = sight_line.Q
+        if isinstance(sight_line, quat.G3VectorQuat):
+            self.Q = sight_line
+        else:
+            self.Q = sight_line.Q
         if self.keyed:
             self.keys = list(det_offsets.keys())
             self.dets = [det_offsets[k] for k in self.keys]
