@@ -247,7 +247,8 @@ def get_sample_timestamps(frame):
         return times, TimingParadigm.G3Timestream
 
 class SmurfArchive:
-    def __init__(self, archive_path, db_path=None, echo=False):
+    def __init__(self, archive_path, db_path=None, meta_path=None, 
+                 echo=False):
         """
         Class to manage a smurf data archive.
 
@@ -257,12 +258,16 @@ class SmurfArchive:
                 Path to the data directory
             db_path (path, optional):
                 Path to the sqlite file. Defaults to ``<archive_path>/frames.db``
+            meta_path (path, optional):
+                Path of directory containing smurf related metadata (ie. channel
+                assignments). Required for full functionality.
             echo (bool, optional):
                 If true, all sql statements will print to stdout.
         """
         if db_path is None:
             db_path = os.path.join(archive_path, 'frames.db')
         self.archive_path = archive_path
+        self.meta_path = meta_path
         self.engine = db.create_engine(f"sqlite:///{db_path}", echo=echo)
         Session.configure(bind=self.engine)
         self.Session = sessionmaker(bind=self.engine)
@@ -394,6 +399,99 @@ class SmurfArchive:
 
         session.close()
 
+    def index_channel_assignments(self, verbose = False, stop_at_error=False,
+                             check_indexed=True):
+        """
+            Adds all channel assignments in archive to database. Adding relavent
+            entries to Bands and Channel Assignments as well.
+
+            Args
+            ----
+            verbose: bool
+                Verbose mode
+            stop_at_error: bool
+                If True, will stop if there is an error indexing a file.
+            check_indexed: bool
+                If True, will assume any channel assignment in database is complete
+        """
+        if self.meta_path is None:
+            raise ValueError('Archiver needs meta_path attribute to index channel assignments')
+
+        ses = self.Session()
+        indexed = [a[0] for a in ses.query(ChanAssignments.path).all()]
+
+        assignments = []
+
+        for root, dirs, fs in os.walk(self.meta_path):
+            if len(fs)==0:
+                continue
+            for f in fs:
+                if '_channel_assignment_' in f:
+                    path = os.path.join(root, f)
+                    if path in indexed and check_indexed:
+                        continue
+                    assignments.append( path )
+
+        for a in tqdm(assignments):
+            splits = a.split('/')
+
+            ## to find band
+            try:
+                stream_id = splits[-4]
+                x = splits[-1].split('_')
+                band_number = int(x[-1].strip('.txt').strip('b'))
+            except Exception as e:
+                if verbose:
+                    print("Failed to determine band for {}".format(a))
+                if stop_at_error:
+                    raise e
+                continue
+
+
+            band = ses.query(Bands).filter(Bands.number == band_number,
+                                        Bands.stream_id == stream_id).one_or_none()
+            if band is None:
+                print('Encountered a new band')
+                band = Bands(number = band_number,
+                             stream_id = stream_id)
+                ses.add(band)
+
+
+            ## to make channel assignment
+            ctime = int(x[0])
+            path = a 
+            ch_assign = ses.query(ChanAssignments).filter(ChanAssignments.ctime == ctime,
+                                                          ChanAssignments.band_id == band.id)
+            ch_assign = ch_assign.one_or_none()
+            if ch_assign is None:
+                ch_assign = ChanAssignments(ctime=ctime,
+                                            path=path,
+                                            band=band)
+                ses.add(ch_assign)
+
+            notches = np.atleast_2d(np.genfromtxt(ch_assign.path, delimiter=','))
+            if len(notches) != len(ch_assign.channels):
+                for notch in notches:
+                    det = Dets(subband=notch[1],
+                               channel=notch[2],
+                               frequency=notch[0],
+                               chan_assignment=ch_assign,
+                               band=band)
+                    ## smurf did not assign a channel
+                    if det.channel == -1:
+                        continue
+                    check = ses.query(Dets).filter(Dets.ca_id == ch_assign.id,
+                                              Dets.channel == det.channel).one_or_none()
+                    if check is None:
+                        ses.add(det)
+            ses.commit()
+
+
+            for det in ch_assign.channels:
+                det.name='sch{:06d}'.format(det.id)     
+            ses.commit()
+            ses.close()
+        
     def load_data(self, start, end, show_pb=True, load_biases=True):
         """
         Loads smurf G3 data for a given time range. For the specified time range
