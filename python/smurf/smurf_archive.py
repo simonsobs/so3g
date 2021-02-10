@@ -73,7 +73,7 @@ association_table = db.Table('association_chan_assign', Base.metadata,
 
 association_table_dets = db.Table('association_dets', Base.metadata,
     db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
-    db.Column('dets', db.Integer, db.ForeignKey('dets.id'))
+    db.Column('channels', db.Integer, db.ForeignKey('channels.id'))
 )
 
 class Detsets(Base):
@@ -95,7 +95,7 @@ class Detsets(Base):
                                     back_populates='detsets')
     
     ## many to many
-    dets = relationship('Dets', 
+    channels = relationship('Channels', 
                         secondary=association_table_dets,
                         back_populates='detset')
     
@@ -112,7 +112,7 @@ class Bands(Base):
     chan_assignments = relationship("ChanAssignments", back_populates='band')
     
     ## one to many
-    dets = relationship("Dets", back_populates='band')
+    channels = relationship("Channels", back_populates='band')
     
 class ChanAssignments(Base):
     __tablename__ = 'chan_assignments'
@@ -134,10 +134,10 @@ class ChanAssignments(Base):
 
     ## Each channel assignment is made of many channels
     ## one to many
-    channels = relationship("Dets", back_populates='chan_assignment')
+    channels = relationship("Channels", back_populates='chan_assignment')
     
-class Dets(Base):
-    __tablename__ = 'dets'
+class Channels(Base):
+    __tablename__ = 'channels'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     
@@ -151,13 +151,13 @@ class Dets(Base):
     chan_assignment = relationship("ChanAssignments", back_populates='channels')
 
     ## many to one
-    band = relationship('Bands', back_populates='dets')
+    band = relationship('Bands', back_populates='channels')
     band_number = db.Column(db.Integer, db.ForeignKey('bands.number'))
     
     ## many to many
     detset = relationship('Detsets',
                          secondary=association_table_dets,
-                         back_populates='dets')
+                         back_populates='channels')
     
     
 type_key = ['Observation', 'Wiring', 'Scan']
@@ -472,23 +472,23 @@ class SmurfArchive:
             notches = np.atleast_2d(np.genfromtxt(ch_assign.path, delimiter=','))
             if len(notches) != len(ch_assign.channels):
                 for notch in notches:
-                    det = Dets(subband=notch[1],
+                    ch = Channels(subband=notch[1],
                                channel=notch[2],
                                frequency=notch[0],
                                chan_assignment=ch_assign,
                                band=band)
                     ## smurf did not assign a channel
-                    if det.channel == -1:
+                    if ch.channel == -1:
                         continue
-                    check = ses.query(Dets).filter(Dets.ca_id == ch_assign.id,
-                                              Dets.channel == det.channel).one_or_none()
+                    check = ses.query(Channels).filter(Channels.ca_id == ch_assign.id,
+                                               Channels.channel == ch.channel).one_or_none()
                     if check is None:
-                        ses.add(det)
+                        ses.add(ch)
             ses.commit()
 
 
-            for det in ch_assign.channels:
-                det.name='sch{:06d}'.format(det.id)     
+            for ch in ch_assign.channels:
+                ch.name='sch{:06d}_{:03d}_{:03d}'.format(ch.id, ch.subband, ch.channel)     
             ses.commit()
             ses.close()
         
@@ -534,11 +534,11 @@ class SmurfArchive:
         """
         session = self.Session()
 
-        frames = session.query(Frame).filter(
-            Frame.type_name == 'Scan',
-            Frame.stop >= dt.datetime.fromtimestamp(start),
-            Frame.start < dt.datetime.fromtimestamp(end)
-        ).order_by(Frame.time)
+        frames = session.query(Frames).filter(
+            Frames.type_name == 'Scan',
+            Frames.stop >= dt.datetime.fromtimestamp(start),
+            Frames.start < dt.datetime.fromtimestamp(end)
+        ).order_by(Frames.time)
         session.close()
 
         samples, channels = 0, 0
@@ -621,16 +621,16 @@ class SmurfArchive:
             status (dict): Dictionary of rogue variables at specified time.
         """
         session = self.Session()
-        session_start,  = session.query(Frame.time).filter(
-            Frame.type_name == 'Observation',
-            Frame.time <= dt.datetime.fromtimestamp(time)
-        ).order_by(Frame.time.desc()).first()
+        session_start,  = session.query(Frames.time).filter(
+            Frames.type_name == 'Observation',
+            Frames.time <= dt.datetime.fromtimestamp(time)
+        ).order_by(Frames.time.desc()).first()
 
-        status_frames = session.query(Frame).filter(
-            Frame.type_name == 'Wiring',
-            Frame.time >= session_start,
-            Frame.time <= dt.datetime.fromtimestamp(time)
-        ).order_by(Frame.time)
+        status_frames = session.query(Frames).filter(
+            Frames.type_name == 'Wiring',
+            Frames.time >= session_start,
+            Frames.time <= dt.datetime.fromtimestamp(time)
+        ).order_by(Frames.time)
 
         status = {}
         cur_file = None
