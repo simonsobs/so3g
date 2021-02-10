@@ -19,27 +19,159 @@ Base = declarative_base()
 Session = sessionmaker()
 num_bias_lines = 16
 
+class Observations(Base):
+    """Times on continuous detector readout"""
+    __tablename__ = 'obs'
+    ## ctime of beginning of the observation
+        
+    obs_id = db.Column(db.String, primary_key=True)
+    timestamp = db.Column(db.Integer)
+    # in seconds
+    duration = db.Column(db.Float)
+    
+    files = relationship("Files", back_populates='observation') 
+    
+
 class Files(Base):
     """Table to store file indexing info"""
     __tablename__ = 'files'
     id = db.Column(db.Integer, primary_key=True)
 
-    path = db.Column(db.String, nullable=False)
+    path = db.Column(db.String, nullable=False, unique=True)
+    ## name is relative to archive_path. Currently here for obsfiledb
+    ## by default, the archive_path is the save location. But it does not need to be
+    name = db.Column(db.String, unique=True)
+    
     start = db.Column(db.DateTime)
     stop = db.Column(db.DateTime)
-    frames = db.Column(db.Integer)
-    channels = db.Column(db.Integer)
+    
+    ## this is sample in an observation (I think?)
+    sample_start = db.Column(db.Integer)
+    sample_stop = db.Column(db.Integer)
+    
+    ## this is a string for compatibility with sotodlib, not because it makes sense here
+    obs_id = db.Column(db.String, db.ForeignKey('obs.obs_id'))
+    observation = relationship("Observations", back_populates='files')
+    
+    stream_id = db.Column(db.String)
+    
+    n_frames = db.Column(db.Integer)
+    frames = relationship("Frames", back_populates='file')
+    
+    ## n_channels is a renaming of channels
+    n_channels = db.Column(db.Integer)
+    
+    # breaking from linked table convention to match with obsfiledb requirements
+    ## many to one
+    detset = db.Column(db.String, db.ForeignKey('detsets.name'))
+    detset_info = relationship("Detsets")
+    
+association_table = db.Table('association_chan_assign', Base.metadata,
+    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
+    db.Column('chan_assignments', db.Integer, db.ForeignKey('chan_assignments.id'))
+)
 
+association_table_dets = db.Table('association_dets', Base.metadata,
+    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
+    db.Column('dets', db.Integer, db.ForeignKey('dets.id'))
+)
+
+class Detsets(Base):
+    """Indexing of detector sets seen during observations"""
+    __tablename__ = 'detsets'
+    id = db.Column( db.Integer, primary_key=True)
+    
+    name = db.Column(db.String, unique=True)
+    start = db.Column(db.DateTime)
+    stop = db.Column(db.DateTime)
+    
+    ## files that use this detset
+    ## one to many
+    files = relationship("Files", back_populates='detset_info')
+    
+    ## many to many
+    chan_assignments = relationship('ChanAssignments', 
+                                    secondary=association_table,
+                                    back_populates='detsets')
+    
+    ## many to many
+    dets = relationship('Dets', 
+                        secondary=association_table_dets,
+                        back_populates='detset')
+    
+class Bands(Base):
+    __tablename__ = 'bands'
+    __table_args__ = (
+        db.UniqueConstraint('number', 'stream_id'),
+    )
+    id = db.Column( db.Integer, primary_key=True )
+    number = db.Column( db.Integer )
+    stream_id = db.Column( db.String)
+    
+    ## one to many
+    chan_assignments = relationship("ChanAssignments", back_populates='band')
+    
+    ## one to many
+    dets = relationship("Dets", back_populates='band')
+    
+class ChanAssignments(Base):
+    __tablename__ = 'chan_assignments'
+    id = db.Column(db.Integer, primary_key=True)
+    
+    ctime = db.Column(db.Integer)
+    path = db.Column(db.String, unique=True)
+    
+    ## Each channel assignment is done for one band
+    ## many to one
+    band = relationship("Bands", back_populates='chan_assignments')
+    band_id = db.Column(db.Integer, db.ForeignKey('bands.id'))
+    
+    ## Channel Assignments are put into detector sets
+    ## many to many bidirectional 
+    detsets = relationship('Detsets', 
+                           secondary=association_table,
+                           back_populates='chan_assignments')
+
+    ## Each channel assignment is made of many channels
+    ## one to many
+    channels = relationship("Dets", back_populates='chan_assignment')
+    
+class Dets(Base):
+    __tablename__ = 'dets'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    
+    ## smurf channels
+    subband = db.Column(db.Integer)
+    channel = db.Column(db.Integer)
+    frequency = db.Column(db.Float)
+    
+    ## many to one
+    ca_id = db.Column(db.Integer, db.ForeignKey('chan_assignments.id'))
+    chan_assignment = relationship("ChanAssignments", back_populates='channels')
+
+    ## many to one
+    band = relationship('Bands', back_populates='dets')
+    band_number = db.Column(db.Integer, db.ForeignKey('bands.number'))
+    
+    ## many to many
+    detset = relationship('Detsets',
+                         secondary=association_table_dets,
+                         back_populates='dets')
+    
+    
 type_key = ['Observation', 'Wiring', 'Scan']
+
 class FrameType(Base):
     """Enum table for storing frame types"""
     __tablename__ = "frame_type"
     id = db.Column(db.Integer, primary_key=True)
     type_name = db.Column(db.String, unique=True, nullable=True)
 
-class Frame(Base):
+    
+class Frames(Base):
     """Table to store frame indexing info"""
-    __tablename__ = 'frames'
+    __tablename__ = 'frame_offsets'
     __table_args__ = (
         db.UniqueConstraint('file_id', 'frame_idx', name='_frame_loc'),
     )
@@ -47,7 +179,7 @@ class Frame(Base):
     id = db.Column(db.Integer, primary_key=True)
 
     file_id = db.Column(db.Integer, db.ForeignKey('files.id'))
-    file = relationship("Files")
+    file = relationship("Files", back_populates='frames')
 
     frame_idx = db.Column(db.Integer, nullable=False)
     offset = db.Column(db.Integer, nullable=False)
@@ -58,13 +190,13 @@ class Frame(Base):
     time = db.Column(db.DateTime, nullable=False)
 
     # Specific to data frames
-    samples = db.Column(db.Integer)
-    channels = db.Column(db.Integer)
+    n_samples = db.Column(db.Integer)
+    n_channels = db.Column(db.Integer)
     start = db.Column(db.DateTime)
     stop = db.Column(db.DateTime)
 
     def __repr__(self):
-        return f"Frame({self.type_name})<{self.location}>"
+        return f"Frame({self.type_name})<{self.frame_idx}>"
 
 
 class TimingParadigm(Enum):
