@@ -196,7 +196,7 @@ class Frames(Base):
     stop = db.Column(db.DateTime)
 
     def __repr__(self):
-        return f"Frame({self.type_name})<{self.frame_idx}>"
+        return f"Frame({self.type_name})<{self.location}>"
 
 
 class TimingParadigm(Enum):
@@ -302,23 +302,30 @@ class SmurfArchive:
         file_start, file_stop = None, None
         frame_idx = 0
         while True:
-            db_frame = Frame(frame_idx=frame_idx, file=db_file)
-            db_frame.offset = reader.Tell()
-
+            
+            db_frame_offset = reader.Tell()
             frames = reader.Process(None)
             if not frames:
                 break
+                
             frame = frames[0]
             frame_idx += 1
 
             if str(frame.type) not in type_key:
                 continue
 
-            db_frame.frame_type = frame_types[str(frame.type)]
+            db_frame_frame_type = frame_types[str(frame.type)]
 
             timestamp = frame['time'].time / core.G3Units.s
-            db_frame.time = dt.datetime.fromtimestamp(timestamp)
-
+            db_frame_time = dt.datetime.fromtimestamp(timestamp)
+            
+            ## only make Frame once the non-nullable fields are known
+            db_frame = Frames(frame_idx=frame_idx, file=db_file,
+                             offset = db_frame_offset,
+                             frame_type = db_frame_frame_type,
+                             time = db_frame_time 
+                             )
+        
             data = frame.get('data')
             if data is not None:
                 db_frame.samples = data.n_samples
@@ -335,8 +342,8 @@ class SmurfArchive:
 
         db_file.start = file_start
         db_file.stop = file_stop
-        db_file.channels = total_channels
-        db_file.frames = frame_idx
+        db_file.n_channels = total_channels
+        db_file.n_frames = frame_idx
 
 
     def index_archive(self, verbose=False, stop_at_error=False):
