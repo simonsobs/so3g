@@ -87,7 +87,7 @@ class Files(Base):
     # breaking from linked table convention to match with obsfiledb requirements
     ## many to one
     detset = db.Column(db.String, db.ForeignKey('detsets.name'))
-    detset_info = relationship("Detsets")
+    detset_info = relationship("Detsets", back_populates='files')
     
 
 class Detsets(Base):
@@ -326,21 +326,6 @@ class SmurfArchive:
             ## should this fail silently?
             pass
         
-        ### doing this here is slow AF. do it another way
-        try:
-            obs_name = db_file.path.split('/')[-1].strip('.g3').split('_')[0]
-            obs = session.query(Observations).filter(Observations.obs_id == obs_name).one_or_none()
-            if obs is None:
-                try:
-                    obs = Observations(obs_id = obs_name,
-                                 timestamp = int(obs_name))
-                    session.add(obs)
-                except:
-                    pass
-            db_file.observation = obs
-        except:
-            ## should this fail silently?
-            pass
 
         reader = so3g.G3IndexedReader(path)
 
@@ -374,15 +359,15 @@ class SmurfArchive:
         
             data = frame.get('data')
             if data is not None:
-                db_frame.samples = data.n_samples
-                db_frame.channels = len(data)
+                db_frame.n_samples = data.n_samples
+                db_frame.n_channels = len(data)
                 db_frame.start = dt.datetime.fromtimestamp(data.start.time / core.G3Units.s)
                 db_frame.stop = dt.datetime.fromtimestamp(data.stop.time / core.G3Units.s)
 
                 if file_start is None:
                     file_start = db_frame.start
                 file_stop = db_frame.stop
-                total_channels = max(total_channels, db_frame.channels)
+                total_channels = max(total_channels, db_frame.n_channels)
 
             session.add(db_frame)
 
@@ -392,7 +377,8 @@ class SmurfArchive:
         db_file.n_frames = frame_idx
 
 
-    def index_archive(self, verbose=False, stop_at_error=False):
+    def index_archive(self, verbose=False, stop_at_error=False,
+                     skip_old_format=True):
         """
         Adds all files from an archive to the sqlite database.
 
@@ -411,12 +397,14 @@ class SmurfArchive:
             for f in fs:
                 path = os.path.join(root, f)
                 if path.endswith('.g3') and path not in indexed_files:
+                    if skip_old_format and '2020-' in path:
+                        continue
                     files.append(path)
 
         if verbose:
             print(f"Indexing {len(files)} files...")
 
-        for f in tqdm(files):
+        for f in tqdm(sorted(files)[::-1]):
             try:
                 self.add_file(os.path.join(root, f), session)
                 session.commit()
@@ -438,6 +426,28 @@ class SmurfArchive:
                 elif verbose:
                     print(f"Failed on file {f}:\n{e}")
 
+        file_list = session.query(Files).all()
+
+        #### Make Observations
+        for db_file in file_list:
+            if db_file.observation is not None:
+                continue
+            obs_name = db_file.path.split('/')[-1].strip('.g3').split('_')[0]
+            obs = session.query(Observations).filter(Observations.obs_id == obs_name).one_or_none()
+            if obs is None:
+                try:
+                    obs = Observations(obs_id = obs_name,
+                                 timestamp = int(obs_name))
+                    session.add(obs)
+                except Exception as e:
+                    print('Failed to add observation for file {}'.format(db_file.path))
+                    if stop_at_error:
+                        raise e
+            db_file.observation = obs
+
+        session.commit()
+        ####
+
         ## update observation database
         obs_list = session.query(Observations).filter(Observations.duration==None).all()
         for obs in obs_list:
@@ -452,7 +462,6 @@ class SmurfArchive:
                     continue
                 obs.duration = (q[-1].stop - q[0].start).total_seconds()
         session.commit()
-        
         session.close()
 
     def index_channel_assignments(self, verbose = False, stop_at_error=False,
@@ -507,7 +516,6 @@ class SmurfArchive:
             band = ses.query(Bands).filter(Bands.number == band_number,
                                         Bands.stream_id == stream_id).one_or_none()
             if band is None:
-                print('Encountered a new band')
                 band = Bands(number = band_number,
                              stream_id = stream_id)
                 ses.add(band)
@@ -547,6 +555,84 @@ class SmurfArchive:
                 ch.name='sch{:06d}_{:03d}_{:03d}'.format(ch.id, ch.subband, ch.channel)     
             ses.commit()
             ses.close()
+        
+    def build_detector_sets(self, verbose=False, stop_as_error=False):
+        session = self.Session()
+        obs_list = session.query(Observations).order_by(db.desc(Observations.timestamp)).all()
+
+        for obs in tqdm(obs_list):
+            for file in obs.files:
+                        
+                if file.stream_id is None or 'None' in file.stream_id:
+                    ## ignoring old file system
+                    continue
+                if file.detset is not None:
+                    ## already been archived
+                    continue
+
+                ### find the bands streaming in this file
+                status = self.load_status(file.start.timestamp())
+                ch_in_file = np.array([status.readout_to_smurf(x) for x in range(len(status.mask))])
+                bands_in_file = np.unique(ch_in_file[:,0])
+
+                ### create the list of channel assignments used in this file
+                ch_assigns = []
+
+                for bnd in bands_in_file:
+
+                    band = session.query(Bands).filter(Bands.stream_id==file.stream_id,
+                                                Bands.number==int(bnd)).one()
+                    ch_assigns.append( session.query(ChanAssignments).filter(
+                                ChanAssignments.band_id == band.id,
+                                ChanAssignments.ctime <= file.start.timestamp()
+                                ).order_by(db.desc(ChanAssignments.ctime)).first() )
+
+                if len(ch_assigns)==0:
+                    print('mega fail')
+                    continue
+                if np.any([ch is None for ch in ch_assigns]):
+                    print('Detset matching fail')
+                    continue
+
+                ## Figure out if the detset we're using already exists
+                ## This feels stupid. Does anyone know a smarter way to do this in SQL??
+                ## many-to-many relationships are confusing
+                obs_cas = sorted([ch.id for ch in ch_assigns])
+                this_dset = None
+
+                if np.any( [len(cha.detsets)==0 for cha in ch_assigns]):
+                    ## make a new detset
+                    pass
+                else:
+                    for dset in ch_assigns[0].detsets:
+                        ds_idx = sorted([ch.id for ch in dset.chan_assignments])
+                        if np.all(obs_cas == ds_idx):
+                            this_dset = dset
+
+                if this_dset is None:
+                    ## name it after the most recent channel assignment
+                    ## what can possibly go wrong!
+                    this_dset = Detsets(name=str(np.max([ch.ctime for ch in ch_assigns])),
+                                        start=file.start,
+                                        stop=file.stop)
+                    ## add all the channel assignments and channels
+                    for cha in ch_assigns:
+                        this_dset.chan_assignments.append(cha)
+                        for ch in cha.channels:
+                            this_dset.channels.append(ch)
+
+                    session.add(this_dset) 
+
+                else:
+                    ## update ctimes as necessary
+                    if file.start < this_dset.start:
+                        this_dset.start = file.start
+                    if file.stop > this_dset.stop:
+                        this_dset.stop = file.stop
+
+                file.detset_info = this_dset
+                session.commit()
+                        
         
     def load_data(self, start, end, show_pb=True, load_biases=True):
         """
@@ -601,8 +687,8 @@ class SmurfArchive:
         num_frames = 0
         for f in frames:
             num_frames += 1
-            samples += f.samples
-            channels = max(f.channels, channels)
+            samples += f.n_samples
+            channels = max(f.n_channels, channels)
 
         timestamps = np.full((samples,), np.nan, dtype=np.float64)
         data = np.full((channels, samples), 0, dtype=np.int32)
