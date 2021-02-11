@@ -19,9 +19,26 @@ Base = declarative_base()
 Session = sessionmaker()
 num_bias_lines = 16
 
+
+association_table = db.Table('association_chan_assign', Base.metadata,
+    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
+    db.Column('chan_assignments', db.Integer, db.ForeignKey('chan_assignments.id'))
+)
+
+association_table_obs = db.Table('association_obs', Base.metadata,
+    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
+    db.Column('observations', db.Integer, db.ForeignKey('observations.obs_id'))
+)
+
+association_table_dets = db.Table('association_dets', Base.metadata,
+    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
+    db.Column('channels', db.Integer, db.ForeignKey('channels.id'))
+)
+
+
 class Observations(Base):
     """Times on continuous detector readout"""
-    __tablename__ = 'obs'
+    __tablename__ = 'observations'
     ## ctime of beginning of the observation
         
     obs_id = db.Column(db.String, primary_key=True)
@@ -29,7 +46,13 @@ class Observations(Base):
     # in seconds
     duration = db.Column(db.Float)
     
+    ## one to many
     files = relationship("Files", back_populates='observation') 
+    
+    ## many to many
+    detsets = relationship("Detsets", 
+                           secondary=association_table_obs,
+                           back_populates='observations') 
     
 
 class Files(Base):
@@ -50,7 +73,7 @@ class Files(Base):
     sample_stop = db.Column(db.Integer)
     
     ## this is a string for compatibility with sotodlib, not because it makes sense here
-    obs_id = db.Column(db.String, db.ForeignKey('obs.obs_id'))
+    obs_id = db.Column(db.String, db.ForeignKey('observations.obs_id'))
     observation = relationship("Observations", back_populates='files')
     
     stream_id = db.Column(db.String)
@@ -66,15 +89,6 @@ class Files(Base):
     detset = db.Column(db.String, db.ForeignKey('detsets.name'))
     detset_info = relationship("Detsets")
     
-association_table = db.Table('association_chan_assign', Base.metadata,
-    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
-    db.Column('chan_assignments', db.Integer, db.ForeignKey('chan_assignments.id'))
-)
-
-association_table_dets = db.Table('association_dets', Base.metadata,
-    db.Column('detsets', db.Integer, db.ForeignKey('detsets.id')),
-    db.Column('channels', db.Integer, db.ForeignKey('channels.id'))
-)
 
 class Detsets(Base):
     """Indexing of detector sets seen during observations"""
@@ -88,6 +102,11 @@ class Detsets(Base):
     ## files that use this detset
     ## one to many
     files = relationship("Files", back_populates='detset_info')
+    
+    ## many to many
+    observations = relationship("Observations", 
+                                secondary=association_table_obs,
+                                back_populates='detsets')
     
     ## many to many
     chan_assignments = relationship('ChanAssignments', 
@@ -300,6 +319,28 @@ class SmurfArchive:
 
         db_file = Files(path=path)
         session.add(db_file)
+        try:
+            splits = path.split('/')
+            db_file.stream_id = splits[-2]
+        except:
+            ## should this fail silently?
+            pass
+        
+        ### doing this here is slow AF. do it another way
+        try:
+            obs_name = db_file.path.split('/')[-1].strip('.g3').split('_')[0]
+            obs = session.query(Observations).filter(Observations.obs_id == obs_name).one_or_none()
+            if obs is None:
+                try:
+                    obs = Observations(obs_id = obs_name,
+                                 timestamp = int(obs_name))
+                    session.add(obs)
+                except:
+                    pass
+            db_file.observation = obs
+        except:
+            ## should this fail silently?
+            pass
 
         reader = so3g.G3IndexedReader(path)
 
@@ -397,6 +438,21 @@ class SmurfArchive:
                 elif verbose:
                     print(f"Failed on file {f}:\n{e}")
 
+        ## update observation database
+        obs_list = session.query(Observations).filter(Observations.duration==None).all()
+        for obs in obs_list:
+            if len(obs.files)==1:
+                file = obs.files[0]
+                if file.start is None or file.stop is None:
+                    continue
+                obs.duration = (file.stop-file.start).total_seconds()
+            else:
+                q = session.query(Files).filter(Files.obs_id==obs.obs_id).order_by(Files.start)
+                if q[-1].stop is None or q[0].start is None:
+                    continue
+                obs.duration = (q[-1].stop - q[0].start).total_seconds()
+        session.commit()
+        
         session.close()
 
     def index_channel_assignments(self, verbose = False, stop_at_error=False,
