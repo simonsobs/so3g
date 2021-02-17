@@ -7,6 +7,7 @@ from spt3g import core
 import so3g
 import datetime as dt
 import os
+import re
 from tqdm import tqdm
 import numpy as np
 import yaml
@@ -424,137 +425,46 @@ class SmurfArchive:
                 if stop_at_error:
                     raise e
                 elif verbose:
-                    print(f"Failed on file {f}:\n{e}")
-
-        file_list = session.query(Files).all()
-
-        #### Make Observations
-        for db_file in file_list:
-            if db_file.observation is not None:
-                continue
-            obs_name = db_file.path.split('/')[-1].strip('.g3').split('_')[0]
-            obs = session.query(Observations).filter(Observations.obs_id == obs_name).one_or_none()
-            if obs is None:
-                try:
-                    obs = Observations(obs_id = obs_name,
-                                 timestamp = int(obs_name))
-                    session.add(obs)
-                except Exception as e:
-                    print('Failed to add observation for file {}'.format(db_file.path))
-                    if stop_at_error:
-                        raise e
-            db_file.observation = obs
-
-        session.commit()
-        ####
-
-        ## update observation database
-        obs_list = session.query(Observations).filter(Observations.duration==None).all()
-        for obs in obs_list:
-            if len(obs.files)==1:
-                file = obs.files[0]
-                if file.start is None or file.stop is None:
-                    continue
-                obs.duration = (file.stop-file.start).total_seconds()
-            else:
-                q = session.query(Files).filter(Files.obs_id==obs.obs_id).order_by(Files.start)
-                if q[-1].stop is None or q[0].start is None:
-                    continue
-                obs.duration = (q[-1].stop - q[0].start).total_seconds()
-        session.commit()
+                    print(f"Failed on file {f}:\n{e}") 
         session.close()
 
-    def index_channel_assignments(self, verbose = False, stop_at_error=False,
-                             check_indexed=True):
-        """
-            Adds all channel assignments in archive to database. Adding relavent
-            entries to Bands and Channel Assignments as well.
+    def add_new_channel_assignment(self, stream_id, ctime, cha, cha_path, session):   
+        band_number = int(re.findall('b\d.txt', cha)[0][1])   
+        band = session.query(Bands).filter(Bands.number == band_number,
+                                           Bands.stream_id == stream_id).one_or_none()
+        if band is None:
+            band = Bands(number = band_number,
+                         stream_id = stream_id)
+            session.add(band)
 
-            Args
-            ----
-            verbose: bool
-                Verbose mode
-            stop_at_error: bool
-                If True, will stop if there is an error indexing a file.
-            check_indexed: bool
-                If True, will assume any channel assignment in database is complete
-        """
-        if self.meta_path is None:
-            raise ValueError('Archiver needs meta_path attribute to index channel assignments')
+        ch_assign = session.query(ChanAssignments).filter(ChanAssignments.ctime == ctime,
+                                                      ChanAssignments.band_id == band.id)
+        ch_assign = ch_assign.one_or_none()
+        if ch_assign is None:
+            ch_assign = ChanAssignments(ctime=ctime,
+                                        path=cha_path,
+                                        band=band)
+            session.add(ch_assign)
 
-        ses = self.Session()
-        indexed = [a[0] for a in ses.query(ChanAssignments.path).all()]
+        notches = np.atleast_2d(np.genfromtxt(ch_assign.path, delimiter=','))
+        if len(notches) != len(ch_assign.channels):
+            for notch in notches:
+                ch_name = 'sch_{:10d}_{:01d}_{:03d}'.format(ctime, band.number, int(notch[2]))
+                ch = Channels(subband=notch[1],
+                              channel=notch[2],
+                              frequency=notch[0],
+                              name=ch_name,
+                              chan_assignment=ch_assign,
+                              band=band)
+                ## smurf did not assign a channel
+                if ch.channel == -1:
+                    continue
+                check = session.query(Channels).filter( Channels.ca_id == ch_assign.id,
+                                           Channels.channel == ch.channel).one_or_none()
+                if check is None:
+                    session.add(ch)
+        session.commit()
 
-        assignments = []
-
-        for root, dirs, fs in os.walk(self.meta_path):
-            if len(fs)==0:
-                continue
-            for f in fs:
-                if '_channel_assignment_' in f:
-                    path = os.path.join(root, f)
-                    if path in indexed and check_indexed:
-                        continue
-                    assignments.append( path )
-
-        for a in tqdm(assignments):
-            splits = a.split('/')
-
-            ## to find band
-            try:
-                stream_id = splits[-4]
-                x = splits[-1].split('_')
-                band_number = int(x[-1].strip('.txt').strip('b'))
-            except Exception as e:
-                if verbose:
-                    print("Failed to determine band for {}".format(a))
-                if stop_at_error:
-                    raise e
-                continue
-
-
-            band = ses.query(Bands).filter(Bands.number == band_number,
-                                        Bands.stream_id == stream_id).one_or_none()
-            if band is None:
-                band = Bands(number = band_number,
-                             stream_id = stream_id)
-                ses.add(band)
-
-
-            ## to make channel assignment
-            ctime = int(x[0])
-            path = a 
-            ch_assign = ses.query(ChanAssignments).filter(ChanAssignments.ctime == ctime,
-                                                          ChanAssignments.band_id == band.id)
-            ch_assign = ch_assign.one_or_none()
-            if ch_assign is None:
-                ch_assign = ChanAssignments(ctime=ctime,
-                                            path=path,
-                                            band=band)
-                ses.add(ch_assign)
-
-            notches = np.atleast_2d(np.genfromtxt(ch_assign.path, delimiter=','))
-            if len(notches) != len(ch_assign.channels):
-                for notch in notches:
-                    ch = Channels(subband=notch[1],
-                               channel=notch[2],
-                               frequency=notch[0],
-                               chan_assignment=ch_assign,
-                               band=band)
-                    ## smurf did not assign a channel
-                    if ch.channel == -1:
-                        continue
-                    check = ses.query(Channels).filter(Channels.ca_id == ch_assign.id,
-                                               Channels.channel == ch.channel).one_or_none()
-                    if check is None:
-                        ses.add(ch)
-            ses.commit()
-
-
-            for ch in ch_assign.channels:
-                ch.name='sch{:06d}_{:03d}_{:03d}'.format(ch.id, ch.subband, ch.channel)     
-            ses.commit()
-            ses.close()
         
     def build_detector_sets(self, verbose=False, stop_as_error=False):
         session = self.Session()
