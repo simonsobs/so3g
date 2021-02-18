@@ -7,7 +7,7 @@ diff -urN spt3g_software_orig/calibration/python/bolopropertiesutils.py spt3g_so
 +from .libcalibration import BolometerProperties
 +from .. import core
  import math
- 
+
  __all__ = ['SplitByProperty', 'SplitByBand', 'SplitTimestreamsByBand',
 diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_software/calibration/python/build_cal_frames.py
 --- spt3g_software_orig/calibration/python/build_cal_frames.py	2020-12-10 07:52:41.000000000 -0800
@@ -20,69 +20,8 @@ diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_softw
 +from .libcalibration import BolometerProperties, BolometerPropertiesMap
 +from .libcalibration import PointingProperties, PointingPropertiesMap
  import numpy, scipy.stats, os, re
- 
+
  '''
-@@ -24,13 +24,13 @@
-     - Band Calibration (Key: 'BoloBands')
-     - Physical Name Data (Key: 'PhysicalBoloIDs')
-     '''
--    
-+
-     def __init__(self, drop_original_frames=True, fiducial_detectors=[],
-                  bpm_name='NominalBolometerProperties', use_bpm_pointing=False):
-         '''
-         If drop_original_frames is True, will drop all input Calibration frames.
- 
--        If fiducial_detectors is set, will use the average of the position[s] of 
-+        If fiducial_detectors is set, will use the average of the position[s] of
-         whatever detector[s] are specified to center each set of relative offsets
-         encountered (NB: this recentering is done in a Cartesian way). If it is
-         *not* specified, five detectors near the middle of the focal plane present
-@@ -62,7 +62,7 @@
-                 gooddata = numpy.asarray(data)[numpy.isfinite(data)]
-                 if len(gooddata) == 1:
-                     return gooddata[0]
--                return numpy.median(scipy.stats.sigmaclip(gooddata, 
-+                return numpy.median(scipy.stats.sigmaclip(gooddata,
-                                                           low=2.0, high=2.0)[0])
- 
-             if len(self.fiducial_detectors) == 0:
-@@ -106,7 +106,7 @@
-                     p.wafer_id = self.props[bolo]['wafer_id']
-                 if 'pixel_type' in self.props[bolo]:
-                     p.pixel_type = self.props[bolo]['pixel_type']
--                
-+
-                 boloprops[bolo] = p
- 
-             cframe = core.G3Frame(core.G3FrameType.Calibration)
-@@ -300,7 +300,7 @@
-     Expects to be passed frames from:
-     - Az tilt fit parameters (Keys: 'tiltAngle', 'tiltHA', 'tiltLat', 'tiltMag')
-     '''
--    
-+
-     def __init__(self, drop_original_frames=True):
-         '''
-         If drop_original_frames is True, will drop all input Calibration frames.
-@@ -321,10 +321,10 @@
- 
-             if 'tiltHA' in self.props:
-                 p['tiltHA'] = self.props['tiltHA']
--            
-+
-             if 'tiltMag' in self.props:
-                 p['tiltMag'] = self.props['tiltMag']
--            
-+
-             if 'tiltAngle' in self.props:
-                 p['tiltAngle'] = self.props['tiltAngle']
- 
-@@ -363,4 +363,3 @@
-         out = [self.outframe, frame]
-         self.outframe = None
-         return out
--
 diff -urN spt3g_software_orig/calibration/python/__init__.py spt3g_software/calibration/python/__init__.py
 --- spt3g_software_orig/calibration/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/calibration/python/__init__.py	2020-12-20 06:44:37.056246118 -0800
@@ -91,26 +30,26 @@ diff -urN spt3g_software_orig/calibration/python/__init__.py spt3g_software/cali
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libcalibration import *
- 
+
  from . import build_cal_frames
- 
+
 diff -urN spt3g_software_orig/calibration/src/python.cxx spt3g_software/calibration/src/python.cxx
 --- spt3g_software_orig/calibration/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/calibration/src/python.cxx	2020-12-20 06:39:27.494383205 -0800
 @@ -2,15 +2,14 @@
- 
+
  namespace bp = boost::python;
- 
+
 -BOOST_PYTHON_MODULE(calibration)
 +BOOST_PYTHON_MODULE(libcalibration)
  {
  	// Python bindings dependencies
 -	bp::import("spt3g.core");
 +	bp::import("spt3g.libcore");
- 
+
  	// Disable noise in doc strings
  	bp::docstring_options docopts(true, true, false);
- 
+
  	// Python bindings for this module
 -	G3ModuleRegistrator::CallRegistrarsFor("calibration");
 +	G3ModuleRegistrator::CallRegistrarsFor("libcalibration");
@@ -122,9 +61,9 @@ diff -urN spt3g_software_orig/core/python/dataextensions.py spt3g_software/core/
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3Bool, G3Int, G3Double, G3String
 +from .libcore import G3Bool, G3Int, G3Double, G3String
- 
+
  __all__ = []
- 
+
 diff -urN spt3g_software_orig/core/python/docparser.py spt3g_software/core/python/docparser.py
 --- spt3g_software_orig/core/python/docparser.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/docparser.py	2020-12-20 07:05:34.375499780 -0800
@@ -132,76 +71,16 @@ diff -urN spt3g_software_orig/core/python/docparser.py spt3g_software/core/pytho
  import sys, inspect, re, textwrap
 -from spt3g.core import G3Module, G3FrameObject
 +from .libcore import G3Module, G3FrameObject
- 
+
  def format_doc(x, simple=False):
      """
-@@ -39,12 +39,12 @@
-         mod = __import__(module_path)
-         if '.' in module_path and hasattr(mod, module_path.split('.')[-1]):
-             mod = mod.__dict__[module_path.split('.')[-1]]
--    
-+
-     except ImportError as e:
-         print('Could not import module %s:' % module_path)
-         print(e)
-         sys.exit(1)
--    
-+
- 
-     def format_object(modname, x):
-         name = '%s.%s' % (modname, x)
-@@ -58,7 +58,7 @@
-         return '\n\n*Definition:*\n        ``%s``\n' % argdef.strip()
-     def add_str(s0, s1):
-         return s0 + s1 + '\n'
--    
-+
-     #G3Module documentation
-     anti_recursion_protector = []
-     def iterate_through_mod(mod, modname):
-@@ -83,7 +83,7 @@
-                 anti_recursion_protector.append(itemname)
-             except:
-                 continue
--            
-+
-             subclasstest = False
-             try:
-                 subclasstest = issubclass(obj, G3Module)
-@@ -128,7 +128,7 @@
-                 mod_dict.update(iterate_through_mod(obj, itemname))
-         return mod_dict
- 
--    #Useful Function documentation    
-+    #Useful Function documentation
-     other_anti_recursion_protector = []
-     def iterate_through_func(mod, modname):
-         mod_dict = {}
-@@ -164,7 +164,7 @@
-                         tmp_str = format_doc(obj)
-                         out_str = out_str + tmp_str
-                     if subclasstest:
--                        out_str = out_str 
-+                        out_str = out_str
-                 try:
-                     out_str = add_str(out_str, format_arguments(x, inspect.formatargspec(*inspect.getargspec(obj))))
-                 except:
-@@ -175,7 +175,7 @@
-                 mod_dict.update(iterate_through_func(obj, itemname))
-         return mod_dict
- 
--    #Frame Object documentation    
-+    #Frame Object documentation
-     other_other_anti_recursion_protector = []
-     def iterate_through_frame_object(mod, modname):
-         mod_dict = {}
 diff -urN spt3g_software_orig/core/python/frameextensions.py spt3g_software/core/python/frameextensions.py
 --- spt3g_software_orig/core/python/frameextensions.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/frameextensions.py	2020-12-20 07:05:42.941115023 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3Frame, G3FrameType
 +from .libcore import G3Frame, G3FrameType
- 
+
  @staticmethod
  def str_to_frame_types(types):
 diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/python/g3decorators.py
@@ -213,368 +92,33 @@ diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/py
  from copy import copy
  import inspect
  import textwrap
-@@ -7,10 +7,10 @@
- def get_function_signature(f, replacement_kwargs = None):
-     '''
-     gets the function signature of f.
--     
--    if replacement_kwargs is supplied replaces the default values with 
-+
-+    if replacement_kwargs is supplied replaces the default values with
-      the ones in replacement_kwargs
--    
-+
-     '''
-     args = inspect.getargspec(f)
-     name = f.__name__
-@@ -50,7 +50,7 @@
-     This is a decorator for use with G3Modules written as functions.  It enables
-     a function to use cached values from other types of frames in the processing
-     of a frame.
--    
-+
-     To make that confusing sentence clearer with an example, in a lot of cases
-     we want to have a module that works on Scan frames, but have access to the
-     BolometerProperties.  This decorator allows you to specify the information
-@@ -70,7 +70,7 @@
-     Key specifies the name of the argument that we pass the infromation to in
-     the decorated function.  If the decorated function is called with Key as an
-     argument it will overwrite the value specified in the decorator.
--       
-+
-     Value specifies the default path to look for the cached data.  It will
-     search all of the frames that do not have the frame type 'type' for a key
-     with that value.  This can be overridden when calling the decorated
-@@ -97,7 +97,7 @@
-             doc_append += '    %s = "%s"\n' % ( k, v )
- 
-         class WrappedFunc:
--            def __init__(self, *args, **kwargs): 
-+            def __init__(self, *args, **kwargs):
-                 self.args = args
-                 self.kwargs = kwargs
- 
 diff -urN spt3g_software_orig/core/python/G3File.py spt3g_software/core/python/G3File.py
 --- spt3g_software_orig/core/python/G3File.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/G3File.py	2020-12-20 07:06:03.724630450 -0800
 @@ -1,6 +1,6 @@
 -from spt3g.core import G3Reader
 +from .libcore import G3Reader
- 
--class G3File(object): 
+
+-class G3File(object):
 +class G3File(object):
  	'''Iterable class for G3 files, as created by G3Writer. Loop through frames by doing something like:
  	f = core.G3File('/path/to/file.g3')
  	for frame in f:
-@@ -21,4 +21,3 @@
- 			raise ValueError('Too many frames returned by reader')
- 		return frames[0]
- 	__next__ = next
--
 diff -urN spt3g_software_orig/core/python/G3FileStager.py spt3g_software/core/python/G3FileStager.py
 --- spt3g_software_orig/core/python/G3FileStager.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/G3FileStager.py	2020-12-20 07:06:24.383687572 -0800
 @@ -16,20 +16,20 @@
  import subprocess
  import re
- 
+
 -from spt3g.core import G3Reader, G3Writer, G3FrameType
 -from spt3g.core import g3logging as logging
 +from .libcore import G3Reader, G3Writer, G3FrameType
 +from .libcore import g3logging as logging
- 
+
  class GridFTPStager(object):
      """
      Provides to subprocess calls to stage files in and out using GridFTP
--    
-+
-     Handles ftp:// and gsiftp:// URLs
--    
-+
-     .. note:: GridFTP requires that you have a proxy certificate either in the
-               standard location or in the location specified by the environment
--              variable X509_USER_PROXY. See the `Globus Toolkit documentation 
-+              variable X509_USER_PROXY. See the `Globus Toolkit documentation
-               <http://toolkit.globus.org/toolkit/docs/4.1/admin/docbook/gtadmin-env-var.html#id2565277>`_
--              for more information. You will also need to 
-+              for more information. You will also need to
-               `obtain a user certificate `_.
-     """
-     def __init__(self, globus_url_copy='globus-url-copy', options=['-nodcau', '-rst', '-cd']):
-@@ -40,50 +40,50 @@
-     def transfer_file_in(self, url, local_path):
-         """
-         Transfers files to local directory from remote site
--        
-+
-         Keyword arguments:
-         url -- remote location of the file as a URL (no default)
-         local_path -- path to local directory where file show be put (no default)
-         """
--        local_path = os.path.join(os.path.abspath(local_path), 
-+        local_path = os.path.join(os.path.abspath(local_path),
-                                   os.path.basename(url))
--        proc = subprocess.Popen([self.globus_url_copy] + self.options + [url, 
--                                 'file://'+os.path.abspath(local_path)], 
-+        proc = subprocess.Popen([self.globus_url_copy] + self.options + [url,
-+                                 'file://'+os.path.abspath(local_path)],
-                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-         stdout, stderr = proc.communicate()
-         if proc.returncode != 0:
-             logging.log_fatal("globus-url-copy failed with status %d: %s" % \
--                              (proc.returncode, stderr.strip()), 
-+                              (proc.returncode, stderr.strip()),
-                               unit="GridFTPStager")
-         else:
--            logging.log_info("Download finished: %s to %s" % (url, local_path), 
-+            logging.log_info("Download finished: %s to %s" % (url, local_path),
-                              unit="GridFTPStager")
-         return local_path
--    
-+
-     def transfer_file_out(self, local_path, url):
-         """
-         Transfers files to local directory from remote site
--        
-+
-         Keyword arguments:
-         local_path -- path to local directory where file is located (no default)
-         url -- remote location of the file as a URL (no default)
-         """
-         proc = subprocess.Popen([self.globus_url_copy] + self.options + \
--                                ['file://'+os.path.abspath(local_path), url], 
-+                                ['file://'+os.path.abspath(local_path), url],
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-         stdout, stderr = proc.communicate()
-         if proc.returncode != 0:
-             logging.log_fatal("globus-url-copy failed with status %d: %s" % \
--                              (proc.returncode, stderr.strip()), 
-+                              (proc.returncode, stderr.strip()),
-                               unit="GridFTPStager")
-         else:
--            logging.log_info("Upload finished: %s to %s" % (local_path, url), 
-+            logging.log_info("Upload finished: %s to %s" % (local_path, url),
-                              unit="GridFTPStager")
- 
- class HTTPStager(object):
-     """
--    Provides to subprocess calls to stage files in and out using http. 
--    
-+    Provides to subprocess calls to stage files in and out using http.
-+
-     Handles http://, https://, ftp://, and file:// URLs
-     """
-     def __init__(self, blocksize=2**16, ssl=None):
-@@ -94,7 +94,7 @@
-         """
-         urlopen() doesn't support inline auth. Strip it out and
-         construct the appropriate header by hand.
--        
-+
-         Keyword arguments:
-         url -- url with authenication tokens
-         """
-@@ -114,7 +114,7 @@
-     def transfer_file_in(self, url, local_path):
-         """
-         Transfers files to local directory from remote site
--        
-+
-         Keyword arguments:
-         url -- remote location of the file as a URL (no default)
-         local_path -- path to local directory where file show be put (no default)
-@@ -127,7 +127,7 @@
-         # copy the file
-         if parsed_url.scheme == "file":
-             if parsed_url.netloc != "":
--                logging.log_fatal("%s is not a valid URI (file:// URIs must use absolute paths)" % url, 
-+                logging.log_fatal("%s is not a valid URI (file:// URIs must use absolute paths)" % url,
-                                   unit="HTTPStager")
-             input_path = parsed_url.path
-             logging.log_info("Copying file %s to %s" % (input_path, output_path),
-@@ -136,7 +136,7 @@
-             logging.log_info("File copied: %s to %s" % (input_path, output_path),
-                              unit="HTTPStager")
-         else:
--            logging.log_info("Downloading %s to %s" % (url, output_path), 
-+            logging.log_info("Downloading %s to %s" % (url, output_path),
-                              unit="HTTPStager")
-             f = None
-             output_file = None
-@@ -151,12 +151,12 @@
-                     output_file.write(block)
-                     if len(block) < self.blocksize:
-                         break
--                logging.log_info("Download finished: %s to %s" % (url, local_path), 
-+                logging.log_info("Download finished: %s to %s" % (url, local_path),
-                                  unit="HTTPStager")
-             except Exception as e:
-                 if os.path.exists(local_path):
-                     os.remove(local_path)
--                logging.log_fatal("Downloading %s: %s" % (url, str(e)), 
-+                logging.log_fatal("Downloading %s: %s" % (url, str(e)),
-                                   unit="HTTPStager")
-             finally:
-                 if f is not None:
-@@ -164,30 +164,30 @@
-                 if output_file is not None:
-                     output_file.close()
-         return output_path
--    
-+
-     def transfer_file_out(self, local_path, url):
-         """
--        Transfers files to local directory from remote site. Only works for file:// handle. 
-+        Transfers files to local directory from remote site. Only works for file:// handle.
-         Will we ever have an HTTP drop box? Else HTTP, etc. will not be supported
--        
-+
-         Keyword arguments:
-         local_path -- path to local directory where file is located (no default)
-         url -- remote location of the file as a URL (no default)
-         """
-         parsed_url = urlparse.urlparse(url, scheme="file") # use "file" as the default scheme
-         if parsed_url[0] not in ["http", "https", "ftp", "file"]:
--            logging.log_fatal("Cannot handle URL scheme \"%s\": %s" % (parsed_url[0], url), 
-+            logging.log_fatal("Cannot handle URL scheme \"%s\": %s" % (parsed_url[0], url),
-                               unit="HTTPStager")
-         # copy the file
-         if parsed_url[0] == "file":
-             output_path = parsed_url[2]
-             if parsed_url.netloc != "":
--                logging.log_fatal("%s is not a valid URI (file:// URIs must use absolute paths)" % url, 
-+                logging.log_fatal("%s is not a valid URI (file:// URIs must use absolute paths)" % url,
-                                   unit="HTTPStager")
--            logging.log_info("Copying file %s to %s" % (local_path, output_path), 
-+            logging.log_info("Copying file %s to %s" % (local_path, output_path),
-                              unit="HTTPStager")
-             shutil.copyfile(local_path, output_path)
--            logging.log_info("File copied: %s to %s" % (local_path, output_path), 
-+            logging.log_info("File copied: %s to %s" % (local_path, output_path),
-                              unit="HTTPStager")
-         else:
-             logging.log_fatal("Can't upload to %s" % url.scheme)
-@@ -195,13 +195,13 @@
- class G3FileStager(object):
-     """
-     Staging mechanism class.
--    
-+
-     Gets the input, output, and (optionally) temporary directory paths.
-     Decides which transfer protocol to use depending on the file path.
--    Provides function to stage files in and out. 
-+    Provides function to stage files in and out.
-     """
--    def __init__(self, input_path=None, output_path=None, 
--                 tmp_dir=None, simulation=False, 
-+    def __init__(self, input_path=None, output_path=None,
-+                 tmp_dir=None, simulation=False,
-                  cleanup=True):
-         if input_path is None:
-             logging.log_fatal("Need to provide an input file")
-@@ -223,45 +223,45 @@
-         self.cleanup=cleanup
-         self.local_input_files = []
- 
--    
-+
-     def stage_files_in(self):
-         if isinstance(self.input_path, list):
-             local_files = [self.stage_file_in(f) for f in self.input_path]
-         else:
-             local_files = [self.stage_file_in(self.input_path)]
-         return local_files
--        
-+
-     def stage_file_in(self, input_file):
-         return self.determine_protocol(input_file).transfer_file_in(input_file, self.tmp_dir)
--        
-+
-     def stage_file_out(self, local_output_filename, remote_output_filename):
-         self.determine_protocol(remote_output_filename).transfer_file_out(local_output_filename, remote_output_filename)
-         if self.cleanup:
-             os.remove(local_output_filename)
--        
-+
-     def get_local_g3_filenames(self):
--        if len(self.local_input_files) == 0: 
-+        if len(self.local_input_files) == 0:
-             self.local_input_files = self.stage_files_in()
-         return [f for f in self.local_input_files if ".g3" in os.path.basename(f)]
--        
-+
-     def get_remote_g3_output_filename(self):
-         remote_outfiles = [f for f in self.output_path if ".g3" in os.path.basename(f)]
-         if len(remote_outfiles) > 1:
-             logging.log_warn("Ignoring multiple output .g3 files. Using %s as the output file name" % remote_outfiles[0],
-                              unit="G3FileStager")
-         if len(remote_outfiles) < 1:
--            logging.log_fatal("Please provide a .g3 output file.", 
-+            logging.log_fatal("Please provide a .g3 output file.",
-                               unit="G3FileStager")
-         return remote_outfiles[0]
--    
-+
-     def get_local_output_filename(self, filename):
-         return os.path.join(self.tmp_dir, os.path.basename(filename))
--        
-+
-     def get_local_nong3_filenames(self):
--        if len(self.local_input_files) == 0: 
-+        if len(self.local_input_files) == 0:
-             self.local_input_files = self.stage_files_in()
-         return [f for f in self.local_input_files if ".g3" not in os.path.basename(f)]
--        
-+
-     def determine_protocol(self, filename):
-         protocol_id = urlparse.urlparse(filename).scheme
-         if protocol_id in ["gsiftp", "ftp"]:
-@@ -270,7 +270,7 @@
-             return HTTPStager()
-         else:
-             raise NotImplementedError("The %s protocal is not supported" % protocol_id)
--    
-+
-     def try_to_make_scratch_dir(self, basename, fullname):
-         if not os.path.isdir(basename):
-             return False
-@@ -304,7 +304,7 @@
-                 staging_directory = os.getcwd()
-                 logging.log_info("Cannot find a suitable scratch directory on this machine; falling back to the current working directory (%s). If this is not what you want, set a different path with dataio.set_local_scratch_dir(path)." % staging_directory, unit="G3Reader")
-             return staging_directory
--    
-+
- @core.indexmod
- class G3URLReader(object):
-     """
-@@ -314,12 +314,12 @@
-         self.infiles = stager.get_local_g3_filenames()
-         print(self.infiles)
-         self.reader = G3Reader(self.infiles.pop(0))
--    
-+
-     def __call__(self, frame):
-         assert(frame is None) # Needed for driving module
-         outframe = self.reader(None)
-         if len(outframe) == 0:
--            while len(self.infiles) > 0 and len(outframe) == 0: 
-+            while len(self.infiles) > 0 and len(outframe) == 0:
-                 self.reader = G3Reader(self.infiles.pop(0))
-                 outframe = self.reader(None)
-             return outframe
-@@ -336,11 +336,10 @@
-         self.remote_outfile = stager.get_remote_g3_output_filename()
-         self.local_outfile = stager.get_local_output_filename(self.remote_outfile)
-         self.writer = G3Writer(self.local_outfile)
--    
-+
-     def __call__(self, frame):
-         if frame.type != G3FrameType.EndProcessing:
-             self.writer(frame)
-         else:
-             del self.writer
-             self.stager.stage_files_out(self.local_outfile, self.remote_outfile)
--            
 diff -urN spt3g_software_orig/core/python/g3logging.py spt3g_software/core/python/g3logging.py
 --- spt3g_software_orig/core/python/g3logging.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/g3logging.py	2020-12-20 07:06:39.397706355 -0800
@@ -583,36 +127,7 @@ diff -urN spt3g_software_orig/core/python/g3logging.py spt3g_software/core/pytho
 +from .libcore import G3Logger, G3LogLevel
  import traceback
  from functools import reduce
- 
-@@ -27,12 +27,12 @@
- def log_fatal(*args, **kwargs):
-     '''
-     Behaves like print but with logging behavior as described in logging.rst
--    
-+
-     The only kwarg that it recognizes is "unit", for setting the logging unit.
-     '''
-     message = reduce(lambda a,b: '%s %s' % ( str(a), str(b)), args)
-     unit = kwargs.get('unit')
--    unit = unit if unit != None else 'Python'    
-+    unit = unit if unit != None else 'Python'
-     tb = traceback.extract_stack(limit=2)[0]
-     G3Logger.global_logger.log(G3LogLevel.LOG_FATAL, unit, tb[0], tb[1],
-         tb[2], message)
-@@ -42,7 +42,7 @@
-     '''
-     Set log level to the requested level. If unit is not None, set the
-     log level for the given logging unit only.
--    
-+
-     Example: core.set_log_level(core.G3LogLevel.LOG_DEBUG, 'GCPMuxDataDecoder')
-     '''
- 
-@@ -50,4 +50,3 @@
-         G3Logger.global_logger.set_level_for_unit(unit, level)
-     else:
-         G3Logger.global_logger.set_level(level)
--
+
 diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python/__init__.py
 --- spt3g_software_orig/core/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/__init__.py	2020-12-20 07:05:12.986913795 -0800
@@ -621,16 +136,16 @@ diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libcore import *
- 
+
 -from spt3g.core.g3logging import log_trace, log_debug, log_info, log_notice, log_warn, log_error, log_fatal, set_log_level
 +from .g3logging import log_trace, log_debug, log_info, log_notice, log_warn, log_error, log_fatal, set_log_level
- 
+
  import atexit
  def fix_logging_crash():
 @@ -11,22 +11,22 @@
  atexit.register(fix_logging_crash)
  del fix_logging_crash
- 
+
 -from spt3g.core.G3File import G3File
 -from spt3g.core.modconstruct import pipesegment, indexmod, pipesegment_nodoc
 -from spt3g.core.funcconstruct import usefulfunc
@@ -649,7 +164,7 @@ diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python
  	pass
 -from spt3g.core.util import *
 +from .util import *
- 
+
 -from spt3g.core.docparser import *
 -from spt3g.core.dataextensions import *
 -from spt3g.core.frameextensions import *
@@ -658,7 +173,7 @@ diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python
 +from .dataextensions import *
 +from .frameextensions import *
 +from .timestreamextensions import *
- 
+
 -from spt3g.core.g3decorators import cache_frame_data, scan_func_cache_data
 +from .g3decorators import cache_frame_data, scan_func_cache_data
 diff -urN spt3g_software_orig/core/python/load_pybindings.py spt3g_software/core/python/load_pybindings.py
@@ -705,58 +220,26 @@ diff -urN spt3g_software_orig/core/python/modconstruct.py spt3g_software/core/py
  except ImportError:
      multiproc_avail = False
 @@ -131,7 +131,7 @@
- 
+
  class _add_pipeline_info(G3Module):
      def __init__(self):
 -        from spt3g import version
 +        from .. import version
          import socket, getpass
- 
+
          G3Module.__init__(self)
-@@ -208,7 +208,7 @@
-     name = self.nameprefix + name
- 
-     # Record module configuration for root objects
--    if self.nameprefix == '': 
-+    if self.nameprefix == '':
-         modconfig = G3ModuleConfig()
-         modconfig.instancename = name
-         modconfig.modname = '%s.%s' % (callable.__module__, callable_name)
-@@ -242,4 +242,3 @@
- # Add this as G3Pipeline's Add method so it takes any Python callable
- G3Pipeline.Add = PipelineAddCallable
- G3Pipeline.__repr__ = lambda self: repr(self._pipelineinfo.pipelineinfo) if hasattr(self, '_pipelineinfo') else 'pipe = spt3g.core.G3Pipeline()'
--
 diff -urN spt3g_software_orig/core/python/multiprocess.py spt3g_software/core/python/multiprocess.py
 --- spt3g_software_orig/core/python/multiprocess.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/multiprocess.py	2020-12-20 07:07:23.947028097 -0800
 @@ -5,7 +5,7 @@
  from multiprocessing import Process
  import socket, pickle, errno, struct, time
- 
+
 -from spt3g.core import G3FrameType, G3Frame
 +from .libcore import G3FrameType, G3Frame
- 
+
  class Subproc(Process):
      '''
-@@ -85,7 +85,7 @@
-                     while bytestoread > len(inbuf):
-                         inbuf += self.queue[0].recv(bytestoread - len(inbuf))
-                     self.queue[0].setblocking(False)
--                                
-+
-                     allout += pickle.loads(inbuf)
-                     self.callsqueued -= 1
-                     icount = 0 # Forward progress! Try again quick
-@@ -129,7 +129,6 @@
-             outbuf = pickle.dumps(out)
-             outbuf = struct.pack('i', len(outbuf)) + outbuf
-             self.queue[1].send(outbuf)
--                
-+
-             if frame.type == G3FrameType.EndProcessing:
-                 return
--
 diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software/core/python/timestreamextensions.py
 --- spt3g_software_orig/core/python/timestreamextensions.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/timestreamextensions.py	2020-12-20 07:08:42.846830991 -0800
@@ -767,118 +250,33 @@ diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software
 +from .libcore import G3Timestream, DoubleVector, G3VectorDouble, G3TimestreamMap, G3Time,
 +from .funcconstruct import usefulfunc
 +from .libcore import G3Units, log_fatal, log_warn
- 
+
  __all__ = ['concatenate_timestreams']
- 
-@@ -41,12 +42,12 @@
-     out.stop = a.stop
-     return out
- 
--for x in ['__add__', '__and__', '__div__', '__divmod__', '__floordiv__', 
-+for x in ['__add__', '__and__', '__div__', '__divmod__', '__floordiv__',
-           '__mul__', '__neg__', '__or__', '__pow__', '__sub__', '__radd__',
-           '__rdiv__', '__rdivmod__', '__rmod__', '__rmul__', '__rpow__',
-           '__rsub__', '__rtruediv__', '__truediv__']:
-     if x in numpy.ndarray.__dict__:
--        setattr(G3Timestream, x, 
-+        setattr(G3Timestream, x,
-                 lambda a, b, op=numpy.ndarray.__dict__[x]: numpybinarywrap(a, b, op))
- 
- def numpyinplacebinarywrap(a, b, op):
-@@ -55,16 +56,16 @@
-     op(numpy.asarray(a), numpy.asarray(b))
-     return a
- 
--for x in ['__iadd__', '__iand__', '__idiv__', '__ifloordiv__', '__imod__', 
-+for x in ['__iadd__', '__iand__', '__idiv__', '__ifloordiv__', '__imod__',
-           '__imul__', '__ior__', '__ipow__', '__isub__', '__itruediv__']:
-     if x in numpy.ndarray.__dict__:
--        setattr(G3Timestream, x, 
-+        setattr(G3Timestream, x,
-                 lambda a, b, op=numpy.ndarray.__dict__[x]: numpyinplacebinarywrap(a, b, op))
- 
- # Bind some useful nativish binary operators
- for x in ['__eq__', '__ge__', '__gt__', '__le__', '__lt__', '__neq__']:
-     if x in numpy.ndarray.__dict__:
--        setattr(G3Timestream, x, 
-+        setattr(G3Timestream, x,
-                 lambda a, b, op=x: numpy.ndarray.__dict__[op](numpy.asarray(a), numpy.asarray(b)))
- G3Timestream.mean = lambda a, *args, **kwargs: numpy.ndarray.mean(numpy.asarray(a), *args, **kwargs)
- G3Timestream.min = lambda a, *args, **kwargs: numpy.ndarray.min(numpy.asarray(a), *args, **kwargs)
-@@ -224,4 +225,3 @@
- 
- G3Timestream.times = timestream_t
- G3TimestreamMap.times = timestream_t
--
+
 diff -urN spt3g_software_orig/core/python/util.py spt3g_software/core/python/util.py
 --- spt3g_software_orig/core/python/util.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/python/util.py	2020-12-20 07:08:53.050481794 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import indexmod, pipesegment, G3FrameType, log_fatal, G3Reader, G3NetworkSender
 +from .libcore import indexmod, pipesegment, G3FrameType, log_fatal, G3Reader, G3NetworkSender
- 
+
  @indexmod
  def Delete(frame, keys=[], type=None):
-@@ -45,7 +45,7 @@
- 
-     The frame data is stored in the variable names "frame".
- 
--    If debug_start_func is not None, only starts a debug session when 
-+    If debug_start_func is not None, only starts a debug session when
-             debug_start_func(frame) == True
-         '''
-     if type is None or frame.type == type:
-@@ -160,7 +160,7 @@
-             else:
-                 self.metacache.append(frame)
-             return []
--                    
-+
- 
- del indexmod
- del pipesegment
 diff -urN spt3g_software_orig/core/src/python.cxx spt3g_software/core/src/python.cxx
 --- spt3g_software_orig/core/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/core/src/python.cxx	2020-12-20 06:57:05.619279197 -0800
-@@ -67,7 +67,7 @@
- 		    PyBytes_FromStringAndSize(&buffer[0], buffer.size()))));
- 	}
- 
--	static void setstate(boost::python::object obj,	
-+	static void setstate(boost::python::object obj,
- 	    boost::python::tuple state)
- 	{
- 		namespace bp = boost::python;
-@@ -89,7 +89,7 @@
- 
-         for (auto i = keyvec.begin(); i != keyvec.end(); i++)
-                 keys.append(*i);
-- 
-+
-         return keys;
- }
- 
 @@ -354,7 +354,7 @@
  numpy_vector_infrastructure(std::complex<double>, cxdouble, "Zd");
  numpy_vector_infrastructure(std::complex<float>, cxfloat, "Zf");
- 
+
 -BOOST_PYTHON_MODULE(core)
 +BOOST_PYTHON_MODULE(libcore)
  {
  	bp::docstring_options docopts(true, true, false);
- 
-@@ -489,7 +489,7 @@
- 	  "\t  processing if returned by first module. Equivalent to [].\n")
- 	    .def("_Add_", &G3Pipeline::Add, bp::arg("name")="")
- 	    .def("Run", &G3Pipeline::Run,
--	      (bp::arg("profile")=false, bp::arg("graph")=false), 
-+	      (bp::arg("profile")=false, bp::arg("graph")=false),
- 	      "Run pipeline. If profile is True, print execution time "
- 	      "statistics for each module when complete. If graph is True, "
- 	      "stores control flow data that can be processed with GraphViz "
+
 @@ -568,6 +568,5 @@
  	enum_none_converter::from_python<G3Timestream::TimestreamUnits>();
- 
+
  	// Do everything else
 -	G3ModuleRegistrator::CallRegistrarsFor("core");
 +	G3ModuleRegistrator::CallRegistrarsFor("libcore");
@@ -893,22 +291,8 @@ diff -urN spt3g_software_orig/dfmux/python/DataQualityTools.py spt3g_software/df
 +from .. import core
 +from .libdfmux import DfMuxMetaSample
  import numpy as np
- 
+
  def get_empty_timepoint(sample_time):
-@@ -15,7 +15,7 @@
- 
-     def __call__(self, frame):
-         if frame.type != core.G3FrameType.Timepoint:
--            return            
-+            return
-         if 'EventHeader' not in frame:
-             return
-         new_time = frame['EventHeader']
-@@ -85,4 +85,3 @@
-             return injected_frs + [fr]
-         self.last_frame = fr
-         return [fr]
--
 diff -urN spt3g_software_orig/dfmux/python/HardwareMapTools.py spt3g_software/dfmux/python/HardwareMapTools.py
 --- spt3g_software_orig/dfmux/python/HardwareMapTools.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/dfmux/python/HardwareMapTools.py	2020-12-20 07:11:04.055447506 -0800
@@ -918,48 +302,25 @@ diff -urN spt3g_software_orig/dfmux/python/HardwareMapTools.py spt3g_software/df
 +from .. import core
 +from .libdfmux import DfMuxWiringMap, DfMuxChannelMapping
  import struct, socket
- 
+
  '''
-@@ -29,7 +29,7 @@
-     '''
-     Insert a wiring map derived from a pydfmux hardware map into the data
-     stream ahead of what would otherwise be the first frame.
--   
-+
-     Optionally filter for detectors described by the mask in <pathstring>
-     (see pydfmux documentation for hwm.channel_maps_from_pstring()) and
-     detectors in one of the states identified by the state argument.
-@@ -40,7 +40,7 @@
-         from pydfmux.core import dfmux as pydfmux
-         self.hwmf = core.G3Frame(core.G3FrameType.Wiring)
-         hwm = DfMuxWiringMap()
--        
-+
-         if pathstring:
-             chan_map_query = pydfmux_hwm.channel_maps_from_pstring(pathstring)
-         else:
 @@ -114,14 +114,14 @@
      '''
      Insert a calibration frame following any wiring frame containing a
      BolometerPropertiesMap named "NominalBolometerProperties" that has
--    the properties of each bolometer as defined by the given pydfmux 
+-    the properties of each bolometer as defined by the given pydfmux
 +    the properties of each bolometer as defined by the given pydfmux
      hardware map.
      '''
- 
+
      if frame.type != core.G3FrameType.Wiring:
          return
- 
+
 -    from spt3g import calibration
 +    from .. import calibration
      from pydfmux.core import dfmux as pydfmux
- 
+
      cal = core.G3Frame(core.G3FrameType.Calibration)
-@@ -238,4 +238,3 @@
-         hwmf['ReadoutSystem'] = 'DfMux'
-         self.ran = True
-         return [hwmf, frame]
--
 diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/python/Housekeeping.py
 --- spt3g_software_orig/dfmux/python/Housekeeping.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/dfmux/python/Housekeeping.py	2020-12-20 07:00:45.862730247 -0800
@@ -968,38 +329,12 @@ diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/
 -from spt3g.dfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
 +from .. import core
 +from .libdfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
- 
+
 -from spt3g.dfmux.IceboardConversions import convert_TF
 +from .libdfmux.IceboardConversions import convert_TF
  from .TuberClient import TuberClient
  import socket, struct, time
  import numpy
-@@ -287,13 +287,13 @@
-                         chanhk.dan_railed = chan['dan_railed']
-                     if 'tuning' in chan and chan['tuning'] is not None:
-                         chanhk.state = str(chan['tuning']['state'])
--                        if ('rlatched' in chan['tuning'] and 
-+                        if ('rlatched' in chan['tuning'] and
-                             chan['tuning']['rlatched'] is not None):
-                             chanhk.rlatched = chan['tuning']['rlatched']
--                        if ('rnormal' in chan['tuning'] and 
-+                        if ('rnormal' in chan['tuning'] and
-                             chan['tuning']['rnormal'] is not None):
-                             chanhk.rnormal = chan['tuning']['rnormal']
--                        if ('rfrac_achieved' in chan['tuning'] and 
-+                        if ('rfrac_achieved' in chan['tuning'] and
-                             chan['tuning']['rfrac_achieved'] is not None):
-                             chanhk.rfrac_achieved = chan['tuning']['rfrac_achieved']
-                         if ('loopgain' in chan['tuning'] and
-@@ -303,7 +303,7 @@
-                     modhk.channels[k+1] = chanhk
-                 mezzhk.modules[m+1] = modhk
-             boardhk.mezz[n+1] = mezzhk
--    
-+
-         return boardhk
- 
-     @classmethod
 diff -urN spt3g_software_orig/dfmux/python/__init__.py spt3g_software/dfmux/python/__init__.py
 --- spt3g_software_orig/dfmux/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/dfmux/python/__init__.py	2020-12-20 06:43:13.644237875 -0800
@@ -1008,7 +343,7 @@ diff -urN spt3g_software_orig/dfmux/python/__init__.py spt3g_software/dfmux/pyth
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libdfmux import *
- 
+
  from .HardwareMapTools import (
      GenerateFakeHardwareMap,
 diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/dfmux/python/LegacyHousekeeping.py
@@ -1021,44 +356,16 @@ diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/
 +from .libdfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo
  from .TuberClient import TuberClient
  import socket, struct, time
- 
-@@ -11,7 +11,7 @@
-     any housekeeping frame that goes by containing the data as of the arrival
-     of the housekeeping frame. Use in conjunction with a
-     dfmux.PeriodicHousekeepingCollector to get data at fixed intervals.
--   
-+
-     If collecting real-time data, you may want to set subprocess=True when
-     adding this module.
-     '''
-@@ -123,7 +123,7 @@
-                     modhk.channels[chan] = chanhk
-                 mezzhk.modules[mod] = modhk
-             boardhk.mezz[mezz] = mezzhk
--    
-+
-         return boardhk
- 
-     @classmethod
-@@ -137,4 +137,3 @@
-         data.update(jsonblob[1]['result'])
- 
-         return cls.HousekeepingFromJSON(data)
--
+
 diff -urN spt3g_software_orig/dfmux/python/ScanTools.py spt3g_software/dfmux/python/ScanTools.py
 --- spt3g_software_orig/dfmux/python/ScanTools.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/dfmux/python/ScanTools.py	2020-12-20 07:01:25.766157806 -0800
 @@ -1,4 +1,4 @@
 -from spt3g import core
 +from .. import core
- 
+
  @core.indexmod
  class FixedLengthScans(object):
-@@ -14,4 +14,3 @@
-             self.count += 1
-         ret.append(frame)
-         return ret
--
 diff -urN spt3g_software_orig/dfmux/python/unittransforms.py spt3g_software/dfmux/python/unittransforms.py
 --- spt3g_software_orig/dfmux/python/unittransforms.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/dfmux/python/unittransforms.py	2020-12-20 07:11:30.952458137 -0800
@@ -1068,35 +375,30 @@ diff -urN spt3g_software_orig/dfmux/python/unittransforms.py spt3g_software/dfmu
 -from spt3g.dfmux import HousekeepingForBolo
 +from .. import core
 +from .libdfmux import HousekeepingForBolo
- 
+
  # Transfer functions for 3G and SPTpol boards
 -from spt3g.dfmux import IceboardConversions
 +from . import IceboardConversions
  from .wtl_ConvertUtils import convert_squid, convert_demod, convert_mb
- 
+
  def counts_to_rms_amps(wiringmap, hkmap, bolo, system, tf=None):
-@@ -218,4 +218,3 @@
-                 convts.SetFLACCompression(False)
-             newts[bolo] = convts
-         frame[self.output] = newts
--
 diff -urN spt3g_software_orig/dfmux/src/python.cxx spt3g_software/dfmux/src/python.cxx
 --- spt3g_software_orig/dfmux/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/dfmux/src/python.cxx	2020-12-20 06:39:45.917880947 -0800
 @@ -2,15 +2,14 @@
- 
+
  namespace bp = boost::python;
- 
+
 -BOOST_PYTHON_MODULE(dfmux)
 +BOOST_PYTHON_MODULE(libdfmux)
  {
  	// Python bindings dependencies
 -	bp::import("spt3g.core");
 +	bp::import("spt3g.libcore");
- 
+
  	// Disable noise in doc strings
  	bp::docstring_options docopts(true, true, false);
- 
+
  	// Python bindings for this module
 -	G3ModuleRegistrator::CallRegistrarsFor("dfmux");
 +	G3ModuleRegistrator::CallRegistrarsFor("libdfmux");
@@ -1111,125 +413,11 @@ diff -urN spt3g_software_orig/gcp/python/ARCExtractor.py spt3g_software/gcp/pyth
 -from spt3g.gcp import ACUStatus, ACUState, TrackerStatus, TrackerState, TrackerPointing, CalFile
 +from .. import core
 +from .libgcp import ACUStatus, ACUState, TrackerStatus, TrackerState, TrackerPointing, CalFile
- 
+
  @core.indexmod
  def UnitValue(caldict_entry):
      '''Turn unit name into floating point unit value'''
- 
--    try: 
-+    try:
-         uname = caldict_entry['UnitName']
-         if uname and uname != 'None':
-             try:
-                 if '/' in uname:
-                     unames = list(filter(None,uname.split('/')))
--                    uvalue1 = getattr(core.G3Units, 
-+                    uvalue1 = getattr(core.G3Units,
-                                       list(filter(None,unames[0].split(' ')))[0])
--                    uvalue2 = getattr(core.G3Units, 
-+                    uvalue2 = getattr(core.G3Units,
-                                       list(filter(None,unames[1].split(' ')))[0])
-                     uvalue = uvalue1 / uvalue2
-                 else:
-@@ -33,7 +33,7 @@
- @core.indexmod
- def CalibrateFrame(f, calibration_file=None):
-     '''Apply gain / offset / units from G3 cal file'''
--    
-+
-     if f.type != core.G3FrameType.GcpSlow:
-         return
- 
-@@ -53,7 +53,7 @@
-         cboard = copy.deepcopy(f[board])
-         for rmap in cboard.keys():
-             for reg in cboard[rmap].keys():
--                try: 
-+                try:
-                     rcd = cd[board][rmap][reg]
-                 except KeyError:
-                     continue
-@@ -80,7 +80,7 @@
-                             thisdtype = datatemp2.dtype
-                             datatemp2 += \
-                                 numpy.array(rcdi['Offset'],dtype=thisdtype)
--                            datatemp2 *= numpy.array(uvalue / 
-+                            datatemp2 *= numpy.array(uvalue /
-                                                      rcdi['ReciprocalFactor'],
-                                                      dtype=thisdtype)
-                             if type(cboard[rmap][reg][i]) \
-@@ -245,7 +245,7 @@
-                               dtype = float)
-     t.el_rate = numpy.asarray(f['antenna0']['tracker']['actual_rates'][1],
-                               dtype = float)
--    
-+
-     # Expected values
-     t.az_command = numpy.asarray(f['antenna0']['tracker']['expected'][0])
-     t.el_command = numpy.asarray(f['antenna0']['tracker']['expected'][1])
-@@ -264,7 +264,7 @@
-     t.in_control = core.BoolVector(f['antenna0']['tracker']['inControl'][0])
-     t.in_control_int = core.IntVector(f['antenna0']['tracker']['inControl'][0])
-     t.scan_flag = core.BoolVector(f['antenna0']['tracker']['scan_flag'][0])
--    
-+
-     t.lst = numpy.asarray(f['antenna0']['tracker']['lst'][0], dtype=float)
- 
-     t.source_acquired = numpy.asarray(f['antenna0']['tracker']['off_source'][0])
-@@ -298,7 +298,7 @@
- 
-     t.encoder_off_x = numpy.asarray([f['antenna0']['tracker']['encoder_off'][0]], dtype=numpy.double)
-     t.encoder_off_y = numpy.asarray([f['antenna0']['tracker']['encoder_off'][1]], dtype=numpy.double)
--    
-+
-     t.low_limit_az = numpy.asarray([f['antenna0']['tracker']['az_limits'][0]], dtype=numpy.double)
-     t.high_limit_az = numpy.asarray([f['antenna0']['tracker']['az_limits'][1]], dtype=numpy.double)
-     t.low_limit_el = numpy.asarray([f['antenna0']['tracker']['el_limits'][0]], dtype=numpy.double)
-@@ -332,7 +332,7 @@
-     t.linsens_avg_l2 = numpy.asarray(f['antenna0']['tracker']['linear_sensor_avg'][1])
-     t.linsens_avg_r1 = numpy.asarray(f['antenna0']['tracker']['linear_sensor_avg'][2])
-     t.linsens_avg_r2 = numpy.asarray(f['antenna0']['tracker']['linear_sensor_avg'][3])
--    
-+
-     t.telescope_temp = numpy.asarray([f['array']['weather']['airTemperature'].value])
-     t.telescope_pressure = numpy.asarray([f['array']['weather']['pressure'].value])
- 
-@@ -416,7 +416,7 @@
-         bencherr[key].stop = stop
- 
-     info_items = ['benchFocus', 'benchDeadBand', 'benchAcquiredThreshold',
--                  'benchPrimaryState', 'benchSecondaryState', 
-+                  'benchPrimaryState', 'benchSecondaryState',
-                   'benchFault', 'timeLocked']
-     bench_info = core.G3TimestreamMap()
-     for i, key in enumerate(info_items):
-@@ -434,7 +434,7 @@
-     f['BenchErrors'] = bencherr
-     f['BenchInfo'] = bench_info
-     f['BenchSampleTime'] = f['antenna0']['scu']['benchSampleTime'][0]
--    
-+
- @core.indexmod
- def UnpackCryoData(f):
-     '''
-@@ -517,7 +517,7 @@
- 
- @core.indexmod
- def UnpackPTData(f):
--    '''Extracts pulse tube status information to PTStatus key 
-+    '''Extracts pulse tube status information to PTStatus key
-     in frame'''
- 
-     if f.type != core.G3FrameType.GcpSlow:
-@@ -584,7 +584,7 @@
- 
- @core.indexmod
- def UnpackWeatherData(f):
--    '''Extracts weather status information to Weather key 
-+    '''Extracts weather status information to Weather key
-     in frame'''
- 
-     if f.type != core.G3FrameType.GcpSlow:
+
 diff -urN spt3g_software_orig/gcp/python/ARCHKExtractor.py spt3g_software/gcp/python/ARCHKExtractor.py
 --- spt3g_software_orig/gcp/python/ARCHKExtractor.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/gcp/python/ARCHKExtractor.py	2020-12-20 06:58:56.811350515 -0800
@@ -1238,32 +426,9 @@ diff -urN spt3g_software_orig/gcp/python/ARCHKExtractor.py spt3g_software/gcp/py
 -from spt3g import core, dfmux
 +from .. import core
 +from .. import dfmux
- 
+
  @core.indexmod
  class UnpackSPTpolHKData(object):
-@@ -46,7 +47,7 @@
-                 mezzhk.serial = 'N/A'
-                 mezzhk.part_number = 'SPTpol Mezz'
-                 mezzhk.revision = ''
--    
-+
-                 for v in ['V3P', 'V5N', '_VDemodA', '_VDemodB']:
-                     mezzhk.voltages[v.strip('_')] = hkregs['mezz' + mezz + v][i]
- 
-@@ -56,7 +57,7 @@
-                     modhk.carrier_gain = hkregs['carrierGain'][i][j*2 + k]
-                     modhk.nuller_gain = hkregs['nullerGain'][i][j*2 + k]
-                     modhk.demod_gain = hkregs['demodGain'][i][j*2 + k]
--                    if 'mezz' + mezz + 'Car' + mod + 'Overload' in hkregs: 
-+                    if 'mezz' + mezz + 'Car' + mod + 'Overload' in hkregs:
-                         modhk.carrier_railed = hkregs['mezz' + mezz + 'Car' + mod + 'Overload'][i]
-                         modhk.nuller_railed = hkregs['mezz' + mezz + 'Nul' + mod + 'Overload'][i]
-                     modhk.demod_railed = hkregs['mezz' + mezz + 'Adc' + mod + 'Overload'][i]
-@@ -92,4 +93,3 @@
-         hkframe['DfMuxHousekeeping'] = hkout
- 
-         return [f, hkframe]
--
 diff -urN spt3g_software_orig/gcp/python/CalFile.py spt3g_software/gcp/python/CalFile.py
 --- spt3g_software_orig/gcp/python/CalFile.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/gcp/python/CalFile.py	2020-12-20 06:59:02.769411653 -0800
@@ -1272,59 +437,10 @@ diff -urN spt3g_software_orig/gcp/python/CalFile.py spt3g_software/gcp/python/Ca
 +from .. import core
  import os, time
  import numpy as np
- 
+
  @core.indexmod
  class CalFileReader(object):
      '''
--    For now just reads a G3 calibration file and loads the contents into 
-+    For now just reads a G3 calibration file and loads the contents into
-     a dictionary
-     '''
- 
-@@ -21,7 +21,7 @@
-         try:
-             f = open(self.calibration_file, 'r')
-         except:
--            core.log_warn('3G calibration file ' + 
-+            core.log_warn('3G calibration file ' +
-                               self.calibration_file + ' not found.\n')
-             return cal_dict
-         ninvalid = 0
-@@ -102,7 +102,7 @@
- 
-     cal_dict = {}
-     status = 0
--    
-+
-     if read_from_gcp:
-         try:
-             default_calibration_file = \
-@@ -117,7 +117,7 @@
-         try:
-             f = open(calibration_file)
-         except:
--            core.log_warn('GCP calibration file ' + 
-+            core.log_warn('GCP calibration file ' +
-                           calibration_file + ' not found.\n')
-             f = []
-         ninvalid = 0
-@@ -140,9 +140,9 @@
-                         gainfac = 1./np.float(fline[2])
-                     linedict['ReciprocalFactor'] = gainfac
-                     linedict['UnitName'] = ''
--                # try to figure out units. currently cal file 
-+                # try to figure out units. currently cal file
-                 # only has 2 forms, but this is not robust.
--                    if len(info_and_comment) > 1: 
-+                    if len(info_and_comment) > 1:
-                         comment = info_and_comment[1]
-                         if '->' in comment:
-                             comments = list(filter(None,(comment).split('->')))
-@@ -232,4 +232,3 @@
-     fcal.close()
- 
-     return status
--
 diff -urN spt3g_software_orig/gcp/python/GCPDataTee.py spt3g_software/gcp/python/GCPDataTee.py
 --- spt3g_software_orig/gcp/python/GCPDataTee.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/gcp/python/GCPDataTee.py	2020-12-20 06:59:19.557172007 -0800
@@ -1333,14 +449,9 @@ diff -urN spt3g_software_orig/gcp/python/GCPDataTee.py spt3g_software/gcp/python
 -from spt3g import core, dfmux
 +from .. import core
 +from .. dfmux
- 
+
  @core.indexmod
  class GCPWatchdog(object):
-@@ -380,4 +381,3 @@
-         buf = struct.pack('!q', len(buf)) + buf
- 
-         return buf
--
 diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/InfluxDB.py
 --- spt3g_software_orig/gcp/python/InfluxDB.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/gcp/python/InfluxDB.py	2020-12-20 06:59:27.920892764 -0800
@@ -1351,291 +462,8 @@ diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/I
 -from spt3g import core
 +from .. import core
  from . import ARCExtractor
- 
+
  def build_field_list(fr):
-@@ -10,21 +10,21 @@
-     """
-     r = {
-          # tracker status
--         'az_actual': ['TrackerStatus', 'az_pos', 
-+         'az_actual': ['TrackerStatus', 'az_pos',
-                        core.G3Units.deg],
--         'el_actual': ['TrackerStatus', 'el_pos', 
-+         'el_actual': ['TrackerStatus', 'el_pos',
-                        core.G3Units.deg],
--         'az_rate_actual': ['TrackerStatus', 'az_rate', 
-+         'az_rate_actual': ['TrackerStatus', 'az_rate',
-                             core.G3Units.deg/core.G3Units.sec],
--         'el_rate_actual': ['TrackerStatus', 'el_rate', 
-+         'el_rate_actual': ['TrackerStatus', 'el_rate',
-                             core.G3Units.deg/core.G3Units.sec],
--         'az_command': ['TrackerStatus', 'az_command', 
-+         'az_command': ['TrackerStatus', 'az_command',
-                        core.G3Units.deg],
--         'el_command': ['TrackerStatus', 'el_command', 
--                       core.G3Units.deg],    
--         'az_rate_command': ['TrackerStatus', 'az_rate_command', 
-+         'el_command': ['TrackerStatus', 'el_command',
-+                       core.G3Units.deg],
-+         'az_rate_command': ['TrackerStatus', 'az_rate_command',
-                              core.G3Units.deg/core.G3Units.sec],
--         'el_rate_command': ['TrackerStatus', 'el_rate_command', 
-+         'el_rate_command': ['TrackerStatus', 'el_rate_command',
-                              core.G3Units.deg/core.G3Units.sec],
-          'tracker_state': ['TrackerStatus', 'state', None],
-          'acu_seq': ['TrackerStatus', 'acu_seq', None],
-@@ -32,8 +32,8 @@
-          'scan_flag': ['TrackerStatus', 'scan_flag', None],
-          'lst': ['TrackerStatus', 'lst', core.G3Units.hour],
-          'source_acquired': ['TrackerStatus', 'source_acquired', None],
--         'source_acquired_thresh': ['TrackerStatus', 
--                                    'source_acquired_threshold', 
-+         'source_acquired_thresh': ['TrackerStatus',
-+                                    'source_acquired_threshold',
-                                     None],
-          'tracker_mode': ['TrackerStatus', 'tracker_mode', None],
-          'tracker_lacking': ['TrackerStatus', 'tracker_lacking', None],
-@@ -43,51 +43,51 @@
- 
-          # tracker pointing
-          'features': ['TrackerPointing', 'features', 1],
--         'encoder_off_x': ['TrackerPointing', 'encoder_off_x', 
-+         'encoder_off_x': ['TrackerPointing', 'encoder_off_x',
-                            core.G3Units.deg],
--         'encoder_off_y': ['TrackerPointing', 'encoder_off_y', 
-+         'encoder_off_y': ['TrackerPointing', 'encoder_off_y',
-                            core.G3Units.deg],
--         'low_limit_az': ['TrackerPointing', 'low_limit_az', 
-+         'low_limit_az': ['TrackerPointing', 'low_limit_az',
-                            core.G3Units.deg],
--         'high_limit_az': ['TrackerPointing', 'high_limit_az', 
-+         'high_limit_az': ['TrackerPointing', 'high_limit_az',
-                            core.G3Units.deg],
--         'low_limit_el': ['TrackerPointing', 'low_limit_el', 
-+         'low_limit_el': ['TrackerPointing', 'low_limit_el',
-                           core.G3Units.deg],
--         'high_limit_el': ['TrackerPointing', 'high_limit_el', 
-+         'high_limit_el': ['TrackerPointing', 'high_limit_el',
-                            core.G3Units.deg],
--         'tilts_x': ['TrackerPointing', 'tilts_x', 
-+         'tilts_x': ['TrackerPointing', 'tilts_x',
-                      core.G3Units.deg],
--         'tilts_y': ['TrackerPointing', 'tilts_y', 
-+         'tilts_y': ['TrackerPointing', 'tilts_y',
-                      core.G3Units.deg],
--         'refraction': ['TrackerPointing', 'refraction', 
-+         'refraction': ['TrackerPointing', 'refraction',
-                         core.G3Units.deg],
--         'horiz_mount_x': ['TrackerPointing', 'horiz_mount_x', 
-+         'horiz_mount_x': ['TrackerPointing', 'horiz_mount_x',
-                            core.G3Units.deg],
--         'horiz_mount_y': ['TrackerPointing', 'horiz_mount_y', 
-+         'horiz_mount_y': ['TrackerPointing', 'horiz_mount_y',
-                            core.G3Units.deg],
--         'horiz_topo_az': ['TrackerPointing', 'horiz_topo_az', 
-+         'horiz_topo_az': ['TrackerPointing', 'horiz_topo_az',
-                            core.G3Units.deg],
--         'horiz_topo_el': ['TrackerPointing', 'horiz_topo_el', 
-+         'horiz_topo_el': ['TrackerPointing', 'horiz_topo_el',
-                            core.G3Units.deg],
--         'horiz_off_x': ['TrackerPointing', 'horiz_off_x', 
-+         'horiz_off_x': ['TrackerPointing', 'horiz_off_x',
-                          core.G3Units.deg],
--         'horiz_off_y': ['TrackerPointing', 'horiz_off_y', 
-+         'horiz_off_y': ['TrackerPointing', 'horiz_off_y',
-                          core.G3Units.deg],
--         'scan_off_x': ['TrackerPointing', 'scan_off_x', 
-+         'scan_off_x': ['TrackerPointing', 'scan_off_x',
-                         core.G3Units.deg],
--         'scan_off_y': ['TrackerPointing', 'scan_off_y', 
-+         'scan_off_y': ['TrackerPointing', 'scan_off_y',
-                         core.G3Units.deg],
--         'sky_off_x': ['TrackerPointing', 'sky_off_x', 
-+         'sky_off_x': ['TrackerPointing', 'sky_off_x',
-                        core.G3Units.deg],
--         'sky_off_y': ['TrackerPointing', 'sky_off_y', 
-+         'sky_off_y': ['TrackerPointing', 'sky_off_y',
-                        core.G3Units.deg],
--         'equat_off_x': ['TrackerPointing', 'equat_off_x', 
-+         'equat_off_x': ['TrackerPointing', 'equat_off_x',
-                          core.G3Units.deg],
--         'equat_off_y': ['TrackerPointing', 'equat_off_y', 
-+         'equat_off_y': ['TrackerPointing', 'equat_off_y',
-                          core.G3Units.deg],
--         'source_ra': ['TrackerPointing', 'equat_geoc_ra', 
-+         'source_ra': ['TrackerPointing', 'equat_geoc_ra',
-                        core.G3Units.rahr],
--         'source_dec': ['TrackerPointing', 'equat_geoc_dec', 
-+         'source_dec': ['TrackerPointing', 'equat_geoc_dec',
-                         core.G3Units.deg],
-          'error_az': ['TrackerPointing', 'error_az', core.G3Units.deg],
-          'error_el': ['TrackerPointing', 'error_el', core.G3Units.deg],
-@@ -101,14 +101,14 @@
-                             core.G3Units.mm],
-         # Weather
-          'telescope_temp': ['Weather', 'telescope_temp',
--                            'C'],    
-+                            'C'],
-          'inside_dsl_temp': ['Weather', 'inside_dsl_temp',
-                              None],
--         'telescope_pressure': ['Weather', 
-+         'telescope_pressure': ['Weather',
-                                 'telescope_pressure',
-                                 None],
-          'wind_speed': ['Weather', 'wind_speed', None],
--         'wind_direction': ['Weather', 'wind_direction', 
-+         'wind_direction': ['Weather', 'wind_direction',
-                             core.G3Units.deg],
-          'battery': ['Weather', 'battery', None],
-          'rel_humidity': ['Weather', 'rel_humidity', None],
-@@ -175,7 +175,7 @@
-          'heat_uc_sw': ['CryoStatus', 'heat_uc_sw', 1],
-         # status bit
-          'cryo_is_valid': ['CryoStatus', 'cryo_is_valid', None],
--        
-+
-         # PT status
-          'optics_low_p_now': ['PTStatus', 'optics_lowp', None],
-          'optics_low_p_min': ['PTStatus', 'min_optics_lowp', None],
-@@ -196,10 +196,10 @@
-          'receiver_tempoil_now': ['PTStatus', 'receiver_tempoil', None],
-          'receiver_tempoil_min': ['PTStatus', 'min_receiver_tempoil', None],
-          'receiver_tempoil_max': ['PTStatus', 'max_receiver_tempoil', None],
--        
-+
-          'optics_is_valid': ['PTStatus', 'optics_is_valid', None],
-          'receiver_is_valid': ['PTStatus', 'receiver_is_valid', None],
--    
-+
-         # Online Pointing Model
-          'tilts_hr_angle': ['OnlinePointingModel', 'tilts', 0,
-                             core.G3Units.deg],
-@@ -207,38 +207,38 @@
-                        core.G3Units.deg],
-          'tilts_el': ['OnlinePointingModel', 'tilts', 2,
-                       core.G3Units.deg],
--         'flexure_sin': ['OnlinePointingModel', 'flexure', 0, 
-+         'flexure_sin': ['OnlinePointingModel', 'flexure', 0,
-                          core.G3Units.deg],
--         'flexure_cos': ['OnlinePointingModel', 'flexure', 1, 
-+         'flexure_cos': ['OnlinePointingModel', 'flexure', 1,
-                          core.G3Units.deg],
--         'fixed_collimation_x': ['OnlinePointingModel', 
-+         'fixed_collimation_x': ['OnlinePointingModel',
-                                  'fixedCollimation', 0,
-                                  core.G3Units.deg],
--         'fixed_collimation_y': ['OnlinePointingModel', 
-+         'fixed_collimation_y': ['OnlinePointingModel',
-                                  'fixedCollimation', 1,
-                                  core.G3Units.deg],
-         # Other
-          'obs_id': ['ObservationID', None],
-          'source_name': ['SourceName', None],
- 
--        
-+
-         # ACUStatus
-          'acu_state': ['ACUStatus', 'state', None],
-          'acu_status': ['ACUStatus', 'status', None],
-          'acu_error': ['ACUStatus', 'error', None],
- 
-         # Bench
--         'bench_command_y1': ['BenchCommandedPosition', 'y1', 
-+         'bench_command_y1': ['BenchCommandedPosition', 'y1',
-                               core.G3Units.mm],
--         'bench_command_y2': ['BenchCommandedPosition', 'y2', 
-+         'bench_command_y2': ['BenchCommandedPosition', 'y2',
-                               core.G3Units.mm],
--         'bench_command_y3': ['BenchCommandedPosition', 'y3', 
-+         'bench_command_y3': ['BenchCommandedPosition', 'y3',
-                               core.G3Units.mm],
--         'bench_command_x4': ['BenchCommandedPosition', 'x4', 
-+         'bench_command_x4': ['BenchCommandedPosition', 'x4',
-                               core.G3Units.mm],
--         'bench_command_x5': ['BenchCommandedPosition', 'x5', 
-+         'bench_command_x5': ['BenchCommandedPosition', 'x5',
-                               core.G3Units.mm],
--         'bench_command_z6': ['BenchCommandedPosition', 'z6', 
-+         'bench_command_z6': ['BenchCommandedPosition', 'z6',
-                               core.G3Units.mm],
- 
-          'bench_actual_y1': ['BenchPosition', 'y1', core.G3Units.mm],
-@@ -271,10 +271,10 @@
- 
-          'bench_focus': ['BenchInfo', 'benchFocus', core.G3Units.mm],
-          'bench_dead_band': ['BenchInfo', 'benchDeadBand', core.G3Units.mm],
--         'bench_acquired_thresh': ['BenchInfo', 'benchAcquiredThreshold', 
-+         'bench_acquired_thresh': ['BenchInfo', 'benchAcquiredThreshold',
-                                    core.G3Units.mm],
-          'bench_primary_state': ['BenchInfo', 'benchPrimaryState', None],
--         'bench_secondary_state': ['BenchInfo', 'benchSecondaryState', 
-+         'bench_secondary_state': ['BenchInfo', 'benchSecondaryState',
-                                    None],
-          'bench_fault': ['BenchInfo', 'benchFault', None],
-          'bench_time_locked': ['BenchInfo', 'timeLocked', None],
-@@ -285,7 +285,7 @@
-         i = str(i)
-         r['fpga_temp_ib{}'.format(i)] = ['MuxFPGATemp', i, None]
-         r['name_ib{}'.format(i)] = ['MuxBoardName', i, None]
--    
-+
-     # scu.temp - all temps documented given a name, others just a number
-     scu_temps = {0: 'yoke_air', 1: 'ctrl_room_air', 2: 'glycol_supply',
-                  3: 'glycol_return', 4: 'ctrl_room', 20: 'secondary',
-@@ -298,7 +298,7 @@
-         else:
-             r['t_scu_{}'.format(i)] = \
-                 ['TrackerPointing', 'scu_temp', i, 'C']
--    
-+
-     return r
- 
- def make_lines(measurement, field, time, dat, tags=None):
-@@ -333,7 +333,7 @@
-     '''
-     from influxdb.exceptions import InfluxDBClientError
-     from influxdb.exceptions import InfluxDBServerError
--    
-+
-     if fr.type != core.G3FrameType.GcpSlow:
-         return
-     all_fields = build_field_list(fr)
-@@ -383,7 +383,7 @@
-         try:
-             time = [x.time/core.G3Units.nanosecond for x in np.atleast_1d(time)]
-         except AttributeError:
--            time = [core.G3Time(t0).time/core.G3Units.nanosecond for t0 in 
-+            time = [core.G3Time(t0).time/core.G3Units.nanosecond for t0 in
-                     np.atleast_1d(time)]
-         if dat is None:
-             core.log_warn('{} dat is None'.format(f), unit='InfluxDB')
-@@ -450,7 +450,7 @@
-                                 time=time, dat=cal_dat,
-                                 tags={'label': tag, 'label2': tag2})
-     try:
--        delay = float(core.G3Time.Now().time/core.G3Units.nanosecond - 
-+        delay = float(core.G3Time.Now().time/core.G3Units.nanosecond -
-                       time[-1])/1e9
-         if delay > 5:
-             core.log_info('{} Delay: {} s'.format(
-@@ -462,14 +462,14 @@
-             dict_list, batch_size=len(dict_list), protocol='line')
- 
-     except (InfluxDBClientError, InfluxDBServerError) as v:
--        core.log_error('Error writing to database. {}'.format(v), 
-+        core.log_error('Error writing to database. {}'.format(v),
-                        unit='InfluxDB')
--        
-+
- @core.pipesegment
- def UpdateDB(pipe, client, fields=None):
-     '''
-     Update InfluxDB with data in frame
--    
-+
-     Arguments
-     ---------
-     client :
 diff -urN spt3g_software_orig/gcp/python/__init__.py spt3g_software/gcp/python/__init__.py
 --- spt3g_software_orig/gcp/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/gcp/python/__init__.py	2020-12-20 06:42:52.696805661 -0800
@@ -1644,28 +472,28 @@ diff -urN spt3g_software_orig/gcp/python/__init__.py spt3g_software/gcp/python/_
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libgcp import *
- 
+
  from .ARCExtractor import UnpackACUData, UnpackTrackerData, DecryptFeatureBit, ARCExtract, ARCExtractMinimal
  from .ARCHKExtractor import UnpackSPTpolHKData
 diff -urN spt3g_software_orig/gcp/src/python.cxx spt3g_software/gcp/src/python.cxx
 --- spt3g_software_orig/gcp/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/gcp/src/python.cxx	2020-12-20 06:39:39.970043055 -0800
 @@ -7,9 +7,9 @@
- 
+
  namespace bp = boost::python;
- 
+
 -BOOST_PYTHON_MODULE(gcp)
 +BOOST_PYTHON_MODULE(libgcp)
  {
 -	bp::import("spt3g.core");
 +	bp::import("spt3g.libcore");
  	bp::docstring_options docopts(true, true, false);
- 
+
  	// Supported Experiments
 @@ -19,6 +19,5 @@
  		.value("PB",    Experiment::PB)
  	;
- 
+
 -	G3ModuleRegistrator::CallRegistrarsFor("gcp");
 +	G3ModuleRegistrator::CallRegistrarsFor("libgcp");
  }
@@ -1676,10 +504,10 @@ diff -urN spt3g_software_orig/maps/python/azel.py spt3g_software/maps/python/aze
 @@ -3,7 +3,7 @@
  import astropy.coordinates, astropy.units, astropy.time
  from astropy.utils import iers
- 
+
 -from spt3g import core
 +from .. import core
- 
+
  spt = astropy.coordinates.EarthLocation(
      lat=-89.991066 * astropy.units.deg,
 diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps/python/coordsysmodules.py
@@ -1698,14 +526,9 @@ diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps
 +from .libmaps import MapCoordReference
 +from .libmaps import create_det_az_el_trans, create_lazy_det_ra_dec_trans
 +from .libmaps import create_det_ra_dec_trans, convert_ra_dec_trans_to_gal
- 
- 
+
+
  __all__ = [
-@@ -134,4 +134,3 @@
-     local_trans.stop = frame[az_key].stop
-     create_det_az_el_trans(frame[az_key], frame[el_key], local_trans)
-     frame[out_key] = local_trans
--
 diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/fitsio.py
 --- spt3g_software_orig/maps/python/fitsio.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/maps/python/fitsio.py	2020-12-20 06:53:55.542268586 -0800
@@ -1716,7 +539,7 @@ diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/f
 +from .. import core
 +from .libmaps import HealpixSkyMap, FlatSkyMap, G3SkyMapWeights
 +from .libmaps import MapPolType, MapPolConv, MapCoordReference, MapProjection
- 
+
  import numpy as np
  import os
 diff -urN spt3g_software_orig/maps/python/__init__.py spt3g_software/maps/python/__init__.py
@@ -1727,7 +550,7 @@ diff -urN spt3g_software_orig/maps/python/__init__.py spt3g_software/maps/python
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libmaps import *
- 
+
  # Just run this, no symbols we need though
  from .skymapaddons import *
 diff -urN spt3g_software_orig/maps/python/map_modules.py spt3g_software/maps/python/map_modules.py
@@ -1738,7 +561,7 @@ diff -urN spt3g_software_orig/maps/python/map_modules.py spt3g_software/maps/pyt
 +from .. import core
 +from . import libmaps as maps
  import numpy as np
- 
+
  __all__ = [
 diff -urN spt3g_software_orig/maps/python/maputils.py spt3g_software/maps/python/maputils.py
 --- spt3g_software_orig/maps/python/maputils.py	2020-12-10 07:52:41.000000000 -0800
@@ -1747,45 +570,9 @@ diff -urN spt3g_software_orig/maps/python/maputils.py spt3g_software/maps/python
 -from spt3g import core, maps
 +from .. import core
 +from . import libmaps as maps
- 
+
  import numpy as np
- 
-@@ -26,7 +27,7 @@
-         supplied, one will be constructed using the remaining keyword arguments.
- 
-     rebin[1]: int
--        If supplied and >1, subdivide the output pixel by n x n with each 
-+        If supplied and >1, subdivide the output pixel by n x n with each
-         sub-pixel taking on the input map values at pixel center (with interp
-         or nearest neighbor). The output pixel takes on the average of the sub-pixel
-         values.
-@@ -35,7 +36,7 @@
-         information above the Nyquist freq. of the output map pixel), this
-         reduces aliasing compared with direct sampling. But there would still be
-         aliased power from the input map from freq above the ouput map pixel's
--        Nyquist. 
-+        Nyquist.
- 
-     interp[false]: bool
-         If True, use bilinear interpolation to extract values from the input
-@@ -104,7 +105,7 @@
-         supplied, one will be constructed using the remaining keyword arguments.
- 
-     rebin[1]: int
--        If supplied and >1, subdivide the output pixel by n x n with each 
-+        If supplied and >1, subdivide the output pixel by n x n with each
-         sub-pixel taking on the input map values at pixel center (with interp
-         or nearest neighbor). The output pixel takes on the average of the sub-pixel
-         values.
-@@ -113,7 +114,7 @@
-         information above the Nyquist freq. of the output map pixel), this
-         reduces aliasing compared with direct sampling. But there would still be
-         aliased power from the input map from freq above the ouput map pixel's
--        Nyquist. 
-+        Nyquist.
- 
-     interp[false]: bool
-         If True, use bilinear interpolation to extract values from the input
+
 diff -urN spt3g_software_orig/maps/python/quathelpers.py spt3g_software/maps/python/quathelpers.py
 --- spt3g_software_orig/maps/python/quathelpers.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/maps/python/quathelpers.py	2020-12-20 06:56:22.481986256 -0800
@@ -1793,22 +580,8 @@ diff -urN spt3g_software_orig/maps/python/quathelpers.py spt3g_software/maps/pyt
 -from spt3g.core import G3Units, quat, G3VectorQuat, G3TimestreamQuat, usefulfunc, indexmod
 +from ..core import G3Units, quat, G3VectorQuat, G3TimestreamQuat, usefulfunc, indexmod
  import numpy
- 
- 
-@@ -74,7 +74,7 @@
-     done in-place -- the previous data are deleted and replaced with the new
-     one.
-     """
--    
-+
-     if key not in fr:
-         return
- 
-@@ -83,4 +83,3 @@
-     x.start = fr[timing_ref].start
-     x.stop = fr[timing_ref].stop
-     fr[key] = x
--
+
+
 diff -urN spt3g_software_orig/maps/python/skymapaddons.py spt3g_software/maps/python/skymapaddons.py
 --- spt3g_software_orig/maps/python/skymapaddons.py	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/maps/python/skymapaddons.py	2020-12-20 06:56:36.063546267 -0800
@@ -1817,16 +590,16 @@ diff -urN spt3g_software_orig/maps/python/skymapaddons.py spt3g_software/maps/py
  import warnings
 -from spt3g.maps import G3SkyMapWeights, G3SkyMap
 +from .libmaps import G3SkyMapWeights, G3SkyMap
- 
+
  # This file adds extra functionality to the python interface to G3SkyMap and
  # G3SkyMapWeights. This is done in ways that exploit a large fraction of
 diff -urN spt3g_software_orig/maps/src/python.cxx spt3g_software/maps/src/python.cxx
 --- spt3g_software_orig/maps/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
 +++ spt3g_software/maps/src/python.cxx	2020-12-20 06:39:21.146556347 -0800
 @@ -3,11 +3,10 @@
- 
+
  namespace bp = boost::python;
- 
+
 -BOOST_PYTHON_MODULE(maps)
 +BOOST_PYTHON_MODULE(libmaps)
  {

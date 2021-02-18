@@ -163,7 +163,7 @@ class BuildExt(build_ext):
 
     c_opts = {
         "msvc": ["/EHsc"],
-        "unix": ["-DBOOST_PYTHON_MAX_ARITY=20"],
+        "unix": ["-DBOOST_PYTHON_MAX_ARITY=20", "-D__x86_64__=1"],
     }
 
     if sys.platform.lower() == "darwin":
@@ -281,6 +281,7 @@ conf["license"] = "MIT"
 conf["url"] = "https://github.com/simonsobs/so3g"
 conf["version"] = get_version()
 conf["python_requires"] = ">=3.6.0"
+conf["setup_requires"] = (["wheel"],)
 conf["install_requires"] = [
     "numpy",
     "astropy",
