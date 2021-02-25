@@ -40,7 +40,7 @@ def get_threads_domdir(sight, offs, shape, wcs, n_threads=None,
     if offs_rep is None:
         offs_rep = offs
 
-    xi, eta, gamma = so3g.proj.quat.decompose_xieta(offs)
+    xi, eta, gamma = so3g.proj.quat.decompose_xieta(offs_rep)
     # Align the alternative detectors parallel to lines of constant el.
     offs_xl = np.array(so3g.proj.quat.rotation_xieta(xi, eta, gamma*0 + 90*so3g.proj.DEG))
     pmat   = so3g.proj.wcs.Projectionist.for_geom(shape, wcs)
@@ -96,6 +96,7 @@ def get_threads_domdir(sight, offs, shape, wcs, n_threads=None,
         tidx_map[s] = i
 
     # Turn that into threads!    
+    ass    = so3g.proj.Assembly.attach(sight, offs)
     threads = pmat.assign_threads_from_map(ass, tidx_map[None])
 
     if plot_prefix:
