@@ -69,6 +69,15 @@ public:
 };
 
 
+// Support for working with RangesMatrix, which is basically just a list of Ranges
+template <typename T>
+vector<Ranges<T>> extract_ranges(const bp::object & ival_list) {
+    vector<Ranges<T>> v(bp::len(ival_list));
+    for (int i=0; i<bp::len(ival_list); i++)
+        v[i] = bp::extract<Ranges<T>>(ival_list[i])();
+    return v;
+}
+
 typedef Ranges<int32_t> RangesInt32;
 
 G3_SERIALIZABLE(RangesInt32, 0);

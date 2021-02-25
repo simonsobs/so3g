@@ -1,0 +1,34 @@
+name: Run Tests
+
+on:
+  push:
+    branches-ignore: [ master ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Build docker images
+      run: |
+        docker-compose build
+
+    - name: Test with pytest within a docker container
+      run: |
+        docker run -v $PWD:/coverage --rm so3g sh -c "COVERAGE_FILE=/coverage/.coverage.docker python3 -m pytest --cov /usr/lib/python3/dist-packages/so3g/ test/"
+
+    - name: Report test coverage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pip install coveralls
+        coverage combine
+        coverage report
+        coveralls --service=github

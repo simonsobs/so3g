@@ -50,11 +50,64 @@ Intervals<G3Time>::Intervals() {
 }
 
 
+//
+// Some support templates for Description() -- these are broadly
+// applicable so consider having them live more publicly.
+//
+
+// _ival_type_name() returns the standard G3 data type suffix.
+
+template <typename T>
+const char *_ival_type_name();
+template <>
+const char *_ival_type_name<int32_t>() { return "Int32"; }
+template <>
+const char *_ival_type_name<int64_t>() { return "Int"; }
+template <>
+const char *_ival_type_name<double> () { return "Double"; }
+template <>
+const char *_ival_type_name<G3Time> () { return "Time"; }
+
+// _ival_cute_lim() allows standard limits (such as INT32_MAX) to be printed as such.
+
+template <typename T>
+std::string _ival_cute_lim(T val) {
+    std::ostringstream s;
+    s << val;
+    return s.str();
+}
+template <>
+std::string _ival_cute_lim(int32_t val) {
+    std::ostringstream s;
+    if (val == INT32_MIN)
+        s << "INT32_MIN";
+    else if (val == INT32_MAX)
+        s << "INT32_MAX";
+    else
+        s << val;
+    return s.str();
+}
+template <>
+std::string _ival_cute_lim(int64_t val) {
+    std::ostringstream s;
+    if (val == INT64_MIN)
+        s << "INT64_MIN";
+    else if (val == INT64_MAX)
+        s << "INT64_MAX";
+    else
+        s << val;
+    return s.str();
+}
+
+
 template <typename T>
 std::string Intervals<T>::Description() const
 {
 	std::ostringstream s;
-	s << "Intervals over domain [" << domain.first << "," << domain.second << ")";
+	s << "Intervals" << _ival_type_name<T>() << "("
+          << "domain=(" << _ival_cute_lim<T>(domain.first)
+          << "," << _ival_cute_lim<T>(domain.second) << "), "
+          << "ivals=" << segments.size() << ")";
 	return s.str();
 }
 

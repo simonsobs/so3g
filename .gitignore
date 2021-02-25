@@ -49,3 +49,12 @@ docs/_build
 *.exe
 *.out
 *.app
+
+# Pycharm
+.idea
+
+#ipython
+.ipynb_checkpoints
+
+# vim
+*.swp

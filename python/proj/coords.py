@@ -100,7 +100,7 @@ class CelestialSightLine:
             quat.euler(2, np.pi) *
             quat.euler(2, -az) *
             quat.euler(1, np.pi/2 - el) *
-            quat.euler(2, np.pi + roll)
+            quat.euler(2, roll)
             )
         return self
 
@@ -125,8 +125,9 @@ class CelestialSightLine:
                              '\'vacuum\'.')
 
         self = cls()
+        # Note that passing num_threads explicitly to qpoint will
+        # cause openmp_set_thread_count to be called!
         qp = qpoint.QPoint(accuracy='high', fast_math=True, mean_aber=True,
-                           num_threads=4,
                            rate_ref='always', **weather.to_qpoint())
 
         az, el, t = map(np.asarray, [az, el, t])
@@ -136,10 +137,34 @@ class CelestialSightLine:
 
         # Apply boresight roll manually (note qpoint pitch/roll refer
         # to the platform rather than to something about the boresight
-        # axis).
+        # axis).  Regardless we need a pi rotation because of our
+        # definition of boresight coordinates.
+        if roll is None:
+            self.Q *= quat.euler(2, np.pi)
         if roll is not None:
-            self.Q *= quat.euler(2, roll)
+            self.Q *= quat.euler(2, np.pi + roll)
 
+        return self
+
+    @classmethod
+    def for_horizon(cls, t, az, el, roll=None, site=None, weather=None):
+        """Construct the trivial SightLine, where "celestial" coordinates are
+        taken to simply be local horizon coordinates (without any
+        effects of atmosphere).  Although this accepts site and
+        weather arguments, they are ignored.
+
+        """
+        self = cls()
+        az, el, t = map(np.asarray, [az, el, t])
+        if roll is None:
+            roll = 0.
+        else:
+            roll = np.asarray(roll)
+        self.Q = (
+            quat.euler(2, -az) *
+            quat.euler(1, np.pi/2 - el) *
+            quat.euler(2, roll)
+            )
         return self
 
     def coords(self, det_offsets=None, output=None):
@@ -245,6 +270,15 @@ class Assembly:
 
     @classmethod
     def attach(cls, sight_line, det_offsets):
+        """Create an Assembly based on a CelestialSightLine and a FocalPlane.
+
+        Args:
+            sight_line (CelestialSightLine): The position and
+                orientation of the boresight.
+            det_offsets (FocalPlane): The "offsets" of each detector
+                relative to the boresight.
+
+        """
         keyed = isinstance(det_offsets, dict)
         self = cls(keyed=keyed)
         self.Q = sight_line.Q

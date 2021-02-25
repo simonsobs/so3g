@@ -7,6 +7,7 @@ frames.  Use the resulting HKArchive to perform random I/O over a
 sisock-style API.
 
 """
+import itertools
 import os
 import pytz
 import yaml
@@ -45,11 +46,42 @@ _SCHEMA_V1_BLOCK_TYPES = [
 ]
 
 
-class HKArchive:
+def _concat_hk_stream(blocks_in):
+    """Concatenates an ordered list of compatible HK blocks into a single
+    frame.  Each block should be a valid G3TimesampleMap with the same
+    keys.
 
-    """Contains information necessary to determine what data fields are
-    present in a data archive at what times.  It also knows how to
-    group fields that share a commong timeline.
+    Returns a single G3TimesampleMap with all fields concatenated.
+
+    """
+    blk = core.G3TimesampleMap()
+    blk.times = core.G3VectorTime(blocks_in[0].times)
+    fields = list(blocks_in[0].keys())
+    for f in fields:
+        f_short = f.split('.')[-1]
+        blk[f] = blocks_in[0][f_short]
+    for b in blocks_in[1:]:
+        blk.times.extend(b.times)
+    for f in fields:
+        f_short = f.split('.')[-1]
+        for _type in _SCHEMA_V1_BLOCK_TYPES:
+            if isinstance(blocks_in[0][f_short], _type):
+                break
+        else:
+            raise RuntimeError('Field "%s" is of unsupported type %s.' %
+                               (f_short, type(blocks_in[0][f_short])))
+        for b in blocks_in[1:]:
+            blk[f].extend(b[f_short])
+    return blk
+
+
+class HKArchive:
+    """Container for information necessary to determine what data fields
+    are present in a data archive at what times.  This object has
+    methods that can determine what fields have data over a given time
+    range, and can group fields that share a timeline (i.e. are
+    co-sampled) over that range.
+
     """
     field_groups = None
     def __init__(self, field_groups=None):
@@ -90,6 +122,13 @@ class HKArchive:
             fields belonging to this group.  ``fgs`` is a list of
             _FieldGroup objects relevant to the fields in this
             group.
+
+        Notes:
+            Each entry in the returned list carries information for
+            set of fields that are co-sampled over the requested time
+            interval.  Each of the requested fields will thus appear
+            in at most one group.
+
         """
         span = so3g.IntervalsDouble()
         if start is None:
@@ -181,6 +220,12 @@ class HKArchive:
         Arguments ``field``, ``start``, ``end``, ``short_match`` are
         as described in _get_groups.
 
+        Arguments:
+            min_stride (float): Specifies the minimum sample spacing,
+                in seconds.  Ignored in this implementation.
+            raw (bool): If true, return G3 blocks instead of numpy
+                arrays.
+
         Returns:
             Pair of dictionaries, (data, timelines).  The ``data``
             dictionary is a simple map from field name to a numpy
@@ -196,56 +241,135 @@ class HKArchive:
               This is part of the interface in order to support data
               streams that are being updated in real time.
 
+            If user requested raw=True, then return value is a list
+            of tuples of the form (group_name, block) where block is a
+            single G3TimesampleMap carrying all the data for that
+            co-sampled group.
+
         """
         grouped = self._get_groups(field, start, end, short_match=short_match)
-        handles = {}  # filename -> G3IndexedReader map.
-        blocks_out = []
+        hk_logger.debug('get_data: _get_groups returns %i groups.' % len(grouped))
+
+        # Pass through the metadata.  Collect information on what
+        # field groups are present in what frames of what files; sort
+        # that info by file and offset so we make a single monotonic
+        # pass through the frames.
+        group_info = {
+            #  group_name: {'types': [dtype, ...],
+            #               'fields': [(full_name, short_name), ...],
+            #               'count': n},
+            #  ...
+        }
+        files = {
+            # filename: {
+            #   offset: [(block_index, group_name, output_offset), ...]],
+            #   ...
+            #   },
+            # ...
+        }
         for group_name, fields, fgrps in grouped:
-            blocks_in = []
+            # This is a group of co-sampled fields.  The fields share
+            # a sample count and a frame-index map.
+            all_frame_refs = []
             for fg in fgrps:
-                for r in fg.index_info:
-                    fn,off = r['filename'], r['byte_offset']
-                    if not fn in handles:
-                        handles[fn] = so3g.G3IndexedReader(fn)
-                    handles[fn].Seek(off)
-                    fn = handles[fn].Process(None)
-                    fn = self.translator(fn[0])
-                    assert(len(fn) == 1)
-                    # Find the right block.
-                    for blk in fn[0]['blocks']:
-                        assert(isinstance(blk, core.G3TimesampleMap))
-                        test_f = fields[0].split('.')[-1]   ## dump prefix.
-                        if test_f in blk.keys():
-                            blocks_in.append(blk)
-                            break
-            # Sort those blocks by timestamp. (Otherwise they'll stay sorted by object id :)
-            blocks_in.sort(key=lambda b: b.times[0].time)
-            # Create a new Block for this group.
-            blk = core.G3TimesampleMap()
-            blk.times = core.G3VectorTime(np.hstack([np.array(b.times) for b in blocks_in]))
-            for f in fields:
-                f_short = f.split('.')[-1]
-                for _type in _SCHEMA_V1_BLOCK_TYPES:
-                    if isinstance(blocks_in[0][f_short], _type):
-                        break
-                else:
-                    raise RuntimeError('Field "%s" is of unsupported type %s.' %
-                                       (f_short, type(blocks_in[0][f_short])))
-                blk[f] = _type(np.hstack([np.array(b[f_short]) for b in blocks_in]))
-            blocks_out.append((group_name, blk))
-        if raw:
-            return blocks_out
-        # Reformat for sisock.
+                all_frame_refs.extend(
+                    [(b['timestamp'], b['count'], b['filename'], b['byte_offset'], b['block_index'])
+                     for b in fg.index_info])
+            all_frame_refs.sort()
+            vector_offset = 0
+            for _, n, filename, byte_offset, block_index in all_frame_refs:
+                if not filename in files:
+                    files[filename] = {}
+                if byte_offset not in files[filename]:
+                    files[filename][byte_offset] = []
+                files[filename][byte_offset].append((block_index, group_name, vector_offset))
+                vector_offset += n
+            group_info[group_name] = {
+                'count': vector_offset,
+                'fields': [(f, f.split('.')[-1]) for f in fields],
+                'types': [],
+            }
+
+        # Pass through the data.  Should read the files in order,
+        # jumping monotonically through the needed frames.  The data
+        # type of output arrays is determined from whatever
+        # np.array(G3Object) returns on the first block.  Note strings
+        # ('U') have to be handled differently because we can't know
+        # the maximum string length from the first block.
         data = {}
         timelines = {}
-        for group_name, block in blocks_out:
-            timelines[group_name] = {
-                't': np.array([t.time for t in block.times]) / core.G3Units.seconds,
-                'finalized_until': block.times[-1].time / core.G3Units.seconds,
-                'fields': list(block.keys()),
-            }
-            for k,v in block.items():
-                data[k] = np.array(v)
+        for filename, file_map in sorted(files.items()):
+            hk_logger.info('get_data: reading %s' % filename)
+            reader = so3g.G3IndexedReader(filename)
+            for byte_offset, frame_info in sorted(file_map.items()):
+                # Seek and decode.
+                hk_logger.debug('get_data: seeking to %i for %i block extractions' %
+                                (byte_offset, len(frame_info)))
+                reader.Seek(byte_offset)
+                frames = reader.Process(None)
+                assert(len(frames) == 1)
+                frames = self.translator(frames[0])
+                frame = frames[0]
+                # Now expand all blocks.
+                for block_index, group_name, offset in frame_info:
+                    block = frame['blocks'][block_index]
+                    gi = group_info[group_name]
+                    if raw:
+                        # Short-circuit if in raw mode, just collect all blocks.
+                        if group_name not in data:
+                            data[group_name] = {}
+                            for field, f_short in gi['fields']:
+                                data[group_name] = []
+                        data[group_name].append(block)
+                        continue
+                    if group_name not in timelines:
+                        # This block is init that happens only once per group.
+                        timelines[group_name] = {
+                            't': np.zeros(gi['count']),
+                            'fields': [f for f,s in gi['fields']],
+                        }
+                        hk_logger.debug('get_data: creating group "%s" with %i fields'
+                                        % (group_name, len(gi['fields'])))
+                        # Determine data type of each field and create output arrays.
+                        for field, f_short in gi['fields']:
+                            dtype = np.array(block[f_short]).dtype
+                            gi['types'].append(dtype)
+                            if dtype.char == 'U':
+                                data[field] = []
+                            else:
+                                data[field] = np.empty(gi['count'], dtype)
+                            hk_logger.debug('get_data: field "%s" has type %s' % (
+                                f_short, dtype))
+                    # Copy in block data.
+                    n = len(block.times)
+                    # Note this is in G3 time units for now... fixed later.
+                    timelines[group_name]['t'][offset:offset+n] = [_t.time for _t in block.times]
+                    for (field, f_short), dtype in zip(gi['fields'], gi['types']):
+                        if dtype.char == 'U':
+                            data[field].append((offset, list(map(str, block[f_short]))))
+                        else:
+                            # This is a relatively quick copy because
+                            # of buffer pass-through from G3... don't
+                            # hit the RHS with np.array!
+                            data[field][offset:offset+n] = block[f_short]
+
+        if raw:
+            return [(group_name, _concat_hk_stream(data[group_name]))
+                    for group_name, _, _ in grouped]
+
+        # Finalize string fields.
+        for group_name, fields, fgrps in grouped:
+            gi = group_info[group_name]
+            for (field, f_short), dtype in zip(gi['fields'], gi['types']):
+                if dtype.char == 'U':
+                    data[field] = np.array(list(itertools.chain(
+                        *[x for i, x in sorted(data[field])])))
+                    assert(len(data[field]) == gi['count'])
+
+        # Scale out time units and mark last time.
+        for timeline in timelines.values():
+            timeline['t'] /= core.G3Units.seconds
+            timeline['finalized_until'] = timeline['t'][-1]
 
         return (data, timelines)
 
@@ -301,12 +425,15 @@ class _HKProvider:
 
 
 class HKArchiveScanner:
-    """Consume SO Housekeeping streams and create a record of what fields
+    """Consumes SO Housekeeping streams and creates a record of what fields
     cover what time ranges.  This can run as a G3Pipeline module, but
     will not be able to record stream indexing information in that
     case.  If it's populated through the process_file method, then
     index information (in the sense of filenames and byte offsets)
     will be stored.
+
+    After processing frames, calling .finalize() will return an
+    HKArchive that can be used to load data more efficiently.
 
     """
     def __init__(self):
@@ -343,7 +470,7 @@ class HKArchiveScanner:
             return [f]
 
         vers = f.get('hkagg_version', 0)
-        assert(vers == 1)
+        assert(vers == 2)
 
         if f['hkagg_type'] == so3g.HKFrameType.session:
             session_id = f['session_id']
@@ -373,24 +500,21 @@ class HKArchiveScanner:
             prov = self.providers[f['prov_id']]
             representatives = prov.blocks.keys()
 
-            for b in f['blocks']:
+            for bidx, (bname, b) in enumerate(zip(f['block_names'], f['blocks'])):
                 assert(isinstance(b, core.G3TimesampleMap))
-                fields = b.keys()
-                if len(b.times) == 0 or len(fields) == 0:
-                    continue
-                for block_index,rep in enumerate(representatives):
-                    if rep in fields:
-                        break
-                else:
-                    rep = fields[0]
-                    prov.blocks[rep] = {'fields': fields,
-                                        'start': b.times[0].time / core.G3Units.seconds,
-                                        'index_info': []}
+                if bname not in prov.blocks:
+                    prov.blocks[bname] = {'fields': list(b.keys()),
+                                          'start': b.times[0].time / core.G3Units.seconds,
+                                          'index_info': []}
                 # To ensure that the last sample is actually included
                 # in the semi-open intervals we use to track frames,
                 # the "end" time has to be after the final sample.
-                prov.blocks[rep]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
-                prov.blocks[rep]['index_info'].append(index_info)
+                prov.blocks[bname]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
+                ii = {'block_index': bidx,
+                      'timestamp': b.times[0].time,
+                      'count': len(b.times)}
+                ii.update(index_info)
+                prov.blocks[bname]['index_info'].append(ii)
                 
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
@@ -464,13 +588,26 @@ class HKArchiveScanner:
 
 
 class _FieldGroup:
-    """Track a set of readout fields that share a timeline.  Attributes
-    are:
+    """Container object for look-up information associated with a group of
+    fields that share a timeline (i.e. a group of fields that are
+    co-sampled over some requested time range).
 
-    - fields (list of str): the field names.
-    - cover (IntervalsDouble): time range over which these fields have data.
-    - index_info (dict): description of how to find the actual data
-      (perhaps a filename and byte_offset?).
+    Attributes:
+        prefix (str): Not used.
+        fields (list of str): The field names.
+        cover (IntervalsDouble): The time range (as unix timestamps)
+          over which these fields have data.  This is expressed as an
+          IntervalsDouble to enable the use of Intervals arithmetic.
+          The range is created from the "start" and "end" arguments of
+          the constructor.
+        index_info (list of dict): Information that the consumer will
+          use to locate and load the data efficiently.  The entries in
+          the list represent time-ordered frames.  The look-up
+          information in each dict includes 'filename' (string; the
+          filename where the HKData frame lives), 'byte_offset' (int;
+          the offset into the file where the frame starts), and
+          'block_index' (int; the index of the frame.blocks where the
+          fields' data lives).
 
     """
     def __init__(self, prefix, fields, start, end, index_info):
@@ -478,8 +615,14 @@ class _FieldGroup:
         self.fields = list(fields)
         self.cover = so3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
+    def __repr__(self):
+        try:
+            return '_FieldGroup("%s", %i fields, %i segments)' % (
+                self.prefix, len(self.fields), len(self.index_info))
+        except:
+            return '_FieldGroup(<bad internal state!>)'
 
-        
+
 def to_timestamp(some_time, str_format=None): 
     '''
     Args:

@@ -30,7 +30,6 @@ SIDEREAL_MIDNIGHT_IN_LONDON = 1501299200.0
 SOBS = so3g.proj.SITES['so']
 LONDON = so3g.proj.EarthlySite(0., 51.5, 0.)
 
-
 class TestProjAstrometry(unittest.TestCase):
 
     def assertLonLatNear(self, lonlat0, lonlat1, tol=1*ARCSEC):
@@ -163,27 +162,36 @@ class TestProjAstrometry(unittest.TestCase):
         print('Max inverse trig deviation is %.3f arcsec' % (deviation / ARCSEC))
         self.assertLess(deviation, 0.2*ARCSEC)
 
+    @unittest.skipIf(not HAS_QPOINT, "qpoint not found")
     def test_horizon(self):
         """This test is not astrometric so much as a test that coordinate
         systems are accurately implemented; e.g. that the focal plane
         won't be upsidedown after applying the boresight position.
 
         """
+        # Set up a situation where the parallactic rotation is 0.  Any
+        # site looking South, but at an elevation above the South
+        # celestial pole, will work.  For safety use lat=0.
         site = LONDON
+        az, el = 180*DEG, 60*DEG
+        t = 1577836800.
         weather = so3g.proj.weather_factory('vacuum')
 
-        t = 1577836800.
-        az, el = 180*DEG, 90*DEG
-        csl = so3g.proj.CelestialSightLine.naive_az_el(
-            *[np.array([x]) for x in [t, az, el]],
-            site=site, weather=weather)
-        ra0, dec0, c, s = csl.coords()[0]
-        ra0 = ra0 % (2*np.pi)
-        # The parallactic angle is gamma - pi and should be 0.
-        gamma = np.arctan2(-s, -c)
-        print('   so3g:    %12.4f %12.4f %12.4f' %
-              (float(ra0)/DEG, float(dec0)/DEG, float(gamma)/DEG))
-        self.assertLess(abs(gamma), 1.*DEG)
+        for method in [
+                so3g.proj.CelestialSightLine.naive_az_el,
+                so3g.proj.CelestialSightLine.az_el,
+        ]:
+            print('Testing parallactic angle for %s' % method)
+            csl = method(
+                *[np.array([x]) for x in [t, az, el]],
+                site=site, weather=weather)
+            ra0, dec0, c, s = csl.coords()[0]
+            ra0 = ra0 % (2*np.pi)
+            # The parallactic angle should be zero.
+            gamma = np.arctan2(s, c)
+            print('   so3g:    %12.4f %12.4f %12.4f' %
+                  (float(ra0)/DEG, float(dec0)/DEG, float(gamma)/DEG))
+            self.assertLess(abs(gamma), 1.*DEG)
 
     def test_focalplane(self):
         # Focal plane
