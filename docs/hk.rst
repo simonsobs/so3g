@@ -224,9 +224,6 @@ Class references
 .. autoclass:: so3g.hk.HKArchiveScanner
    :members:
 
-.. autoclass:: so3g.hk.HKScanner
-   :members:
-
 HK Data Types and File Structure [weak]
 ---------------------------------------
 
@@ -248,19 +245,19 @@ interface targets, especially, the OCS "aggregator" Agent.
 
 
 Low-level HK Stream Processing
-==============================
+------------------------------
 
 There are a few HK stream processing objects that are intended for use
 as modules in a ``G3Pipeline``.  These are their stories.
 
 Module: HKScanner
------------------
+`````````````````
 
 .. autoclass:: so3g.hk.HKScanner
    :members:
 
 Module: HKReframer
-------------------
+``````````````````
 
 .. autoclass:: so3g.hk.HKReframer
    :members:

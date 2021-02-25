@@ -53,6 +53,6 @@ value.
 API
 ---
 
-.. autoclass:: so3g.smurf.SmurfArchive.SmurfArchive
+.. autoclass:: so3g.smurf.SmurfArchive
    :members: index_archive, load_data, load_status
 
