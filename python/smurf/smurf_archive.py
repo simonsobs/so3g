@@ -37,6 +37,20 @@ association_table_dets = db.Table('association_dets', Base.metadata,
 )
 
 
+SMURF_ACTIONS = {
+    'observations':[
+        'take_stream_data',
+        'stream_data_on',
+    ],
+    'channel_assignments':[
+        'setup_notches',
+    ],
+    'tuning':[
+        'setup_notches'
+    ]
+}
+
+
 class Observations(Base):
     """Times on continuous detector readout"""
     __tablename__ = 'observations'
@@ -184,6 +198,7 @@ class Channels(Base):
     
     
 type_key = ['Observation', 'Wiring', 'Scan']
+
 
 class FrameType(Base):
     """Enum table for storing frame types"""
@@ -623,8 +638,6 @@ class SmurfArchive:
 
                             if cha is None:
                                 raise ValueError("found action {}. unable to find channel assignment".format(action))
-
-                            self.add_new_channel_assignment(stream_id, ctime, cha, cha_path, session)
 
                         ### Look for tuning files before observations
                         ### Assumes only one tuning file per setup_notches
