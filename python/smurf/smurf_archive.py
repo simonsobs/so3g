@@ -511,7 +511,7 @@ class SmurfArchive:
                 ## For now we assume the most recent channel assignment for the band
 
                 db_cha = session.query(ChanAssignments).filter(ChanAssignments.band_id == db_Band.id,
-                                                               ChanAssignments.ctime <= tune_ctime )
+                                                               ChanAssignments.ctime <= ctime )
                 db_cha = db_cha.order_by(db.desc(ChanAssignments.ctime)).first()
                 in_cha_db = [sorted( [ch.channel for ch in db_cha.channels])]
                 in_tune_file =[sorted( [data[band]['resonances'][x]['channel'] for x in  data[band]['resonances'].keys()])]
@@ -521,7 +521,7 @@ class SmurfArchive:
                     ### logic left in just in case. If the first channel assignment doesn't match, try the 
                     ### later ones
                     db_cha = session.query(ChanAssignments).filter(ChanAssignments.band_id == db_Band.id,
-                                                                   ChanAssignments.ctime <= tune_ctime )
+                                                                   ChanAssignments.ctime <= ctime )
                     db_chas = db_cha.order_by(db.desc(ChanAssignments.ctime)).all()[1:]
                     for db_cha in db_chas:
                         in_cha_db = sorted( [ch.channel for ch in db_cha.channels])
@@ -593,8 +593,6 @@ class SmurfArchive:
                 Verbose mode
             stop_at_error: bool
                 If True, will stop if there is an error indexing a file.
-            check_indexed: bool
-                If True, will assume any channel assignment in database is complete
         """
         if self.meta_path is None:
             raise ValueError('Archiver needs meta_path attribute to index channel assignments')
@@ -656,7 +654,7 @@ class SmurfArchive:
                             if tune is None:
                                 raise ValueError("found action {}. unable to find tune file".format(action))
 
-                            self.add_new_tuning(self, stream_id, tune_ctime, tune_path, session)
+                            self.add_new_tuning(stream_id, tune_ctime, tune_path, session)
 
                         if astring in SMURF_ACTIONS['observations']:
                             ### Sometimes there are just mask files. Sometimes there are mask and freq files.
