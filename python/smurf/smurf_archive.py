@@ -46,6 +46,7 @@ class Observations(Base):
     timestamp = db.Column(db.Integer)
     # in seconds
     duration = db.Column(db.Float)
+
     
     ## one to many
     files = relationship("Files", back_populates='observation') 
@@ -62,8 +63,7 @@ class Files(Base):
     id = db.Column(db.Integer, primary_key=True)
 
     path = db.Column(db.String, nullable=False, unique=True)
-    ## name is relative to archive_path. Currently here for obsfiledb
-    ## by default, the archive_path is the save location. But it does not need to be
+    ## name is just the end file name
     name = db.Column(db.String, unique=True)
     
     start = db.Column(db.DateTime)
@@ -93,10 +93,13 @@ class Files(Base):
 
 class Detsets(Base):
     """Indexing of detector sets seen during observations"""
+    """These should effectively match to tuning files"""
     __tablename__ = 'detsets'
     id = db.Column( db.Integer, primary_key=True)
     
     name = db.Column(db.String, unique=True)
+    
+    ## should stop exist? tune file use does not need to be continguous
     start = db.Column(db.DateTime)
     stop = db.Column(db.DateTime)
     
@@ -323,11 +326,11 @@ class SmurfArchive:
         try:
             splits = path.split('/')
             db_file.stream_id = splits[-2]
+            db_file.name = splits[-1]
         except:
             ## should this fail silently?
             pass
         
-
         reader = so3g.G3IndexedReader(path)
 
         total_channels = 0
@@ -463,87 +466,202 @@ class SmurfArchive:
                                            Channels.channel == ch.channel).one_or_none()
                 if check is None:
                     session.add(ch)
+        session.commit()   
+        
+    def add_new_tuning(self, stream_id, ctime, tune_path, session):    
+        name = tune_path.split('/')[-1]
+        dset = session.query(Detsets).filter(Detsets.name == name).one_or_none()
+        if dset is None:
+            dset = Detsets(name=name, start=dt.datetime.fromtimestamp(ctime))
+            session.add(dset)
+            session.commit()
+
+        data = np.load(tune_path, allow_pickle=True).item()
+        if len(dset.chan_assignments) != len(data):
+            ## we are missing channel assignments for at least one band
+            have_already = [cha.band.number for cha in dset.chan_assignments]
+
+            for band in data.keys():
+                if band in have_already:
+                    continue
+
+                db_Band = session.query(Bands).filter(Bands.stream_id == stream_id, 
+                                  Bands.number==band).one_or_none()
+                if db_Band is None:
+                    raise ValueError("Unable to find Band that should exist")
+
+                ##################################################################################
+                ## Section waiting on Pysmurf Upgrade tracking channel assignments in tuning files
+                ##################################################################################
+                ## For now we assume the most recent channel assignment for the band
+
+                db_cha = session.query(ChanAssignments).filter(ChanAssignments.band_id == db_Band.id,
+                                                               ChanAssignments.ctime <= tune_ctime )
+                db_cha = db_cha.order_by(db.desc(ChanAssignments.ctime)).first()
+                in_cha_db = [sorted( [ch.channel for ch in db_cha.channels])]
+                in_tune_file =[sorted( [data[band]['resonances'][x]['channel'] for x in  data[band]['resonances'].keys()])]
+
+                ## Check to make sure the most recent channel assignment matches the tuning file
+                if not np.all( in_cha_db == in_tune_file ):
+                    ### logic left in just in case. If the first channel assignment doesn't match, try the 
+                    ### later ones
+                    db_cha = session.query(ChanAssignments).filter(ChanAssignments.band_id == db_Band.id,
+                                                                   ChanAssignments.ctime <= tune_ctime )
+                    db_chas = db_cha.order_by(db.desc(ChanAssignments.ctime)).all()[1:]
+                    for db_cha in db_chas:
+                        in_cha_db = sorted( [ch.channel for ch in db_cha.channels])
+                        in_tune_file = sorted( [data[band]['resonances'][x]['channel'] for x in data[band]['resonances'].keys()])
+                        if np.all( in_cha_db == in_tune_file):
+                            break
+
+                ## add a the assignments and channels to the detector set
+                dset.chan_assignments.append(db_cha)
+                for ch in db_cha.channels:
+                    dset.channels.append(ch)
+        session.commit()  
+    
+    def add_new_observation(self, stream_id, ctime, obs_data, session, max_wait=10):
+        """
+            ctime    -- ctime the action is called
+
+            max_wait -- maximum amount of time between the streaming start action 
+                        and the making of .g3 files that belong to an observation
+        """
+        ## TODO: how will simultaneous streaming with two stream_ids work?
+
+        obs = session.query(Observations).filter(Observations.obs_id == str(ctime)).one_or_none()
+        if obs is None:
+            obs = Observations(obs_id = str(ctime),
+                               timestamp = ctime)
+            session.add(obs)
+            session.commit()
+            
+        ################################################################################################
+        ## Section waiting on tuning files being added to the data stream at the start of observations
+        ## For now assume we just use the most recent tuning file.
+        ################################################################################################
+
+        dset = session.query(Detsets).filter(Detsets.start <= dt.datetime.fromtimestamp(ctime))
+        dset = dset.order_by(db.desc(Detsets.start)).first()
+        already_have = [ds.id for ds in obs.detsets]
+
+        if dset is not None:
+            if not dset.id in already_have:
+                obs.detsets.append(dset)
+        else:
+            # print('no tuning file found. should I build one?')
+            ## Here is where we will put logic if we need to go backwards 
+            pass
+
+        x=session.query(Files.name).filter(Files.start >= dt.datetime.fromtimestamp(ctime)).order_by(Files.start).first()[0]
+        f_start, f_num = (x[:-3]).split('_')
+        if int(f_start)-ctime > max_wait:
+            ## we don't have .g3 files for some reason
+            pass
+        else:
+            flist = session.query(Files).filter(Files.name.like(f_start+'%')).all()
+            for f in flist:
+                f.obs_id = obs.obs_id
+                if dset is not None:
+                    f.detset = dset.name
+            obs.duration = flist[-1].stop.timestamp() - obs.timestamp
         session.commit()
 
-        
-    def build_detector_sets(self, verbose=False, stop_as_error=False):
+    def index_metadata(self, verbose = False, stop_at_error=False):
+        """
+            Adds all channel assignments, detsets, and observations in archive to database. 
+            Adding relavent entries to Bands and Files as well.
+
+            Args
+            ----
+            verbose: bool
+                Verbose mode
+            stop_at_error: bool
+                If True, will stop if there is an error indexing a file.
+            check_indexed: bool
+                If True, will assume any channel assignment in database is complete
+        """
+        if self.meta_path is None:
+            raise ValueError('Archiver needs meta_path attribute to index channel assignments')
+
         session = self.Session()
-        obs_list = session.query(Observations).order_by(db.desc(Observations.timestamp)).all()
 
-        for obs in tqdm(obs_list):
-            for file in obs.files:
-                        
-                if file.stream_id is None or 'None' in file.stream_id:
-                    ## ignoring old file system
-                    continue
-                if file.detset is not None:
-                    ## already been archived
-                    continue
 
-                ### find the bands streaming in this file
-                status = self.load_status(file.start.timestamp())
-                ch_in_file = np.array([status.readout_to_smurf(x) for x in range(len(status.mask))])
-                bands_in_file = np.unique(ch_in_file[:,0])
+        for ct_dir in os.listdir(self.meta_path):
+            ### ignore old things
+            if int(ct_dir) < 16000:
+                continue
 
-                ### create the list of channel assignments used in this file
-                ch_assigns = []
+            for stream_id in os.listdir( os.path.join(self.meta_path, ct_dir)):
+                action_path = os.path.join(self.meta_path, ct_dir, stream_id)
+                actions = os.listdir( action_path )
 
-                for bnd in bands_in_file:
+                for action in actions:
+                    try:
+                        ctime = int( action.split('_')[0] )
+                        astring = '_'.join(action.split('_')[1:])
 
-                    band = session.query(Bands).filter(Bands.stream_id==file.stream_id,
-                                                Bands.number==int(bnd)).one()
-                    ch_assigns.append( session.query(ChanAssignments).filter(
-                                ChanAssignments.band_id == band.id,
-                                ChanAssignments.ctime <= file.start.timestamp()
-                                ).order_by(db.desc(ChanAssignments.ctime)).first() )
+                        ### Look for channel assignments before tuning files
+                        if astring in SMURF_ACTIONS['channel_assignments']:
 
-                if len(ch_assigns)==0:
-                    print('mega fail')
-                    continue
-                if np.any([ch is None for ch in ch_assigns]):
-                    print('Detset matching fail')
-                    continue
+                            cha_path = os.listdir(os.path.join(action_path, action, 'outputs'))
+                            if len(cha_path) == 0:
+                                raise ValueError("found action {} with no output".format(action))
+                            cha = None; 
+                            for f in cha_path:
+                                ##################################################################################
+                                ## Needs to account for multiple channel assignments per setup notches.
+                                ## Error in pysmurf 4.2 pre-release
+                                ## Currently just tracking all of them
+                                ##################################################################################
+                                match = re.findall('channel_assignment_b\d.txt', f)
+                                if len(match)==1:
+                                    cha = f
+                                    cha_ctime = int(cha.split('_')[0])
+                                    cha_path = os.path.join(action_path, action, 'outputs', cha)
+                                    self.add_new_channel_assignment(stream_id, cha_ctime, cha, cha_path, session)
 
-                ## Figure out if the detset we're using already exists
-                ## This feels stupid. Does anyone know a smarter way to do this in SQL??
-                ## many-to-many relationships are confusing
-                obs_cas = sorted([ch.id for ch in ch_assigns])
-                this_dset = None
+                            if cha is None:
+                                raise ValueError("found action {}. unable to find channel assignment".format(action))
 
-                if np.any( [len(cha.detsets)==0 for cha in ch_assigns]):
-                    ## make a new detset
-                    pass
-                else:
-                    for dset in ch_assigns[0].detsets:
-                        ds_idx = sorted([ch.id for ch in dset.chan_assignments])
-                        if np.all(obs_cas == ds_idx):
-                            this_dset = dset
+                            self.add_new_channel_assignment(stream_id, ctime, cha, cha_path, session)
 
-                if this_dset is None:
-                    ## name it after the most recent channel assignment
-                    ## what can possibly go wrong!
-                    this_dset = Detsets(name=str(np.max([ch.ctime for ch in ch_assigns])),
-                                        start=file.start,
-                                        stop=file.stop)
-                    ## add all the channel assignments and channels
-                    for cha in ch_assigns:
-                        this_dset.chan_assignments.append(cha)
-                        for ch in cha.channels:
-                            this_dset.channels.append(ch)
+                        ### Look for tuning files before observations
+                        ### Assumes only one tuning file per setup_notches
+                        if astring in SMURF_ACTIONS['tuning']:
+                            tune_path = os.listdir(os.path.join(action_path, action, 'outputs'))
+                            if len(tune_path) == 0:
+                                raise ValueError("found action {} with no output".format(action))
+                            tune = None
+                            for f in tune_path:
+                                match = re.findall('\d_tune.npy', f)
+                                if len(match)==1:
+                                    tune=f
+                                    tune_ctime = int(tune.split('_')[0])
+                                    tune_path = os.path.join(action_path, action, 'outputs', tune)
+                                    break
+                            if tune is None:
+                                raise ValueError("found action {}. unable to find tune file".format(action))
 
-                    session.add(this_dset) 
+                            self.add_new_tuning(self, stream_id, tune_ctime, tune_path, session)
 
-                else:
-                    ## update ctimes as necessary
-                    if file.start < this_dset.start:
-                        this_dset.start = file.start
-                    if file.stop > this_dset.stop:
-                        this_dset.stop = file.stop
+                        if astring in SMURF_ACTIONS['observations']:
+                            ### Sometimes there are just mask files. Sometimes there are mask and freq files.
+                            obs_path = os.listdir(os.path.join(action_path, action, 'outputs'))
+                            if len(obs_path) == 0:
+                                raise ValueError("found action {} with no output".format(action))
 
-                file.detset_info = this_dset
-                session.commit()
-                        
-        
+                            self.add_new_observation(stream_id, ctime, obs_path, session)
+
+                    except ValueError as e:
+                        if verbose:
+                            print(e)
+                        if stop_at_error:
+                            raise(e)
+                    except Exception as e:
+                        raise(e)
+
+
     def load_data(self, start, end, show_pb=True, load_biases=True):
         """
         Loads smurf G3 data for a given time range. For the specified time range
