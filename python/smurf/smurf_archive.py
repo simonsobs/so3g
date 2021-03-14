@@ -18,6 +18,11 @@ from enum import Enum
 Base = declarative_base()
 Session = sessionmaker()
 num_bias_lines = 16
+SmurfData = namedtuple(
+    'SmurfData', 'times data primary status biases timing_paradigm'
+)
+type_key = ['Observation', 'Wiring', 'Scan']
+
 
 class Files(Base):
     """Table to store file indexing info"""
@@ -25,17 +30,19 @@ class Files(Base):
     id = db.Column(db.Integer, primary_key=True)
 
     path = db.Column(db.String, nullable=False)
+    stream_id = db.Column(db.String)
     start = db.Column(db.DateTime)
     stop = db.Column(db.DateTime)
     frames = db.Column(db.Integer)
     channels = db.Column(db.Integer)
 
-type_key = ['Observation', 'Wiring', 'Scan']
+
 class FrameType(Base):
     """Enum table for storing frame types"""
     __tablename__ = "frame_type"
     id = db.Column(db.Integer, primary_key=True)
     type_name = db.Column(db.String, unique=True, nullable=True)
+
 
 class Frame(Base):
     """Table to store frame indexing info"""
@@ -63,15 +70,13 @@ class Frame(Base):
     start = db.Column(db.DateTime)
     stop = db.Column(db.DateTime)
 
-    def __repr__(self):
-        return f"Frame({self.type_name})<{self.location}>"
-
 
 class TimingParadigm(Enum):
     G3Timestream = 1
     SmurfUnixTime = 2
     TimingSystem = 3
     Mixed = 4
+
 
 def get_sample_timestamps(frame):
     """
@@ -114,6 +119,7 @@ def get_sample_timestamps(frame):
                           for t in frame['data'].times()])
         return times, TimingParadigm.G3Timestream
 
+
 class SmurfArchive:
     def __init__(self, archive_path, db_path=None, echo=False):
         """
@@ -124,7 +130,8 @@ class SmurfArchive:
             archive_path (path):
                 Path to the data directory
             db_path (path, optional):
-                Path to the sqlite file. Defaults to ``<archive_path>/frames.db``
+                Path to the sqlite file. Defaults to
+                ``<archive_path>/frames.db``
             echo (bool, optional):
                 If true, all sql statements will print to stdout.
         """
@@ -163,6 +170,14 @@ class SmurfArchive:
 
         db_file = Files(path=path)
         session.add(db_file)
+
+        # Gets stream_id from the file path if it's there. Files before
+        # the stream_id are archived to `<time_code>/<timestamp>.g3` without
+        # the stream_id portion, so we just ignore those...
+        relpath = os.path.relpath(path, start=self.archive_path)
+        splits = relpath.split('/')
+        if len(splits) == 3:  # <time_code>/<stream_id>/<timestamp>.g3
+            db_file.stream_id = splits[1]
 
         reader = so3g.G3IndexedReader(path)
 
@@ -255,7 +270,8 @@ class SmurfArchive:
 
         session.close()
 
-    def load_data(self, start, end, show_pb=True, load_biases=True):
+    def load_data(self, start, end, show_pb=True, load_biases=True,
+                  stream_id=None):
         """
         Loads smurf G3 data for a given time range. For the specified time range
         this will return a chunk of data that includes that time range.
@@ -266,6 +282,12 @@ class SmurfArchive:
             end   (timestamp): end timestamp
             show_pb (bool, optional): If True, will show progress bar.
             load_biases (bool, optional): If True, will return biases.
+            stream_id (bool, optional):
+                stream_id of the data to gather. If None, will **not** filter
+                by stream_id!! This means the stream_id must be provided for
+                multi-slot systems in order to get good data, however this
+                implementation means that existing functions used by
+                single-slot institutions will not break.
 
         Returns
         --------
@@ -297,80 +319,91 @@ class SmurfArchive:
         """
         session = self.Session()
 
-        frames = session.query(Frame).filter(
-            Frame.type_name == 'Scan',
-            Frame.stop >= dt.datetime.fromtimestamp(start),
-            Frame.start < dt.datetime.fromtimestamp(end)
-        ).order_by(Frame.time)
-        session.close()
+        if isinstance(stream_id, str):
+            stream_id = [stream_id]
+        elif stream_id is None:
+            stream_id = []
+            # Finds all stream_ids in time range
+            sids_all = session.query(Files.stream_id).filter(
+                Files.start < dt.datetime.fromtimestamp(end),
+                Files.stop >= dt.datetime.fromtimestamp(start)
+            ).all()
+            for sid, in sids_all:
+                if sid not in stream_id:
+                    stream_id.append(sid)
 
-        samples, channels = 0, 0
-        num_frames = 0
-        for f in frames:
-            num_frames += 1
-            samples += f.samples
-            channels = max(f.channels, channels)
+        ret = {}
+        for sid in stream_id:
+            frames = session.query(Frame).join(Files).filter(
+                Frame.type_name == 'Scan',
+                Frame.stop >= dt.datetime.fromtimestamp(start),
+                Frame.start < dt.datetime.fromtimestamp(end),
+                Files.stream_id == sid
+            ).all()
 
-        timestamps = np.full((samples,), np.nan, dtype=np.float64)
-        data = np.full((channels, samples), 0, dtype=np.int32)
-        if load_biases:
+            samples, channels = 0, 0
+            num_frames = 0
+            for f in frames:
+                num_frames += 1
+                samples += f.samples
+                channels = max(f.channels, channels)
+
+            timestamps = np.full((samples,), np.nan, dtype=np.float64)
+            data = np.full((channels, samples), 0, dtype=np.int32)
             biases = np.full((num_bias_lines, samples), 0, dtype=np.int32)
-        else:
-            biases = None
 
-        primary = {}
+            primary = {}
 
-        cur_sample = 0
-        cur_file = None
-        timing_paradigm = None
-        for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
-            file = frame_info.file.path
-            if file != cur_file:
-                reader = so3g.G3IndexedReader(file)
-                cur_file = file
+            cur_sample = 0
+            cur_file = None
+            timing_paradigm = None
+            for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
+                file = frame_info.file.path
+                if file != cur_file:
+                    reader = so3g.G3IndexedReader(file)
+                    cur_file = file
 
-            reader.Seek(frame_info.offset)
-            frame = reader.Process(None)[0]
-            nsamp = frame['data'].n_samples
+                reader.Seek(frame_info.offset)
+                frame = reader.Process(None)[0]
+                nsamp = frame['data'].n_samples
 
-            key_order = [int(k[1:]) for k in frame['data'].keys()]
-            data[key_order, cur_sample:cur_sample + nsamp] = frame['data']
+                key_order = [int(k[1:]) for k in frame['data'].keys()]
+                data[key_order, cur_sample:cur_sample + nsamp] = frame['data']
 
-            if load_biases:
                 bias_order = [int(k[-2:]) for k in frame['tes_biases'].keys()]
                 biases[bias_order, cur_sample:cur_sample + nsamp] = frame['tes_biases']
 
-            # Loads primary data
-            if 'primary' in frame.keys():
-                for k, v in frame['primary'].items():
-                    if k not in primary:
-                        primary[k] = np.zeros(samples, dtype=np.int64)
-                    primary[k][cur_sample:cur_sample + nsamp] = v
+                # Loads primary data
+                if 'primary' in frame.keys():
+                    for k, v in frame['primary'].items():
+                        if k not in primary:
+                            primary[k] = np.zeros(samples, dtype=np.int64)
+                        primary[k][cur_sample:cur_sample + nsamp] = v
 
-            ts, paradigm = get_sample_timestamps(frame)
-            if timing_paradigm is None:
-                timing_paradigm = paradigm
-            elif timing_paradigm != paradigm:
-                timing_paradigm = TimingParadigm.Mixed
+                ts, paradigm = get_sample_timestamps(frame)
+                if timing_paradigm is None:
+                    timing_paradigm = paradigm
+                elif timing_paradigm != paradigm:
+                    timing_paradigm = TimingParadigm.Mixed
 
-            timestamps[cur_sample:cur_sample + nsamp] = ts
+                timestamps[cur_sample:cur_sample + nsamp] = ts
 
-            cur_sample += nsamp
+                cur_sample += nsamp
 
-        # Conversion from DAC counts to squid phase
-        rad_per_count = np.pi / 2**15
-        data = data * rad_per_count
+            # Conversion from DAC counts to squid phase
+            rad_per_count = np.pi / 2**15
+            data = data * rad_per_count
 
-        if len(timestamps) > 0:
-            status = self.load_status(timestamps[0])
-        else:
-            status = None
+            if len(timestamps) > 0:
+                status = self.load_status(timestamps[0])
+            else:
+                status = None
+            ret[sid] = SmurfData(
+                timestamps, data, primary, status, biases, timing_paradigm
+            )
 
-        SmurfData = namedtuple('SmurfData', 'times data primary status biases timing_paradigm')
-        if load_biases:
-            return SmurfData(timestamps, data, primary, status, biases, timing_paradigm)
-        else:
-            return SmurfData(timestamps, data, primary, status, None, timing_paradigm)
+        session.close()
+        return ret
 
     def load_status(self, time, show_pb=False):
         """
