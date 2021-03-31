@@ -19,6 +19,19 @@ class EarthlySite:
         self.lon, self.lat, self.elev = lon, lat, elev
         self.typical_weather = typical_weather
 
+    def ephem_observer(self):
+        import ephem
+        site = ephem.Observer()
+        site.lat =  str(self.lat)
+        site.long = str(self.lon)
+        site.elev = self.elev
+        return site
+
+    def skyfield_site(self, spice_kernel):
+        from skyfield.api import wgs84
+        earth = spice_kernel['earth']
+        return earth + wgs84.latlon(self.lat, self.lon, self.elev)
+
 
 def _debabyl(deg, arcmin, arcsec):
     return deg + arcmin/60 + arcsec/3600
@@ -41,7 +54,8 @@ SITES = {
 # for all telescopes and absorb the discrepancy into the pointing
 # model as a few seconds of base tilt.
 SITES['so'] = SITES['so_lat']
-DEFAULT_SITE = 'so'
+SITES['_default'] = SITES['so']
+DEFAULT_SITE = 'so'  # deprecated, use SITES['_default']
 
 # These definitions are used for the naive horizon -> celestial
 # conversion.
