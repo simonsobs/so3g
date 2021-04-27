@@ -20,6 +20,7 @@ class EarthlySite:
         self.typical_weather = typical_weather
 
     def ephem_observer(self):
+        """Return an ephem.Observer corresponding to this location."""
         import ephem
         site = ephem.Observer()
         site.lat =  str(self.lat)
@@ -28,6 +29,11 @@ class EarthlySite:
         return site
 
     def skyfield_site(self, spice_kernel):
+        """Return a skyfield VectorSum for this location on 'earth' (starting
+        from wgs84).  The spice_kernel is the thing one might get from
+        jpllib.SpiceKernel(emphemeris_filename).
+
+        """
         from skyfield.api import wgs84
         earth = spice_kernel['earth']
         return earth + wgs84.latlon(self.lat, self.lon, self.elev)
@@ -170,8 +176,9 @@ class CelestialSightLine:
         that case, lon and lat are RA and dec, and psi is the
         parallactic rotation of the focal plane on the sky at the
         target position.  psi=0 will correspond to focal plane "up"
-        (+eta axis) mapping parallel to lines of longitude; psi > 0
-        is a clockwise rotation of the focal plane on the sky.
+        (+eta axis) mapping parallel to lines of longitude; psi > 0 is
+        a clockwise rotation of the focal plane on the sky
+        (i.e. opposite IAU Position Angle direction).
 
         """
         self = cls()
