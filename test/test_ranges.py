@@ -52,3 +52,20 @@ class TestRanges(unittest.TestCase):
             rc = RangesMatrix.concatenate([r0, r1], axis=0)
         with self.assertRaises(ValueError):
             rc = RangesMatrix.concatenate([r0, r2], axis=1)
+
+    def test_mask(self):
+        """Test conversion from/to boolean mask."""
+        # Make sure things work for various shapes.
+        for shape in [(10, 200),
+                      (10, 4, 200),
+                      (10, 0, 200),
+                      (0, 200),
+                      (10, 4, 0),
+                      (200)]:
+            # Start from a mask.
+            m0 = (np.random.uniform(size=shape) > .8)
+            rm = RangesMatrix.from_mask(m0)
+            m1 = rm.mask()
+            self.assertEqual(rm.shape, m0.shape)
+            self.assertEqual(np.all(m0 == m1), True)
+            print(shape, m0.sum(), rm.shape)

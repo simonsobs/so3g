@@ -54,17 +54,6 @@ class RangesMatrix():
         [x.buffer(buff) for x in out.ranges]
         return out
 
-    @classmethod
-    def from_mask(cls, mask):
-        """Take mask of any dimension and return a RangesMatrix of that size
-        """
-        if len(np.shape(mask))==1:
-            return Ranges.from_mask(mask)
-        if len(np.shape(mask))>2:
-            return cls( [cls.from_mask( mask[i] ) 
-                    for i in range(np.shape(mask)[0])] )
-        return cls( [Ranges.from_mask(mask[i]) for i in range(np.shape(mask)[0])] )
-
     @property
     def shape(self):
         if len(self.ranges) == 0:
@@ -253,3 +242,38 @@ class RangesMatrix():
     def ones(cls, shape):
         """Equivalent to full(shape, True)."""
         return cls.full(shape, True)
+
+    @classmethod
+    def from_mask(cls, mask):
+        """Create a RangesMatrix from a boolean mask.  The input mask can have
+        any dimensionality greater than 0 but be aware that if ndim==1
+        then a Ranges object, and not a RangesMatrix, is returned.
+
+        Args:
+          mask (ndarray): Must be boolean array with at least 1 dimension.
+
+        Returns:
+          RangesMatrix with the same shape as mask, with ranges
+          corresponding to the intervals where mask was True.
+
+        """
+        assert(mask.ndim > 0)
+        if mask.ndim == 1:
+           return Ranges.from_mask(mask)
+        if len(mask) == 0:
+            return cls(child_shape=mask.shape[1:])
+        # Recurse.
+        return cls([cls.from_mask(m) for m in mask])
+
+    def mask(self, dest=None):
+        """Return the boolean mask equivalent of this object."""
+        if dest is None:
+            dest = np.empty(self.shape, bool)
+        if len(self.ranges) and isinstance(self.ranges[0], Ranges):
+            for d, r in zip(dest, self.ranges):
+                d[:] = r.mask()
+        else:
+            # Recurse
+            for d, rm in zip(dest, self.ranges):
+                rm.mask(dest=d)
+        return dest
