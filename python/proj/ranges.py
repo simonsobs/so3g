@@ -53,7 +53,18 @@ class RangesMatrix():
         out = self.copy()
         [x.buffer(buff) for x in out.ranges]
         return out
-    
+
+    @classmethod
+    def from_mask(cls, mask):
+        """Take mask of any dimension and return a RangesMatrix of that size
+        """
+        if len(np.shape(mask))==1:
+            return Ranges.from_mask(mask)
+        if len(np.shape(mask))>2:
+            return cls( [cls.from_mask( mask[i] ) 
+                    for i in range(np.shape(mask)[0])] )
+        return cls( [Ranges.from_mask(mask[i]) for i in range(np.shape(mask)[0])] )
+
     @property
     def shape(self):
         if len(self.ranges) == 0:
