@@ -3,6 +3,15 @@ project (so3g)
 
 include(local.cmake OPTIONAL)
 
+# cmake policies -- best to keep these in sync with spt3g!
+if(POLICY CMP0060) # Suppress cmake stripping full paths from libraries in some cases
+  cmake_policy(SET CMP0060 NEW)
+endif()
+cmake_policy(SET CMP0012 NEW) # Allow use of true in boolean expressions
+if(POLICY CMP0042) # Enable RPATH on OSX
+   cmake_policy(SET CMP0042 NEW)
+endif()
+
 # Default to Release because we want that -O3.  This is what spt3g_software does too.
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING
