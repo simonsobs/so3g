@@ -136,7 +136,7 @@ Ranges<T>& Ranges<T>::buffer(const T buff)
 
 //Return newly buffered range
 template <typename T>
-Ranges<T> Ranges<T>::buffered(const T buff)
+Ranges<T> Ranges<T>::buffered(const T buff) const
 {
     Ranges<T> output(count, reference);
 

@@ -36,7 +36,7 @@ public:
     Ranges<T>& append_interval_no_check(const T start, const T end);
     Ranges<T>& buffer(const T buff);
     Ranges<T>& close_gaps(const T gap);
-    Ranges<T> buffered(const T buff);
+    Ranges<T> buffered(const T buff) const;
     Ranges<T> complement() const;
     Ranges<T> zeros_like() const;
     Ranges<T> ones_like() const;
