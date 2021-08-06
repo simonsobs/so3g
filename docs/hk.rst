@@ -227,18 +227,108 @@ Class references
 HK Data Types and File Structure [weak]
 ---------------------------------------
 
-As of September 2019, all HK data that has been written is version 0
-of the schema, which is only able to store vectors of double-precision
-readings.  This will be extended substantially in version 1.
-
 The HK file structures and versions are described in
 https://github.com/simonsobs/tod2maps_docs/tod_format.
 
-Writing HK Data [weak]
-----------------------
+As of August 2021, all HK data uses schema version 2, which supports
+vectors of float, integer, or string data.  The original form (schema
+version 0) supported only floats, and required access to compiled G3
+extensions in so3g.  In case there are still some schema 0 data out
+there, conversion of individual files can be achieved with help from
+:class:`so3g.hk.HKTranslator`.
 
-Limited facilities exist to assist with creating valid HK data.  This
-interface targets, especially, the OCS "aggregator" Agent.
+
+Writing HK Data
+---------------
+
+The so3g.hk module provides limited assistance with creating HK data
+files.  The :class:`so3g.hk.HKSessionHelper` may be used to produce
+template frames that can be used as a basis for an HK data stream.
+However, the code in this module does not enforce validity.  (The OCS
+"aggregator" Agent has more sophisticated logic to help write only
+valid HK frame streams.)
+
+Here is a short example that creates a housekeeping file containing
+some fake pointing information::
+
+  # Imports
+  import time
+  import numpy as np
+  from spt3g import core
+  from so3g import hk
+
+  # Start a "Session" to help generate template frames.
+  session = hk.HKSessionHelper(hkagg_version=2)
+
+  # Create an output file and write the initial "session" frame.  If
+  # you break the data into multiple files, you write the session frame
+  # at the start of each file.
+  writer = core.G3Writer('hk_example.g3')
+  writer.Process(session.session_frame())
+
+  # Create a new data "provider".  This represents a single data
+  # source, sending data for some fixed list of fields.
+  prov_id = session.add_provider('platform')
+
+  # Whenever there is a change in the active "providers", write a
+  # "status" frame.
+  writer.Process(session.status_frame())
+
+  # Write, like, 10 half-scans.
+  frame_time = time.time()
+  v_az = 1.5
+  dt = 0.001
+  halfscan = 10
+  for i in range(10):
+    # Number of samples
+    n = int(halfscan / v_az / dt)
+    # Vector of unix timestamps
+    t = frame_time + dt * np.arange(n)
+    # Vector of az and el
+    az = v_az * dt * np.arange(n)
+    if i % 2:
+      az = -az
+    el = az * 0 + 50.
+
+    # Construct a "block", which is a named G3TimesampleMap.
+    block = core.G3TimesampleMap()
+    block.times = core.G3VectorTime([core.G3Time(_t * core.G3Units.s)
+                                     for _t in t])
+    block['az'] = core.G3VectorDouble(az)
+    block['el'] = core.G3VectorDouble(el)
+
+    # Create an output data frame template associated with this
+    # provider.
+    frame = session.data_frame(prov_id)
+
+    # Add the block and block name to the frame, and write it.
+    frame['block_names'].append('pointing')
+    frame['blocks'].append(block)
+    writer.Process(frame)
+
+    # For next iteration.
+    frame_time += n * dt
+
+
+When extending this example for other purposes, here are a few things
+to remember, to help generate *valid* HK streams:
+
+- Notice that "block" is a G3TimesampleMap, a class designed to store
+  multiple data vectors alongside a single vector of timesamples.  If
+  your provider has fields with different time sampling, group them so
+  each block corresponds to mutually co-sampled fields.
+- The "block name" is an internal bookkeeping thing and won't be
+  visible to the consumer of the HK data.  In the example above, the
+  data vectors would be exposed through the combination of the
+  provider and field name, i.e.. "platform.az", "platform.el".
+- Once you start a provider, and get a ``prov_id`` for it, then any
+  named blocks you add must always have the same fields with the same
+  data types.  (For example, it would be illegal to only have some
+  frames where the block contains only "el" and not "az".)  If you
+  need to change the list of fields, use ``remove_provider()`` and the
+  re-add the provider (with the same name).
+
+Below, find the documentation for the HKSessionHelper class.
 
 .. autoclass:: so3g.hk.HKSessionHelper
    :members:
@@ -260,5 +350,11 @@ Module: HKReframer
 ``````````````````
 
 .. autoclass:: so3g.hk.HKReframer
+   :members:
+
+Module: HKTranslator
+````````````````````
+
+.. autoclass:: so3g.hk.HKTranslator
    :members:
 
