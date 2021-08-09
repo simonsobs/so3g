@@ -249,66 +249,11 @@ However, the code in this module does not enforce validity.  (The OCS
 valid HK frame streams.)
 
 Here is a short example that creates a housekeeping file containing
-some fake pointing information::
+some fake pointing information (it can be found the repository as
+``demos/write_hk.py``):
 
-  # Imports
-  import time
-  import numpy as np
-  from spt3g import core
-  from so3g import hk
-
-  # Start a "Session" to help generate template frames.
-  session = hk.HKSessionHelper(hkagg_version=2)
-
-  # Create an output file and write the initial "session" frame.  If
-  # you break the data into multiple files, you write the session frame
-  # at the start of each file.
-  writer = core.G3Writer('hk_example.g3')
-  writer.Process(session.session_frame())
-
-  # Create a new data "provider".  This represents a single data
-  # source, sending data for some fixed list of fields.
-  prov_id = session.add_provider('platform')
-
-  # Whenever there is a change in the active "providers", write a
-  # "status" frame.
-  writer.Process(session.status_frame())
-
-  # Write, like, 10 half-scans.
-  frame_time = time.time()
-  v_az = 1.5
-  dt = 0.001
-  halfscan = 10
-  for i in range(10):
-    # Number of samples
-    n = int(halfscan / v_az / dt)
-    # Vector of unix timestamps
-    t = frame_time + dt * np.arange(n)
-    # Vector of az and el
-    az = v_az * dt * np.arange(n)
-    if i % 2:
-      az = -az
-    el = az * 0 + 50.
-
-    # Construct a "block", which is a named G3TimesampleMap.
-    block = core.G3TimesampleMap()
-    block.times = core.G3VectorTime([core.G3Time(_t * core.G3Units.s)
-                                     for _t in t])
-    block['az'] = core.G3VectorDouble(az)
-    block['el'] = core.G3VectorDouble(el)
-
-    # Create an output data frame template associated with this
-    # provider.
-    frame = session.data_frame(prov_id)
-
-    # Add the block and block name to the frame, and write it.
-    frame['block_names'].append('pointing')
-    frame['blocks'].append(block)
-    writer.Process(frame)
-
-    # For next iteration.
-    frame_time += n * dt
-
+.. include:: ../demos/write_hk.py
+    :literal:
 
 When extending this example for other purposes, here are a few things
 to remember, to help generate *valid* HK streams:
