@@ -7,7 +7,12 @@
 #include <string>
 extern "C" {
   #include <cblas.h>
+  // Additional prototypes for Fortran LAPACK routines.
+  // sposv: solve Ax = b for A positive definite.
+  void sposv_(const char* uplo, int* n, int* nrhs, float* a, int* lda,
+              float* b, int* ldb, int* info );
 }
+
 #include <boost/python.hpp>
 
 #include <pybindings.h>
@@ -286,12 +291,6 @@ void pcut_clear_helper(const vector<RangesInt32> & rangemat, T * tod, int ndet, 
 }
 
 
-extern "C" {
-// BLAS: solve Ax = b for A positive definite.
-void sposv(const char* uplo, int* n, int* nrhs, float* a, int* lda,
-           float* b, int* ldb, int* info );
-}
-
 // get_gap_fill_poly_single
 //
 // Single detector processor for get_gap_fill_poly.  Fit polynomials
@@ -386,7 +385,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
                         // Solve the system...
                         int one = 1;
                         int err = 0;
-                        sposv("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
+                        sposv_("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
                 }
                 float *write_to = nullptr;
                 float *save_data = nullptr;
