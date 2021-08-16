@@ -69,3 +69,11 @@ class TestRanges(unittest.TestCase):
             self.assertEqual(rm.shape, m0.shape)
             self.assertEqual(np.all(m0 == m1), True)
             print(shape, m0.sum(), rm.shape)
+
+    def test_int_args(self):
+        r = Ranges(1000)
+        r.add_interval(10, 20)
+        r.add_interval(np.int32(30), np.int32(40))
+        with self.assertRaises(ValueError):
+            r.add_interval(object(), object())
+        self.assertEqual(len(r.ranges()), 2)

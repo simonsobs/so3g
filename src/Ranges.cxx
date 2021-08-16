@@ -74,6 +74,15 @@ void Ranges<T>::cleanup()
 }
 
 template <typename T>
+Ranges<T>& Ranges<T>::_add_interval_numpysafe(
+    const bp::object start_obj, const bp::object end_obj)
+{
+    int start = numpysafe_extract_int(start_obj, "start");
+    int end = numpysafe_extract_int(end_obj, "end");
+    return add_interval(start, end);
+}
+
+template <typename T>
 Ranges<T>& Ranges<T>::add_interval(const T start, const T end)
 {
     // We can optimize this later.  For now just do something that is
@@ -253,7 +262,7 @@ static int format_to_dtype(const BufferWrapper<T> &view)
 
 
 template <typename T>
-Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
+Ranges<T> Ranges<T>::from_array(const bp::object &src, const bp::object &count)
 {
     Ranges<T> output;
     BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
@@ -264,7 +273,7 @@ Ranges<T> Ranges<T>::from_array(const bp::object &src, int count)
         output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    output.count = count;
+    output.count = numpysafe_extract_int(count, "count");
 
     output.cleanup();
     return output;
@@ -717,7 +726,7 @@ using namespace boost::python;
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with count and reference.")) \
     .add_property("count", &CLASSNAME::count, &CLASSNAME::safe_set_count) \
     .add_property("reference", &CLASSNAME::reference)                   \
-    .def("add_interval", &CLASSNAME::add_interval,                      \
+    .def("add_interval", &CLASSNAME::_add_interval_numpysafe,           \
          return_internal_reference<>(),                                 \
          args("self", "start", "end"),                                  \
          "Merge an interval into the set.")                             \
