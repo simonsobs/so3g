@@ -52,13 +52,32 @@ class HKSessionHelper:
             session_id = (session_id << b) | (i % (1 << b))
         return session_id
 
-    def add_provider(self, description='No provider description... provided'):
+    def add_provider(self, description=None):
+        """Register a provider and return the unique prov_id.  (Remember to
+        write a status frame before starting to write data for this
+        provider.)
+
+        Args:
+          description (str): The name to use for the provider.  When
+            later retrieving the data, this will act as a prefix for
+            all the data fields.
+
+        Returns:
+          prov_id (int).
+        """
+        assert(description is not None) # Need a provider name!
         prov_id = self.next_prov_id
         self.next_prov_id += 1
         self.provs[prov_id] = {'description': description}
         return prov_id
 
     def remove_provider(self, prov_id):
+        """Drops a provider from the active list, so it will not be listed in
+        the status frame.
+
+        Args:
+          prov_id (int): The provider ID returned by add_provider.
+        """
         del self.provs[prov_id]
 
     """

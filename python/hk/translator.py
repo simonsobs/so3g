@@ -24,6 +24,7 @@ class HKTranslator:
 
     def __init__(self, target_version=2, future_tolerant=True):
         """Arguments:
+
           target_version (int): 0, 1, or 2.  Version to which to translate
             the stream.  The code is not able to downgrade a stream.  See
             future_tolerant parameter.
