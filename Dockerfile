@@ -8,7 +8,8 @@ FROM simonsobs/spt3g:0.3-23-gd903080
 ENV LANG C.UTF-8
 
 # Build tools needed for pixell; blas needed for so3g.
-RUN apt install -y build-essential \
+RUN apt update && apt install -y \
+    build-essential \
     automake \
     gfortran \
     libopenblas-dev \
