@@ -54,17 +54,6 @@ class RangesMatrix():
         [x.buffer(buff) for x in out.ranges]
         return out
 
-    @classmethod
-    def from_mask(cls, mask):
-        """Take mask of any dimension and return a RangesMatrix of that size
-        """
-        if len(np.shape(mask))==1:
-            return Ranges.from_mask(mask)
-        if len(np.shape(mask))>2:
-            return cls( [cls.from_mask( mask[i] ) 
-                    for i in range(np.shape(mask)[0])] )
-        return cls( [Ranges.from_mask(mask[i]) for i in range(np.shape(mask)[0])] )
-
     @property
     def shape(self):
         if len(self.ranges) == 0:
@@ -84,14 +73,34 @@ class RangesMatrix():
                 if 0 in self.shape:
                     return self.__class__([], self.shape)
                 return self.__class__([self[index[1:]]], self.shape)
-            elif isinstance(index[0], np.ndarray):
+
+            if len(self.shape) == 2 and len(index) > 1 and index[1] is None:
+                # This case corresponds to trying to inject a new
+                # dimension before the last one, e.g. if shape is
+                # (100, 10000) and index is [:,None].  This requires
+                # special treatment because a simple Ranges object
+                # can't self-promote like Ranges(10000)[None,:] ->
+                # RangesMatrix(1,10000).
+                new_index = tuple([index[0], slice(0,1)] + list(index[2:]))
+                new_shape = (self.shape[0], 1, self.shape[1])
+                new_self = RangesMatrix([RangesMatrix([r], new_shape[2:])
+                                         for r in self.ranges], new_shape[1:])
+                return new_self[new_index]
+
+            if len(self.shape) == 2 and len(index) > 2:
+                raise IndexError("Too many indices to RangesMatrix.")
+
+            if isinstance(index[0], np.ndarray):
                 if index[0].dtype is np.bool:
                     return RangesMatrix([self.ranges[i][index[1:]]
                                            for i in index[0].nonzero()[0]])
                 return RangesMatrix([self.ranges[i][index[1:]] for i in index[0]],
                                     self.shape[1:])
-            return RangesMatrix([d[index[1:]] for d in self.ranges[index[0]]],
-                                self.shape[1:])
+            elif isinstance(index[0], slice):
+                return RangesMatrix([d[index[1:]] for d in self.ranges[index[0]]],
+                                    self.shape[1:])
+            else:
+                return self.ranges[index[0]][index[1:]]
         return self.ranges[index]
     
     def __add__(self, x):
@@ -151,7 +160,7 @@ class RangesMatrix():
         s = list(items[0].shape)
         s[axis] = -1
         for item in items[1:]:
-            s1 = list(items[0].shape)
+            s1 = list(item.shape)
             s1[axis] = -1
             if s != s1:
                 raise ValueError('Contributed items must have same shape on non-cat axis.')
@@ -190,3 +199,81 @@ class RangesMatrix():
         return {
             'samples': samples,
             'intervals': intervals}
+
+    @staticmethod
+    def full(shape, fill_value):
+        """Construct a RangesMatrix with the specified shape, initialized to
+        fill_value.
+
+        Args:
+          shape (tuple of int): The shape.  Must have at least one
+            element.  If there is only one element, a Ranges object is
+            returned, not a RangesMatrix.
+          fill_value (bool): True or False.  If False, the wrapped
+            Ranges objects will have no intervals.  If True, the
+            wrapped Ranges objects will all have a single interval
+            spanning their entire domain.
+
+        Returns:
+          Ranges object (if shape has a single element) or a
+          RangesMatrix object (len(shape) > 1).
+
+        See also: zeros, ones.
+
+        """
+        assert fill_value in [True, False]
+        if isinstance(shape, int):
+            shape = (shape,)
+        assert(len(shape) > 0)
+        if len(shape) == 1:
+            r = Ranges(shape[0])
+            if fill_value:
+                r = ~r
+            return r
+        return RangesMatrix([RangesMatrix.full(shape[1:], fill_value)
+                             for i in range(shape[0])])
+
+    @classmethod
+    def zeros(cls, shape):
+        """Equivalent to full(shape, False)."""
+        return cls.full(shape, False)
+
+    @classmethod
+    def ones(cls, shape):
+        """Equivalent to full(shape, True)."""
+        return cls.full(shape, True)
+
+    @classmethod
+    def from_mask(cls, mask):
+        """Create a RangesMatrix from a boolean mask.  The input mask can have
+        any dimensionality greater than 0 but be aware that if ndim==1
+        then a Ranges object, and not a RangesMatrix, is returned.
+
+        Args:
+          mask (ndarray): Must be boolean array with at least 1 dimension.
+
+        Returns:
+          RangesMatrix with the same shape as mask, with ranges
+          corresponding to the intervals where mask was True.
+
+        """
+        assert(mask.ndim > 0)
+        if mask.ndim == 1:
+           return Ranges.from_mask(mask)
+        if len(mask) == 0:
+            return cls(child_shape=mask.shape[1:])
+        # Recurse.
+        return cls([cls.from_mask(m) for m in mask])
+
+    def mask(self, dest=None):
+        """Return the boolean mask equivalent of this object."""
+        if dest is None:
+            dest = np.empty(self.shape, bool)
+        if len(self.ranges) and isinstance(self.ranges[0], Ranges):
+            for d, r in zip(dest, self.ranges):
+                d[:] = r.mask()
+        else:
+            # Recurse
+            for d, rm in zip(dest, self.ranges):
+                rm.mask(dest=d)
+        return dest

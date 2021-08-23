@@ -27,16 +27,18 @@ public:
     Ranges(T count) : count{count}, reference(0) {}
     Ranges(T count, T reference) : count{count}, reference(reference) {}
 
-    static Ranges<T> from_array(const bp::object &src, int count);
+    static Ranges<T> from_array(const bp::object &src, const bp::object &count);
 
     // Basic ops
     Ranges<T>& merge(const Ranges<T> &src);
     Ranges<T>& intersect(const Ranges<T> &src);
     Ranges<T>& add_interval(const T start, const T end);
+    Ranges<T>& _add_interval_numpysafe(const bp::object start,
+                                       const bp::object end);
     Ranges<T>& append_interval_no_check(const T start, const T end);
     Ranges<T>& buffer(const T buff);
     Ranges<T>& close_gaps(const T gap);
-    Ranges<T> buffered(const T buff);
+    Ranges<T> buffered(const T buff) const;
     Ranges<T> complement() const;
     Ranges<T> zeros_like() const;
     Ranges<T> ones_like() const;
