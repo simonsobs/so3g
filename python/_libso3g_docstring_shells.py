@@ -28,7 +28,7 @@
 # No handler for "load_pybindings"
 
 def version():
-  return "0.1.0+62.g55ad726.dirty"
+  return "0.1.0+86.gd085e7e"
 # No handler for "useful_info"
 
 # No handler for "greet"
@@ -3190,6 +3190,8 @@ class ProjEng_Precomp_Tiled:
 # No handler for "nmat_detvecs_apply"
 
 # No handler for "process_cuts"
+
+# No handler for "get_gap_fill_poly"
 
 # No handler for "__version__"
 
