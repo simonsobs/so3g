@@ -228,6 +228,16 @@ bool G3SuperTimestream::Decode() {
 	return true;
 }
 
+G3SuperTimestream::~G3SuperTimestream()
+{
+	if (array != nullptr)
+		Py_XDECREF(array);
+	if (flac != nullptr) {
+		delete flac->buf;
+		delete flac;
+	}
+}
+
 static
 void safe_set_times(G3SuperTimestream &self, G3VectorTime _times)
 {

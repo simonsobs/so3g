@@ -1,4 +1,5 @@
 import unittest
+import time
 
 import numpy as np
 import so3g
@@ -79,3 +80,21 @@ class TestSuperTimestream(unittest.TestCase):
         r = core.G3Reader(test_file)
         ts2 = r.Process(None)[0]['a']
         self._check_equal(ts, ts2)
+
+
+def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True):
+    """Memory leak loop ... not intended for automated testing!"""
+    helper = TestSuperTimestream()
+    tick_time = .5
+    next_tick = time.time()
+    while True:
+        d = time.time() - next_tick
+        if d < 0:
+            time.sleep(d)
+        next_tick += tick_time
+        print(' ... tick.')
+        ts = helper._get_ts(100, int(10000 * MB_per_second * tick_time / 4))
+        if encode:
+            ts.encode(1)
+            if decode:
+                ts.decode()

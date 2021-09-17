@@ -14,6 +14,8 @@ class G3SuperTimestream : public G3FrameObject {
 	// vector of associated timestamps, and the vector of channel
 	// names.
 public:
+	~G3SuperTimestream();
+
 	G3VectorTime times;
 	G3VectorString names;
 
