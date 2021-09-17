@@ -7,3 +7,5 @@ The Intervals<T> objects have the following interface:
    :members:
 
 
+.. autoclass:: so3g.G3SuperTimestream
+   :members:
