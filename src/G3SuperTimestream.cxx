@@ -41,21 +41,33 @@ struct G3SuperTimestream::flac_block encode_flac(PyArrayObject *array)
 	fb.count = 0;
 	fb.offsets.push_back(0);
 
-	char *d = (char*)(PyArray_DATA(array));
+	int n_samps = PyArray_DIMS(array)[1];
+	int32_t d[n_samps];
+
+	char *src = (char*)(PyArray_DATA(array));
 	const int32_t *chan_ptrs[1];
 	FLAC__StreamEncoder *encoder = FLAC__stream_encoder_new();
 
-	for (int i=0; i< PyArray_DIMS(array)[0]; i++, d+=PyArray_STRIDES(array)[0]) {
+	int32_t M = (1 << 24);
+	for (int i=0; i< PyArray_DIMS(array)[0]; i++, src+=PyArray_STRIDES(array)[0]) {
 		FLAC__stream_encoder_set_channels(encoder, 1);
 		FLAC__stream_encoder_set_bits_per_sample(encoder, 24);
 		FLAC__stream_encoder_set_compression_level(encoder, 1);
-
 		FLAC__stream_encoder_init_stream(
 			encoder, flac_encoder_write_cb, NULL, NULL, NULL, (void*)(&fb));
 		chan_ptrs[0] = (int32_t*)d;
-		FLAC__stream_encoder_process(encoder, chan_ptrs, PyArray_DIMS(array)[1]);
+		int32_t pivot = round(double(((int32_t*)src)[0]) / M) * M;
+		int warnings = 0;
+		for (int i=0; i < n_samps; i++) {
+			d[i] = ((int32_t*)src)[i] + pivot;
+			if (d[i] >= M/2 || d[i] < -M/2)
+				warnings++;
+		}
+		FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps);
 		FLAC__stream_encoder_finish(encoder);
 		fb.offsets.push_back(fb.count);
+		fb.pivots.push_back(pivot);
+		fb.warnings.push_back(warnings);
 	}
 	FLAC__stream_encoder_delete(encoder);
 
@@ -94,8 +106,10 @@ template <class A> void G3SuperTimestream::load(A &ar, unsigned v)
 
 	// Read the flacblock
 	flac = new struct flac_block;
+	ar & make_nvp("precision", flac->precision);
 	ar & make_nvp("payload_bytes", flac->count);
 	ar & make_nvp("offsets", flac->offsets);
+	ar & make_nvp("pivots", flac->pivots);
 	flac->buf = new char[flac->count];
 	ar & make_nvp("payload", binary_data(flac->buf, flac->count));
 }
@@ -123,8 +137,10 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 
 	// Write the flacblock
 	//ar & make_nvp("codec", 1);
+	ar & make_nvp("precision", _flac->precision);
 	ar & make_nvp("payload_bytes", _flac->count);
 	ar & make_nvp("offsets", _flac->offsets);
+	ar & make_nvp("pivots", _flac->pivots);
 	ar & make_nvp("payload", binary_data(_flac->buf, _flac->count));
 }
 
@@ -146,6 +162,7 @@ struct flac_helper {
 	int bytes_remaining;
 	char *src;
 	int32_t *dest;
+	int32_t pivot;
 };
 
 FLAC__StreamDecoderReadStatus read_callback(
@@ -170,8 +187,8 @@ FLAC__StreamDecoderWriteStatus write_callback(
 {
 	auto fh = (struct flac_helper *)client_data;
 	int n = frame->header.blocksize;
-	memcpy(fh->dest, buffer[0], n * sizeof(int32_t));
-	fh->dest += n;
+	for (int i=0; i<n; i++)
+		*(fh->dest++) = buffer[0][i] + fh->pivot;
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -209,6 +226,7 @@ bool G3SuperTimestream::Decode() {
 		helper.src = flac->buf + flac->offsets[i];
 		helper.bytes_remaining = flac->offsets[i+1] - flac->offsets[i];
 		helper.dest = (int32_t*)PyArray_DATA(array) + desc.shape[1] * i;
+		helper.pivot = flac->pivots[i];
 
 		FLAC__stream_decoder_init_stream(
 			decoder, read_callback, NULL, NULL, NULL, NULL,

@@ -36,10 +36,13 @@ public:
 		npy_intp nbytes;
 	};
 	struct flac_block {
+		float precision;
 		int size;
 		char *buf;
 		int count;
 		vector<int> offsets;
+		vector<int32_t> pivots;
+		vector<int> warnings;
 	};
 
 	PyArrayObject *array;

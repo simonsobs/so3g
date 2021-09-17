@@ -62,16 +62,28 @@ class TestSuperTimestream(unittest.TestCase):
         with self.assertRaises(ValueError):
             ts.data = data[:,:-1]
 
+    def test_01_bells(self):
+        ts = self._get_ts(10, 100)
+        self.assertIs(ts.dtype, np.int32)
+
     def test_10_encode(self):
         ts = self._get_ts(200, 10000)
         d1 = ts.data.copy()
         ts.encode(1)
         np.testing.assert_array_equal(d1, ts.data)
 
+        # Test with a few offsets...
+        for offset in [2**25, 2**26 / 3., -1.78 * 2**27]:
+            ts = self._get_ts(200, 10000)
+            ts.data += int(offset)
+            d1 = ts.data.copy()
+            ts.encode(1)
+            np.testing.assert_array_equal(d1, ts.data)
+
     def test_20_serialize(self):
-        ts = self._get_ts(200, 10000)
-        ts.encode(1)
         test_file = 'test_g3super.g3'
+        ts = self._get_ts(200, 10000)
+
         w = core.G3Writer(test_file)
         f = core.G3Frame()
         f['a'] = ts
@@ -80,6 +92,21 @@ class TestSuperTimestream(unittest.TestCase):
         r = core.G3Reader(test_file)
         ts2 = r.Process(None)[0]['a']
         self._check_equal(ts, ts2)
+
+        offsets = [0, 2**25, 2**26 / 3., -1.78 * 2**27]
+        records = []
+        w = core.G3Writer(test_file)
+        for offset in offsets:
+            f = core.G3Frame()
+            ts.data += int(offset)
+            records.append(ts.data.copy())
+            f['a'] = ts
+            w.Process(f)
+        del w
+        r = core.G3Reader(test_file)
+        for offset, record in zip(offsets, records):
+            ts2 = r.Process(None)[0]['a']
+            np.testing.assert_array_equal(record, ts2.data)
 
 
 def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True):
