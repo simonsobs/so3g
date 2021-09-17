@@ -333,6 +333,15 @@ bp::object safe_get_data(G3SuperTimestream &self)
 	return bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(self.array))));
 }
 
+static
+bp::object safe_get_dtype(G3SuperTimestream &self)
+{
+	if (self.array == nullptr)
+		return bp::object(); // not good enough...
+	return bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(
+							    PyArray_DESCR(self.array)->typeobj))));
+}
+
 
 G3_SPLIT_SERIALIZABLE_CODE(G3SuperTimestream);
 
@@ -351,6 +360,7 @@ PYBINDINGS("so3g")
 			      "Names vector.  Setting this stores a copy, but getting returns a reference.")
 		.add_property("data", &safe_get_data, &safe_set_data,
 			      "Data array.")
+		.add_property("dtype", &safe_get_dtype, "Numpy dtype of underlying array.")
 		.def("encode", &G3SuperTimestream::Encode, "Compress.")
 		.def("decode", &G3SuperTimestream::Decode, "De-compress.")
 		;
