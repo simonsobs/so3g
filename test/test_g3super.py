@@ -8,44 +8,36 @@ from spt3g import core
 
 class TestSuperTimestream(unittest.TestCase):
 
-    def _get_ts(self, nchans, ntimes, sigma=256):
-        chans = ['x%i' % i for i in range(nchans)]
-        times = core.G3VectorTime(
-            (1680000000 + np.arange(ntimes) * .005) * core.G3Units.s)
-        data = (np.random.normal(size=(len(chans), len(times))) * sigma).astype('int32')
-        ts = so3g.G3SuperTimestream()
-        ts.times = times
-        ts.names = chans
-        ts.data = data
-        return ts
+    def test_00_dtypes(self):
+        times = core.G3VectorTime((1680000000 + np.arange(1000)) * core.G3Units.s)
+        names = ['a', 'b', 'c', 'd', 'e']
 
-    def _check_equal(self, ts1, ts2):
-        np.testing.assert_array_equal(ts1.data, ts2.data)
-        np.testing.assert_array_equal(np.array(ts1.times), np.array(ts2.times))
-        np.testing.assert_array_equal(np.array(ts1.names), np.array(ts2.names))
+        for dtype in ['int32', 'int64', 'float32', 'float64']:
+            ts = self._get_ts(4, 100, sigma=0, dtype=dtype)
+            ts.encode(1.)
+            ts.decode()
+            assert(ts.data.dtype is np.dtype(dtype))
+            #assert(ts.dtype is np.dtype(dtype))
 
-    def test_00_basic(self):
-        times = core.G3VectorTime((1680000000 + np.arange(10000)) * core.G3Units.s)
-        chans = ['a', 'b', 'c', 'd', 'e']
-        data = np.zeros((len(chans), len(times)), dtype='int32')
+    def test_01_consistency(self):
+        """Test that concordance of (times, names, data) is enforced."""
+        names, times, data = self._get_ts(5, 1000, raw=True)
 
         ts = so3g.G3SuperTimestream()
         ts.times = times
-        ts.names = chans
-        ts.data = data
-
+        ts.names = names
         with self.assertRaises(ValueError):
             ts.times = times[:-1]
 
         with self.assertRaises(ValueError):
-            ts.names = chans[:-1]
+            ts.names = names[:-1]
 
         ts = so3g.G3SuperTimestream()
         with self.assertRaises(ValueError):
             ts.data = data
 
         ts = so3g.G3SuperTimestream()
-        ts.names = chans
+        ts.names = names
         with self.assertRaises(ValueError):
             ts.data = data
 
@@ -55,18 +47,14 @@ class TestSuperTimestream(unittest.TestCase):
             ts.data = data
 
         ts = so3g.G3SuperTimestream()
-        ts.names = chans
+        ts.names = names
         ts.times = times
         with self.assertRaises(ValueError):
             ts.data = data[1:]
         with self.assertRaises(ValueError):
             ts.data = data[:,:-1]
 
-    def test_01_bells(self):
-        ts = self._get_ts(10, 100)
-        self.assertIs(ts.dtype, np.int32)
-
-    def test_10_encode(self):
+    def test_10_encode_int(self):
         ts = self._get_ts(200, 10000)
         d1 = ts.data.copy()
         ts.encode(1)
@@ -80,7 +68,17 @@ class TestSuperTimestream(unittest.TestCase):
             ts.encode(1)
             np.testing.assert_array_equal(d1, ts.data)
 
-    def test_20_serialize(self):
+    def test_20_encode_float(self):
+        for dtype in ['float32', 'float64']:
+            ts = self._get_ts(200, 10000, sigma=5., dtype=dtype)
+            decimals = 2
+            precision = 10**(-decimals)
+            ts.data[:] = np.round(ts.data, decimals)
+            d1 = ts.data.copy()
+            ts.encode(10**(-decimals))
+            np.testing.assert_allclose(d1, ts.data, atol=precision*1e-3)
+
+    def test_30_serialize(self):
         test_file = 'test_g3super.g3'
         ts = self._get_ts(200, 10000)
 
@@ -107,6 +105,26 @@ class TestSuperTimestream(unittest.TestCase):
         for offset, record in zip(offsets, records):
             ts2 = r.Process(None)[0]['a']
             np.testing.assert_array_equal(record, ts2.data)
+
+    # Support functions
+
+    def _get_ts(self, nchans, ntimes, sigma=256, dtype='int32', raw=False):
+        names = ['x%i' % i for i in range(nchans)]
+        times = core.G3VectorTime(
+            (1680000000 + np.arange(ntimes) * .005) * core.G3Units.s)
+        data = (np.random.normal(size=(len(names), len(times))) * sigma).astype(dtype)
+        if raw:
+            return names, times, data
+        ts = so3g.G3SuperTimestream()
+        ts.names = names
+        ts.times = times
+        ts.data = data
+        return ts
+
+    def _check_equal(self, ts1, ts2):
+        np.testing.assert_array_equal(ts1.data, ts2.data)
+        np.testing.assert_array_equal(np.array(ts1.times), np.array(ts2.times))
+        np.testing.assert_array_equal(np.array(ts1.names), np.array(ts2.names))
 
 
 def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True):

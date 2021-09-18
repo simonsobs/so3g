@@ -31,7 +31,7 @@ FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
 
 
 static
-struct G3SuperTimestream::flac_block encode_flac(PyArrayObject *array)
+struct G3SuperTimestream::flac_block encode_flac(PyArrayObject *array, float precision)
 {
 	struct G3SuperTimestream::flac_block fb;
 	int n = PyArray_NBYTES(array);
@@ -40,31 +40,51 @@ struct G3SuperTimestream::flac_block encode_flac(PyArrayObject *array)
 	fb.size = n;
 	fb.count = 0;
 	fb.offsets.push_back(0);
+	fb.precision = precision;
 
 	int n_samps = PyArray_DIMS(array)[1];
 	int32_t d[n_samps];
+	const int32_t *chan_ptrs[1] = {d};
 
+	npy_intp type_num = PyArray_TYPE(array);
 	char *src = (char*)(PyArray_DATA(array));
-	const int32_t *chan_ptrs[1];
 	FLAC__StreamEncoder *encoder = FLAC__stream_encoder_new();
 
 	int32_t M = (1 << 24);
 	for (int i=0; i< PyArray_DIMS(array)[0]; i++, src+=PyArray_STRIDES(array)[0]) {
+		int32_t pivot = 0;
+		int warnings = 0;
+		if (type_num == NPY_INT32) {
+			pivot = round(double(((int32_t*)src)[0]) / M) * M;
+			for (int i=0; i < n_samps; i++) {
+				d[i] = ((int32_t*)src)[i] + pivot;
+				if (d[i] >= M/2 || d[i] < -M/2)
+					warnings++;
+			}
+		} else if (type_num == NPY_INT64) {
+			pivot = round(double(((int64_t*)src)[0]) / M) * M;
+			for (int i=0; i < n_samps; i++) {
+				d[i] = ((int64_t*)src)[i] + pivot;
+				if (d[i] >= M/2 || d[i] < -M/2)
+					warnings++;
+			}
+		} else if (type_num == NPY_FLOAT32) {
+			for (int i=0; i < n_samps; i++)
+				d[i] = (int32_t)(round(((float*)src)[i] / precision));
+		} else if (type_num == NPY_FLOAT64) {
+			for (int i=0; i < n_samps; i++)
+				d[i] = (int32_t)(round(((double*)src)[i] / precision));
+		} else
+			throw g3supertimestream_exception("Invalid array type encountered.");
+
 		FLAC__stream_encoder_set_channels(encoder, 1);
 		FLAC__stream_encoder_set_bits_per_sample(encoder, 24);
 		FLAC__stream_encoder_set_compression_level(encoder, 1);
 		FLAC__stream_encoder_init_stream(
 			encoder, flac_encoder_write_cb, NULL, NULL, NULL, (void*)(&fb));
-		chan_ptrs[0] = (int32_t*)d;
-		int32_t pivot = round(double(((int32_t*)src)[0]) / M) * M;
-		int warnings = 0;
-		for (int i=0; i < n_samps; i++) {
-			d[i] = ((int32_t*)src)[i] + pivot;
-			if (d[i] >= M/2 || d[i] < -M/2)
-				warnings++;
-		}
 		FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps);
 		FLAC__stream_encoder_finish(encoder);
+
 		fb.offsets.push_back(fb.count);
 		fb.pivots.push_back(pivot);
 		fb.warnings.push_back(warnings);
@@ -125,7 +145,7 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 	if (_flac == nullptr) {
 		// Encode to a copy.
 		_flac = new struct flac_block;
-		*_flac = encode_flac(array);
+		*_flac = encode_flac(array, 1.);
         }
 
 	// Write the desc.
@@ -144,13 +164,13 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 	ar & make_nvp("payload", binary_data(_flac->buf, _flac->count));
 }
 
-bool G3SuperTimestream::Encode(int codec) {
+bool G3SuperTimestream::Encode(float precision) {
 	if (array == nullptr)
 		return false;
 
 	// Compress the array data.
 	flac = new struct flac_block;
-	*flac = encode_flac(array);
+	*flac = encode_flac(array, precision);
 
 	Py_XDECREF(array);
 	array = nullptr;
@@ -161,8 +181,9 @@ bool G3SuperTimestream::Encode(int codec) {
 struct flac_helper {
 	int bytes_remaining;
 	char *src;
-	int32_t *dest;
+	char *dest;
 	int32_t pivot;
+	float precision;
 };
 
 FLAC__StreamDecoderReadStatus read_callback(
@@ -182,13 +203,27 @@ FLAC__StreamDecoderReadStatus read_callback(
 	return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
 }
 
-FLAC__StreamDecoderWriteStatus write_callback(
+template <typename T>
+FLAC__StreamDecoderWriteStatus write_callback_int(
 	const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
 {
 	auto fh = (struct flac_helper *)client_data;
 	int n = frame->header.blocksize;
 	for (int i=0; i<n; i++)
-		*(fh->dest++) = buffer[0][i] + fh->pivot;
+		((T*)fh->dest)[i] = buffer[0][i] + fh->pivot;
+	fh->dest += n * sizeof(T);
+	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+}
+
+template <typename T>
+FLAC__StreamDecoderWriteStatus write_callback_float(
+	const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 *const buffer[], void *client_data)
+{
+	auto fh = (struct flac_helper *)client_data;
+	int n = frame->header.blocksize;
+	for (int i=0; i<n; i++)
+		((T*)fh->dest)[i] = buffer[0][i] * fh->precision;
+	fh->dest += n * sizeof(T);
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -220,17 +255,37 @@ bool G3SuperTimestream::Decode() {
 		PyArray_SimpleNew(desc.ndim, desc.shape, desc.type_num);
 
 	auto decoder = FLAC__stream_decoder_new();
+	struct flac_helper helper;
+	helper.precision = flac->precision;
+
+	FLAC__StreamDecoderWriteCallback this_write_callback;
+	switch (desc.type_num) {
+	case NPY_INT32:
+		this_write_callback = &write_callback_int<int32_t>;
+		break;
+	case NPY_INT64:
+		this_write_callback = &write_callback_int<int64_t>;
+		break;
+	case NPY_FLOAT32:
+		this_write_callback = &write_callback_float<float>;
+		break;
+	case NPY_FLOAT64:
+		this_write_callback = &write_callback_float<double>;
+		break;
+	default:
+		throw g3supertimestream_exception("Invalid array type encountered.");
+	}
 
 	for (int i=0; i<desc.shape[0]; i++) {
-		struct flac_helper helper;
 		helper.src = flac->buf + flac->offsets[i];
 		helper.bytes_remaining = flac->offsets[i+1] - flac->offsets[i];
-		helper.dest = (int32_t*)PyArray_DATA(array) + desc.shape[1] * i;
 		helper.pivot = flac->pivots[i];
+		helper.dest = (char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0]*i;
 
 		FLAC__stream_decoder_init_stream(
 			decoder, read_callback, NULL, NULL, NULL, NULL,
-			write_callback, NULL, flac_decoder_error_cb, (void*)&helper);
+			*this_write_callback, NULL, flac_decoder_error_cb,
+			(void*)&helper);
 
 		FLAC__stream_decoder_process_until_end_of_stream(decoder);
 		FLAC__stream_decoder_finish(decoder);
@@ -238,7 +293,7 @@ bool G3SuperTimestream::Decode() {
 
         FLAC__stream_decoder_delete(decoder);
 
-	// Kill the flac bundle.
+	// Destroy the flac bundle.
 	delete flac->buf;
 	delete flac;
 	flac = nullptr;

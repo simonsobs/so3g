@@ -22,7 +22,7 @@ public:
 	string Description() const;
 	string Summary() const;
 
-	bool Encode(int codec);
+	bool Encode(float precision);
 	bool Decode();
 
 	template <class A> void load(A &ar, unsigned v);
