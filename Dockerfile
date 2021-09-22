@@ -13,6 +13,7 @@ RUN apt update && apt install -y \
     automake \
     gfortran \
     libopenblas-dev \
+    libbz2-dev \
     python-is-python3
 
 # Set the working directory
