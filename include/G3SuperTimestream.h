@@ -27,7 +27,8 @@ public:
 
 	bool Encode();
 	bool Decode();
-	int Options(int data_algo=-1, int times_algo=-1, float precision=-1.);
+	void Calibrate(vector<double> rescale);
+	int Options(int data_algo=-1, int times_algo=-1);
 
 	template <class A> void load(A &ar, unsigned v);
 	template <class A> void save(A &ar, unsigned v) const;
@@ -40,13 +41,10 @@ public:
 	};
 
 	struct flac_block {
-		float precision;
 		int size;
 		char *buf;
 		int count;
 		vector<int> offsets;
-		vector<int32_t> pivots;
-		vector<int> warnings;
 	};
 
 	enum algos {
@@ -58,11 +56,13 @@ public:
 	struct {
 		int8_t times_algo;
 		int8_t data_algo;
-		float precision;
 	} options;
 
-	int is_encoded;
+	bool float_mode;
+	bool dataful;
+	vector<double> quanta;
 	struct array_desc desc;
+
 	PyArrayObject *array;
 	struct flac_block *flac;
 };

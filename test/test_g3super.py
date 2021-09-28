@@ -55,6 +55,52 @@ class TestSuperTimestream(unittest.TestCase):
         with self.assertRaises(ValueError):
             ts.data = data[:,:-1]
 
+    def test_02_float_mode(self):
+        """Test that rules for entering float mode and setting quanta are enforced."""
+        names, times, data_int = self._get_ts(5, 1000, raw=True)
+        _, _, data_float = self._get_ts(5, 1000, raw=True, dtype='float32')
+        cals = np.ones(len(names))
+
+        def get_base():
+            ts = so3g.G3SuperTimestream()
+            ts.names = names
+            ts.times = times
+            return ts
+
+        # Allowed to calibrate int data.
+        ts = get_base()
+        ts.data = data_int
+        ts.calibrate(cals)
+        self.assertIs(ts.data.dtype, np.dtype('float32'))
+
+        # Check that calibrate updates cals and data
+        x = ts.data.copy()
+        ts.calibrate(np.ones(len(cals)) * 3)
+        self.assertEqual(ts.quanta[0], 3.)
+
+        # Allowed to set float data after quanta.
+        ts = get_base()
+        ts.quanta = cals
+        ts.data = data_float
+
+        # Not allowed to set float data without first setting quanta.
+        ts = get_base()
+        with self.assertRaises(ValueError):
+            ts.data = data_float
+
+        # Not allowed to set int data after setting quanta.
+        ts = get_base()
+        ts.quanta = cals
+        with self.assertRaises(ValueError):
+            ts.data = data_int
+
+        # Not allowed to swap in int data once in float mode
+        ts = get_base()
+        ts.quanta = cals
+        ts.data = data_float
+        with self.assertRaises(ValueError):
+            ts.data = data_int
+
     def test_10_encode_int(self):
         for dtype in INT_DTYPES:
             err_msg = f'Failure during test of dtype={dtype}'
@@ -71,15 +117,27 @@ class TestSuperTimestream(unittest.TestCase):
                 ts.encode()
                 np.testing.assert_array_equal(d1, ts.data, err_msg=err_msg)
 
+    def test_11_idempotency(self):
+        ts = self._get_ts(10, 980, dtype='float32')
+        a = ts.data
+        self.assertIs(ts.data, a)
+        ts.encode()
+        # Implicit decode.
+        b = ts.data
+        self.assertIsNot(b, a)
+        # Idempotent decode.
+        ts.decode()
+        self.assertIs(ts.data, b)
+
     def test_20_encode_float(self):
         for dtype in FLOAT_DTYPES:
             err_msg = f'Failure during test of dtype={dtype}'
             ts = self._get_ts(9, 1290, sigma=5., dtype=dtype)
-            decimals = 2
-            precision=10**-decimals
-            ts.data[:] = np.round(ts.data, decimals)
+            precision = .01
+            ts.data /= precision
+            ts.calibrate([precision] * ts.data.shape[0])
+            ts.data[:] = np.round(ts.data)
             d1 = ts.data.copy()
-            ts.options(precision=precision)
             ts.encode()
             np.testing.assert_allclose(d1, ts.data, atol=precision*1e-3,
                                        err_msg=err_msg)
@@ -103,8 +161,8 @@ class TestSuperTimestream(unittest.TestCase):
                 ts = self._get_ts(4, 100, sigma=100, dtype=dtype)
                 ts.data += int(offset)
                 if dtype in FLOAT_DTYPES:
-                    ts.options(precision=precision)
-                    ts.data[:] = ts.data.round(decimals)
+                    ts.data[:] = np.round(ts.data)
+                    ts.calibrate([.01] * ts.data.shape[0])
                 records.append(ts.data.copy())
                 f['a'] = ts
                 w.Process(f)
@@ -135,8 +193,8 @@ class TestSuperTimestream(unittest.TestCase):
             f = core.G3Frame()
             ts = _get_ts(dtype)
             sizes[dtype].append(ts.data.nbytes)
-            if dtype in FLOAT_DTYPES:
-                ts.options(precision=1.0)
+            #if dtype in FLOAT_DTYPES:
+            #    ts.options(precision=1.0)
             ts.options(data_algo=0, times_algo=0)
             f['ts_%s' % dtype] = ts
             w.Process(f)
@@ -144,8 +202,8 @@ class TestSuperTimestream(unittest.TestCase):
             # Yes compression
             f = core.G3Frame()
             ts = _get_ts(dtype)
-            if dtype in FLOAT_DTYPES:
-                ts.options(precision=1.0)
+            #if dtype in FLOAT_DTYPES:
+            #    ts.options(precision=1.0)
             ts.options(times_algo=0)
             f['ts_%s' % dtype] = ts
             w.Process(f)
@@ -186,6 +244,8 @@ class TestSuperTimestream(unittest.TestCase):
         ts = so3g.G3SuperTimestream()
         ts.names = names
         ts.times = times
+        if dtype in FLOAT_DTYPES:
+            ts.quanta = np.ones(len(names))
         ts.data = data
         return ts
 
@@ -195,8 +255,14 @@ class TestSuperTimestream(unittest.TestCase):
         np.testing.assert_array_equal(np.array(ts1.names), np.array(ts2.names))
 
 
-def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True):
-    """Memory leak loop ... not intended for automated testing!"""
+def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True, dtype='int32'):
+    """Memory leak loop ... not intended for automated testing!  Pass in
+    dtype='int32+' or 'int64+' to trigger float_mode promotoion.
+
+    """
+    if dtype[-1] == '+':
+        promotion = True
+        dtype = dtype[:-1]
     helper = TestSuperTimestream()
     tick_time = .5
     next_tick = time.time()
@@ -206,8 +272,10 @@ def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True):
             time.sleep(d)
         next_tick += tick_time
         print(' ... tick.')
-        ts = helper._get_ts(100, int(10000 * MB_per_second * tick_time / 4))
+        ts = helper._get_ts(100, int(10000 * MB_per_second * tick_time / 4), dtype=dtype)
+        if promotion:
+            ts.calibrate([1.] * len(ts.data))
         if encode:
-            ts.encode(1)
+            ts.encode()
             if decode:
                 ts.decode()

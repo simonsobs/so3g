@@ -96,7 +96,7 @@ FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
 
 static
 struct G3SuperTimestream::flac_block encode_flac_bz2(
-	int8_t data_algo, PyArrayObject *array, float precision)
+	int8_t data_algo, PyArrayObject *array, std::vector<double> quanta)
 {
 	struct G3SuperTimestream::flac_block fb;
 	int n = PyArray_NBYTES(array);
@@ -105,7 +105,6 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 	fb.size = n;
 	fb.count = 0;
 	fb.offsets.push_back(0);
-	fb.precision = precision;
 
 	int n_samps = PyArray_DIMS(array)[1];
 	int32_t d[n_samps];
@@ -131,11 +130,11 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 				fails = rebranch<int64_t>(d, r64, (int64_t*)src, n_samps, M, M/2);
 			} else if (type_num == NPY_FLOAT32) {
 				for (int j=0; j < n_samps; j++)
-					r32[j] = roundf(((float*)src)[j] / precision);
+					r32[j] = roundf(((float*)src)[j] / quanta[i]);
 				fails = rebranch<int32_t>(d, r32, r32, n_samps, M, M/2);
 			} else if (type_num == NPY_FLOAT64) {
 				for (int j=0; j < n_samps; j++)
-					r64[j] = round(((double*)src)[j] / precision);
+					r64[j] = round(((double*)src)[j] / quanta[i]);
 				fails = rebranch<int64_t>(d, r64, r64, n_samps, M, M/2);
 			} else
 				throw g3supertimestream_exception("Invalid array type encountered.");
@@ -153,10 +152,10 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 			memcpy(r, src, n_samps * PyArray_ITEMSIZE(array));
 			if (type_num == NPY_FLOAT32) {
 				for (int j=0; j<n_samps; j++)
-					((int32_t*)r)[j] = roundf(((float*)r)[j] / precision);
+					((int32_t*)r)[j] = roundf(((float*)r)[j] / quanta[i]);
 			} else if (type_num == NPY_FLOAT64) {
 				for (int j=0; j<n_samps; j++)
-					((int64_t*)r)[j] = round(((double*)r)[j] / precision);
+					((int64_t*)r)[j] = round(((double*)r)[j] / quanta[i]);
 			}
 		}
 		fb.offsets.push_back(fb.count);
@@ -244,12 +243,15 @@ template <class A> void G3SuperTimestream::load(A &ar, unsigned v)
 	} else {
 		// Read the flacblock
 		flac = new struct flac_block;
-		ar & make_nvp("precision", flac->precision);
+		ar & make_nvp("quanta", quanta);
 		ar & make_nvp("offsets", flac->offsets);
 		ar & make_nvp("payload_bytes", flac->count);
 		flac->buf = new char[flac->count];
 		ar & make_nvp("payload", binary_data(flac->buf, flac->count));
 	}
+	dataful = true;
+	float_mode = (desc.type_num == NPY_FLOAT32 ||
+		      desc.type_num == NPY_FLOAT64);
 }
 
 template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
@@ -305,11 +307,11 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 		if (_flac == nullptr) {
 			// Encode to a copy.
 			_flac = new struct flac_block;
-			*_flac = encode_flac_bz2(options.data_algo, array, options.precision);
+			*_flac = encode_flac_bz2(options.data_algo, array, quanta);
 		}
 
 		// Write the flacblock
-		ar & make_nvp("precision", _flac->precision);
+		ar & make_nvp("quanta", quanta);
 		ar & make_nvp("offsets", _flac->offsets);
 		ar & make_nvp("payload_bytes", _flac->count);
 		ar & make_nvp("payload", binary_data(_flac->buf, _flac->count));
@@ -330,7 +332,7 @@ bool G3SuperTimestream::Encode() {
 		return false;
 	else {
 		flac = new struct flac_block;
-		*flac = encode_flac_bz2(options.data_algo, array, options.precision);
+		*flac = encode_flac_bz2(options.data_algo, array, quanta);
 		Py_XDECREF(array);
 		array = nullptr;
 	}
@@ -341,7 +343,7 @@ struct flac_helper {
 	int bytes_remaining;
 	char *src;
 	char *dest;
-	float precision;
+	std::vector<double> quanta;
 };
 
 FLAC__StreamDecoderReadStatus read_callback(
@@ -427,7 +429,7 @@ bool G3SuperTimestream::Decode()
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
 	struct flac_helper helper;
-	helper.precision = flac->precision;
+	helper.quanta = quanta;
 
 	FLAC__StreamDecoderWriteCallback this_write_callback;
 	void (*expand_func)(struct flac_helper *, int, int, char*) = nullptr;
@@ -481,12 +483,12 @@ bool G3SuperTimestream::Decode()
 			auto src = (int32_t*)this_data;
 			auto dest = (float*)this_data;
 			for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
-				dest[j] = (float)src[j] * flac->precision;
+				dest[j] = (float)src[j] * quanta[i];
 		} else if (desc.type_num == NPY_FLOAT64) {
 			auto src = (int64_t*)this_data;
 			auto dest = (double*)this_data;
 			for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
-				dest[j] = src[j] * flac->precision;
+				dest[j] = src[j] * quanta[i];
 		}
 	}
 	delete temp;
@@ -501,23 +503,87 @@ bool G3SuperTimestream::Decode()
 	return true;
 }
 
-int G3SuperTimestream::Options(int data_algo, int times_algo, float precision)
+int G3SuperTimestream::Options(int data_algo, int times_algo)
 {
 	if (data_algo >= 0)
 		options.data_algo = data_algo;
 	if (times_algo >= 0)
 		options.times_algo = times_algo;
-	if (precision >= 0)
-		options.precision = precision;
 	return 0;
 }
 
+
+template <typename T>
+static
+void _apply_cals_typed(PyArrayObject *array, std::vector<double> cals)
+{
+	for (int i=0; i<PyArray_SHAPE(array)[0]; i++) {
+		auto dest = (T*)((char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0] * i);
+		for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
+			dest[j] *= cals[i];
+	}
+}
+
+void _apply_cals(PyArrayObject *array, std::vector<double> cals)
+{
+	switch (PyArray_TYPE(array)) {
+	case NPY_FLOAT32:
+		_apply_cals_typed<float>(array, cals);
+		break;
+	case NPY_FLOAT64:
+		_apply_cals_typed<double>(array, cals);
+		break;
+	default:
+		throw g3supertimestream_exception("Unexpected dtype!");
+	}
+}
+
+void G3SuperTimestream::Calibrate(std::vector<double> rescale)
+{
+	if (float_mode) {
+		// Modification to the calibration.
+		assert(rescale.size() == quanta.size());
+		if (array)
+			_apply_cals(array, rescale);
+		for (int i=0; i<quanta.size(); i++)
+			quanta[i] *= rescale[i];
+	} else {
+		// Transition to float_mode.  If holding integer
+		// array, convert it.
+		assert(rescale.size() == names.size());
+		if (dataful) {
+			switch(desc.type_num) {
+			case NPY_INT32:
+				desc.type_num = NPY_FLOAT32;
+				break;
+			case NPY_INT64:
+				desc.type_num = NPY_FLOAT64;
+				break;
+			default:
+				throw g3supertimestream_exception("Unexpected dtype!");
+			}
+			if (array) {
+				auto new_array = (PyArrayObject*)PyArray_FromAny(
+					(PyObject*)array, PyArray_DescrFromType(desc.type_num),
+					0, 0, NPY_ARRAY_FORCECAST, NULL);
+				assert(new_array != nullptr);
+				_apply_cals(new_array, rescale);
+				Py_DECREF(array);
+				array = new_array;
+			}
+		}
+		float_mode = true;
+		quanta = rescale;
+	}
+}
 
 G3SuperTimestream::G3SuperTimestream() {
 	options.times_algo = ALGO_DO_BZ;
 	options.data_algo = ALGO_DO_FLAC | ALGO_DO_BZ;
 	array = nullptr;
 	flac = nullptr;
+	float_mode = false;
+	dataful = false;
 }
 
 G3SuperTimestream::~G3SuperTimestream()
@@ -584,6 +650,31 @@ void safe_set_data(G3SuperTimestream &self, const bp::object object_in)
 		throw g3supertimestream_exception("Bad shape[1].");
 	}
 
+	bool is_floaty = false;
+	switch(PyArray_TYPE(_array)) {
+	case NPY_FLOAT32:
+	case NPY_FLOAT64:
+		is_floaty = true;
+		break;
+	case NPY_INT32:
+	case NPY_INT64:
+		break;
+	default:
+		Py_XDECREF(ob);
+		throw g3supertimestream_exception("Forbidden dtype.");
+	}
+
+	if (is_floaty) {
+		// quanta has to be set already.
+		if (self.quanta.size() != PyArray_DIMS(_array)[0])
+			throw g3supertimestream_exception(
+				"User must set .quanta before loading float array.");
+	} else {
+		if (self.quanta.size() != 0)
+			throw g3supertimestream_exception(
+				"The .quanta must be empty when loading integer array.");
+	}
+
 	// Clear cached array or compressed data.
 	if (self.array) {
 		Py_XDECREF((PyObject*)self.array);
@@ -594,6 +685,9 @@ void safe_set_data(G3SuperTimestream &self, const bp::object object_in)
 		delete self.flac;
 		self.flac = nullptr;
 	}
+
+	self.dataful = true;
+	self.float_mode = is_floaty;
 
 	self.desc.ndim = PyArray_NDIM(_array);
 	self.desc.type_num = PyArray_TYPE(_array);
@@ -622,6 +716,28 @@ bp::object safe_get_dtype(G3SuperTimestream &self)
 							    PyArray_DESCR(self.array)->typeobj))));
 }
 
+static
+bp::object safe_get_quanta(G3SuperTimestream &self)
+{
+	if (!self.float_mode)
+		return bp::object();
+
+	npy_intp shape[1] = {(npy_intp)self.quanta.size()};
+	auto output = (PyArrayObject *)PyArray_SimpleNew(1, shape, NPY_FLOAT64);
+	memcpy(PyArray_DATA(output), &self.quanta[0], shape[0] * sizeof(self.quanta[0]));
+	return bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(output))));
+}
+
+static
+void safe_set_quanta(G3SuperTimestream &self, std::vector<double> quanta)
+{
+	// Only allowed to set quanta directly if data is not present.
+	if (!self.dataful)
+		self.Calibrate(quanta);
+	else
+		throw g3supertimestream_exception(
+			"The .quanta cannot be set directly once .data is set.  Use .calibrate().");
+}
 
 G3_SPLIT_SERIALIZABLE_CODE(G3SuperTimestream);
 
@@ -640,11 +756,14 @@ PYBINDINGS("so3g")
 			      "Names vector.  Setting this stores a copy, but getting returns a reference.")
 		.add_property("data", &safe_get_data, &safe_set_data,
 			      "Data array.")
+		.add_property("quanta", &safe_get_quanta, &safe_set_quanta,
+			      "Quanta (if float mode).")
 		.add_property("dtype", &safe_get_dtype, "Numpy dtype of underlying array.")
 		.def("encode", &G3SuperTimestream::Encode, "Compress.")
 		.def("decode", &G3SuperTimestream::Decode, "De-compress.")
+		.def("calibrate", &G3SuperTimestream::Calibrate, "Apply scale factor (float mode).")
 		.def("options", &G3SuperTimestream::Options,
-		     (bp::arg("data_algo")=-1, bp::arg("times_algo")=-1, bp::arg("precision")=-1.),
+		     (bp::arg("data_algo")=-1, bp::arg("times_algo")=-1),
 		     "Get/set compression options.")
 		;
 	register_pointer_conversions<G3SuperTimestream>();
