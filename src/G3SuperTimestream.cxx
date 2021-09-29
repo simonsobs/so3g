@@ -33,6 +33,7 @@ std::string get_bz2_error_string(int err) {
 		break;
 	case BZ_OK:
 		s << "BZ_OK (no problem)";
+		break;
 	default:
 		s << "Unknown error code " << err;
 	}
@@ -739,6 +740,56 @@ void safe_set_quanta(G3SuperTimestream &self, std::vector<double> quanta)
 			"The .quanta cannot be set directly once .data is set.  Use .calibrate().");
 }
 
+//Copies data out of a flat buffer, creating the numpy array along the way.
+bool G3SuperTimestream::SetDataFromBuffer(void* buf, int ndim, int shape[], int typenum,
+					 std::pair<int,int> sample_range)
+{
+	if (ndim != 2)
+		throw g3supertimestream_exception(
+			"2d arrays only please");
+
+	// Create a new numpy array for this, allowing for slice in
+	// second dimension..
+	int n_samps = sample_range.second - sample_range.first;
+	npy_intp shape_[2] = {shape[0], n_samps};
+	auto array_ = (PyArrayObject*)PyArray_EMPTY(ndim, shape_, typenum, 0);
+	bp::object array_ob =
+		bp::object(bp::handle<>((reinterpret_cast<PyObject*>(array_))));
+
+	for (int i=0; i<shape[0]; i++) {
+		memcpy((char*)PyArray_DATA(array_) + PyArray_STRIDES(array_)[0] * i,
+		       (char*)buf + (sample_range.first + shape[1] * i) * PyArray_ITEMSIZE(array_),
+		       PyArray_STRIDES(array_)[1] * n_samps);
+	}
+
+	safe_set_data(*this, array_ob);
+	return true;
+}
+
+
+// Assist with testing the pure C++ interface
+static
+G3SuperTimestreamPtr test_cxx_interface(int nsamps, int first, int second)
+{
+	int shape[2] = {3, nsamps};
+	int typenum = NPY_INT32;
+	void *buf = calloc(shape[0] * shape[1], sizeof(int32_t));
+
+	auto ts = G3SuperTimestreamPtr(new G3SuperTimestream());
+	const char *chans[] = {"a", "b", "c"};
+	ts->names = G3VectorString(chans, std::end(chans));
+	ts->times = G3VectorTime();
+	for (int i=first; i<second; i++) {
+		ts->times.push_back(G3Time::Now());
+		((int32_t *)buf)[i] = 77;
+	}
+	ts->SetDataFromBuffer(buf, 2, shape, typenum, std::pair<int,int>(first, second));
+
+	free(buf);
+	return ts;
+}
+
+
 G3_SPLIT_SERIALIZABLE_CODE(G3SuperTimestream);
 
 static void translate_ValueError(g3supertimestream_exception const& e)
@@ -769,4 +820,5 @@ PYBINDINGS("so3g")
 	register_pointer_conversions<G3SuperTimestream>();
 
 	bp::register_exception_translator<g3supertimestream_exception>(&translate_ValueError);
+	bp::def("test_g3super", test_cxx_interface);
 }

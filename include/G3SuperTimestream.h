@@ -19,8 +19,16 @@ public:
 	G3SuperTimestream();
 	~G3SuperTimestream();
 
-	G3VectorTime times;
-	G3VectorString names;
+	// This object contains pointers to memory that it
+	// allocated... and they're freed on destruction.  The
+	// responsible thing to do in such circumstances is to delete
+	// or modify the move and copy constructors.  But if we do
+	// that, boost python complains about something.  In G3 you
+	// avoid move/copy by wrapping all instances in a G3xxxPtr,
+	// and essentially pass the object around by reference, so
+	// that's what we'll do.  But beware, there's nothing
+	// preventing you from returning G3SuperTimestream directly
+	// from a function (except the inevitable segfault).
 
 	string Description() const;
 	string Summary() const;
@@ -29,6 +37,11 @@ public:
 	bool Decode();
 	void Calibrate(vector<double> rescale);
 	int Options(int data_algo=-1, int times_algo=-1);
+
+	// Interface for C++...
+	bool SetDataFromBuffer(void* buf, int ndim, int shape[], int typenum,
+			       std::pair<int,int> sample_range);
+
 
 	template <class A> void load(A &ar, unsigned v);
 	template <class A> void save(A &ar, unsigned v) const;
@@ -57,6 +70,9 @@ public:
 		int8_t times_algo;
 		int8_t data_algo;
 	} options;
+
+	G3VectorTime times;
+	G3VectorString names;
 
 	bool float_mode;
 	bool dataful;

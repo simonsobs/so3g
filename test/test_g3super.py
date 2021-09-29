@@ -142,6 +142,13 @@ class TestSuperTimestream(unittest.TestCase):
             np.testing.assert_allclose(d1, ts.data, atol=precision*1e-3,
                                        err_msg=err_msg)
 
+    def test_30_cpp_interface(self):
+        # This is a very basic smoke test.
+        ts = so3g.test_g3super(1000, 10, 20)
+        self.assertEqual(ts.data.shape, (3, 10))
+        self.assertTrue(np.all(ts.data[0] == 77.))
+        self.assertTrue(np.all(ts.data[1:] == 0.))
+
     def test_40_encoding_serialized(self):
         test_file = 'test_g3super.g3'
         offsets = {
@@ -255,11 +262,14 @@ class TestSuperTimestream(unittest.TestCase):
         np.testing.assert_array_equal(np.array(ts1.names), np.array(ts2.names))
 
 
-def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True, dtype='int32'):
+def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True, dtype='int32',
+                             reuse=False):
     """Memory leak loop ... not intended for automated testing!  Pass in
     dtype='int32+' or 'int64+' to trigger float_mode promotoion.
 
     """
+    ts = None
+    promotion = False
     if dtype[-1] == '+':
         promotion = True
         dtype = dtype[:-1]
@@ -267,12 +277,15 @@ def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True, dtype=
     tick_time = .5
     next_tick = time.time()
     while True:
-        d = time.time() - next_tick
-        if d < 0:
+        d = next_tick - time.time()
+        if d > 0:
             time.sleep(d)
         next_tick += tick_time
         print(' ... tick.')
-        ts = helper._get_ts(100, int(10000 * MB_per_second * tick_time / 4), dtype=dtype)
+        if ts is None or not reuse:
+            ts = helper._get_ts(100, int(10000 * MB_per_second * tick_time / 4), dtype=dtype)
+        else:
+            ts.data = ts.data.copy()
         if promotion:
             ts.calibrate([1.] * len(ts.data))
         if encode:

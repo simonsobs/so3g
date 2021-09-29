@@ -168,6 +168,50 @@ Equivalently for float64 the precision is :math:`2^{-52}` (2.2e-16)
 times magnitude, so with a precision of 0.001 we have dynamic range of
 about -4.5e12 to +4.5e12.
 
+Working in C++
+``````````````
+
+If you need to construct many instances of G3SuperTimestream from
+within C++, the method ``SetDataFromBuffer`` might be useful.  It will
+copy data into a new numpy array from a C-ordered memory block,
+allowing the caller to re-use the memory block.  A rough example is
+presented below; see also the implementation of
+``test_cxx_interface()`` in ``G3SuperTimestream.cxx``.
+
+.. code-block:: c
+
+   // Consider int32 array with 3 channels and 1000 samples.
+   int shape[2] = {3, 1000};
+   int typenum = NPY_INT32;
+
+   // Use a flat buffer for storage.
+   void *buf = calloc(shape[0] * shape[1], sizeof(int32_t));
+
+   // ... fill up buf somehow ...
+
+   // Create and manage a new G3SuperTimestream.
+   auto ts = G3SuperTimestreamPtr(new G3SuperTimestream());
+
+   // Set the channel names and timestamps.
+   const char *chans[] = {"a", "b", "c"};
+   ts->names = G3VectorString(chans, std::end(chans));
+   ts->times = G3VectorTime();
+   for (int i=0; i<n_samps; i++)
+     ts->times.push_back(G3Time::Now());
+
+   // Set compression options?
+   // ts->Options(data_algo=0);
+
+   // Set ts->data, by copying data from our buffer.
+   ts->SetDataFromBuffer(buf, 2, shape, typenum, std::pair<int,int>(0, shape[1]));
+
+   // Do something with ts...
+   // writer->Process(ts);
+
+   // Free what we allocated.
+   free(buf);
+  }
+
 
 Interface autodoc
 `````````````````
