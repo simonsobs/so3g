@@ -711,10 +711,15 @@ bp::object safe_get_data(G3SuperTimestream &self)
 static
 bp::object safe_get_dtype(G3SuperTimestream &self)
 {
-	if (self.array == nullptr)
-		return bp::object(); // not good enough...
-	return bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(
-							    PyArray_DESCR(self.array)->typeobj))));
+	PyObject *d;
+	if (self.array == nullptr) {
+		d = reinterpret_cast<PyObject*>(
+			PyArray_DescrFromType(self.desc.type_num));
+	} else {
+		d = reinterpret_cast<PyObject*>(PyArray_DESCR(self.array));
+		Py_XINCREF(d);
+	}
+	return bp::object(bp::handle<>(d));
 }
 
 static

@@ -15,10 +15,14 @@ class TestSuperTimestream(unittest.TestCase):
 
     def test_00_dtypes(self):
         for dtype in ALL_DTYPES:
+            np_dtype = np.dtype(dtype)
             ts = self._get_ts(4, 100, sigma=0, dtype=dtype)
+            assert(ts.data.dtype is np_dtype)
             ts.encode()
+            assert(ts.dtype is np_dtype)
             ts.decode()
-            assert(ts.data.dtype is np.dtype(dtype))
+            assert(ts.data.dtype is np_dtype)
+            assert(ts.dtype is np_dtype)
 
     def test_01_consistency(self):
         """Test that concordance of (times, names, data) is enforced."""
