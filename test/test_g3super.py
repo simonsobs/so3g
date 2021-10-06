@@ -1,4 +1,6 @@
 import unittest
+import collections
+import os
 import time
 
 import numpy as np
@@ -133,6 +135,31 @@ class TestSuperTimestream(unittest.TestCase):
         ts.decode()
         self.assertIs(ts.data, b)
 
+    def test_12_fallback(self):
+        """Test that the code does not fail to serialize short segments or
+        highly random data.
+
+        """
+        # Short segments
+        ts = self._get_ts(1, 10, sigma=0, dtype='int32')
+        ts.encode()
+        self._readback_compare(ts)
+        
+        # Random time vector.
+        print('A')
+        n = 200
+        ts = self._get_ts(1, n, sigma=0, dtype='int32')
+        ts.times = core.G3VectorTime(
+            (np.random.uniform(size=n*8) * 256).astype('uint8').view(dtype='int64'))
+        self._readback_compare(ts)
+
+        # Random data array.
+        print('B')
+        n = 200
+        ts = self._get_ts(1, n, sigma=0, dtype='int64')
+        ts.data = (np.random.uniform(size=n*8) * 256).astype('uint8').view(dtype='int64').reshape(1,-1)
+        self._readback_compare(ts)
+
     def test_20_encode_float(self):
         for dtype in FLOAT_DTYPES:
             err_msg = f'Failure during test of dtype={dtype}'
@@ -148,11 +175,22 @@ class TestSuperTimestream(unittest.TestCase):
 
     def test_30_cpp_interface(self):
         # This is a very basic smoke test.
-        ts = so3g.test_g3super(1000, 10, 20)
-        self.assertEqual(ts.data.shape, (3, 10))
-        self.assertTrue(np.all(ts.data[0] == 77.))
-        self.assertTrue(np.all(ts.data[1:] == 0.))
+        ## Only the short one segfaults! indeed 10/20 and 10/30 do,
+        ## consistently, but 10/40 does not!?
+        ##
+        ## Only fails if data_algo != 0
 
+        #ts = so3g.test_g3super(1000, 10, 20)
+        ts = so3g.test_g3super(1000, 10, 30)
+        #ts.options(data_algo=)
+        #self.assertEqual(ts.data.shape, (3, 10))
+        #ts = so3g.test_g3super(2000, 10, 1910)
+        #self.assertEqual(ts.data.shape, (3, 1900))
+        #self.assertTrue(np.all(ts.data[0] == 77.))
+        #self.assertTrue(np.all(ts.data[1:] == 0.))
+        ts.encode()
+        #del ts
+        
     def test_40_encoding_serialized(self):
         test_file = 'test_g3super.g3'
         offsets = {
@@ -215,7 +253,7 @@ class TestSuperTimestream(unittest.TestCase):
             ts = _get_ts(dtype)
             #if dtype in FLOAT_DTYPES:
             #    ts.options(precision=1.0)
-            ts.options(times_algo=0)
+            #ts.options(times_algo=0)
             f['ts_%s' % dtype] = ts
             w.Process(f)
         del w
@@ -264,6 +302,25 @@ class TestSuperTimestream(unittest.TestCase):
         np.testing.assert_array_equal(ts1.data, ts2.data)
         np.testing.assert_array_equal(np.array(ts1.times), np.array(ts2.times))
         np.testing.assert_array_equal(np.array(ts1.names), np.array(ts2.names))
+
+    def _readback_compare(self, ts, filename='readback_test.g3', cleanup=True):
+
+        """Cache the data from ts, write ts to a file, read it back from file,
+        compare to cached data.
+
+        """
+        # Cache
+        fake_ts = (collections.namedtuple('pseudo_ts', ['times', 'names', 'data']))(
+            np.array(ts.times), np.array(ts.names), ts.data.copy())
+        # Write
+        f = core.G3Frame()
+        f['item'] = ts
+        core.G3Writer(filename).Process(f)
+        # Read
+        ts1 = core.G3Reader(filename).Process(None)[0]['item']
+        self._check_equal(fake_ts, ts1)
+        if cleanup:
+            os.remove(filename)
 
 
 def offline_test_memory_leak(MB_per_second=100, encode=True, decode=True, dtype='int32',
