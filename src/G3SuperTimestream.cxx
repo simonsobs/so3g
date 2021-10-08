@@ -323,7 +323,6 @@ template <class A> void G3SuperTimestream::load(A &ar, unsigned v)
 
 	ar & make_nvp("data_algo", options.data_algo);
 	if (options.data_algo == ALGO_NONE) {
-		assert(PyArray_EquivByteorders(NPY_NATIVE, NPY_LITTLE)); // Check it's not 1997
 		array = (PyArrayObject*)
 			PyArray_SimpleNew(desc.ndim, desc.shape, desc.type_num);
 		ar & make_nvp("data_raw", binary_data((char*)PyArray_DATA(array),
@@ -386,11 +385,14 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 
 	ar & make_nvp("data_algo", options.data_algo);
 	if (options.data_algo == ALGO_NONE) {
-		assert(array != nullptr);
+		if (array == nullptr)
+			throw g3supertimestream_exception(
+				"Unexpected state: array is NULL.");
 		// Check the endianness
-		auto this_descr = PyArray_DESCR(array);
-		assert(PyArray_EquivByteorders(this_descr.byte_order, NPY_LITTLE));
-
+		//auto this_descr = PyArray_DESCR(array);
+		if (!PyArray_EquivByteorders(PyArray_DESCR(array)->byteorder, NPY_LITTLE))
+			throw g3supertimestream_exception(
+				"The byte_order of the data array is not acceptable.");
 		// Might as well use numpy to repack it properly...
 		PyArrayObject *contig = PyArray_GETCONTIGUOUS(array);
 		ar & make_nvp("data_raw", binary_data((char*)PyArray_DATA(contig),
@@ -521,7 +523,9 @@ bool G3SuperTimestream::Decode()
 	if (flac == nullptr)
 		return false;
 
-	assert (options.data_algo != 0);
+	if (options.data_algo == ALGO_NONE)
+		throw g3supertimestream_exception(
+			"Decode called with flac buffer but data_algo=0.");
 
 	FLAC__StreamDecoder *decoder = nullptr;
 	if (options.data_algo & ALGO_DO_FLAC)
@@ -648,9 +652,11 @@ void _apply_cals(PyArrayObject *array, std::vector<double> cals)
 
 void G3SuperTimestream::Calibrate(std::vector<double> rescale)
 {
+	if (rescale.size() != names.size())
+		throw g3supertimestream_exception(
+			"Rescale vector has unexpected length.");
 	if (float_mode) {
 		// Modification to the calibration.
-		assert(rescale.size() == quanta.size());
 		if (array)
 			_apply_cals(array, rescale);
 		for (int i=0; i<quanta.size(); i++)
@@ -658,7 +664,6 @@ void G3SuperTimestream::Calibrate(std::vector<double> rescale)
 	} else {
 		// Transition to float_mode.  If holding integer
 		// array, convert it.
-		assert(rescale.size() == names.size());
 		if (dataful) {
 			switch(desc.type_num) {
 			case NPY_INT32:
@@ -674,7 +679,9 @@ void G3SuperTimestream::Calibrate(std::vector<double> rescale)
 				auto new_array = (PyArrayObject*)PyArray_FromAny(
 					(PyObject*)array, PyArray_DescrFromType(desc.type_num),
 					0, 0, NPY_ARRAY_FORCECAST, NULL);
-				assert(new_array != nullptr);
+				if (new_array == nullptr)
+					throw g3supertimestream_exception(
+						"Failed to allocate float array.");
 				_apply_cals(new_array, rescale);
 				Py_DECREF(array);
 				array = new_array;
@@ -692,6 +699,9 @@ G3SuperTimestream::G3SuperTimestream() {
 	flac = nullptr;
 	float_mode = false;
 	dataful = false;
+	if (!PyArray_EquivByteorders(NPY_NATIVE, NPY_LITTLE))
+		throw g3supertimestream_exception(
+			"This class hasn't been trained on BIG-endian machines.!");
 }
 
 G3SuperTimestream::~G3SuperTimestream()
@@ -756,6 +766,11 @@ void safe_set_data(G3SuperTimestream &self, const bp::object object_in)
 	if (PyArray_DIMS(_array)[1] != self.times.size()) {
 		Py_XDECREF(ob);
 		throw g3supertimestream_exception("Bad shape[1].");
+	}
+	if (!PyArray_EquivByteorders(PyArray_DESCR(_array)->byteorder, NPY_LITTLE)) {
+		//There are other ways to deal with endianness.
+		Py_XDECREF(ob);
+		throw g3supertimestream_exception("Bad endianness.");
 	}
 
 	bool is_floaty = false;
