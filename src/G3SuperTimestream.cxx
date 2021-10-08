@@ -853,7 +853,7 @@ bp::object safe_get_quanta(G3SuperTimestream &self)
 	npy_intp shape[1] = {(npy_intp)self.quanta.size()};
 	auto output = (PyArrayObject *)PyArray_SimpleNew(1, shape, NPY_FLOAT64);
 	memcpy(PyArray_DATA(output), &self.quanta[0], shape[0] * sizeof(self.quanta[0]));
-	return bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(output))));
+	return bp::object(bp::handle<>(reinterpret_cast<PyObject*>(output)));
 }
 
 static
