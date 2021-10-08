@@ -16,6 +16,7 @@ ALL_DTYPES = INT_DTYPES + FLOAT_DTYPES
 class TestSuperTimestream(unittest.TestCase):
 
     def test_00_dtypes(self):
+        """Test that dtypes supported dtypes are managed properly."""
         for dtype in ALL_DTYPES:
             np_dtype = np.dtype(dtype)
             ts = self._get_ts(4, 100, sigma=0, dtype=dtype)
@@ -26,8 +27,14 @@ class TestSuperTimestream(unittest.TestCase):
             assert(ts.data.dtype is np_dtype)
             assert(ts.dtype is np_dtype)
 
+        # Reject big-endian
+        with self.assertRaises(ValueError):
+            ts = self._get_ts(4, 100, sigma=0, dtype='>i4')
+
     def test_01_consistency(self):
-        """Test that concordance of (times, names, data) is enforced."""
+        """Test that consistency of (times, names, data) shapes is enforced.
+
+        """
         names, times, data = self._get_ts(5, 1000, raw=True)
 
         ts = so3g.G3SuperTimestream()
@@ -107,23 +114,13 @@ class TestSuperTimestream(unittest.TestCase):
         with self.assertRaises(ValueError):
             ts.data = data_int
 
-    def test_10_encode_int(self):
-        for dtype in INT_DTYPES:
-            err_msg = f'Failure during test of dtype={dtype}'
-            ts = self._get_ts(10, 980, dtype=dtype)
-            d1 = ts.data.copy()
-            ts.encode()
-            np.testing.assert_array_equal(d1, ts.data, err_msg=err_msg)
+        # Prevent passing in wrong number of quanta.
+        ts = get_base()
+        with self.assertRaises(ValueError):
+            ts.quanta = cals[:-1]
 
-            # Test with a few offsets...
-            for offset in [2**25, 2**26 / 3., -1.78 * 2**27]:
-                ts = self._get_ts(10, 980)
-                ts.data += int(offset)
-                d1 = ts.data.copy()
-                ts.encode()
-                np.testing.assert_array_equal(d1, ts.data, err_msg=err_msg)
-
-    def test_11_idempotency(self):
+    def test_03_idempotency(self):
+        """Test that re-encode does nothing, re-decode does nothing."""
         ts = self._get_ts(10, 980, dtype='float32')
         a = ts.data
         self.assertIs(ts.data, a)
@@ -135,7 +132,26 @@ class TestSuperTimestream(unittest.TestCase):
         ts.decode()
         self.assertIs(ts.data, b)
 
-    def test_12_fallback(self):
+    def test_10_encode_int(self):
+        """Test encoding and serialization of integer arrays."""
+        for dtype in INT_DTYPES:
+            err_msg = f'Failure during test of dtype={dtype}'
+            ts = self._get_ts(10, 980, dtype=dtype)
+            d1 = ts.data.copy()
+            ts.encode()
+            np.testing.assert_array_equal(d1, ts.data, err_msg=err_msg)
+
+            # Test with a few offsets...
+            for offset in [2**25, 2**26 / 3., -1.78 * 2**27]:
+                err_msg1 = f'{err_msg} with offset={offset}'
+                ts = self._get_ts(10, 980)
+                ts.data += int(offset)
+                d1 = ts.data.copy()
+                ts.encode()
+                np.testing.assert_array_equal(d1, ts.data, err_msg=err_msg1)
+                self._readback_compare(ts, err_msg=err_msg1)
+
+    def test_11_fallback(self):
         """Test that the code does not fail to serialize short segments or
         highly random data.
 
@@ -175,21 +191,19 @@ class TestSuperTimestream(unittest.TestCase):
 
     def test_30_cpp_interface(self):
         # This is a very basic smoke test.
-        ## Only the short one segfaults! indeed 10/20 and 10/30 do,
-        ## consistently, but 10/40 does not!?
-        ##
-        ## Only fails if data_algo != 0
+        ts = so3g.test_g3super(2000, 0, 2000)
+        self.assertEqual(ts.data.shape, (3, 2000))
+        self.assertTrue(np.all(ts.data[0] == 77.))
+        self.assertTrue(np.all(ts.data[1:] == 0.))
+        self._readback_compare(ts)
+        del ts
 
-        #ts = so3g.test_g3super(1000, 10, 20)
-        ts = so3g.test_g3super(1000, 10, 30)
-        #ts.options(data_algo=)
-        #self.assertEqual(ts.data.shape, (3, 10))
-        #ts = so3g.test_g3super(2000, 10, 1910)
-        #self.assertEqual(ts.data.shape, (3, 1900))
-        #self.assertTrue(np.all(ts.data[0] == 77.))
-        #self.assertTrue(np.all(ts.data[1:] == 0.))
-        ts.encode()
-        #del ts
+        ts = so3g.test_g3super(2000, 100, 1800)
+        self.assertEqual(ts.data.shape, (3, 1700))
+        self.assertTrue(np.all(ts.data[0] == 77.))
+        self.assertTrue(np.all(ts.data[1:] == 0.))
+        self._readback_compare(ts)
+        del ts
         
     def test_40_encoding_serialized(self):
         test_file = 'test_g3super.g3'
@@ -298,12 +312,14 @@ class TestSuperTimestream(unittest.TestCase):
         ts.data = data
         return ts
 
-    def _check_equal(self, ts1, ts2):
-        np.testing.assert_array_equal(ts1.data, ts2.data)
-        np.testing.assert_array_equal(np.array(ts1.times), np.array(ts2.times))
-        np.testing.assert_array_equal(np.array(ts1.names), np.array(ts2.names))
+    def _check_equal(self, ts1, ts2, err_msg=''):
+        for key in ['data', 'times', 'names']:
+            np.testing.assert_array_equal(
+                np.asarray(getattr(ts1, key)), np.asarray(getattr(ts2, key)),
+                err_msg='Fields .%s not equal (detail: %s)' % (key, err_msg))
 
-    def _readback_compare(self, ts, filename='readback_test.g3', cleanup=True):
+    def _readback_compare(self, ts, filename='readback_test.g3', cleanup=True,
+                          err_msg='(no detail)'):
 
         """Cache the data from ts, write ts to a file, read it back from file,
         compare to cached data.
@@ -318,7 +334,7 @@ class TestSuperTimestream(unittest.TestCase):
         core.G3Writer(filename).Process(f)
         # Read
         ts1 = core.G3Reader(filename).Process(None)[0]['item']
-        self._check_equal(fake_ts, ts1)
+        self._check_equal(fake_ts, ts1, err_msg=err_msg)
         if cleanup:
             os.remove(filename)
 
