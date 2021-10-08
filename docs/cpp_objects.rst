@@ -128,7 +128,7 @@ assigning a float array to ``.data``::
   # imports
   from spt3g import core
   import so3g
-  import numpy as n
+  import numpy as np
 
   # The data we want to capture
   times = 1680000000 + 0.2 * np.arange(10000)
@@ -140,7 +140,7 @@ assigning a float array to ``.data``::
   ts = so3g.G3SuperTimestream()
   ts.names = names
   ts.times = core.G3VectorTime(times * core.G3Units.s)
-  ts.quanta = 0.01 * np.ones(len(chans))
+  ts.quanta = 0.01 * np.ones(len(names))
   ts.data = data
 
 

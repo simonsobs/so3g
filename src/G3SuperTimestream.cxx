@@ -929,20 +929,21 @@ PYBINDINGS("so3g")
 {
 	EXPORT_FRAMEOBJECT(G3SuperTimestream, init<>(), "G3SuperTimestream()")
 		.add_property("times", &G3SuperTimestream::times, &safe_set_times,
-			      "Times vector.  Setting this stores a copy, but getting returns a reference.")
+			      "Vector of timestamps (G3VectorTime).")
 		.add_property("names", &G3SuperTimestream::names, &safe_set_names,
-			      "Names vector.  Setting this stores a copy, but getting returns a reference.")
+			      "Vector of channel names.")
 		.add_property("data", &safe_get_data, &safe_set_data,
 			      "Data array.")
 		.add_property("quanta", &safe_get_quanta, &safe_set_quanta,
 			      "Quanta (if float mode).")
-		.add_property("dtype", &safe_get_dtype, "Numpy dtype of underlying array.")
+		.add_property("dtype", &safe_get_dtype, "Numpy dtype of enclosed array.")
 		.def("encode", &G3SuperTimestream::Encode, "Compress.")
-		.def("decode", &G3SuperTimestream::Decode, "De-compress.")
-		.def("calibrate", &G3SuperTimestream::Calibrate, "Apply scale factor (float mode).")
+		.def("decode", &G3SuperTimestream::Decode, "Decompress.")
+		.def("calibrate", &G3SuperTimestream::Calibrate,
+                     "Apply scale factor (float mode; modifies quanta and data).")
 		.def("options", &G3SuperTimestream::Options,
 		     (bp::arg("data_algo")=-1, bp::arg("times_algo")=-1),
-		     "Get/set compression options.")
+		     "Set compression options.")
 		;
 	register_pointer_conversions<G3SuperTimestream>();
 
