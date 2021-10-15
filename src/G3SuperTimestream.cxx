@@ -344,6 +344,7 @@ std::string G3SuperTimestream::Summary() const
 
 template <class A> void G3SuperTimestream::load(A &ar, unsigned v)
 {
+	G3_CHECK_VERSION(v);
 	using namespace cereal;
 	ar & make_nvp("parent", base_class<G3FrameObject>(this));
 
