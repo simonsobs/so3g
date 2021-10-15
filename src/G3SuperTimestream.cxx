@@ -61,24 +61,32 @@ std::string get_algo_error_string(std::string var_name, int algo_code)
 // This is only implemented for snap_to and step_at both powers of 2!
 //
 // Let's allow r and x to point to same memory.
+//
+// This will return the number of values that y takes; 0 if there are
+// no data, 1 if it's a constant value (even if that value is 0), or
+// more than 1 for more than 1.
 template <typename T>
 static
 int rebranch(int32_t *y, T *r, T *x, int n_samps, T snap_to, T step_at)
 {
 	T branch = 0;
+        int branch_count = 0;
 	int fails = 0;
 	for (int i=0; i < n_samps; i++) {
 		T new_branch = (x[i] + snap_to / 2) & ~(snap_to - 1);
 		if (new_branch - branch >= step_at ||
-		    new_branch - branch <  -step_at)
+		    new_branch - branch <  -step_at ||
+		    branch_count == 0) {
 			branch = new_branch;
+                        branch_count++;
+                }
 		y[i] = x[i] - branch;
 		// Don't update r until you use x -- they are allowed to overlap.
 		r[i] = branch;
 		if (y[i] < -step_at || y[i] >= step_at)
 			fails++;
 	}
-	return fails;
+	return branch_count;
 }
 
 FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
@@ -137,7 +145,8 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 	//
 	// If algo_code != 0, then the encoded blocks will consist
 	// first of a FLAC block (if algo_code & ALGO_DO_FLAC),
-	// followed by a BZ2 block (if ALGO_DO_BZ).
+	// followed by a BZ2 block (if ALGO_DO_BZ) or a CONST block
+	// (if ALGO_DO_CONST).
 	//
 	// The FLAC block has the format [length] [flac_data].  The
 	// length is an int32_t giving the number of bytes in
@@ -149,10 +158,18 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 	// bz2_data.  The bz2_data is the encoding of n samples of the
 	// full-width data (i.e. n*sizeof(dtype) bytes).
 	//
+	// The CONST block is a single full-width value, [datum].
+	// This value represents an offset to add to the data.
+	//
 	// The FLAC data, if present, decode to int32_t.  The BZ2
-	// data, if present, decode to int32_t or int64_t.  These two
-	// vectors are added together to form the output integer
-	// array.
+	// data, if present, decode to int32_t or int64_t.  The CONST
+	// datum, if present, represents a single int32_t or int64_t.
+	// These two vectors and single offset are added together to
+	// form the output integer array.
+	//
+	// (In practice we will only have one or the other of BZ2 and
+	// CONST blocks.  In the common case that CONST would decode
+	// to 0, it will not be included at all.)
 
 	int n_chans = PyArray_SHAPE(array)[0];
 	int n_samps = PyArray_SHAPE(array)[1];
@@ -188,29 +205,35 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 		int block_start = fb.count++;
 		int block_limit = fb.count + n_samps * itemsize;
 
-		// Below, either FLAC-encode the data into the output
-		// buffer and put residuals for BZ2 into r, or just
-		// copy the data into r and plan to bz2 that.
+		// Oh, the things we'll try.
+		bool try_flac = (data_algo & G3SuperTimestream::ALGO_DO_FLAC);
+		bool try_bz = (data_algo & G3SuperTimestream::ALGO_DO_BZ);
+		bool try_const = false;
+
+		int8_t algo_used = 0;
 		bool ok = true;
-		if (encoder != nullptr) {
+
+		if (try_flac) {
 			int32_t *flac_size = reserve_size_field(&fb);
-			int fails = 0;
+			int branches = 0;
 			if (type_num == NPY_INT32) {
-				fails = rebranch<int32_t>(d, r32, (int32_t*)src, n_samps, M, M/2);
+				branches = rebranch<int32_t>(d, r32, (int32_t*)src, n_samps, M, M/2);
 			} else if (type_num == NPY_INT64) {
-				fails = rebranch<int64_t>(d, r64, (int64_t*)src, n_samps, M, M/2);
+				branches = rebranch<int64_t>(d, r64, (int64_t*)src, n_samps, M, M/2);
 			} else if (type_num == NPY_FLOAT32) {
 				for (int j=0; j < n_samps; j++)
 					r32[j] = roundf(((float*)src)[j] / quanta[i]);
-				fails = rebranch<int32_t>(d, r32, r32, n_samps, M, M/2);
+				branches = rebranch<int32_t>(d, r32, r32, n_samps, M, M/2);
 			} else if (type_num == NPY_FLOAT64) {
 				for (int j=0; j < n_samps; j++)
 					r64[j] = round(((double*)src)[j] / quanta[i]);
-				fails = rebranch<int64_t>(d, r64, r64, n_samps, M, M/2);
+				branches = rebranch<int64_t>(d, r64, r64, n_samps, M, M/2);
 			} else
 				throw g3supertimestream_exception("Invalid array type encountered.");
-			if (fails > 0)
-				throw g3supertimestream_exception("Data fail.");
+			if (branches <= 1) {
+				try_bz = false;
+				try_const = true;
+			}
 
 			FLAC__stream_encoder_set_channels(encoder, 1);
 			FLAC__stream_encoder_set_bits_per_sample(encoder, 24);
@@ -221,6 +244,7 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 			    !FLAC__stream_encoder_finish(encoder))
 				throw g3supertimestream_exception("FLAC encoding fail.");
 			ok = close_size_field(&fb, flac_size);
+			algo_used |= G3SuperTimestream::ALGO_DO_FLAC;
 		} else {
 			memcpy(r, src, n_samps * itemsize);
 			if (type_num == NPY_FLOAT32) {
@@ -232,29 +256,64 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 			}
 		}
 
-		// And the bz2
-		if (data_algo & G3SuperTimestream::ALGO_DO_BZ) {
+		if (ok && try_const) {
+			// Take care in the cute handling of special
+			// case r[0] == 0.  If you naively leave out
+			// the ALGO_DO_CONST bit, and if FLAC
+			// compression was disabled, then you end up
+			// storing algo=0, which the decoder will
+			// interpret as raw format, not zero-byte
+			// ultracompression representing all zeros!
+			int n_copy = 0;
+			switch (type_num) {
+			case NPY_FLOAT32:
+			case NPY_INT32:
+				if (r32[0] != 0 || algo_used == 0)
+					n_copy = sizeof(int32_t);
+				break;
+			case NPY_FLOAT64:
+			case NPY_INT64:
+				if (r64[0] != 0 || algo_used == 0)
+					n_copy = sizeof(int64_t);
+				break;
+			}
+			if (fb.count + n_copy < block_limit) {
+				if (n_copy > 0) {
+					memcpy(fb.buf + fb.count, r, n_copy);
+					fb.count += n_copy;
+					algo_used |= G3SuperTimestream::ALGO_DO_CONST;
+				}
+			} else {
+				ok = false;
+			}
+		}
+		if (ok && try_bz) {
 			int32_t *bz_size = reserve_size_field(&fb);
-			if (fb.count < fb.size) {
-				unsigned int n_write = fb.size - fb.count;
+			algo_used |= G3SuperTimestream::ALGO_DO_BZ;
+			if (fb.count < block_limit) {
+				unsigned int n_write = block_limit - fb.count;
 				int err = BZ2_bzBuffToBuffCompress(
 					fb.buf + fb.count, &n_write, r, n_samps * itemsize,
 					5, SO3G_BZ2_VERBOSITY, 1);
 				if (err == BZ_OUTBUFF_FULL) {
+					// Too long, don't bother.
 					ok = false;
 				} else if (err != BZ_OK) {
 					throw g3supertimestream_exception(get_bz2_error_string(err));
 				} else {
 					fb.count += n_write;
-					ok = ok && close_size_field(&fb, bz_size);
+					ok = close_size_field(&fb, bz_size);
 				}
 			} else
 				ok = false;
 		}
+
 		if (ok && fb.count < block_limit) {
-			fb.buf[block_start] = data_algo;
+			// That went well.
+			fb.buf[block_start] = algo_used;
 		} else {
-			fb.buf[block_start] = G3SuperTimestream::ALGO_NONE;;
+			// Bail out into raw copy.
+			fb.buf[block_start] = G3SuperTimestream::ALGO_NONE;
 			memcpy(fb.buf + block_start + 1, src, n_samps * itemsize);
 			fb.count = block_limit;
 		}
@@ -511,6 +570,15 @@ void expand_branch(struct flac_helper *fh, int n_bytes, int nsamps,
 		delete temp;
 }
 
+template <typename T>
+void broadcast_val(struct flac_helper *fh, int nsamps)
+{
+	T val = *((T*)(fh->src));
+	T *dest = (T*)fh->dest;
+	for (int i=0; i<nsamps; i++)
+		dest[i] += val;
+}
+
 inline int32_t _read_size(struct flac_helper *fh)
 {
 	auto v = *((int32_t*)(fh->src));
@@ -527,17 +595,16 @@ bool G3SuperTimestream::Decode()
 		throw g3supertimestream_exception(
 			"Decode called with flac buffer but data_algo=0.");
 
-	FLAC__StreamDecoder *decoder = nullptr;
-	if (options.data_algo & ALGO_DO_FLAC)
-		decoder = FLAC__stream_decoder_new();
 	array = (PyArrayObject*)
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
 	struct flac_helper helper;
 	helper.quanta = quanta;
 
+	FLAC__StreamDecoder *decoder = nullptr;
 	FLAC__StreamDecoderWriteCallback this_write_callback;
 	void (*expand_func)(struct flac_helper *, int, int, char*) = nullptr;
+	void (*broadcast_func)(struct flac_helper *, int) = nullptr;
 	int elsize = 0;
 
 	switch (desc.type_num) {
@@ -545,12 +612,14 @@ bool G3SuperTimestream::Decode()
 	case NPY_FLOAT32:
 		this_write_callback = &write_callback_int<int32_t>;
 		expand_func = expand_branch<int32_t>;
+		broadcast_func = broadcast_val<int32_t>;
 		elsize = sizeof(int32_t);
 		break;
 	case NPY_INT64:
 	case NPY_FLOAT64:
 		this_write_callback = &write_callback_int<int64_t>;
 		expand_func = expand_branch<int64_t>;
+		broadcast_func = broadcast_val<int64_t>;
 		elsize = sizeof(int64_t);
 		break;
 	default:
@@ -562,33 +631,40 @@ bool G3SuperTimestream::Decode()
 	for (int i=0; i<desc.shape[0]; i++) {
 		char* this_data = (char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0]*i;
 
-		// Check if this det data is compressed ...
+		// Cue up this detector's data and read the algo code.
 		helper.src = flac->buf + flac->offsets[i];
 		int8_t algo = *(helper.src++);
 
-		if (algo) {
-			if ((algo & ALGO_DO_FLAC) && decoder != nullptr) {
-				helper.bytes_remaining = _read_size(&helper);
-				helper.dest = this_data;
-
-				FLAC__stream_decoder_init_stream(
-					decoder, read_callback, NULL, NULL, NULL, NULL,
-					*this_write_callback, NULL, flac_decoder_error_cb,
-					(void*)&helper);
-				FLAC__stream_decoder_process_until_end_of_stream(decoder);
-				FLAC__stream_decoder_finish(decoder);
-			}
-
-			// And bz2 bit
-			if (algo & ALGO_DO_BZ) {
-				helper.bytes_remaining = _read_size(&helper);
-				helper.dest = this_data;
-				expand_func(&helper,
-					    helper.bytes_remaining,
-					    PyArray_SHAPE(array)[1], (char*)temp);
-			}
-		} else {
+		if (algo == ALGO_NONE) {
 			memcpy(this_data, helper.src, PyArray_SHAPE(array)[1] * elsize);
+		}
+		if (algo & ALGO_DO_FLAC) {
+			if (decoder == nullptr)
+				decoder = FLAC__stream_decoder_new();
+			helper.bytes_remaining = _read_size(&helper);
+			helper.dest = this_data;
+
+			FLAC__stream_decoder_init_stream(
+				decoder, read_callback, NULL, NULL, NULL, NULL,
+				*this_write_callback, NULL, flac_decoder_error_cb,
+				(void*)&helper);
+			FLAC__stream_decoder_process_until_end_of_stream(decoder);
+			FLAC__stream_decoder_finish(decoder);
+		}
+
+		// A bz2 field of slow offsets?
+		if (algo & ALGO_DO_BZ) {
+			helper.bytes_remaining = _read_size(&helper);
+			helper.dest = this_data;
+			expand_func(&helper,
+				    helper.bytes_remaining,
+				    PyArray_SHAPE(array)[1], (char*)temp);
+		}
+
+		// Single flat offset?
+		if (algo & ALGO_DO_CONST) {
+			helper.dest = this_data;
+			broadcast_func(&helper, PyArray_SHAPE(array)[1]);
 		}
 
 		// Now convert for precision.

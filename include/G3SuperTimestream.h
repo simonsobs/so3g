@@ -63,7 +63,8 @@ public:
 	enum algos {
 		ALGO_NONE = 0,
 		ALGO_DO_FLAC = (1 << 0),
-		ALGO_DO_BZ = (1 << 1)
+		ALGO_DO_BZ = (1 << 1),
+		ALGO_DO_CONST = (1 << 2)
 	};
 
 	struct {

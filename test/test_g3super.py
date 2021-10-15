@@ -162,7 +162,6 @@ class TestSuperTimestream(unittest.TestCase):
         self._readback_compare(ts)
         
         # Random time vector.
-        print('A')
         n = 200
         ts = self._get_ts(1, n, sigma=0, dtype='int32')
         ts.times = core.G3VectorTime(
@@ -170,7 +169,6 @@ class TestSuperTimestream(unittest.TestCase):
         self._readback_compare(ts)
 
         # Random data array.
-        print('B')
         n = 200
         ts = self._get_ts(1, n, sigma=0, dtype='int64')
         ts.data = (np.random.uniform(size=n*8) * 256).astype('uint8').view(dtype='int64').reshape(1,-1)
