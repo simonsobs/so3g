@@ -8,6 +8,7 @@
 #include <G3SuperTimestream.h>
 #include <cereal/types/utility.hpp>
 
+#include <omp.h>
 #include <FLAC/stream_encoder.h>
 #include <bzlib.h>
 
@@ -498,7 +499,6 @@ struct flac_helper {
 	int bytes_remaining;
 	char *src;
 	char *dest;
-	std::vector<double> quanta;
 };
 
 FLAC__StreamDecoderReadStatus read_callback(
@@ -598,10 +598,6 @@ bool G3SuperTimestream::Decode()
 	array = (PyArrayObject*)
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
-	struct flac_helper helper;
-	helper.quanta = quanta;
-
-	FLAC__StreamDecoder *decoder = nullptr;
 	FLAC__StreamDecoderWriteCallback this_write_callback;
 	void (*expand_func)(struct flac_helper *, int, int, char*) = nullptr;
 	void (*broadcast_func)(struct flac_helper *, int) = nullptr;
@@ -626,8 +622,15 @@ bool G3SuperTimestream::Decode()
 		throw g3supertimestream_exception("Invalid array type encountered.");
 	}
 
-	char temp[PyArray_SHAPE(array)[1] * elsize + 1];
+#pragma omp parallel
+	{
 
+	// Each OMP thread needs its own workspace, FLAC decoder, and helper structure
+	char temp[PyArray_SHAPE(array)[1] * elsize + 1];
+	FLAC__StreamDecoder *decoder = nullptr;
+	struct flac_helper helper;
+
+#pragma omp for
 	for (int i=0; i<desc.shape[0]; i++) {
 		char* this_data = (char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0]*i;
 
@@ -682,6 +685,7 @@ bool G3SuperTimestream::Decode()
 	}
 	if (decoder != nullptr)
 		FLAC__stream_decoder_delete(decoder);
+	} // omp parallel
 
 	// Destroy the flac bundle.
 	delete flac->buf;
