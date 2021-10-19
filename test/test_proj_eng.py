@@ -70,8 +70,8 @@ class TestProjEng(unittest.TestCase):
             assert(np.any(w != 0))
         # Identify active subtiles?
         p = proj.Projectionist.for_tiled(shape, wcs, (20, 20))
-        print(p.pop_list)
-        p2 = p.get_active_tiles(asm)
+        print(p.active_tiles)
+        p2 = p.get_active_tiles(asm, assign=2)
         print(p2)
 
 
