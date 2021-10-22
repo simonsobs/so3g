@@ -810,7 +810,7 @@ G3SuperTimestream::G3SuperTimestream()
 			"This class hasn't been trained on BIG-endian machines.!");
 
 	// Set defaults.
-	Options(1, 5, 30, -1, -1);
+	Options(1, 1, 30, -1, -1);
 }
 
 G3SuperTimestream::~G3SuperTimestream()
