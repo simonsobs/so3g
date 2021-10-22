@@ -254,18 +254,13 @@ class TestSuperTimestream(unittest.TestCase):
             f = core.G3Frame()
             ts = _get_ts(dtype)
             sizes[dtype].append(ts.data.nbytes)
-            #if dtype in FLOAT_DTYPES:
-            #    ts.options(precision=1.0)
-            ts.options(data_algo=0, times_algo=0)
+            ts.options(enable=0)
             f['ts_%s' % dtype] = ts
             w.Process(f)
 
             # Yes compression
             f = core.G3Frame()
             ts = _get_ts(dtype)
-            #if dtype in FLOAT_DTYPES:
-            #    ts.options(precision=1.0)
-            #ts.options(times_algo=0)
             f['ts_%s' % dtype] = ts
             w.Process(f)
         del w

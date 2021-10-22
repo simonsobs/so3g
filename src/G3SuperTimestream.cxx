@@ -16,6 +16,7 @@
 // Debugging variables for compressors.
 // BZ2_VERBOSITY can range from 0 (silent) to 4.
 #define SO3G_BZ2_VERBOSITY 0
+#define SO3G_BZ2_BLOCKSIZE 5
 
 static
 std::string get_bz2_error_string(int err) {
@@ -98,36 +99,37 @@ FLAC__StreamEncoderWriteStatus flac_encoder_write_cb(
 	unsigned current_frame,
 	void *client_data)
 {
-	auto fb = (struct G3SuperTimestream::flac_block *)client_data;
-	if (fb->count + bytes > fb->size)
+	auto ablob = (struct G3SuperTimestream::array_blob *)client_data;
+	if (ablob->count + bytes > ablob->size)
 		return FLAC__STREAM_ENCODER_WRITE_STATUS_FATAL_ERROR;
-	memcpy(fb->buf + fb->count, buffer, bytes);
-	fb->count += bytes;
+	memcpy(ablob->buf + ablob->count, buffer, bytes);
+	ablob->count += bytes;
 	return FLAC__STREAM_ENCODER_WRITE_STATUS_OK;
 }
 
-inline int32_t* reserve_size_field(struct G3SuperTimestream::flac_block *fb)
+inline int32_t* reserve_size_field(struct G3SuperTimestream::array_blob *ablob)
 {
-	if (fb->size - fb->count < sizeof(int32_t))
+	if (ablob->size - ablob->count < sizeof(int32_t))
 		return nullptr;
-	auto p = (int32_t*)(fb->buf + fb->count);
-	fb->count += sizeof(int32_t);
-	*p = fb->count;
+	auto p = (int32_t*)(ablob->buf + ablob->count);
+	ablob->count += sizeof(int32_t);
+	*p = ablob->count;
 	return p;
 }
-inline bool close_size_field(struct G3SuperTimestream::flac_block *fb, int32_t *dest)
+inline bool close_size_field(struct G3SuperTimestream::array_blob *ablob, int32_t *dest)
 {
 	if (dest == NULL)
 		return false;
-	*dest = fb->count - *dest;
+	*dest = ablob->count - *dest;
 	return true;
 }
 
 static
-struct G3SuperTimestream::flac_block encode_flac_bz2(
-	int8_t data_algo, PyArrayObject *array, std::vector<double> quanta)
+struct G3SuperTimestream::array_blob encode_array(
+	PyArrayObject *array, std::vector<double> quanta,
+	G3SuperTimestream::options_type options)
 {
-	struct G3SuperTimestream::flac_block fb;
+	struct G3SuperTimestream::array_blob ablob;
 
 	// We will write (possibly) compressed data for n_det
 	// detectors by n samples into a buffer.  The data block for
@@ -180,10 +182,10 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 	int n_max = PyArray_NBYTES(array) + n_chans;
 
 	// Initialize the buffer.
-	fb.buf = new char[n_max];
-	fb.size = n_max;
-	fb.count = 0;
-	fb.offsets.push_back(0);
+	ablob.buf = new char[n_max];
+	ablob.size = n_max;
+	ablob.count = 0;
+	ablob.offsets.push_back(0);
 
 	int32_t d[n_samps];
 	const int32_t *chan_ptrs[1] = {d};
@@ -195,27 +197,27 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 	npy_intp type_num = PyArray_TYPE(array);
 	char *src = (char*)(PyArray_DATA(array));
 	FLAC__StreamEncoder *encoder = nullptr;
-	if (data_algo & G3SuperTimestream::ALGO_DO_FLAC)
+	if (options.data_algo & G3SuperTimestream::ALGO_DO_FLAC)
 		encoder = FLAC__stream_encoder_new();
 
 	int32_t M = (1 << 24);
 	for (int i=0; i<n_chans; i++, src+=PyArray_STRIDES(array)[0]) {
-		// Save the current fb.buf pointer in case we need to
+		// Save the current ablob.buf pointer in case we need to
 		// roll back the compression, which we will do if we
 		// end up writing to block_limit or beyond.
-		int block_start = fb.count++;
-		int block_limit = fb.count + n_samps * itemsize;
+		int block_start = ablob.count++;
+		int block_limit = ablob.count + n_samps * itemsize;
 
 		// Oh, the things we'll try.
-		bool try_flac = (data_algo & G3SuperTimestream::ALGO_DO_FLAC);
-		bool try_bz = (data_algo & G3SuperTimestream::ALGO_DO_BZ);
+		bool try_flac = (options.data_algo & G3SuperTimestream::ALGO_DO_FLAC);
+		bool try_bz = (options.data_algo & G3SuperTimestream::ALGO_DO_BZ);
 		bool try_const = false;
 
 		int8_t algo_used = 0;
 		bool ok = true;
 
 		if (try_flac) {
-			int32_t *flac_size = reserve_size_field(&fb);
+			int32_t *flac_size = reserve_size_field(&ablob);
 			int branches = 0;
 			if (type_num == NPY_INT32) {
 				branches = rebranch<int32_t>(d, r32, (int32_t*)src, n_samps, M, M/2);
@@ -238,13 +240,13 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 
 			FLAC__stream_encoder_set_channels(encoder, 1);
 			FLAC__stream_encoder_set_bits_per_sample(encoder, 24);
-			FLAC__stream_encoder_set_compression_level(encoder, 1);
+			FLAC__stream_encoder_set_compression_level(encoder, options.flac_level);
 			FLAC__stream_encoder_init_stream(
-				encoder, flac_encoder_write_cb, NULL, NULL, NULL, (void*)(&fb));
+				encoder, flac_encoder_write_cb, NULL, NULL, NULL, (void*)(&ablob));
 			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) || 
 			    !FLAC__stream_encoder_finish(encoder))
 				throw g3supertimestream_exception("FLAC encoding fail.");
-			ok = close_size_field(&fb, flac_size);
+			ok = close_size_field(&ablob, flac_size);
 			algo_used |= G3SuperTimestream::ALGO_DO_FLAC;
 		} else {
 			memcpy(r, src, n_samps * itemsize);
@@ -278,10 +280,10 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 					n_copy = sizeof(int64_t);
 				break;
 			}
-			if (fb.count + n_copy < block_limit) {
+			if (ablob.count + n_copy < block_limit) {
 				if (n_copy > 0) {
-					memcpy(fb.buf + fb.count, r, n_copy);
-					fb.count += n_copy;
+					memcpy(ablob.buf + ablob.count, r, n_copy);
+					ablob.count += n_copy;
 					algo_used |= G3SuperTimestream::ALGO_DO_CONST;
 				}
 			} else {
@@ -289,41 +291,41 @@ struct G3SuperTimestream::flac_block encode_flac_bz2(
 			}
 		}
 		if (ok && try_bz) {
-			int32_t *bz_size = reserve_size_field(&fb);
+			int32_t *bz_size = reserve_size_field(&ablob);
 			algo_used |= G3SuperTimestream::ALGO_DO_BZ;
-			if (fb.count < block_limit) {
-				unsigned int n_write = block_limit - fb.count;
+			if (ablob.count < block_limit) {
+				unsigned int n_write = block_limit - ablob.count;
 				int err = BZ2_bzBuffToBuffCompress(
-					fb.buf + fb.count, &n_write, r, n_samps * itemsize,
-					5, SO3G_BZ2_VERBOSITY, 1);
+					ablob.buf + ablob.count, &n_write, r, n_samps * itemsize,
+					SO3G_BZ2_BLOCKSIZE, SO3G_BZ2_VERBOSITY, options.bz2_workFactor);
 				if (err == BZ_OUTBUFF_FULL) {
 					// Too long, don't bother.
 					ok = false;
 				} else if (err != BZ_OK) {
 					throw g3supertimestream_exception(get_bz2_error_string(err));
 				} else {
-					fb.count += n_write;
-					ok = close_size_field(&fb, bz_size);
+					ablob.count += n_write;
+					ok = close_size_field(&ablob, bz_size);
 				}
 			} else
 				ok = false;
 		}
 
-		if (ok && fb.count < block_limit) {
+		if (ok && ablob.count < block_limit) {
 			// That went well.
-			fb.buf[block_start] = algo_used;
+			ablob.buf[block_start] = algo_used;
 		} else {
 			// Bail out into raw copy.
-			fb.buf[block_start] = G3SuperTimestream::ALGO_NONE;
-			memcpy(fb.buf + block_start + 1, src, n_samps * itemsize);
-			fb.count = block_limit;
+			ablob.buf[block_start] = G3SuperTimestream::ALGO_NONE;
+			memcpy(ablob.buf + block_start + 1, src, n_samps * itemsize);
+			ablob.count = block_limit;
 		}
-		fb.offsets.push_back(fb.count);
+		ablob.offsets.push_back(ablob.count);
 	}
 	if (encoder != nullptr)
 		FLAC__stream_encoder_delete(encoder);
 
-	return fb;
+	return ablob;
 }
 
 
@@ -348,8 +350,11 @@ template <class A> void G3SuperTimestream::load(A &ar, unsigned v)
 	using namespace cereal;
 	ar & make_nvp("parent", base_class<G3FrameObject>(this));
 
-	ar & make_nvp("times_algo", options.times_algo);
+        // Compression options.
+	ar & make_nvp("flac_level", options.flac_level);
+	ar & make_nvp("bz2_workFactor", options.bz2_workFactor);
 
+	ar & make_nvp("times_algo", options.times_algo);
 	if (options.times_algo == ALGO_NONE) {
 		ar & make_nvp("times", times);
 	} else if (options.times_algo == ALGO_DO_BZ) {
@@ -390,12 +395,12 @@ template <class A> void G3SuperTimestream::load(A &ar, unsigned v)
 						      PyArray_NBYTES(array)));
 	} else {
 		// Read the flacblock
-		flac = new struct flac_block;
+		ablob = new struct array_blob;
 		ar & make_nvp("quanta", quanta);
-		ar & make_nvp("offsets", flac->offsets);
-		ar & make_nvp("payload_bytes", flac->count);
-		flac->buf = new char[flac->count];
-		ar & make_nvp("payload", binary_data(flac->buf, flac->count));
+		ar & make_nvp("offsets", ablob->offsets);
+		ar & make_nvp("payload_bytes", ablob->count);
+		ablob->buf = new char[ablob->count];
+		ar & make_nvp("payload", binary_data(ablob->buf, ablob->count));
 	}
 	dataful = true;
 	float_mode = (desc.type_num == NPY_FLOAT32 ||
@@ -406,6 +411,10 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 {
 	using namespace cereal;
 	ar & make_nvp("parent", base_class<G3FrameObject>(this));
+
+        // Compression options.
+	ar & make_nvp("flac_level", options.flac_level);
+	ar & make_nvp("bz2_workFactor", options.bz2_workFactor);
 
 	if (options.times_algo == ALGO_DO_BZ) {
 		// Try to bz2 compress.  Convert to a vector of int64_t first.
@@ -418,7 +427,7 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 
 		int err = BZ2_bzBuffToBuffCompress(
 			buf, &max_bytes, (char*)&time_ints[0], max_bytes,
-			5, SO3G_BZ2_VERBOSITY, 1);
+			SO3G_BZ2_BLOCKSIZE, SO3G_BZ2_VERBOSITY, options.bz2_workFactor);
 		if (err == BZ_OUTBUFF_FULL) {
 			// Fallback to no-compression.
 			ar & make_nvp("times_algo", (int8_t)ALGO_NONE);
@@ -460,22 +469,22 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 						      PyArray_NBYTES(contig)));
 		Py_DECREF((PyObject*)contig);
 	} else {
-		struct flac_block *_flac = flac;
-		if (_flac == nullptr) {
+		struct array_blob *_ablob = ablob;
+		if (_ablob == nullptr) {
 			// Encode to a copy.
-			_flac = new struct flac_block;
-			*_flac = encode_flac_bz2(options.data_algo, array, quanta);
+			_ablob = new struct array_blob;
+			*_ablob = encode_array(array, quanta, options);
 		}
 
-		// Write the flacblock
+		// Write the ablobblock
 		ar & make_nvp("quanta", quanta);
-		ar & make_nvp("offsets", _flac->offsets);
-		ar & make_nvp("payload_bytes", _flac->count);
-		ar & make_nvp("payload", binary_data(_flac->buf, _flac->count));
+		ar & make_nvp("offsets", _ablob->offsets);
+		ar & make_nvp("payload_bytes", _ablob->count);
+		ar & make_nvp("payload", binary_data(_ablob->buf, _ablob->count));
 
-		if (_flac != flac) {
-			delete _flac->buf;
-			delete _flac;
+		if (_ablob != ablob) {
+			delete _ablob->buf;
+			delete _ablob;
 		}
 	}
 }
@@ -488,8 +497,8 @@ bool G3SuperTimestream::Encode() {
 	if (options.data_algo == ALGO_NONE)
 		return false;
 	else {
-		flac = new struct flac_block;
-		*flac = encode_flac_bz2(options.data_algo, array, quanta);
+		ablob = new struct array_blob;
+		*ablob = encode_array(array, quanta, options);
 		Py_XDECREF(array);
 		array = nullptr;
 	}
@@ -589,12 +598,12 @@ inline int32_t _read_size(struct flac_helper *fh)
 
 bool G3SuperTimestream::Decode()
 {
-	if (flac == nullptr)
+	if (ablob == nullptr)
 		return false;
 
 	if (options.data_algo == ALGO_NONE)
 		throw g3supertimestream_exception(
-			"Decode called with flac buffer but data_algo=0.");
+			"Decode called with ablob buffer but data_algo=0.");
 
 	array = (PyArrayObject*)
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
@@ -636,7 +645,7 @@ bool G3SuperTimestream::Decode()
 		char* this_data = (char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0]*i;
 
 		// Cue up this detector's data and read the algo code.
-		helper.src = flac->buf + flac->offsets[i];
+		helper.src = ablob->buf + ablob->offsets[i];
 		int8_t algo = *(helper.src++);
 
 		if (algo == ALGO_NONE) {
@@ -689,19 +698,36 @@ bool G3SuperTimestream::Decode()
 	} // omp parallel
 
 	// Destroy the flac bundle.
-	delete flac->buf;
-	delete flac;
-	flac = nullptr;
+	delete ablob->buf;
+	delete ablob;
+	ablob = nullptr;
 
 	return true;
 }
 
-int G3SuperTimestream::Options(int data_algo, int times_algo)
+int G3SuperTimestream::Options(
+	int enable, int flac_level, int bz2_workFactor,
+	int data_algo, int times_algo)
 {
+	// Global enable / disable first.
+	if (enable == 0) {
+		options.data_algo = 0;
+		options.times_algo = 0;
+	} else if (enable > 0) {
+		options.data_algo = ALGO_DO_FLAC | ALGO_DO_BZ;
+		options.times_algo = ALGO_DO_BZ;
+	}
+
 	if (data_algo >= 0)
 		options.data_algo = data_algo;
 	if (times_algo >= 0)
 		options.times_algo = times_algo;
+
+	if (flac_level >= 0)
+		options.flac_level = flac_level;
+	if (bz2_workFactor >= 0)
+		options.bz2_workFactor = bz2_workFactor;
+
 	return 0;
 }
 
@@ -773,25 +799,27 @@ void G3SuperTimestream::Calibrate(std::vector<double> rescale)
 	}
 }
 
-G3SuperTimestream::G3SuperTimestream() {
-	options.times_algo = ALGO_DO_BZ;
-	options.data_algo = ALGO_DO_FLAC | ALGO_DO_BZ;
+G3SuperTimestream::G3SuperTimestream()
+{
 	array = nullptr;
-	flac = nullptr;
+	ablob = nullptr;
 	float_mode = false;
 	dataful = false;
 	if (!PyArray_EquivByteorders(NPY_NATIVE, NPY_LITTLE))
 		throw g3supertimestream_exception(
 			"This class hasn't been trained on BIG-endian machines.!");
+
+	// Set defaults.
+	Options(1, 5, 30, -1, -1);
 }
 
 G3SuperTimestream::~G3SuperTimestream()
 {
 	if (array != nullptr)
 		Py_XDECREF(array);
-	if (flac != nullptr) {
-		delete flac->buf;
-		delete flac;
+	if (ablob != nullptr) {
+		delete ablob->buf;
+		delete ablob;
 	}
 }
 
@@ -884,10 +912,10 @@ void safe_set_data(G3SuperTimestream &self, const bp::object object_in)
 		Py_XDECREF((PyObject*)self.array);
 		self.array = nullptr;
 	}
-	if (self.flac) {
-		delete self.flac->buf;
-		delete self.flac;
-		self.flac = nullptr;
+	if (self.ablob) {
+		delete self.ablob->buf;
+		delete self.ablob;
+		self.ablob = nullptr;
 	}
 
 	self.dataful = true;
@@ -1023,7 +1051,9 @@ PYBINDINGS("so3g")
 		.def("calibrate", &G3SuperTimestream::Calibrate,
                      "Apply scale factor (float mode; modifies quanta and data).")
 		.def("options", &G3SuperTimestream::Options,
-		     (bp::arg("data_algo")=-1, bp::arg("times_algo")=-1),
+		     (bp::arg("enable")=-1,
+		      bp::arg("flac_level")=-1, bp::arg("bz2_workFactor")=-1,
+		      bp::arg("data_algo")=-1, bp::arg("times_algo")=-1),
 		     "Set compression options.")
 		;
 	register_pointer_conversions<G3SuperTimestream>();

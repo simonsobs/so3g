@@ -36,7 +36,9 @@ public:
 	bool Encode();
 	bool Decode();
 	void Calibrate(vector<double> rescale);
-	int Options(int data_algo=-1, int times_algo=-1);
+	int Options(int enable=-1,
+		    int flac_level=-1, int bz2_workFactor=-1,
+                    int data_algo=-1, int times_algo=-1);
 
 	// Interface for C++...
 	bool SetDataFromBuffer(void* buf, int ndim, int shape[], int typenum,
@@ -53,7 +55,8 @@ public:
 		npy_intp nbytes;
 	};
 
-	struct flac_block {
+	// Container for the compressed data.
+	struct array_blob {
 		int size;
 		char *buf;
 		int count;
@@ -67,9 +70,11 @@ public:
 		ALGO_DO_CONST = (1 << 2)
 	};
 
-	struct {
+	struct options_type {
 		int8_t times_algo;
 		int8_t data_algo;
+		int8_t flac_level;
+		int8_t bz2_workFactor;
 	} options;
 
 	G3VectorTime times;
@@ -81,7 +86,7 @@ public:
 	struct array_desc desc;
 
 	PyArrayObject *array;
-	struct flac_block *flac;
+	struct array_blob *ablob;
 };
 
 // This specialization tells cereal to use G3SuperTimestream::load/save

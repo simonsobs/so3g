@@ -66,23 +66,36 @@ released.  So there may be performance advantages to calling
 ``.encode()`` "manually" before passing your object through to
 consumers that might want to use it in serialized form.
 
-It is possible to tweak the compression algorithm, but this should be
-done with care.  By calling ``.options(data_algo=ALGO)`` you can set
-the internal algorithm to one of the following:
+It is possible to tweak the compression algorithms, through the
+``.options`` method, but this should be done with care.  For
+compression evaluation and basic debugging one probably only wants to
+use the highest level control, which simply enables or disables
+compression::
 
-- ALGO = 0: No compression, just store unmodified binary data.
-- ALGO = 1: Use FLAC only.  This limits the dynamic range of the data
-  to 24 bits and thus is not lossless if your input data exceeds this
-  range.
-- ALGO = 2: Use bzip only.  This is lossless but will not be efficient
-  for "noisy" data.  There might be a use case here for arrays
-  carrying slowly-changing bit-fields.
-- ALGO = 3: Use FLAC+bzip (the default).  This is lossless and should
-  perform well on noisy data.
+  ts.options(enable=0)  # disable compression
+  ts.options(enable=1)  # enable compression with default params
 
-On serialization, the ``.times`` vector is also compressed, using
-bzip.  This can be disabled by passing ``.options(times_algo=0)``.
+Two arguments allow some finer grain control over the FLAC and BZ2
+algorithms and should not cause trouble (other than inefficiency) if
+manipulated by the user:
 
+  ``flac_level``
+    The FLAC compression level, passed through to
+    `FLAC__stream_encoder_set_compression_level`_.  Integer from 0 to
+    8 with higher numbers corresponding to slower but potentially
+    better compression.
+
+  ``bz2_workFactor``
+    The bzip2 workFactor, as described in `BZ2_bzCompressInit`_.  This
+    has something to do with how soon the bz2 algorithm gives up on
+    difficult (highly repetitive) data.
+
+The additional arguments, `data_algo` and `times_algo`, are for
+debugging and should not be messed with lightly.
+
+
+.. _`FLAC__stream_encoder_set_compression_level`: https://xiph.org/flac/api/group__flac__stream__encoder.html#gae49cf32f5256cb47eecd33779493ac85
+.. _`BZ2_bzCompressInit`: https://www.sourceware.org/bzip2/manual/manual.html#bzcompress-init
 
 How to work with float arrays
 `````````````````````````````
@@ -200,7 +213,7 @@ presented below; see also the implementation of
      ts->times.push_back(G3Time::Now());
 
    // Set compression options?
-   // ts->Options(data_algo=0);
+   // ts->Options(encode=0);
 
    // Set ts->data, by copying data from our buffer.
    ts->SetDataFromBuffer(buf, 2, shape, typenum, std::pair<int,int>(0, shape[1]));
