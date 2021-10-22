@@ -184,11 +184,11 @@ about -4.5e12 to +4.5e12.
 Working in C++
 ``````````````
 
-If you need to construct many instances of G3SuperTimestream from
-within C++, the method ``SetDataFromBuffer`` might be useful.  It will
-copy data into a new numpy array from a C-ordered memory block,
-allowing the caller to re-use the memory block.  A rough example is
-presented below; see also the implementation of
+Here find an example of constructing a G3SuperTimestream from within
+C++, using the method ``SetDataFromBuffer`` to pass in a flat memory
+buffer.  It will copy data into a new numpy array from a C-ordered
+memory block, allowing the caller to re-use the memory block.  A rough
+example is presented below; see also the implementation of
 ``test_cxx_interface()`` in ``G3SuperTimestream.cxx``.
 
 .. code-block:: c
@@ -224,6 +224,16 @@ presented below; see also the implementation of
    // Free what we allocated.
    free(buf);
   }
+
+
+.. note::
+   Because ``SetDataFromBuffer`` creates a new Python object (a numpy
+   array), you should be holding the global interpreter lock (GIL)
+   when that function is called, and also when you call Encode() or
+   Decode().  Because G3SuperTimestream (sometimes) holds references
+   to Python objects, using the object in "pure" C++ applications is
+   non-trivial.  But it's possible, and could be made smoother if
+   need be.
 
 
 Interface autodoc
