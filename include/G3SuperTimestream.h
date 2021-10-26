@@ -19,6 +19,12 @@ public:
 	G3SuperTimestream();
 	~G3SuperTimestream();
 
+	G3SuperTimestream(const G3VectorString &names_, const G3VectorTime &times_);
+	G3SuperTimestream(const G3VectorString &names_, const G3VectorTime &times_,
+			  const bp::object &data);
+	G3SuperTimestream(const G3VectorString &names_, const G3VectorTime &times_,
+			  const bp::object &data_, const std::vector<double> &quanta_);
+
 	// This object contains pointers to memory that it
 	// allocated... and they're freed on destruction.  The
 	// responsible thing to do in such circumstances is to delete

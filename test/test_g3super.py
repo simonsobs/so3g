@@ -132,6 +132,36 @@ class TestSuperTimestream(unittest.TestCase):
         ts.decode()
         self.assertIs(ts.data, b)
 
+    def test_04_constructors(self):
+        # Test int arrays ...
+        ts1 = self._get_ts(5, 100, seed=100)
+        names, times, data = self._get_ts(5, 100, seed=100, raw=True)
+        ts2 = so3g.G3SuperTimestream(names, times)
+        ts2.data = data
+        self._check_equal(ts1, ts2)
+        ts3 = so3g.G3SuperTimestream(names, times, data)
+        self._check_equal(ts1, ts3)
+
+        ts4 = so3g.G3SuperTimestream(names, times)
+        with self.assertRaises(ValueError):
+            ts4.data = data[:,:-1]
+
+        with self.assertRaises(ValueError):
+            ts4 = so3g.G3SuperTimestream(names, times, data[:,:-1])
+
+        # Test float arrays ...
+        ts1 = self._get_ts(5, 100, seed=100, dtype='float32')
+        names, times, data = self._get_ts(5, 100, seed=100, dtype='float32', raw=True)
+        quanta = np.ones(len(names))
+        ts2 = so3g.G3SuperTimestream(names, times)
+        ts2.quanta = quanta
+        ts2.data = data
+        self._check_equal(ts1, ts2)
+        ts3 = so3g.G3SuperTimestream(names, times, data, quanta)
+        self._check_equal(ts1, ts3)
+        with self.assertRaises(ValueError):
+            ts4 = so3g.G3SuperTimestream(names, times, data)
+
     def test_10_encode_int(self):
         """Test encoding and serialization of integer arrays."""
         for dtype in INT_DTYPES:

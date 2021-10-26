@@ -25,8 +25,8 @@ over a reduced dynamic and precision range.
 Creating a G3SuperTimestream
 ````````````````````````````
 
-When building a G3SuperTimestream, you must first populate the axis
-information, then load in the data.  Here is an example::
+To construct a G3SuperTimestream, populate the axis information, then
+load in the data.  Here is an example::
 
   # imports
   from spt3g import core
@@ -44,10 +44,16 @@ information, then load in the data.  Here is an example::
   ts.times = core.G3VectorTime(times * core.G3Units.s)
   ts.data = data
 
-
 The object is now complete, and can be serialized.  In the default
 configuration, arrays with int32 or int64 data types will be
 compressed losslessly using a combination of FLAC and bzip.
+
+There are some overloaded constructors, so the last bit can be done as
+a one-liner, i.e.::
+
+  # Creation of a G3SuperTimestream in one line
+  ts = so3g.G3SuperTimestream(
+    names, core.G3VectorTime(times * core.G3Units.s), data)
 
 Controlling Compression
 ```````````````````````
@@ -124,10 +130,8 @@ then apply a calibration factor (one per channel) using
   data = (np.random.normal(size=(len(names), len(times))) * 256).astype('int32')
 
   # Creation of a G3SuperTimestream
-  ts = so3g.G3SuperTimestream()
-  ts.names = names
-  ts.times = core.G3VectorTime(times * core.G3Units.s)
-  ts.data = data
+  ts = so3g.G3SuperTimestream(
+    names, core.G3VectorTime(times * core.G3Units.s), data)
 
   # Calibrate to, like, pW or something.
   pW_per_DAC = [1.23, 1.45, 1.89, 1.56, 1.01]
@@ -150,12 +154,16 @@ assigning a float array to ``.data``::
 
   # Creation of a G3SuperTimestream -- note we must set .quanta before
   # setting .data to a float array.
-  ts = so3g.G3SuperTimestream()
-  ts.names = names
-  ts.times = core.G3VectorTime(times * core.G3Units.s)
+  ts = so3g.G3SuperTimestream(names, core.G3VectorTime(times * core.G3Units.s)
   ts.quanta = 0.01 * np.ones(len(names))
   ts.data = data
 
+Note that the last few lines are equivalent to::
+
+  # Creation of a G3SuperTimestream carrying floats with resolution 0.01
+  ts = so3g.G3SuperTimestream(
+    names, core.G3VectorTime(times * core.G3Units.s),
+    data, 0.01 * np.ones(len(names)))
 
 This object is not suitable for lossless compression of arbitrary
 float32 and float64 arrays.  The operator needs to have some idea of

@@ -823,6 +823,36 @@ G3SuperTimestream::~G3SuperTimestream()
 	}
 }
 
+G3SuperTimestream::G3SuperTimestream(
+	const G3VectorString &names_, const G3VectorTime &times_)
+	: G3SuperTimestream()
+{
+	names = G3VectorString(names_);
+	times = G3VectorTime(times_);
+}
+
+static
+void safe_set_data(G3SuperTimestream &self, const bp::object object_in);
+static
+void safe_set_quanta(G3SuperTimestream &self, std::vector<double> quanta);
+
+G3SuperTimestream::G3SuperTimestream(
+	const G3VectorString &names_, const G3VectorTime &times_,
+	const bp::object &data_)
+	: G3SuperTimestream(names_, times_)
+{
+	safe_set_data(*this, data_);
+}
+
+G3SuperTimestream::G3SuperTimestream(
+	const G3VectorString &names_, const G3VectorTime &times_,
+	const bp::object &data_, const std::vector<double> &quanta_)
+	: G3SuperTimestream(names_, times_)
+{
+	safe_set_quanta(*this, quanta_);
+	safe_set_data(*this, data_);
+}
+
 static
 void safe_set_times(G3SuperTimestream &self, G3VectorTime _times)
 {
@@ -1011,14 +1041,18 @@ G3SuperTimestreamPtr test_cxx_interface(int nsamps, int first, int second)
 	int typenum = NPY_INT32;
 	int32_t buf[shape[0] * shape[1]] = {0};
 
-	auto ts = G3SuperTimestreamPtr(new G3SuperTimestream());
-	const char *chans[] = {"a", "b", "c"};
-	ts->names = G3VectorString(chans, std::end(chans));
-	ts->times = G3VectorTime();
-	for (int i=first; i<second; i++) {
-		ts->times.push_back(G3Time::Now());
+	auto times = G3VectorTime();
+	for (int i=first; i<second; i++)
+		times.push_back(G3Time::Now());
+	const char *chans_[] = {"a", "b", "c"};
+	auto chans = G3VectorString(chans_, std::end(chans_));
+
+	auto ts = G3SuperTimestreamPtr(
+		new G3SuperTimestream(chans, times));
+
+	for (int i=first; i<second; i++)
 		buf[i] = 77;
-	}
+
 	ts->SetDataFromBuffer((void*)buf, 2, shape, typenum,
 			      std::pair<int,int>(first, second));
 
@@ -1036,7 +1070,21 @@ static void translate_ValueError(g3supertimestream_exception const& e)
 
 PYBINDINGS("so3g")
 {
-	EXPORT_FRAMEOBJECT(G3SuperTimestream, init<>(), "G3SuperTimestream()")
+	bp::docstring_options local_docstring_options(true, false);
+
+	EXPORT_FRAMEOBJECT(G3SuperTimestream, init<>(), "G3SuperTimestream()\n\n"
+		"  Construct with names and times uninitialized.")
+		.def(bp::init<const G3VectorString&, const G3VectorTime&>(
+			     "G3SuperTimestream(names, times)\n"
+			     "  Construct with names and times initialized."))
+		.def(bp::init<const G3VectorString&, const G3VectorTime&,
+		     bp::object&>(
+			     "G3SuperTimestream(names, times, data)\n\n"
+			     "  Construct with integer data."))
+		.def(bp::init<const G3VectorString&, const G3VectorTime&,
+		     bp::object&, const std::vector<double>&>(
+			     "G3SuperTimestream(names, times, data, quanta)\n\n"
+			     "  Construct with float data."))
 		.add_property("times", &G3SuperTimestream::times, &safe_set_times,
 			      "Vector of timestamps (G3VectorTime).")
 		.add_property("names", &G3SuperTimestream::names, &safe_set_names,
@@ -1049,7 +1097,9 @@ PYBINDINGS("so3g")
 		.def("encode", &G3SuperTimestream::Encode, "Compress.")
 		.def("decode", &G3SuperTimestream::Decode, "Decompress.")
 		.def("calibrate", &G3SuperTimestream::Calibrate,
-                     "Apply scale factor (float mode; modifies quanta and data).")
+		     "calibrate(cal_factors)\n\n"
+                     "Apply per-channel scale factors.  Note this puts you in float mode\n"
+		     "(if you're not already) and modifies both .quanta and .data.")
 		.def("options", &G3SuperTimestream::Options,
 		     (bp::arg("enable")=-1,
 		      bp::arg("flac_level")=-1, bp::arg("bz2_workFactor")=-1,
