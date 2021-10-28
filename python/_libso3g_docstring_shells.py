@@ -28,7 +28,7 @@
 # No handler for "load_pybindings"
 
 def version():
-  return "0.1.0+86.gd085e7e"
+  return "0.1.0+112.g5c3bd3b"
 # No handler for "useful_info"
 
 # No handler for "greet"
@@ -3184,6 +3184,29 @@ class ProjEng_Precomp_Tiled:
     C++ signature :
         boost::python::api::object to_weight_map(ProjEng_Precomp<Tiled> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+
+class G3SuperTimestream:
+  """G3SuperTimestream()
+
+  Construct with names and times uninitialized."""
+  pass
+  def encode():
+    """Compress."""
+    pass
+  def decode():
+    """Decompress."""
+    pass
+  def calibrate():
+    """calibrate(cal_factors)
+
+Apply per-channel scale factors.  Note this puts you in float mode
+(if you're not already) and modifies both .quanta and .data."""
+    pass
+  def options():
+    """Set compression options."""
+    pass
+
+# No handler for "test_g3super"
 
 # No handler for "test_trig"
 
