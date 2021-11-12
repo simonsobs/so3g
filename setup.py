@@ -17,6 +17,14 @@ from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 from distutils.command.clean import clean
 
+try:
+    from numpy.distutils.ccompiler import CCompiler_compile
+    import distutils.ccompiler
+
+    distutils.ccompiler.CCompiler.compile = CCompiler_compile
+except ImportError:
+    print("Numpy distutils not found, parallel compile not available")
+
 # Absolute path to the directory with this file
 topdir = Path(__file__).resolve().parent
 
@@ -163,7 +171,7 @@ class BuildExt(build_ext):
 
     c_opts = {
         "msvc": ["/EHsc"],
-        "unix": ["-DBOOST_PYTHON_MAX_ARITY=20", "-D__x86_64__=1"],
+        "unix": ["-DBOOST_PYTHON_MAX_ARITY=20"],
     }
 
     if sys.platform.lower() == "darwin":
@@ -185,6 +193,7 @@ class BuildExt(build_ext):
     def build_extensions(self):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
+        pyver = "{}.{}".format(sys.version_info[0], sys.version_info[1])
         linkopts = [
             "-lboost_system",
             "-lboost_iostreams",
@@ -193,6 +202,7 @@ class BuildExt(build_ext):
             "-lboost_regex",
             "-lFLAC",
             "-lnetcdf",
+            # "-lpython{}".format(pyver),
         ]
 
         if ct == "unix":

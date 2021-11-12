@@ -1,17 +1,17 @@
 diff -urN spt3g_software_orig/calibration/python/bolopropertiesutils.py spt3g_software/calibration/python/bolopropertiesutils.py
 --- spt3g_software_orig/calibration/python/bolopropertiesutils.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/calibration/python/bolopropertiesutils.py	2020-12-20 07:02:30.227307972 -0800
++++ spt3g_software/calibration/python/bolopropertiesutils.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,5 +1,5 @@
 -from spt3g.calibration import BolometerProperties
 -from spt3g import core
 +from .libcalibration import BolometerProperties
 +from .. import core
  import math
-
+ 
  __all__ = ['SplitByProperty', 'SplitByBand', 'SplitTimestreamsByBand',
 diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_software/calibration/python/build_cal_frames.py
 --- spt3g_software_orig/calibration/python/build_cal_frames.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/calibration/python/build_cal_frames.py	2020-12-20 07:02:44.754392549 -0800
++++ spt3g_software/calibration/python/build_cal_frames.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,6 +1,6 @@
 -from spt3g import core
 -from spt3g.calibration import BolometerProperties, BolometerPropertiesMap
@@ -20,72 +20,72 @@ diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_softw
 +from .libcalibration import BolometerProperties, BolometerPropertiesMap
 +from .libcalibration import PointingProperties, PointingPropertiesMap
  import numpy, scipy.stats, os, re
-
+ 
  '''
 diff -urN spt3g_software_orig/calibration/python/__init__.py spt3g_software/calibration/python/__init__.py
 --- spt3g_software_orig/calibration/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/calibration/python/__init__.py	2020-12-20 06:44:37.056246118 -0800
++++ spt3g_software/calibration/python/__init__.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,5 +1,5 @@
 -from spt3g.core.load_pybindings import load_pybindings
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libcalibration import *
-
+ 
  from . import build_cal_frames
-
+ 
 diff -urN spt3g_software_orig/calibration/src/python.cxx spt3g_software/calibration/src/python.cxx
 --- spt3g_software_orig/calibration/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/calibration/src/python.cxx	2020-12-20 06:39:27.494383205 -0800
-@@ -2,15 +2,14 @@
-
++++ spt3g_software/calibration/src/python.cxx	2021-02-18 11:09:24.715922687 -0800
+@@ -2,15 +2,15 @@
+ 
  namespace bp = boost::python;
-
+ 
 -BOOST_PYTHON_MODULE(calibration)
 +BOOST_PYTHON_MODULE(libcalibration)
  {
  	// Python bindings dependencies
 -	bp::import("spt3g.core");
 +	bp::import("spt3g.libcore");
-
+ 
  	// Disable noise in doc strings
  	bp::docstring_options docopts(true, true, false);
-
+ 
  	// Python bindings for this module
 -	G3ModuleRegistrator::CallRegistrarsFor("calibration");
 +	G3ModuleRegistrator::CallRegistrarsFor("libcalibration");
  }
--
+ 
 diff -urN spt3g_software_orig/core/python/dataextensions.py spt3g_software/core/python/dataextensions.py
 --- spt3g_software_orig/core/python/dataextensions.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/dataextensions.py	2020-12-20 07:05:25.601722855 -0800
++++ spt3g_software/core/python/dataextensions.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3Bool, G3Int, G3Double, G3String
 +from .libcore import G3Bool, G3Int, G3Double, G3String
-
+ 
  __all__ = []
-
+ 
 diff -urN spt3g_software_orig/core/python/docparser.py spt3g_software/core/python/docparser.py
 --- spt3g_software_orig/core/python/docparser.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/docparser.py	2020-12-20 07:05:34.375499780 -0800
++++ spt3g_software/core/python/docparser.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,5 +1,5 @@
  import sys, inspect, re, textwrap
 -from spt3g.core import G3Module, G3FrameObject
 +from .libcore import G3Module, G3FrameObject
-
+ 
  def format_doc(x, simple=False):
      """
 diff -urN spt3g_software_orig/core/python/frameextensions.py spt3g_software/core/python/frameextensions.py
 --- spt3g_software_orig/core/python/frameextensions.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/frameextensions.py	2020-12-20 07:05:42.941115023 -0800
++++ spt3g_software/core/python/frameextensions.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3Frame, G3FrameType
 +from .libcore import G3Frame, G3FrameType
-
+ 
  @staticmethod
  def str_to_frame_types(types):
 diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/python/g3decorators.py
 --- spt3g_software_orig/core/python/g3decorators.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/g3decorators.py	2020-12-20 07:05:57.023552369 -0800
++++ spt3g_software/core/python/g3decorators.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3FrameType
 +from .libcore import G3FrameType
@@ -94,58 +94,57 @@ diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/py
  import textwrap
 diff -urN spt3g_software_orig/core/python/G3File.py spt3g_software/core/python/G3File.py
 --- spt3g_software_orig/core/python/G3File.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/G3File.py	2020-12-20 07:06:03.724630450 -0800
++++ spt3g_software/core/python/G3File.py	2021-02-18 11:09:24.715922687 -0800
 @@ -1,6 +1,6 @@
 -from spt3g.core import G3Reader
 +from .libcore import G3Reader
-
--class G3File(object):
+ 
+-class G3File(object): 
 +class G3File(object):
  	'''Iterable class for G3 files, as created by G3Writer. Loop through frames by doing something like:
  	f = core.G3File('/path/to/file.g3')
  	for frame in f:
 diff -urN spt3g_software_orig/core/python/G3FileStager.py spt3g_software/core/python/G3FileStager.py
 --- spt3g_software_orig/core/python/G3FileStager.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/G3FileStager.py	2020-12-20 07:06:24.383687572 -0800
-@@ -16,20 +16,20 @@
++++ spt3g_software/core/python/G3FileStager.py	2021-02-18 11:09:24.723922858 -0800
+@@ -16,8 +16,8 @@
  import subprocess
  import re
-
+ 
 -from spt3g.core import G3Reader, G3Writer, G3FrameType
 -from spt3g.core import g3logging as logging
 +from .libcore import G3Reader, G3Writer, G3FrameType
 +from .libcore import g3logging as logging
-
+ 
  class GridFTPStager(object):
      """
-     Provides to subprocess calls to stage files in and out using GridFTP
 diff -urN spt3g_software_orig/core/python/g3logging.py spt3g_software/core/python/g3logging.py
 --- spt3g_software_orig/core/python/g3logging.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/g3logging.py	2020-12-20 07:06:39.397706355 -0800
++++ spt3g_software/core/python/g3logging.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3Logger, G3LogLevel
 +from .libcore import G3Logger, G3LogLevel
  import traceback
  from functools import reduce
-
+ 
 diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python/__init__.py
 --- spt3g_software_orig/core/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/__init__.py	2020-12-20 07:05:12.986913795 -0800
++++ spt3g_software/core/python/__init__.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,7 +1,7 @@
 -from spt3g.core.load_pybindings import load_pybindings
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libcore import *
-
+ 
 -from spt3g.core.g3logging import log_trace, log_debug, log_info, log_notice, log_warn, log_error, log_fatal, set_log_level
 +from .g3logging import log_trace, log_debug, log_info, log_notice, log_warn, log_error, log_fatal, set_log_level
-
+ 
  import atexit
  def fix_logging_crash():
 @@ -11,22 +11,22 @@
  atexit.register(fix_logging_crash)
  del fix_logging_crash
-
+ 
 -from spt3g.core.G3File import G3File
 -from spt3g.core.modconstruct import pipesegment, indexmod, pipesegment_nodoc
 -from spt3g.core.funcconstruct import usefulfunc
@@ -164,7 +163,7 @@ diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python
  	pass
 -from spt3g.core.util import *
 +from .util import *
-
+ 
 -from spt3g.core.docparser import *
 -from spt3g.core.dataextensions import *
 -from spt3g.core.frameextensions import *
@@ -173,7 +172,7 @@ diff -urN spt3g_software_orig/core/python/__init__.py spt3g_software/core/python
 +from .dataextensions import *
 +from .frameextensions import *
 +from .timestreamextensions import *
-
+ 
 -from spt3g.core.g3decorators import cache_frame_data, scan_func_cache_data
 +from .g3decorators import cache_frame_data, scan_func_cache_data
 diff -urN spt3g_software_orig/core/python/load_pybindings.py spt3g_software/core/python/load_pybindings.py
@@ -209,7 +208,7 @@ diff -urN spt3g_software_orig/core/python/load_pybindings.py spt3g_software/core
 -
 diff -urN spt3g_software_orig/core/python/modconstruct.py spt3g_software/core/python/modconstruct.py
 --- spt3g_software_orig/core/python/modconstruct.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/modconstruct.py	2020-12-20 07:17:05.941488674 -0800
++++ spt3g_software/core/python/modconstruct.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,6 +1,6 @@
 -from spt3g.core import G3Module, G3Pipeline, G3PipelineInfo, G3Frame, G3FrameType, G3Time, G3ModuleConfig, log_fatal
 +from .libcore import G3Module, G3Pipeline, G3PipelineInfo, G3Frame, G3FrameType, G3Time, G3ModuleConfig, log_fatal
@@ -220,29 +219,29 @@ diff -urN spt3g_software_orig/core/python/modconstruct.py spt3g_software/core/py
  except ImportError:
      multiproc_avail = False
 @@ -131,7 +131,7 @@
-
+ 
  class _add_pipeline_info(G3Module):
      def __init__(self):
 -        from spt3g import version
 +        from .. import version
          import socket, getpass
-
+ 
          G3Module.__init__(self)
 diff -urN spt3g_software_orig/core/python/multiprocess.py spt3g_software/core/python/multiprocess.py
 --- spt3g_software_orig/core/python/multiprocess.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/multiprocess.py	2020-12-20 07:07:23.947028097 -0800
++++ spt3g_software/core/python/multiprocess.py	2021-02-18 11:09:24.723922858 -0800
 @@ -5,7 +5,7 @@
  from multiprocessing import Process
  import socket, pickle, errno, struct, time
-
+ 
 -from spt3g.core import G3FrameType, G3Frame
 +from .libcore import G3FrameType, G3Frame
-
+ 
  class Subproc(Process):
      '''
 diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software/core/python/timestreamextensions.py
 --- spt3g_software_orig/core/python/timestreamextensions.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/timestreamextensions.py	2020-12-20 07:08:42.846830991 -0800
++++ spt3g_software/core/python/timestreamextensions.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,6 +1,7 @@
  import numpy
 -from spt3g.core import G3Timestream, DoubleVector, G3VectorDouble, G3TimestreamMap, G3Time, usefulfunc
@@ -250,86 +249,525 @@ diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software
 +from .libcore import G3Timestream, DoubleVector, G3VectorDouble, G3TimestreamMap, G3Time,
 +from .funcconstruct import usefulfunc
 +from .libcore import G3Units, log_fatal, log_warn
-
+ 
  __all__ = ['concatenate_timestreams']
-
+ 
 diff -urN spt3g_software_orig/core/python/util.py spt3g_software/core/python/util.py
 --- spt3g_software_orig/core/python/util.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/python/util.py	2020-12-20 07:08:53.050481794 -0800
++++ spt3g_software/core/python/util.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import indexmod, pipesegment, G3FrameType, log_fatal, G3Reader, G3NetworkSender
 +from .libcore import indexmod, pipesegment, G3FrameType, log_fatal, G3Reader, G3NetworkSender
-
+ 
  @indexmod
  def Delete(frame, keys=[], type=None):
 diff -urN spt3g_software_orig/core/src/python.cxx spt3g_software/core/src/python.cxx
 --- spt3g_software_orig/core/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/core/src/python.cxx	2020-12-20 06:57:05.619279197 -0800
++++ spt3g_software/core/src/python.cxx	2021-02-18 11:22:09.518062991 -0800
 @@ -354,7 +354,7 @@
  numpy_vector_infrastructure(std::complex<double>, cxdouble, "Zd");
  numpy_vector_infrastructure(std::complex<float>, cxfloat, "Zf");
-
+ 
 -BOOST_PYTHON_MODULE(core)
 +BOOST_PYTHON_MODULE(libcore)
  {
  	bp::docstring_options docopts(true, true, false);
-
-@@ -568,6 +568,5 @@
+ 
+@@ -567,7 +567,453 @@
+ 	;
  	enum_none_converter::from_python<G3Timestream::TimestreamUnits>();
-
+ 
++	// Lazy registration does not work when we import this with python
++	// rather than manually dlopen'ing it.  Explicitly put registration
++	// here.
++
++	// G3Data.cxx
++	
++	EXPORT_FRAMEOBJECT(G3Bool, init<bool>(), "Serializable boolean type")
++	    .def_readwrite("value", &G3Bool::value)
++	    .def("__nonzero__", &G3Bool::truth)
++	    .def("__bool__", &G3Bool::truth)
++	;
++
++	EXPORT_FRAMEOBJECT(G3Int, init<int64_t>(), "Serializable integer type")
++	    .def_readwrite("value", &G3Int::value)
++	;
++
++	EXPORT_FRAMEOBJECT(G3Double, init<double>(), "Serializable double")
++	    .def_readwrite("value", &G3Double::value)
++	;
++
++	EXPORT_FRAMEOBJECT(G3String, init<std::string>(), "Serializable string")
++	    .def_readwrite("value", &G3String::value)
++	;
++
++	// G3InfiniteSource.cxx
++
++	EXPORT_G3MODULE("core", G3InfiniteSource,
++			(init<optional<G3Frame::FrameType, int> >((arg("type")=G3Frame::None, arg("n")=-1))),
++			"Emits infinite frames, up to an optional maximum number n");
++
++	// G3Map.cxx
++
++	register_g3map<G3MapDouble>("G3MapDouble", "Mapping from strings to "
++	    "floats");
++	register_g3map<G3MapMapDouble>("G3MapMapDouble", "Mapping from strings "
++	    "to maps of strings to floats. For example, "
++	    "m['Det1']['Det2'] = 5.3");
++	register_g3map<G3MapInt>("G3MapInt", "Mapping from strings to ints.");
++	register_g3map<G3MapString>("G3MapString", "Mapping from strings to "
++	    "strings.");
++	register_g3map<G3MapVectorBool>("G3MapVectorBool", "Mapping from "
++	    "strings to arrays of booleans.");
++	register_g3map<G3MapVectorDouble>("G3MapVectorDouble", "Mapping from "
++	    "strings to arrays of floats.");
++	register_g3map<G3MapVectorComplexDouble>("G3MapVectorComplexDouble",
++	    "Mapping from strings to arrays of complex numbers.");
++	register_g3map<G3MapVectorInt>("G3MapVectorInt", "Mapping from "
++	    "strings to arrays of integers.");
++	register_g3map<G3MapVectorString>("G3MapVectorString", "Mapping from "
++	    "strings to lists of strings.");
++	register_g3map<G3MapVectorVectorString>("G3MapVectorVectorString",
++	    "Mapping from strings to lists of lists of strings.");
++	register_g3map<G3MapVectorTime>("G3MapVectorTime", "Mapping from "
++	    "strings to lists of G3 time objects.");
++
++	// Special handling to get the object proxying right
++	register_g3map<G3MapFrameObject, true>("G3MapFrameObject", "Mapping "
++	    "strings to generic frame objects. Can lead to a variety of "
++	    "paradoxes; please avoid general use of this class.");
++
++	// G3MultiFileWriter.cxx
++
++	EXPORT_G3MODULE("core", G3MultiFileWriter, (init<boost::python::object, size_t, optional<boost::python::object> >(args("filename", "size_limit", "divide_on"))),
++    "Writes frames to disk into a sequence of files. Once a file exceeds the number of bytes specified in size_limit, it will start a new file. Files are named based on filename. If passed a string for filename with a printf-style specifier, that specifier will be replaced by a zero-indexed sequence number. For example, outfile-%03u.g3.gz would produce a sequence of files named outfile-000.g3.gz, outfile-001.g3.gz, etc. Alternatively, you can pass a callable that is passed the first frame in the new file and the sequence number and returns a path to the new file. Any frames besides Timepoint and Scan frames have the most recent frame of each type prepended to all new files.\n\n"
++    "More complex behavior can be obtained with the optional divide_on argument. This can be an iterable of frame types (e.g. [core.G3FrameType.Observation]) or a callable. In the iterable case, the presence of any frame with a type in the list will cause the creation of a new file even if the file size threshold has not yet been met. This is useful to create files based on, for example, observation boundaries. For more flexibility, you can also pass a python callable as divide_on. This callable will be passed each frame in turn. If it returns True (or something with positive truth-value), a new file will be started at that frame."
++);
++
++	// G3NetworkSender.cxx
++
++	EXPORT_G3MODULE_AND("core", G3NetworkSender,
++    (init<std::string, int, int>((arg("hostname"), arg("port"),
++      arg("max_queue_size")=0))),
++    "Writes frames to a network socket. If hostname is set to '*', will listen "
++    "on the given port, on all interfaces, instead of connecting to the given "
++    "port on a remote host. In listen mode, metadata frames (Calibration, "
++    "Wiring, etc. -- everything but Scan and Timepoint) will be accumulated "
++    "and the most recent of each will be sent to new clients on connect. Scan "
++    "and Timepoint frames will be broadcasted live to all connected clients. "
++    "If max_queue_size is set to a non-zero value, Scan and Timepoint frames "
++    "may be dropped if more than max_queue_size frames are queued for "
++    "transmission.",
++    .def("Close", &G3NetworkSender::Close));
++
++	// G3PipelineInfo.cxx
++
++	register_map<std::map<std::string, boost::python::object> >(
++	    "StringObjectMap", "Configuration options for a module");
++
++	EXPORT_FRAMEOBJECT(G3ModuleConfig, init<>(), "Stored configuration of a pipeline module or segment")
++	    .def_readwrite("modname", &G3ModuleConfig::modname)
++	    .def_readwrite("instancename", &G3ModuleConfig::instancename)
++	    .def_readwrite("config", &G3ModuleConfig::config)
++	    .def("__repr__", &G3ModuleConfig::Summary)
++	;
++	register_pointer_conversions<G3ModuleConfig>();
++	register_vector_of<G3ModuleConfig>("VectorStringObjectMap");
++
++	EXPORT_FRAMEOBJECT(G3PipelineInfo, init<>(), "Stored configuration of a pipeline, including software version information")
++	    .def_readwrite("vcs_url", &G3PipelineInfo::vcs_url)
++	    .def_readwrite("vcs_branch", &G3PipelineInfo::vcs_branch)
++	    .def_readwrite("vcs_revision", &G3PipelineInfo::vcs_revision)
++	    .def_readwrite("vcs_localdiffs", &G3PipelineInfo::vcs_localdiffs)
++	    .def_readwrite("vcs_versionname", &G3PipelineInfo::vcs_versionname)
++	    .def_readwrite("vcs_fullversion", &G3PipelineInfo::vcs_fullversion)
++	    .def_readwrite("vcs_githash", &G3PipelineInfo::vcs_githash)
++	    .def_readwrite("hostname", &G3PipelineInfo::hostname)
++	    .def_readwrite("user", &G3PipelineInfo::user)
++	    .def_readwrite("modules", &G3PipelineInfo::modules)
++	    .def("__repr__", &G3PipelineInfo_repr)
++	;
++	register_pointer_conversions<G3PipelineInfo>();
++
++	// G3Quat.cxx
++
++	class_<quat>("quat",
++	    "Representation of a quaternion. Data in a,b,c,d.",
++	    init<double, double, double, double>())
++	     .add_property("a", &quat::R_component_1)
++	     .add_property("b", &quat::R_component_2)
++	     .add_property("c", &quat::R_component_3)
++	     .add_property("d", &quat::R_component_4)
++	     .def(~self)
++	     .def(self == self)
++	     .def(self != self)
++	     .def(self + self)
++	     .def(self += self)
++	     .def(self - self)
++	     .def(self -= self)
++	     .def(self * self)
++	     .def(self * double())
++	     .def(double() * self)
++	     .def(self *= self)
++	     .def(self *= double())
++	     .def(pow(self, double()))
++	     .def(pow(self, long()))
++	     .def(self / self)
++	     .def(self / double())
++	     .def(double() / self)
++	     .def(self /= self)
++	     .def(self /= double())
++	     .def("__abs__", _abs)
++	     .def("__str__", quat_str)
++	     .def("__repr__", quat_repr)
++	     .def("dot3", dot3, "Dot product of last three entries")
++	     .def("cross3", cross3, "Cross product of last three entries")
++	;
++	register_vector_of<quat>("QuatVector");
++	object vq =
++	    register_g3vector<quat>("G3VectorQuat",
++	     "List of quaternions. Convertible to a 4xN numpy array. "
++	     "Arithmetic operations on this object are fast and provide "
++	     "results given proper quaternion math rather than "
++	     "element-by-element numpy-ish results.")
++	     .def(~self)
++	     .def(self * double())
++	     .def(double() * self)
++	     .def(self * self)
++	     .def(self * quat())
++	     .def(quat() * self)
++	     .def(self *= double())
++	     .def(self *= quat())
++	     .def(self *= self)
++	     .def(self / double())
++	     .def(double() / self)
++	     .def(self /= double())
++	     .def(self / self)
++	     .def(self /= self)
++	     .def(self / quat())
++	     .def(self /= quat())
++	     .def(quat() / self)
++	     .def(pow(self, double()))
++	     .def(pow(self, int()))
++	     .def("__abs__", _vabs);
++	PyTypeObject *vqclass = (PyTypeObject *)vq.ptr();
++	vectorquat_bufferprocs.bf_getbuffer = G3VectorQuat_getbuffer;
++	vqclass->tp_as_buffer = &vectorquat_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	vqclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++
++	object tq =
++	    class_<G3TimestreamQuat, bases<G3VectorQuat>, G3TimestreamQuatPtr>(
++	      "G3TimestreamQuat",
++	      "Timestream of quaternions. Identical to a G3VectorQuat except "
++	      "for the addition of start and stop times.",
++	      init<>()
++             )
++	     .def("__init__", make_constructor(container_from_object<G3TimestreamQuat>))
++	     .def(boost::python::init<const G3TimestreamQuat &>())
++	     .def_pickle(g3frameobject_picklesuite<G3TimestreamQuat>())
++	     .def(~self)
++	     .def(self * double())
++	     .def(double() * self)
++	     .def(self * G3VectorQuat())
++	     .def(self * quat())
++	     .def(quat() * self)
++	     .def(self *= double())
++	     .def(self *= quat())
++	     .def(self *= G3VectorQuat())
++	     .def(self / double())
++	     .def(double() / self)
++	     .def(self /= double())
++	     .def(self / G3VectorQuat())
++	     .def(self /= G3VectorQuat())
++	     .def(self / quat())
++	     .def(self /= quat())
++	     .def(quat() / self)
++	     .def(pow(self, double()))
++	     .def(pow(self, int()))
++	     .def("__abs__", _vabs)
++	    .def_readwrite("start", &G3TimestreamQuat::start,
++	      "Time of the first sample in the time stream")
++	    .def_readwrite("stop", &G3TimestreamQuat::stop,
++	      "Time of the final sample in the timestream")
++	    .add_property("sample_rate", &G3TimestreamQuat::GetSampleRate,
++	       "Computed sample rate of the timestream.")
++	    .add_property("n_samples", &G3TimestreamQuat_nsamples,
++	      "Number of samples in the timestream. Equivalent to len(ts)")
++	;
++	PyTypeObject *tqclass = (PyTypeObject *)tq.ptr();
++	timestreamquat_bufferprocs.bf_getbuffer = G3VectorQuat_getbuffer;
++	tqclass->tp_as_buffer = &timestreamquat_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	tqclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++
++	scitbx::boost_python::container_conversions::from_python_sequence<G3TimestreamQuat, scitbx::boost_python::container_conversions::variable_capacity_policy>();
++	register_pointer_conversions<G3TimestreamQuat>();
++	implicitly_convertible<G3TimestreamQuatPtr, G3VectorQuatPtr>();
++	implicitly_convertible<G3TimestreamQuatPtr, G3VectorQuatConstPtr>();
++
++	// G3Reader.cxx
++
++	// Instead of EXPORT_G3MODULE since there are two constructors
++	class_<G3Reader, bases<G3Module>, boost::shared_ptr<G3Reader>,
++	    boost::noncopyable>("G3Reader",
++	      "Read frames from disk. Takes either the path to a file to read "
++	      "or an iterable of files to be read in sequence. If "
++	      "n_frames_to_read is greater than zero, will stop after "
++	      "n_frames_to_read frames rather than at the end of the file[s]. "
++              "The timeout parameter can used to enable socket timeout for tcp "
++              "streams, resulting in EOF behavior on expiry; unfortunately this "
++              "cannot be used for polling, you have to close the connection.",
++              init<std::string, int, float>((arg("filename"),
++                arg("n_frames_to_read")=0,arg("timeout")=-1.)))
++                .def(init<std::vector<std::string>, int, float>((arg("filename"), 
++                  arg("n_frames_to_read")=0, arg("timeout")=-1.)))
++		.def_readonly("__g3module__", true)
++	;
++
++	// G3Timesample.cxx
++
++	// This is based on register_g3map macro.
++	bp::class_<G3TimesampleMap, bp::bases<G3FrameObject,
++	    std::map<typename G3TimesampleMap::key_type,
++                     typename G3TimesampleMap::mapped_type> >,
++	    boost::shared_ptr<G3TimesampleMap> >("G3TimesampleMap",
++              "Mapping from string to vectors of data, with an associated "
++              "vector of timestamps.  This object is for storing multiple "
++              "co-sampled vectors with a single set of (irregular) timestamps.")
++	.def(bp::init<const G3TimesampleMap &>())
++	.def(bp::std_map_indexing_suite<G3TimesampleMap, true>())
++	.def("__setitem__", &safe_set_item)
++	.def_pickle(g3frameobject_picklesuite<G3TimesampleMap>())
++	// Extensions for G3TimesampleMap are here:
++	.add_property("times", &G3TimesampleMap::times, &safe_set_times,
++	  "Times vector.  Setting this stores a copy, but getting returns a reference.")
++	.def("check", &G3TimesampleMap::Check, "Check for internal "
++          "consistency.  Raises ValueError if there are problems.")
++	.def("concatenate", &G3TimesampleMap::Concatenate,
++          "Concatenate two compatible G3TimesampleMap.")
++	.def("sort", &G3TimesampleMap::Sort,
++          "Sort all element vectors by time, in-place.")
++	;
++	register_pointer_conversions<G3TimesampleMap>();
++
++	bp::register_exception_translator<g3timesample_exception>(&translate_ValueError);
++
++	// G3TimeStamp.cxx
++
++	EXPORT_FRAMEOBJECT(G3Time, init<>(), "UTC Time")
++	    .def(bp::init<int, int , int , int, int, int>("Create a timestamp object from IRIG B code", bp::args("y", "d", "h", "m", "s", "ss")))
++	    .def(bp::init<std::string>("Create a time object from a string representation. Supported formats are: YYYYMMDD_HHMMSS, YYMMDD_HHMMSS, YYMMDD HH:MM:SS, DD-Mon-YYYY:HH:MM:SS, YYYY-MM-DDTHH:MM:SS[+TZ] (ISO 8601). All can have a fraction of second field after a dot."))
++	    .def("__init__", bp::make_constructor(g3time_from_timestamp, bp::default_call_policies(), (bp::arg("timestamp"))), "Create a G3Time from a numeric timestamp")
++	    .def("GetFileFormatString", &G3Time::GetFileFormatString, "Get a string corresponding to how SPTpol and GCP name files for this time")
++	    .def("isoformat", &G3Time::isoformat, "Return the ISO 8601 formatted timestamp string")
++	    .def("Now", &G3Time::Now, "Return a G3Time object corresponding to the current system time")
++	    .staticmethod("Now")
++	    .def_readwrite("time", &G3Time::time, "Time relative to the UNIX epoch")
++	    .add_property("mjd", &G3Time::GetMJD, &G3Time::SetMJD, "Time in MJD")
++	    .def(bp::self == bp::self)
++	    .def(bp::self != bp::self)
++	    .def(bp::self < bp::self)
++	    .def(bp::self <= bp::self)
++	    .def(bp::self > bp::self)
++	    .def(bp::self >= bp::self)
++	    .def("__add__", &G3Time::operator +)
++	    .def("__add__", &g3time_fadd)
++	    .def("__sub__", &G3Time::operator -)
++	    .def("__sub__", &g3time_fsub)
++	    .def("__float__", &G3Time::operator double)
++	    .def("__int__", &G3Time::operator long)
++	;
++	register_pointer_conversions<G3Time>();
++
++	// G3Timestream.cxx
++	
++	bp::object ts =
++	  EXPORT_FRAMEOBJECT(G3Timestream, init<>(), "Detector timestream. "
++	   "Includes a units field and start and stop times. Can otherwise be "
++	   "treated as a numpy array with a float64 dtype. Conversions to and "
++           "from such arrays (e.g. with numpy.asarray) are fast. Note that a "
++           "numpy array constructed from a timestream will share a memory "
++           "buffer: changes to the array affect the timestream and vice versa. "
++	   "Most binary timestream arithmetic operations (+, -) check that the "
++	   "units and start/stop times are congruent.")
++	    .def("__init__", bp::make_constructor(timestream_from_iterable, bp::default_call_policies(), (bp::arg("data"), bp::arg("units") = G3Timestream::TimestreamUnits::None)), "Create a timestream from a numpy array or other numeric python iterable")
++	    .def("SetFLACCompression", &G3Timestream::SetFLACCompression,
++	      "Pass True to turn on FLAC compression when serialized. "
++	      "FLAC compression only works if the timestream is in units of "
++	      "counts.")
++	    .def_readwrite("units", &G3Timestream::units,
++	      "Units of the data in the timestream, stored as one of the "
++	      "members of core.G3TimestreamUnits.")
++	    .def_readwrite("start", &G3Timestream::start,
++	      "Time of the first sample in the time stream")
++	    .def_readwrite("stop", &G3Timestream::stop,
++	      "Time of the final sample in the timestream")
++	    .add_property("sample_rate", &G3Timestream::GetSampleRate,
++	      "Computed sample rate of the timestream.")
++	    .add_property("n_samples", &G3Timestream_nsamples,
++	      "Number of samples in the timestream. Equivalent to len(ts)")
++	    .def("_assert_congruence", G3Timestream_assert_congruence,
++	      "log_fatal() if units, length, start, or stop times do not match")
++	    .def("_cxxslice", G3Timestream_getslice, "Slice-only __getitem__")
++	    // Operators bound in python through numpy
++	;
++	scitbx::boost_python::container_conversions::from_python_sequence<G3Timestream, scitbx::boost_python::container_conversions::variable_capacity_policy>();
++	register_pointer_conversions<G3Timestream>();
++
++	// Add buffer protocol interface
++	PyTypeObject *tsclass = (PyTypeObject *)ts.ptr();
++	timestream_bufferprocs.bf_getbuffer = G3Timestream_getbuffer;
++	tsclass->tp_as_buffer = &timestream_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	tsclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++
++	bp::object tsm =
++	  EXPORT_FRAMEOBJECT(G3TimestreamMap, init<>(), "Collection of timestreams indexed by logical detector ID")
++	    .def(bp::std_map_indexing_suite<G3TimestreamMap, true>())
++	    .def("CheckAlignment", &G3TimestreamMap::CheckAlignment)
++	    .add_property("start", &G3TimestreamMap::GetStartTime,
++	      &timestream_map_set_start_time,
++	      "Time of the first sample in the time stream")
++	    .add_property("stop", &G3TimestreamMap::GetStopTime,
++	      &timestream_map_set_stop_time,
++	      "Time of the final sample in the time stream")
++	    .add_property("sample_rate", &G3TimestreamMap::GetSampleRate,
++	      "Computed sample rate of the timestream.")
++	    .add_property("n_samples", &G3TimestreamMap::NSamples,
++	      "Number of samples in the timestream. Equivalent to the length "
++	      "of one of the timestreams.")
++	    .add_property("units", &G3TimestreamMap::GetUnits,
++	      "Units of the data in the timestream, stored as one of the "
++	      "members of core.G3TimestreamUnits.")
++	;
++	register_pointer_conversions<G3TimestreamMap>();
++
++	// Add buffer protocol interface
++	PyTypeObject *tsmclass = (PyTypeObject *)tsm.ptr();
++	timestreammap_bufferprocs.bf_getbuffer = G3TimestreamMap_getbuffer;
++	timestreammap_bufferprocs.bf_releasebuffer = G3TimestreamMap_relbuffer;
++	tsmclass->tp_as_buffer = &timestreammap_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	tsmclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++	
++	// G3Vector.cxx
++
++	boost::python::object vecdouble = register_g3vector<double>(
++	    "G3VectorDouble", "Array of floats. Treat as a serializable "
++	    "version of numpy.array(dtype=float64). Can be efficiently cast "
++	    "to and from numpy arrays.");
++	// Add buffer protocol interface
++	PyTypeObject *vdclass = (PyTypeObject *)vecdouble.ptr();
++	vecdouble_bufferprocs.bf_getbuffer = G3VectorDouble_getbuffer;
++	vdclass->tp_as_buffer = &vecdouble_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	vdclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++	boost::python::object veccomplexdouble =
++	   register_g3vector<std::complex<double> >(
++	    "G3VectorComplexDouble", "Array of complex floats. Treat as a serializable "
++	    "version of numpy.array(dtype=complex128). Can be efficiently cast "
++	    "to and from numpy arrays.");
++	// Add buffer protocol interface
++	PyTypeObject *vcclass = (PyTypeObject *)veccomplexdouble.ptr();
++	veccomplexdouble_bufferprocs.bf_getbuffer =
++	    G3VectorComplexDouble_getbuffer;
++	vcclass->tp_as_buffer = &veccomplexdouble_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	vcclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++
++	boost::python::object vecint = register_g3vector<int64_t>("G3VectorInt",
++	    "Array of integers. Treat as a serializable version of "
++	    "numpy.array(dtype=int64). Can be efficiently cast to and from "
++	    "numpy arrays.");
++	// Add buffer protocol interface
++	PyTypeObject *viclass = (PyTypeObject *)vecint.ptr();
++	vecint_bufferprocs.bf_getbuffer = G3VectorInt_getbuffer,
++	viclass->tp_as_buffer = &vecint_bufferprocs;
++#if PY_MAJOR_VERSION < 3
++	viclass->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;
++#endif
++
++	register_g3vector<bool>("G3VectorBool", "List of booleans.");
++	register_g3vector<std::string>("G3VectorString", "List of strings.");
++	register_vector_of<G3VectorString>("VectorG3VectorString");
++	register_g3vector<G3VectorString>("G3VectorVectorString", "List of "
++	    "lists of strings.");
++	register_g3vector<G3FrameObjectPtr>("G3VectorFrameObject", "List of "
++	    "generic frame objects. Can lead to paradoxes; avoid use of this "
++	    "class unless you are sure you need it.");
++	register_g3vector<uint8_t>("G3VectorUnsignedChar", "List of 8-bit "
++	    "integers");
++	register_g3vector<G3Time>("G3VectorTime", "List of times.");
++
++	// G3Writer.cxx
++	
++	// Instead of EXPORT_G3MODULE since there is an extra Flush function
++	class_<G3Writer, bases<G3Module>, boost::shared_ptr<G3Writer>,
++	    boost::noncopyable>("G3Writer",
++	      "Writes frames to disk. Frames will be written to the file specified by "
++	      "filename. If filename ends in .gz, output will be compressed using gzip. "
++	      "To write only some types of frames, pass a list of the desired frame "
++	      "types to the second optional argument (streams). If no streams argument "
++	      "is given, writes all types of frames. If append is set to True, will "
++	      "append frames to its output file rather than overwriting it.",
++        init<std::string, std::vector<G3Frame::FrameType>, bool>((arg("filename"),
++	    arg("streams")=std::vector<G3Frame::FrameType>(), arg("append")=false)))
++        .def("Flush", &G3Writer::Flush)
++        .def_readonly("__g3module__", true)
++	;
++	
  	// Do everything else
 -	G3ModuleRegistrator::CallRegistrarsFor("core");
-+	G3ModuleRegistrator::CallRegistrarsFor("libcore");
++	//G3ModuleRegistrator::CallRegistrarsFor("libcore");
  }
--
+ 
 diff -urN spt3g_software_orig/dfmux/python/DataQualityTools.py spt3g_software/dfmux/python/DataQualityTools.py
 --- spt3g_software_orig/dfmux/python/DataQualityTools.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/DataQualityTools.py	2020-12-20 07:00:09.840263448 -0800
++++ spt3g_software/dfmux/python/DataQualityTools.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,5 +1,5 @@
 -from spt3g import core
 -from spt3g.dfmux import DfMuxMetaSample
 +from .. import core
 +from .libdfmux import DfMuxMetaSample
  import numpy as np
-
+ 
  def get_empty_timepoint(sample_time):
 diff -urN spt3g_software_orig/dfmux/python/HardwareMapTools.py spt3g_software/dfmux/python/HardwareMapTools.py
 --- spt3g_software_orig/dfmux/python/HardwareMapTools.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/HardwareMapTools.py	2020-12-20 07:11:04.055447506 -0800
++++ spt3g_software/dfmux/python/HardwareMapTools.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,5 +1,5 @@
 -from spt3g import core
 -from spt3g.dfmux import DfMuxWiringMap, DfMuxChannelMapping
 +from .. import core
 +from .libdfmux import DfMuxWiringMap, DfMuxChannelMapping
  import struct, socket
-
+ 
  '''
-@@ -114,14 +114,14 @@
-     '''
-     Insert a calibration frame following any wiring frame containing a
-     BolometerPropertiesMap named "NominalBolometerProperties" that has
--    the properties of each bolometer as defined by the given pydfmux
-+    the properties of each bolometer as defined by the given pydfmux
-     hardware map.
-     '''
-
+@@ -121,7 +121,7 @@
      if frame.type != core.G3FrameType.Wiring:
          return
-
+ 
 -    from spt3g import calibration
 +    from .. import calibration
      from pydfmux.core import dfmux as pydfmux
-
+ 
      cal = core.G3Frame(core.G3FrameType.Calibration)
 diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/python/Housekeeping.py
 --- spt3g_software_orig/dfmux/python/Housekeeping.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/Housekeeping.py	2020-12-20 07:00:45.862730247 -0800
++++ spt3g_software/dfmux/python/Housekeeping.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,7 +1,7 @@
 -from spt3g import core
 -from spt3g.dfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
 +from .. import core
 +from .libdfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
-
+ 
 -from spt3g.dfmux.IceboardConversions import convert_TF
 +from .libdfmux.IceboardConversions import convert_TF
  from .TuberClient import TuberClient
@@ -337,18 +775,18 @@ diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/
  import numpy
 diff -urN spt3g_software_orig/dfmux/python/__init__.py spt3g_software/dfmux/python/__init__.py
 --- spt3g_software_orig/dfmux/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/__init__.py	2020-12-20 06:43:13.644237875 -0800
++++ spt3g_software/dfmux/python/__init__.py	2021-02-18 11:09:24.723922858 -0800
 @@ -1,5 +1,5 @@
 -from spt3g.core.load_pybindings import load_pybindings
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libdfmux import *
-
+ 
  from .HardwareMapTools import (
      GenerateFakeHardwareMap,
 diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/dfmux/python/LegacyHousekeeping.py
 --- spt3g_software_orig/dfmux/python/LegacyHousekeeping.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/LegacyHousekeeping.py	2020-12-20 07:01:19.039280546 -0800
++++ spt3g_software/dfmux/python/LegacyHousekeeping.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,5 +1,5 @@
 -from spt3g import core
 -from spt3g.dfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo
@@ -356,105 +794,107 @@ diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/
 +from .libdfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo
  from .TuberClient import TuberClient
  import socket, struct, time
-
+ 
 diff -urN spt3g_software_orig/dfmux/python/ScanTools.py spt3g_software/dfmux/python/ScanTools.py
 --- spt3g_software_orig/dfmux/python/ScanTools.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/ScanTools.py	2020-12-20 07:01:25.766157806 -0800
++++ spt3g_software/dfmux/python/ScanTools.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,4 +1,4 @@
 -from spt3g import core
 +from .. import core
-
+ 
  @core.indexmod
  class FixedLengthScans(object):
 diff -urN spt3g_software_orig/dfmux/python/unittransforms.py spt3g_software/dfmux/python/unittransforms.py
 --- spt3g_software_orig/dfmux/python/unittransforms.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/python/unittransforms.py	2020-12-20 07:11:30.952458137 -0800
++++ spt3g_software/dfmux/python/unittransforms.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,9 +1,9 @@
  import numpy
 -from spt3g import core
 -from spt3g.dfmux import HousekeepingForBolo
 +from .. import core
 +from .libdfmux import HousekeepingForBolo
-
+ 
  # Transfer functions for 3G and SPTpol boards
 -from spt3g.dfmux import IceboardConversions
 +from . import IceboardConversions
  from .wtl_ConvertUtils import convert_squid, convert_demod, convert_mb
-
+ 
  def counts_to_rms_amps(wiringmap, hkmap, bolo, system, tf=None):
 diff -urN spt3g_software_orig/dfmux/src/python.cxx spt3g_software/dfmux/src/python.cxx
 --- spt3g_software_orig/dfmux/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/dfmux/src/python.cxx	2020-12-20 06:39:45.917880947 -0800
-@@ -2,15 +2,14 @@
-
++++ spt3g_software/dfmux/src/python.cxx	2021-02-18 11:09:24.727922944 -0800
+@@ -2,15 +2,15 @@
+ 
  namespace bp = boost::python;
-
+ 
 -BOOST_PYTHON_MODULE(dfmux)
 +BOOST_PYTHON_MODULE(libdfmux)
  {
  	// Python bindings dependencies
 -	bp::import("spt3g.core");
 +	bp::import("spt3g.libcore");
-
+ 
  	// Disable noise in doc strings
  	bp::docstring_options docopts(true, true, false);
-
+ 
  	// Python bindings for this module
 -	G3ModuleRegistrator::CallRegistrarsFor("dfmux");
 +	G3ModuleRegistrator::CallRegistrarsFor("libdfmux");
  }
--
+ 
 diff -urN spt3g_software_orig/gcp/python/ARCExtractor.py spt3g_software/gcp/python/ARCExtractor.py
 --- spt3g_software_orig/gcp/python/ARCExtractor.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/python/ARCExtractor.py	2020-12-20 06:58:43.457335679 -0800
-@@ -1,20 +1,20 @@
++++ spt3g_software/gcp/python/ARCExtractor.py	2021-02-18 11:09:24.727922944 -0800
+@@ -1,12 +1,12 @@
  import numpy, copy
 -from spt3g import core
 -from spt3g.gcp import ACUStatus, ACUState, TrackerStatus, TrackerState, TrackerPointing, CalFile
 +from .. import core
 +from .libgcp import ACUStatus, ACUState, TrackerStatus, TrackerState, TrackerPointing, CalFile
-
+ 
  @core.indexmod
  def UnitValue(caldict_entry):
      '''Turn unit name into floating point unit value'''
-
+ 
+-    try: 
++    try:
+         uname = caldict_entry['UnitName']
+         if uname and uname != 'None':
+             try:
 diff -urN spt3g_software_orig/gcp/python/ARCHKExtractor.py spt3g_software/gcp/python/ARCHKExtractor.py
 --- spt3g_software_orig/gcp/python/ARCHKExtractor.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/python/ARCHKExtractor.py	2020-12-20 06:58:56.811350515 -0800
++++ spt3g_software/gcp/python/ARCHKExtractor.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,5 +1,6 @@
  import numpy
 -from spt3g import core, dfmux
 +from .. import core
 +from .. import dfmux
-
+ 
  @core.indexmod
  class UnpackSPTpolHKData(object):
 diff -urN spt3g_software_orig/gcp/python/CalFile.py spt3g_software/gcp/python/CalFile.py
 --- spt3g_software_orig/gcp/python/CalFile.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/python/CalFile.py	2020-12-20 06:59:02.769411653 -0800
-@@ -1,11 +1,11 @@
++++ spt3g_software/gcp/python/CalFile.py	2021-02-18 11:09:24.727922944 -0800
+@@ -1,4 +1,4 @@
 -from spt3g import core
 +from .. import core
  import os, time
  import numpy as np
-
- @core.indexmod
- class CalFileReader(object):
-     '''
+ 
 diff -urN spt3g_software_orig/gcp/python/GCPDataTee.py spt3g_software/gcp/python/GCPDataTee.py
 --- spt3g_software_orig/gcp/python/GCPDataTee.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/python/GCPDataTee.py	2020-12-20 06:59:19.557172007 -0800
++++ spt3g_software/gcp/python/GCPDataTee.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,5 +1,6 @@
  import struct, socket, errno, numpy, time, threading
 -from spt3g import core, dfmux
 +from .. import core
 +from .. dfmux
-
+ 
  @core.indexmod
  class GCPWatchdog(object):
 diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/InfluxDB.py
 --- spt3g_software_orig/gcp/python/InfluxDB.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/python/InfluxDB.py	2020-12-20 06:59:27.920892764 -0800
++++ spt3g_software/gcp/python/InfluxDB.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,7 +1,7 @@
  import numpy as np
  import re
@@ -462,57 +902,57 @@ diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/I
 -from spt3g import core
 +from .. import core
  from . import ARCExtractor
-
+ 
  def build_field_list(fr):
 diff -urN spt3g_software_orig/gcp/python/__init__.py spt3g_software/gcp/python/__init__.py
 --- spt3g_software_orig/gcp/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/python/__init__.py	2020-12-20 06:42:52.696805661 -0800
++++ spt3g_software/gcp/python/__init__.py	2021-02-18 11:09:24.727922944 -0800
 @@ -1,5 +1,5 @@
 -from spt3g.core.load_pybindings import load_pybindings
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libgcp import *
-
+ 
  from .ARCExtractor import UnpackACUData, UnpackTrackerData, DecryptFeatureBit, ARCExtract, ARCExtractMinimal
  from .ARCHKExtractor import UnpackSPTpolHKData
 diff -urN spt3g_software_orig/gcp/src/python.cxx spt3g_software/gcp/src/python.cxx
 --- spt3g_software_orig/gcp/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/gcp/src/python.cxx	2020-12-20 06:39:39.970043055 -0800
++++ spt3g_software/gcp/src/python.cxx	2021-02-18 11:09:24.727922944 -0800
 @@ -7,9 +7,9 @@
-
+ 
  namespace bp = boost::python;
-
+ 
 -BOOST_PYTHON_MODULE(gcp)
 +BOOST_PYTHON_MODULE(libgcp)
  {
 -	bp::import("spt3g.core");
 +	bp::import("spt3g.libcore");
  	bp::docstring_options docopts(true, true, false);
-
+ 
  	// Supported Experiments
-@@ -19,6 +19,5 @@
+@@ -19,6 +19,6 @@
  		.value("PB",    Experiment::PB)
  	;
-
+ 
 -	G3ModuleRegistrator::CallRegistrarsFor("gcp");
 +	G3ModuleRegistrator::CallRegistrarsFor("libgcp");
  }
--
+ 
 diff -urN spt3g_software_orig/maps/python/azel.py spt3g_software/maps/python/azel.py
 --- spt3g_software_orig/maps/python/azel.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/azel.py	2020-12-20 06:47:57.299136556 -0800
++++ spt3g_software/maps/python/azel.py	2021-02-18 11:09:24.731923030 -0800
 @@ -3,7 +3,7 @@
  import astropy.coordinates, astropy.units, astropy.time
  from astropy.utils import iers
-
+ 
 -from spt3g import core
 +from .. import core
-
+ 
  spt = astropy.coordinates.EarthLocation(
      lat=-89.991066 * astropy.units.deg,
 diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps/python/coordsysmodules.py
 --- spt3g_software_orig/maps/python/coordsysmodules.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/coordsysmodules.py	2020-12-20 06:53:28.132435161 -0800
++++ spt3g_software/maps/python/coordsysmodules.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,9 +1,9 @@
 -from spt3g import core
 -from spt3g.core import G3TimestreamQuat
@@ -526,12 +966,12 @@ diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps
 +from .libmaps import MapCoordReference
 +from .libmaps import create_det_az_el_trans, create_lazy_det_ra_dec_trans
 +from .libmaps import create_det_ra_dec_trans, convert_ra_dec_trans_to_gal
-
-
+ 
+ 
  __all__ = [
 diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/fitsio.py
 --- spt3g_software_orig/maps/python/fitsio.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/fitsio.py	2020-12-20 06:53:55.542268586 -0800
++++ spt3g_software/maps/python/fitsio.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,6 +1,6 @@
 -from spt3g import core
 -from spt3g.maps import HealpixSkyMap, FlatSkyMap, G3SkyMapWeights
@@ -539,67 +979,67 @@ diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/f
 +from .. import core
 +from .libmaps import HealpixSkyMap, FlatSkyMap, G3SkyMapWeights
 +from .libmaps import MapPolType, MapPolConv, MapCoordReference, MapProjection
-
+ 
  import numpy as np
  import os
 diff -urN spt3g_software_orig/maps/python/__init__.py spt3g_software/maps/python/__init__.py
 --- spt3g_software_orig/maps/python/__init__.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/__init__.py	2020-12-20 06:41:50.850483422 -0800
++++ spt3g_software/maps/python/__init__.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,5 +1,5 @@
 -from spt3g.core.load_pybindings import load_pybindings
 -load_pybindings(__name__, __path__)
 +# Import all our compiled tools
 +from .libmaps import *
-
+ 
  # Just run this, no symbols we need though
  from .skymapaddons import *
 diff -urN spt3g_software_orig/maps/python/map_modules.py spt3g_software/maps/python/map_modules.py
 --- spt3g_software_orig/maps/python/map_modules.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/map_modules.py	2020-12-20 06:55:39.642079951 -0800
++++ spt3g_software/maps/python/map_modules.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,4 +1,5 @@
 -from spt3g import core, maps
 +from .. import core
 +from . import libmaps as maps
  import numpy as np
-
+ 
  __all__ = [
 diff -urN spt3g_software_orig/maps/python/maputils.py spt3g_software/maps/python/maputils.py
 --- spt3g_software_orig/maps/python/maputils.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/maputils.py	2020-12-20 06:56:04.420119423 -0800
++++ spt3g_software/maps/python/maputils.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,4 +1,5 @@
 -from spt3g import core, maps
 +from .. import core
 +from . import libmaps as maps
-
+ 
  import numpy as np
-
+ 
 diff -urN spt3g_software_orig/maps/python/quathelpers.py spt3g_software/maps/python/quathelpers.py
 --- spt3g_software_orig/maps/python/quathelpers.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/quathelpers.py	2020-12-20 06:56:22.481986256 -0800
++++ spt3g_software/maps/python/quathelpers.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,4 +1,4 @@
 -from spt3g.core import G3Units, quat, G3VectorQuat, G3TimestreamQuat, usefulfunc, indexmod
 +from ..core import G3Units, quat, G3VectorQuat, G3TimestreamQuat, usefulfunc, indexmod
  import numpy
-
-
+ 
+ 
 diff -urN spt3g_software_orig/maps/python/skymapaddons.py spt3g_software/maps/python/skymapaddons.py
 --- spt3g_software_orig/maps/python/skymapaddons.py	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/python/skymapaddons.py	2020-12-20 06:56:36.063546267 -0800
++++ spt3g_software/maps/python/skymapaddons.py	2021-02-18 11:09:24.731923030 -0800
 @@ -1,6 +1,6 @@
  import numpy
  import warnings
 -from spt3g.maps import G3SkyMapWeights, G3SkyMap
 +from .libmaps import G3SkyMapWeights, G3SkyMap
-
+ 
  # This file adds extra functionality to the python interface to G3SkyMap and
  # G3SkyMapWeights. This is done in ways that exploit a large fraction of
 diff -urN spt3g_software_orig/maps/src/python.cxx spt3g_software/maps/src/python.cxx
 --- spt3g_software_orig/maps/src/python.cxx	2020-12-10 07:52:41.000000000 -0800
-+++ spt3g_software/maps/src/python.cxx	2020-12-20 06:39:21.146556347 -0800
-@@ -3,11 +3,10 @@
-
++++ spt3g_software/maps/src/python.cxx	2021-02-18 11:09:24.731923030 -0800
+@@ -3,11 +3,11 @@
+ 
  namespace bp = boost::python;
-
+ 
 -BOOST_PYTHON_MODULE(maps)
 +BOOST_PYTHON_MODULE(libmaps)
  {
@@ -610,4 +1050,4 @@ diff -urN spt3g_software_orig/maps/src/python.cxx spt3g_software/maps/src/python
 -	G3ModuleRegistrator::CallRegistrarsFor("maps");
 +	G3ModuleRegistrator::CallRegistrarsFor("libmaps");
  }
--
+ 
