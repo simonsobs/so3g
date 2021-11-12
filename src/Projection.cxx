@@ -705,7 +705,7 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
         if (dims[0] == 0)
             throw shape_exception(var_name, "has not been tested on shape 0 objects");
     } else if (bp::len(sig_list) != dims[0])
-        throw shape_exception(var_name, "must contain (n_det) vectors"); 
+        throw shape_exception(var_name, "must contain (n_det) vectors");
 
     const int n_det = dims[0];
 
@@ -1557,7 +1557,7 @@ template<typename T>
 inline
 int _index_count(const T &) { return T::index_count; }
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     EXPORT_PIX(Flat);
     EXPORT_PIX(Quat);

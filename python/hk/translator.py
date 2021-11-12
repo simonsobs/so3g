@@ -2,8 +2,9 @@
 
 """
 
-from .. import libso3g
-from .. import hk
+from ..libso3g import (
+    HKFrameType,
+)
 from ..spt3g import core
 
 
@@ -89,7 +90,7 @@ class HKTranslator:
         f['hkagg_version'] = self.target_version
 
         # No difference in Session/Status for v0, v1, v2.
-        if f.get('hkagg_type') != libso3g.HKFrameType.data:
+        if f.get('hkagg_type') != HKFrameType.data:
             return [f]
 
         if self.target_version == 0:

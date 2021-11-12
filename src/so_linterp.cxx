@@ -36,7 +36,7 @@ double test_trig(int table_size, int verbose)
     return worst;
 }
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     bp::def("test_trig", test_trig,
         "For use in test suite -- determines worst arctrig discrepancy, in radians.");

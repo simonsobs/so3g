@@ -1,8 +1,14 @@
-from .. import libso3g
+
+from ..libso3g import (
+    HKFrameType,
+)
+
 from ..spt3g import core
+
 import numpy as np
 
-from .. import hk
+from .translator import HKTranslator
+
 
 class HKScanner:
     """Module that scans and reports on HK archive contents and compliance.
@@ -62,7 +68,7 @@ class HKScanner:
         vers = f.get('hkagg_version', 0)
         self.stats['versions'][vers] = self.stats['versions'].get(vers, 0) + 1
 
-        if f['hkagg_type'] == libso3g.HKFrameType.session:
+        if f['hkagg_type'] == HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
@@ -73,7 +79,7 @@ class HKScanner:
                 self.session_id = session_id
                 self.stats['n_session'] += 1
 
-        elif f['hkagg_type'] == libso3g.HKFrameType.status:
+        elif f['hkagg_type'] == HKFrameType.status:
             # Have any providers disappeared?
             now_prov_id = [p['prov_id'].value for p in f['providers']]
             for p, info in self.providers.items():
@@ -102,7 +108,7 @@ class HKScanner:
                         'block_streams_map': {},  # Map from field name to block name.
                     }
 
-        elif f['hkagg_type'] == libso3g.HKFrameType.data:
+        elif f['hkagg_type'] == HKFrameType.data:
             info = self.providers[f['prov_id']]
             vers = f.get('hkagg_version', 0)
 
@@ -203,6 +209,6 @@ if __name__ == '__main__':
         p = core.G3Pipeline()
         p.Add(core.G3Reader(f))
         if args.translate:
-            p.Add(hk.HKTranslator(target_version=args.target_version))
+            p.Add(HKTranslator(target_version=args.target_version))
         p.Add(HKScanner())
         p.Run()

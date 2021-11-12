@@ -4,7 +4,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, backref
 
 from ..spt3g import core
-from .. import libso3g
+
+from ..libso3g import (
+    G3IndexedReader,
+)
 import datetime as dt
 import os
 from tqdm import tqdm
@@ -164,7 +167,7 @@ class SmurfArchive:
         db_file = Files(path=path)
         session.add(db_file)
 
-        reader = libso3g.G3IndexedReader(path)
+        reader = G3IndexedReader(path)
 
         total_channels = 0
         file_start, file_stop = None, None
@@ -326,7 +329,7 @@ class SmurfArchive:
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
-                reader = libso3g.G3IndexedReader(file)
+                reader = G3IndexedReader(file)
                 cur_file = file
 
             reader.Seek(frame_info.offset)
@@ -400,7 +403,7 @@ class SmurfArchive:
         for frame_info in tqdm(status_frames.all(), disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
-                reader = libso3g.G3IndexedReader(file)
+                reader = G3IndexedReader(file)
                 cur_file = file
             reader.Seek(frame_info.offset)
             frame = reader.Process(None)[0]

@@ -1,4 +1,6 @@
-from .. import libso3g
+from ..libso3g import (
+    ProjEng_CAR_TQU_NonTiled,
+)
 from . import quat
 from .weather import weather_factory
 
@@ -229,7 +231,7 @@ class CelestialSightLine:
 
         """
         # Get a projector, in CAR.
-        p = libso3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
+        p = ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
         # Pre-process the offsets
         collapse = (det_offsets is None)
         if collapse:

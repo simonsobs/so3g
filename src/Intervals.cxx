@@ -313,7 +313,7 @@ static int format_to_dtype(const BufferWrapper<T> &view)
         case 8:
             return NPY_FLOAT64;
         }
-    } 
+    }
 
     return NPY_NOTYPE;
 }
@@ -331,7 +331,7 @@ Intervals<T> Intervals<T>::from_array(const bp::object &src)
         output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    
+
     return output;
 }
 
@@ -548,7 +548,7 @@ bp::object Intervals<T>::mask(const bp::list &ivlist, int n_bits)
 //
 // Implementation of the algebra
 //
- 
+
 template <typename T>
 Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
 {
@@ -557,7 +557,7 @@ Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
     *this = output.complement();
     return *this;
 }
-    
+
 template <typename T>
 void Intervals<T>::set_domain(T start, T end)
 {
@@ -789,7 +789,7 @@ G3_SERIALIZABLE_CODE(MapIntervalsInt);
 G3_SERIALIZABLE_CODE(MapIntervalsInt32);
 G3_SERIALIZABLE_CODE(MapIntervalsTime);
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     docstring_options local_docstring_options(true, true, false);
     EXPORT_INTERVALS(double,  IntervalsDouble);

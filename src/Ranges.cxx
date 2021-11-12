@@ -181,7 +181,7 @@ Ranges<T>& Ranges<T>::close_gaps(const T gap)
             p++;
         }
     }
-    
+
     return *this;
 }
 
@@ -255,7 +255,7 @@ static int format_to_dtype(const BufferWrapper<T> &view)
         case 8:
             return NPY_UINT64;
         }
-    } 
+    }
 
     return NPY_NOTYPE;
 }
@@ -297,10 +297,10 @@ bp::object Ranges<T>::ranges() const
 }
 
 
-// 
+//
 // Bit-mask conversion - convert between list<RangesInt> and
 // ndarray bit-masks.
-// 
+//
 // intType is the type of the Interval, which should be a simple
 // signed integer type (e.g. int64_t).  numpyType is a simple unsigned
 // type carried in the ndarray (e.g. uint8_t).  The n_bits argument is
@@ -433,7 +433,7 @@ static inline bp::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 {
     vector<int> indexes;
     int count = 0;
-    
+
     for (long i=0; i<ivals.size(); i++) {
         indexes.push_back(0);
         if (i==0) {
@@ -516,14 +516,14 @@ bp::object Ranges<T>::mask()
 //
 // Implementation of the algebra
 //
- 
+
 template <typename T>
 Ranges<T>& Ranges<T>::intersect(const Ranges<T> &src)
 {
     *this = (this->complement() + src.complement()).complement();
     return *this;
 }
-    
+
 template <typename T>
 Ranges<T> Ranges<T>::complement() const
 {
@@ -545,7 +545,7 @@ Ranges<T> Ranges<T>::zeros_like() const
 {
     Ranges<T> output(count, reference);
     return output;
-    
+
 }
 
 //make "full" range to match this range
@@ -555,7 +555,7 @@ Ranges<T> Ranges<T>::ones_like() const
     Ranges<T> output(count, reference);
     output.add_interval(0, count);
     return output;
-    
+
 }
 
 
@@ -802,7 +802,7 @@ G3_SERIALIZABLE_CODE(RangesInt32);
 
 G3_SERIALIZABLE_CODE(MapRangesInt32);
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     docstring_options local_docstring_options(true, true, false);
     EXPORT_RANGES(int32_t, RangesInt32);

@@ -1,11 +1,11 @@
-from .. import libso3g
+from ..libso3g import RangesInt32
 import numpy as np
 
 """Objects will self report as being of type "RangesInt32" rather than
 Ranges.  But let's try to use so3g.proj.Ranges when testing types and
 making new ones and stuff."""
 
-Ranges = libso3g.RangesInt32
+Ranges = RangesInt32
 
 
 class RangesMatrix():

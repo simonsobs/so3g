@@ -34,14 +34,14 @@ PREFIX=/usr/local
 
 # Install boost
 
-boost_version=1_72_0
+boost_version=1_76_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://dl.bintray.com/boostorg/release/1.72.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."

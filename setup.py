@@ -74,9 +74,11 @@ def get_spt3g():
         # Apply a patch with any changes
         start_dir = os.getcwd()
         os.chdir(spt3g_src_dir)
-        sp.check_call(
-            ["patch", "-p1", "-i", os.path.join("..", "wheels", "spt3g.patch")]
-        )
+        patch_file = os.path.join("..", "wheels", "spt3g.patch")
+        if os.path.isfile(patch_file):
+            sp.check_call(
+                ["patch", "-p1", "-i", patch_file]
+            )
         os.chdir(start_dir)
 
         # The code organization and build of spt3g does not follow python norms.
@@ -193,12 +195,12 @@ class BuildExt(build_ext):
     def build_extensions(self):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
-        pyver = "{}.{}".format(sys.version_info[0], sys.version_info[1])
+        pyver = "{}{}".format(sys.version_info[0], sys.version_info[1])
         linkopts = [
             "-lboost_system",
             "-lboost_iostreams",
             "-lboost_filesystem",
-            "-lboost_python38",
+            "-lboost_python{}".format(pyver),
             "-lboost_regex",
             "-lFLAC",
             "-lnetcdf",
@@ -290,7 +292,7 @@ conf["author_email"] = "so_software@simonsobservatory.org"
 conf["license"] = "MIT"
 conf["url"] = "https://github.com/simonsobs/so3g"
 conf["version"] = get_version()
-conf["python_requires"] = ">=3.6.0"
+conf["python_requires"] = ">=3.7.0"
 conf["setup_requires"] = (["wheel"],)
 conf["install_requires"] = [
     "numpy",

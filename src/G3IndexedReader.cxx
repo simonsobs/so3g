@@ -4,7 +4,7 @@
 
 #include <boost/filesystem.hpp>
 
-G3IndexedReader::G3IndexedReader(std::string filename, int n_frames_to_read) : 
+G3IndexedReader::G3IndexedReader(std::string filename, int n_frames_to_read) :
     prefix_file_(false), n_frames_to_read_(n_frames_to_read),
     n_frames_read_(0)
 {
@@ -45,7 +45,7 @@ void G3IndexedReader::StartFile(std::string path)
 void G3IndexedReader::Process(G3FramePtr frame, std::deque<G3FramePtr> &out)
 {
 	// Bail (ends processing) if too many frames have passed by
-	if (!frame && n_frames_to_read_ > 0 && 
+	if (!frame && n_frames_to_read_ > 0 &&
 	    n_frames_read_ >= n_frames_to_read_)
 		return;
 
@@ -97,7 +97,7 @@ int G3IndexedReader::Tell() {
     return boost::iostreams::seek(stream_, 0, std::ios_base::cur);
 }
 
-PYBINDINGS("so3g") {
+PYBINDINGS("libso3g") {
 	using namespace boost::python;
 
 	// Instead of EXPORT_G3MODULE since there are two constructors
@@ -109,7 +109,7 @@ PYBINDINGS("so3g") {
 	      "n_frames_to_read frames rather than at the end of the file[s].",
 	    init<std::string, int>((arg("filename"),
 	      arg("n_frames_to_read")=0)))
-		.def(init<std::vector<std::string>, int>((arg("filename"), 
+		.def(init<std::vector<std::string>, int>((arg("filename"),
                                                           arg("n_frames_to_read")=0)))
             .def("Tell", &G3IndexedReader::Tell)
             .def("Seek", &G3IndexedReader::Seek)

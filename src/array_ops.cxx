@@ -462,7 +462,7 @@ void get_gap_fill_poly(const bp::object ranges,
         free(a);
 }
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
 	bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
 	bp::def("process_cuts",  process_cuts);

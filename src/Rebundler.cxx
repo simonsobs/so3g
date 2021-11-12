@@ -72,7 +72,7 @@ bp::object Rebundler<G3TimestreamMap>::ExtractIntervalTime(
     }
     times.second = G3Time(times.first + int64_t((n-1) / rate));
     consumed_to = G3Time(times.second + int64_t(0.5 / rate));
-    
+
     G3TimestreamMap tm_out;
     auto tmr_ptr = buffer.front();
     auto tmr_ref = dynamic_cast<G3TimestreamMap *>(tmr_ptr.get());
@@ -134,7 +134,7 @@ using namespace boost::python;
          "Rebundle into interval.")
 
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     EXPORT_REBUNDLER(G3TimestreamMap,  RebundlerPrimaryMap);
 }

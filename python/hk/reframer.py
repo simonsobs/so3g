@@ -1,9 +1,15 @@
-from .. import libso3g
+
+from ..libso3g import (
+    IrregBlockDouble,
+    HKFrameType,
+)
+
 from ..spt3g import core
 
-from .. import hk
+from .session import HKSessionHelper
 
 import numpy as np
+
 
 class _HKBlockBundle:
     def __init__(self):
@@ -36,7 +42,7 @@ class _HKBlockBundle:
             idx = 0
             while idx < len(self.t) and self.t[idx] < flush_time:
                 idx += 1
-        out = libso3g.IrregBlockDouble()
+        out = IrregBlockDouble()
         out.t = np.array(self.t[:idx])
         self.t = self.t[idx:]
         for k in self.chans.keys():
@@ -56,7 +62,7 @@ class _HKProvBundle:
 
     def add(self, f):
         if self.sess is None:
-            self.sess = hk.HKSessionHelper(f['session_id'])
+            self.sess = HKSessionHelper(f['session_id'])
             self.prov_id = f['prov_id']
         for b in f['blocks']:
             chans = b.data.keys()
@@ -140,7 +146,7 @@ class HKReframer:
 
         output = []
 
-        if f['hkagg_type'] == libso3g.HKFrameType.session:
+        if f['hkagg_type'] == HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
@@ -154,7 +160,7 @@ class HKReframer:
                 self.session_id = session_id
                 output.append(f)
 
-        elif f['hkagg_type'] == libso3g.HKFrameType.status:
+        elif f['hkagg_type'] == HKFrameType.status:
             # Only issue status if something has changed.
             changes = False
             # Flush any providers that are now expired.
@@ -172,7 +178,7 @@ class HKReframer:
             if changes:
                 output.append(f)
 
-        elif f['hkagg_type'] == libso3g.HKFrameType.data:
+        elif f['hkagg_type'] == HKFrameType.data:
             fb = self.providers[f['prov_id']]
             fb.add(f)
             if fb.ready():

@@ -8,7 +8,7 @@ scan patterns can be passed to the detector data simulator.  Then you
 can add realism or whatever.
 """
 
-from . import libso3g
+from .libso3g import IrregBlockDouble
 from .spt3g import core
 from .spt3g import coordinateutils as cu3g
 
@@ -118,7 +118,7 @@ class ScanPatternGenerator:
         for i0, i1 in zip(swing_points[:-1], swing_points[1:]):
             f0 = core.G3Frame()
             f0.type = core.G3FrameType.Scan
-            benc = libso3g.IrregBlockDouble()
+            benc = IrregBlockDouble()
             benc.t = time_vec[i0:i1]
             benc.data['az'] = az_vec[i0:i1]
             benc.data['el'] = el_vec[i0:i1]

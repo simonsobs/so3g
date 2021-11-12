@@ -124,7 +124,7 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
 }
 
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     bp::class_<BFilterParams>("BFilterParams",
                               bp::init<int32_t, int32_t, int, int, int>() );

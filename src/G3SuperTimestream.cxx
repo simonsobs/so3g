@@ -243,7 +243,7 @@ struct G3SuperTimestream::array_blob encode_array(
 			FLAC__stream_encoder_set_compression_level(encoder, options.flac_level);
 			FLAC__stream_encoder_init_stream(
 				encoder, flac_encoder_write_cb, NULL, NULL, NULL, (void*)(&ablob));
-			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) || 
+			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) ||
 			    !FLAC__stream_encoder_finish(encoder))
 				throw g3supertimestream_exception("FLAC encoding fail.");
 			ok = close_size_field(&ablob, flac_size);
@@ -1068,7 +1068,7 @@ static void translate_ValueError(g3supertimestream_exception const& e)
 }
 
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
 	bp::docstring_options local_docstring_options(true, false);
 

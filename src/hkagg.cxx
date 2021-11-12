@@ -38,7 +38,7 @@ G3_SERIALIZABLE_CODE(IrregBlockDouble);
 
 namespace bp = boost::python;
 
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     EXPORT_FRAMEOBJECT(IrregBlockDouble, init<>(),
     "Data block for irregularly sampled data.")

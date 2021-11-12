@@ -24,7 +24,7 @@ static void translate_ValueError(so3g_exception const& e)
 
 
 namespace bp = boost::python;
-PYBINDINGS("so3g")
+PYBINDINGS("libso3g")
 {
     bp::register_exception_translator<buffer_exception>    (&translate_TypeError);
     bp::register_exception_translator<dtype_exception>     (&translate_ValueError);
