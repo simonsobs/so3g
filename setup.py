@@ -29,7 +29,7 @@ except ImportError:
 topdir = Path(__file__).resolve().parent
 
 # The version of spt3g we will be installing
-upstream_spt3g_version = "1341ea5fc1584f2fce2454a9032ad0abe03bfe89"
+upstream_spt3g_version = "13fbce35693ed37f8ee17467e7b8fefd469c4299"
 
 # The name of the spt3g source and package dirs
 spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g_internal")

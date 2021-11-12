@@ -4,7 +4,7 @@
 # you should pip install cibuildwheel
 
 export CIBW_BUILD="cp38-manylinux_x86_64"
-export CIBW_MANYLINUX_X86_64_IMAGE="manylinux2014"
+export CIBW_MANYLINUX_X86_64_IMAGE="manylinux2010"
 export CIBW_BUILD_VERBOSITY=3
 export CIBW_ENVIRONMENT_LINUX="CC=gcc CXX=g++"
 export CIBW_BEFORE_BUILD_LINUX=./wheels/install_deps_linux.sh
