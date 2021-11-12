@@ -4,9 +4,11 @@ name:  Test Binary Wheels
 # Uncomment here for testing and comment out schedule below.
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 # Uncomment here for production and comment out push / PR above.
 # on:
@@ -36,44 +38,6 @@ jobs:
         with:
           name: sdist
           path: ./dist/so3g*.gz
-  wheels-py36:
-    name: Python 3.6 wheels for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    env:
-      CIBW_BUILD: cp36-macosx_x86_64 cp36-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
-      CIBW_BUILD_VERBOSITY: 3
-      CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++"
-      CIBW_ENVIRONMENT_MACOS: "CC=clang CXX=clang++"
-      CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
-      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
-      CIBW_BEFORE_TEST:
-      CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from so3g.spt3g import core'
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.4.0
-        with:
-          access_token: ${{ github.token }}
-      - name: Checkout
-        uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        name: Install Python
-        with:
-          python-version: '3.7'
-      - name: Install cibuildwheel
-        run: |
-          python -m pip install cibuildwheel==1.5.0
-      - name: Build wheel
-        run: |
-          python -m cibuildwheel --output-dir wheelhouse
-      - uses: actions/upload-artifact@v2
-        with:
-          name: wheels
-          path: ./wheelhouse/so3g*.whl
   wheels-py37:
     name: Python 3.7 wheels for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -104,7 +68,7 @@ jobs:
           python-version: '3.7'
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel==1.5.0
+          python -m pip install cibuildwheel==2.1.2
       - name: Build wheel
         run: |
           python -m cibuildwheel --output-dir wheelhouse
@@ -142,7 +106,45 @@ jobs:
           python-version: '3.7'
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel==1.5.0
+          python -m pip install cibuildwheel==2.1.2
+      - name: Build wheel
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: ./wheelhouse/so3g*.whl
+  wheels-py39:
+    name: Python 3.9 wheels for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      CIBW_BUILD: cp39-macosx_x86_64 cp39-manylinux_x86_64
+      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
+      CIBW_BUILD_VERBOSITY: 3
+      CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++"
+      CIBW_ENVIRONMENT_MACOS: "CC=clang CXX=clang++"
+      CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
+      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
+      CIBW_BEFORE_TEST:
+      CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from so3g.spt3g import core'
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.4.0
+        with:
+          access_token: ${{ github.token }}
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        name: Install Python
+        with:
+          python-version: '3.7'
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel==2.1.2
       - name: Build wheel
         run: |
           python -m cibuildwheel --output-dir wheelhouse

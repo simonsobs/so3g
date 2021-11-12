@@ -23,9 +23,11 @@ pip install -r requirements.txt
 
 CC=gcc
 CXX=g++
+FC=gfortran
 
 CFLAGS="-O3 -fPIC -pthread"
 CXXFLAGS="-O3 -fPIC -pthread -std=c++11"
+FCFLAGS="-O3 -fPIC -pthread"
 
 MAKEJ=2
 
@@ -50,10 +52,10 @@ tar xzf ${openblas_pkg} \
     && pushd ${openblas_dir} >/dev/null 2>&1 \
     && make USE_OPENMP=1 NO_SHARED=1 \
     MAKE_NB_JOBS=${MAKEJ} \
-    CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 \
+    CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 TARGET=GENERIC \
     COMMON_OPT="${CFLAGS}" FCOMMON_OPT="${FCFLAGS}" \
     LDFLAGS="-fopenmp -lm" \
-    && make NO_SHARED=1 PREFIX="${PREFIX}" install \
+    && make NO_SHARED=1 DYNAMIC_ARCH=1 TARGET=GENERIC PREFIX="${PREFIX}" install \
     && popd >/dev/null 2>&1
 
 # Install boost
