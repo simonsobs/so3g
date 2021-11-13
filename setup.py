@@ -197,11 +197,11 @@ class BuildExt(build_ext):
         opts = self.c_opts.get(ct, [])
         pyver = "{}{}".format(sys.version_info[0], sys.version_info[1])
         linkopts = [
-            "-lboost_system",
-            "-lboost_iostreams",
-            "-lboost_filesystem",
-            "-lboost_python{}".format(pyver),
-            "-lboost_regex",
+            "-lboost_system-mt-x64",
+            "-lboost_iostreams-mt-x64",
+            "-lboost_filesystem-mt-x64",
+            "-lboost_python{}-mt-x64".format(pyver),
+            "-lboost_regex-mt-x64",
             "-lFLAC",
             "-lnetcdf",
             # "-lpython{}".format(pyver),
@@ -234,7 +234,7 @@ class BuildExt(build_ext):
 
 # The various spt3g subdirectories have cross dependencies on included headers.
 # Here we just make a list of all of them and use those for all extensions.
-spt3g_includes = [numpy.get_include()]
+spt3g_includes = [numpy.get_include(), "/usr/include", "/usr/local/include"]
 for g3sub in ["core", "dfmux", "gcp", "maps", "calibration"]:
     spt3g_includes.append(os.path.join(spt3g_src_dir, g3sub, "include"))
     spt3g_includes.append(os.path.join(spt3g_src_dir, g3sub, "include", g3sub))
