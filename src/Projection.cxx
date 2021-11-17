@@ -9,7 +9,9 @@ using namespace std;
 #include <assert.h>
 #include <math.h>
 
-#include <omp.h>
+#ifdef _OPENMP
+# include <omp.h>
+#endif // ifdef _OPENMP
 #include <boost/math/quaternion.hpp>
 
 #include <container_pybindings.h>
@@ -715,7 +717,7 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
         if (dims[0] == 0)
             throw shape_exception(var_name, "has not been tested on shape 0 objects");
     } else if (bp::len(sig_list) != dims[0])
-        throw shape_exception(var_name, "must contain (n_det) vectors"); 
+        throw shape_exception(var_name, "must contain (n_det) vectors");
 
     const int n_det = dims[0];
 
@@ -925,7 +927,10 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
 #pragma omp parallel
     {
         if (n_domain <= 0)
+            n_domain = 1;
+            #ifdef _OPENMP
             n_domain = omp_get_num_threads();
+            #endif
 #pragma omp single
         {
             for (int i=0; i<n_domain; i++) {
@@ -1002,7 +1007,10 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 
 #pragma omp parallel
     {
-        int n_domain = omp_get_num_threads();
+        int n_domain = 1;
+        #ifdef _OPENMP
+        omp_get_num_threads();
+        #endif
 #pragma omp single
         {
             for (int i=0; i<n_domain; i++)
@@ -1014,7 +1022,10 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
             double dofs[4];
             pointer.InitPerDet(i_det, dofs);
             int pixel_offset[P::index_count] = {-1};
-            int thread = omp_get_thread_num();
+            int thread = 0;
+            #ifdef _OPENMP
+            thread = omp_get_thread_num();
+            #endif
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
@@ -1319,8 +1330,14 @@ bp::object ProjectionEngine<C,P,S>::to_map(
             // This loop construction handles the (sub-optimal) case
             // that the number of ivals is not equal to the number of
             // OMP threads.
+            int num_threads = 1;
+            int thread_num = 0;
+            #ifdef _OPENMP
+            num_threads = omp_get_num_threads();
+            thread_num = omp_get_thread_num();
+            #endif
             for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                if (i_thread % num_threads == thread_num)
                     to_map_single_thread<C,P,S>(
                         pointer, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
             }
@@ -1369,8 +1386,14 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
             // This loop construction handles the (sub-optimal) case
             // that the number of ivals is not equal to the number of
             // OMP threads.
+            int num_threads = 1;
+            int thread_num = 0;
+            #ifdef _OPENMP
+            num_threads = omp_get_num_threads();
+            thread_num = omp_get_thread_num();
+            #endif
             for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                if (i_thread % num_threads == thread_num)
                     to_weight_map_single_thread<C,P,S>(
                         pointer, _pixelizor, ivals[i_thread], _det_weights);
             }
@@ -1569,8 +1592,14 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
             // This loop construction handles the (sub-optimal) case
             // that the number of ivals is not equal to the number of
             // OMP threads.
+            int num_threads = 1;
+            int thread_num = 0;
+            #ifdef _OPENMP
+            num_threads = omp_get_num_threads();
+            thread_num = omp_get_thread_num();
+            #endif
             for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                if (i_thread % num_threads == thread_num)
                     precomp_to_map_single_thread<TilingSys>(
                         pixelizor, pixel_buf_man, spin_proj_man,
                         ivals[i_thread], _det_weights, &_signalspace);
@@ -1625,8 +1654,14 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
             // This loop construction handles the (sub-optimal) case
             // that the number of ivals is not equal to the number of
             // OMP threads.
+            int num_threads = 1;
+            int thread_num = 0;
+            #ifdef _OPENMP
+            num_threads = omp_get_num_threads();
+            thread_num = omp_get_thread_num();
+            #endif
             for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % omp_get_num_threads() == omp_get_thread_num())
+                if (i_thread % num_threads == thread_num)
                     precomp_to_weight_map_single_thread<TilingSys>(
                         pixelizor, pixel_buf_man, spin_proj_man,
                         ivals[i_thread], _det_weights);

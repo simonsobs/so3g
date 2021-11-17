@@ -1,5 +1,7 @@
 #include <boost/python.hpp>
-#include <omp.h>
+#ifdef _OPENMP
+# include <omp.h>
+#endif // ifdef _OPENMP
 
 // See this header file for discussion of numpy compilation issues.
 #include "so3g_numpy.h"
@@ -25,8 +27,10 @@ bp::object useful_info() {
     int omp_num_threads = -1;
 #pragma omp parallel
     {
+        #ifdef _OPENMP
         if (omp_get_thread_num() == 0)
             omp_num_threads = omp_get_num_threads();
+        #endif
     }
     bp::dict output;
     output["omp_num_threads"] = omp_num_threads;

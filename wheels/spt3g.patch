@@ -1,0 +1,11 @@
+diff -urN spt3g_software_orig/cmake/Spt3gBoostPython.cmake spt3g_software/cmake/Spt3gBoostPython.cmake
+--- spt3g_software_orig/cmake/Spt3gBoostPython.cmake	2021-09-01 14:56:55.000000000 -0700
++++ spt3g_software/cmake/Spt3gBoostPython.cmake	2022-01-08 11:03:36.718275750 -0800
+@@ -1,6 +1,6 @@
+ # Locate Python
+ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.14)
+-	find_package(Python COMPONENTS Interpreter Development NumPy)
++	find_package(Python COMPONENTS Interpreter NumPy)
+ elseif(${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.12)
+ 	find_package(Python COMPONENTS Interpreter Development)
+ else()
