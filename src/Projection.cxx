@@ -600,9 +600,11 @@ public:
         mapbufs.clear();
         for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
             if (isNone(map[i_tile])) {
+                if (populate[i_tile])
+                    throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
-                // You should be checking that presence and size matches expectation.
+                // You should be checking that the shape is as expected.
                 mapbufs.push_back(
                     BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
             }
@@ -612,9 +614,9 @@ public:
     }
     double *pix(int imap, const int pixel_index[]) {
         const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
-        // This assertion is needed in case the user did not populate
-        // the right set of tiles.
-        assert(mapbuf->buf != nullptr);
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*pixel_index[1] +
@@ -623,9 +625,9 @@ public:
     double *wpix(int imap, int jmap, const int pixel_index[]) {
         // Expensive shared_ptr copy?
         const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
-        // This assertion is needed in case the user did not populate
-        // the right set of tiles.
-        assert(mapbuf->buf != nullptr);
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*jmap +
