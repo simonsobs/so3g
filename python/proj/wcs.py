@@ -461,11 +461,12 @@ class Projectionist:
         if method not in THREAD_ASSIGNMENT_METHODS:
             raise ValueError(f'No thread assignment method "{method}"; '
                              f'expected one of {THREAD_ASSIGNMENT_METHODS}')
+        n_threads = mapthreads.get_num_threads(n_threads)
 
         if method == 'simple':
             projeng = self.get_ProjEng('T')
             q1 = self._get_cached_q(assembly.Q)
-            omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None)
+            omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None, n_threads)
             return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
         elif method == 'domdir':
@@ -483,14 +484,13 @@ class Projectionist:
                 n_threads=n_threads, offs_rep=offs_rep)
 
         elif method == 'tiles':
-            tile_info = self.get_active_tiles(
-                assembly, assign=mapthreads.get_num_threads(n_threads))
+            tile_info = self.get_active_tiles(assembly, assign=n_threads)
             self.active_tiles = tile_info['active_tiles']
             return tile_info['group_ranges']
 
         raise RuntimeError(f"Unimplemented method: {method}.")
 
-    def assign_threads_from_map(self, assembly, tmap):
+    def assign_threads_from_map(self, assembly, tmap, n_threads=None):
         """Assign threads based on a map.
 
         The returned object can be passed to the ``threads`` argument
@@ -506,7 +506,8 @@ class Projectionist:
         """
         projeng = self.get_ProjEng('T')
         q1 = self._get_cached_q(assembly.Q)
-        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap)
+        n_threads = mapthreads.get_num_threads(n_threads)
+        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap, n_threads)
         return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
     def get_active_tiles(self, assembly, assign=False):

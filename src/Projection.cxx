@@ -907,7 +907,7 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::pixel_ranges(
-    bp::object pbore, bp::object pofs, bp::object map)
+    bp::object pbore, bp::object pofs, bp::object map, int n_domain)
 {
     auto _none = bp::object();
 
@@ -924,10 +924,11 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
 
 #pragma omp parallel
     {
-        int n_domain = omp_get_num_threads();
+        if (n_domain <= 0)
+            n_domain = omp_get_num_threads();
 #pragma omp single
         {
-            for (int i=0; i<n_domain; ++i) {
+            for (int i=0; i<n_domain; i++) {
                 vector<RangesInt32> v(n_det);
                 for (auto &_v: v)
                     _v.count = n_time;

@@ -169,7 +169,7 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
         idx_maps[t].shape = (1, ) + tuple(idx_maps[t].shape)
 
     # Turn the superbin index maps into thread assignments.
-    threads = pmat.assign_threads_from_map(asm_full, idx_maps)
+    threads = pmat.assign_threads_from_map(asm_full, idx_maps, n_threads=n_threads)
 
     if plot_prefix:
         pl.plot(bins, H)

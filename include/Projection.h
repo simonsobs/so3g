@@ -51,7 +51,7 @@ public:
     bp::object pointing_matrix(bp::object pbore, bp::object pofs,
                                bp::object pixel, bp::object proj);
     bp::object zeros(bp::object shape);
-    bp::object pixel_ranges(bp::object pbore, bp::object pofs, bp::object map);
+    bp::object pixel_ranges(bp::object pbore, bp::object pofs, bp::object map, int n_domain=-1);
     bp::object from_map(bp::object map, bp::object pbore, bp::object pofs,
                         bp::object signal);
     bp::object to_map(bp::object map, bp::object pbore, bp::object pofs,

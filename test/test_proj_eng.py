@@ -86,7 +86,7 @@ class TestProjEng(unittest.TestCase):
             print(f'Assigning threads using {method}...')
             if method not in ['tiles']:
                 threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-                print(threads.shape)
+                self.assertEqual(threads.shape, (n_threads,) + sig.shape)
             else:
                 with self.assertRaises(RuntimeError):
                     threads = p.assign_threads(asm, method=method, n_threads=n_threads)
@@ -101,7 +101,7 @@ class TestProjEng(unittest.TestCase):
             p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False)
             print(f'Assigning threads using {method}...')
             threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-            print(threads.shape)
+            self.assertEqual(threads.shape, (n_threads,) + sig.shape)
 
 
 if __name__ == '__main__':
