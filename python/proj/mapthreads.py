@@ -1,5 +1,8 @@
-"""This submodule is for functions that produce disjoint RangesMatrix
-objects suitable for use with the Projection code and OpenMP.
+"""This submodule is for functions that produce "thread assignments",
+i.e. disjoint RangesMatrix objects with shape (n_threads, n_dets,
+n_samps) that are suitable for the threads= argument in Projection
+code that projects from time to map space using OpenMP
+parallelization.
 
 """
 
@@ -7,16 +10,30 @@ import so3g
 import numpy as np
 
 def get_num_threads(n_threads=None):
+    """Utility function for computing n_threads.  If n_threads is not
+    None, it is returned directly.  But if it is None, then the OpenMP
+    thread count is returned.  Uses so3g.useful_info().
+
+    """
     if n_threads is None:
         return so3g.useful_info()['omp_num_threads']
     return n_threads
 
-
 def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
-                       active_tiles=None,
-                       n_threads=None, offs_rep=None, plot_prefix=None):
+                       active_tiles=None, n_threads=None, offs_rep=None,
+                       plot_prefix=None):
     """Assign samples to threads according to the dominant scan
     direction.
+
+    The dominant scan direction is first determined, which requires
+    creating a 3-component map.  This projection operation can't be
+    parallelized safely so it is wise to pass in a decimated detector
+    set through offs_rep.  The second step is to assign pixels to
+    threads; to do this a signal-sized array is projected from map
+    space.  In the present implementation this uses all the detectors
+    (but takes advantage of threads).  In principle this step could be
+    done with a decimated detector set, though with care that the
+    decimated subset covers the array well, spatially.
 
     Arguments:
       sight (CelestialSightLine): The boresight pointing.
@@ -30,8 +47,8 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
       n_threads (int): The number of threads to target (defaults to
         OMP_NUM_THREADS).
       offs_rep (array of quaternions): A representative set of
-        detectors, for determining scan direction and relative weights
-        (if not present then offs is used for this).
+        detectors, for determining scan direction (if not present then
+        offs is used for this).
       plot_prefix (str): If present, pylab will be imported and some
         plots saved with this name as prefix.
 

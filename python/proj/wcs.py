@@ -4,6 +4,8 @@ from . import quat
 import numpy as np
 
 from .ranges import Ranges, RangesMatrix
+from . import mapthreads
+
 
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
@@ -56,12 +58,12 @@ class Projectionist:
     * ``wcs`` - the WCS describing the celestial axes of the map.
       Together with ``shape`` this is a geometry; see pixell.enmap
       documentation.
-    * ``threads`` - a RangesMatrix with shape
-      (n_threads,n_dets,n_samps), used to specify which samples should
-      be treated by each thread in TOD-to-map operations.  Such
-      objects should satisfy the condition that
-      threads[x,j]*threads[y,j] is the empty Range; i.e. each
-      detector-sample is assigned to exactly one thread.
+    * ``threads`` - the thread assignment, which is a RangesMatrix
+      with shape (n_threads,n_dets,n_samps), used to specify which
+      samples should be treated by each thread in TOD-to-map
+      operations.  Such objects should satisfy the condition that
+      threads[x,j]*threads[y,j] is the empty Range for x != y;
+      i.e. each detector-sample is assigned to at most one thread.
 
     Attributes:
         naxis: 2-element integer array specifying the map shape (for
@@ -133,6 +135,7 @@ class Projectionist:
                                shape[ndim - ax2 - 1]], dtype=int)
         # Get just the celestial part.
         wcs = wcs.celestial
+        self.wcs = wcs
 
         # Extract the projection name (e.g. CAR)
         proj = [c[-3:] for c in wcs.wcs.ctype]
@@ -423,20 +426,69 @@ class Projectionist:
             src_map, q1, assembly.dets, signal)
         return signal_out
 
-    def assign_threads(self, assembly):
-        """Get a thread assignment RangesMatrix, using simple information
-        returned by the underlying pixelization.
+    def assign_threads(self, assembly, method='domdir', n_threads=None):
+        """Get a thread assignment RangesMatrix.  Different algorithms can be
+        chosen, though this method does not provide fine-grained
+        control of algorithm parameters and instead seeks to apply
+        reasonable defaults.
+
+        The methods exposed here are:
+
+        - ``'simple'``: Divides the map into n_threads horizontal
+          bands, and assigns the pixels in each band to a single
+          thread.  This tends to be bad for scans that aren't
+          horizontally correlated, or that don't have equal weight
+          throughout the map.  The 'domdir' algorithm addresses both
+          of those problems.
+        - ``'domdir'``: For constant elevation scans, determines the
+          dominant scan direction in the map and divides it into bands
+          parallel to that scan direction.  The thickness of bands is
+          adjusted so roughly equal numbers of samples fall into each
+          band.
+        - ``'tiles'``: In Tiled projections, assign each tile to a
+          thread.  Some effort is made to balance the total number of
+          samples over the threads.
 
         The returned object can be passed to the ``threads`` argument
-        of the projection methods in this object.
+        of the projection methods in this class.
 
         See class documentation for description of standard arguments.
 
+        Args:
+          method (str): Algorithm to use.
+
         """
-        projeng = self.get_ProjEng('T')
-        q1 = self._get_cached_q(assembly.Q)
-        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None)
-        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+        if method not in THREAD_ASSIGNMENT_METHODS:
+            raise ValueError(f'No thread assignment method "{method}"; '
+                             f'expected one of {THREAD_ASSIGNMENT_METHODS}')
+
+        if method == 'simple':
+            projeng = self.get_ProjEng('T')
+            q1 = self._get_cached_q(assembly.Q)
+            omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None)
+            return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+
+        elif method == 'domdir':
+            q1 = self._get_cached_q(assembly.Q)
+            offs_rep = assembly.dets[::100]
+            if (self.tiling is not None) and (self.active_tiles is None):
+                tile_info = self.get_active_tiles(assembly)
+                active_tiles = tile_info['active_tiles']
+                self.active_tiles = active_tiles
+            else:
+                active_tiles = None
+            return mapthreads.get_threads_domdir(
+                q1, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
+                tile_shape=self.tile_shape, active_tiles=active_tiles,
+                n_threads=n_threads, offs_rep=offs_rep)
+
+        elif method == 'tiles':
+            tile_info = self.get_active_tiles(
+                assembly, assign=mapthreads.get_num_threads(n_threads))
+            self.active_tiles = tile_info['active_tiles']
+            return tile_info['group_ranges']
+
+        raise RuntimeError(f"Unimplemented method: {method}.")
 
     def assign_threads_from_map(self, assembly, tmap):
         """Assign threads based on a map.
@@ -471,15 +523,15 @@ class Projectionist:
             OMP_NUM_THREADS is used.
 
         Returns:
-          A dict with at least the entries:
+          dict : The basic analysis results are:
 
             - ``'active_tiles'`` (list of int): sorted, non-repeating
               list of tiles that are hit by the assembly.
             - ``'hit_counts'`` (list of int): the number of hits in
               each tile returned in 'active_tiles', respectively.
 
-          If the thread assignment took place then the dict also
-          includes entries:
+          If the thread assignment took place then the dict will also
+          contain:
 
             - ``'group_tiles'`` (list of lists of ints): There is one
               entry per thread, and the entry lists the tiles that
@@ -544,3 +596,10 @@ class _Tiling:
     def tile_offset(self, tile):
         row, col = self.tile_rowcol(tile)
         return row * self.tile_shape[0], col * self.tile_shape[1]
+
+
+THREAD_ASSIGNMENT_METHODS = [
+    'simple',
+    'domdir',
+    'tiles',
+]
