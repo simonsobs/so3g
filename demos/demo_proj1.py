@@ -166,7 +166,7 @@ if 1:
 
 print('Compute thread assignments (OMP prep)... ', end='\n ... ')
 with Timer():
-    threads = pe.pixel_ranges(ptg, ofs, None)
+    threads = pe.pixel_ranges(ptg, ofs, None, -1)
 
 if 1:
     print('TOD-to-map with OMP (%s): ' % n_omp, end='\n ... ')
