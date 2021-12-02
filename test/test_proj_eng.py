@@ -11,6 +11,8 @@ try:
 except ModuleNotFoundError:
     pixell_found = False
 
+requires_pixell = unittest.skipIf(pixell_found is False, "pixell not found")
+
 DEG = np.pi/180
 
 
@@ -47,7 +49,7 @@ class TestProjEng(unittest.TestCase):
     """Test the Projectionist and supporting structures.
 
     """
-    @unittest.skipIf(pixell_found is False, "pixell not found")
+    @requires_pixell
     def test_00_basic(self):
         scan, asm, (shape, wcs) = get_basics()
         p = proj.Projectionist.for_geom(shape, wcs)
@@ -58,7 +60,7 @@ class TestProjEng(unittest.TestCase):
             w = p.to_weights(asm, comps=comps)[0, 0]
             assert(np.any(w != 0))
 
-    @unittest.skipIf(pixell_found is False, "pixell not found")
+    @requires_pixell
     def test_10_tiled(self):
         scan, asm, (shape, wcs) = get_basics()
         p = proj.Projectionist.for_tiled(shape, wcs, (150, 150))
@@ -70,9 +72,36 @@ class TestProjEng(unittest.TestCase):
             assert(np.any(w != 0))
         # Identify active subtiles?
         p = proj.Projectionist.for_tiled(shape, wcs, (20, 20))
-        print(p.pop_list)
-        p2 = p.get_active_tiles(asm)
+        print(p.active_tiles)
+        p2 = p.get_active_tiles(asm, assign=2)
         print(p2)
+
+    @requires_pixell
+    def test_20_threads(self):
+        scan, asm, (shape, wcs) = get_basics()
+        p = proj.Projectionist.for_geom(shape, wcs)
+        sig = np.ones((2, len(scan[0])), 'float32')
+        n_threads = 3
+        for method in proj.wcs.THREAD_ASSIGNMENT_METHODS:
+            print(f'Assigning threads using {method}...')
+            if method not in ['tiles']:
+                threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+                self.assertEqual(threads.shape, (n_threads,) + sig.shape)
+            else:
+                with self.assertRaises(RuntimeError):
+                    threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+
+    @requires_pixell
+    def test_21_threads_tiled(self):
+        scan, asm, (shape, wcs) = get_basics()
+        sig = np.ones((len(asm.dets), len(scan[0])), 'float32')
+        n_threads = 3
+        comps = 'T'
+        for method in proj.wcs.THREAD_ASSIGNMENT_METHODS:
+            p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False)
+            print(f'Assigning threads using {method}...')
+            threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+            self.assertEqual(threads.shape, (n_threads,) + sig.shape)
 
 
 if __name__ == '__main__':
