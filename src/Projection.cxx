@@ -475,6 +475,9 @@ public:
             return -1;
         return pixel_index[1] * thread_count / naxis[1];
     }
+    int tile_count() {
+        return -1;
+    }
 
     int crpix[2];
     double cdelt[2];
@@ -597,9 +600,11 @@ public:
         mapbufs.clear();
         for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
             if (isNone(map[i_tile])) {
+                if (populate[i_tile])
+                    throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
-                // You should be checking that presence and size matches expectation.
+                // You should be checking that the shape is as expected.
                 mapbufs.push_back(
                     BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
             }
@@ -609,9 +614,9 @@ public:
     }
     double *pix(int imap, const int pixel_index[]) {
         const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
-        // This assertion is needed in case the user did not populate
-        // the right set of tiles.
-        assert(mapbuf->buf != nullptr);
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*pixel_index[1] +
@@ -620,9 +625,9 @@ public:
     double *wpix(int imap, int jmap, const int pixel_index[]) {
         // Expensive shared_ptr copy?
         const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
-        // This assertion is needed in case the user did not populate
-        // the right set of tiles.
-        assert(mapbuf->buf != nullptr);
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*jmap +
@@ -631,6 +636,11 @@ public:
     }
     int stripe(const int pixel_index[], int thread_count) {
         return pixel_index[0] % thread_count;
+    }
+    int tile_count() {
+        int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
+        int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
+        return n_tx * n_ty;
     }
 
     Pixelizor2_Flat<NonTiled> parent_pix;
@@ -897,7 +907,7 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::pixel_ranges(
-    bp::object pbore, bp::object pofs, bp::object map)
+    bp::object pbore, bp::object pofs, bp::object map, int n_domain)
 {
     auto _none = bp::object();
 
@@ -914,10 +924,11 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
 
 #pragma omp parallel
     {
-        int n_domain = omp_get_num_threads();
+        if (n_domain <= 0)
+            n_domain = omp_get_num_threads();
 #pragma omp single
         {
-            for (int i=0; i<n_domain; ++i) {
+            for (int i=0; i<n_domain; i++) {
                 vector<RangesInt32> v(n_det);
                 for (auto &_v: v)
                     _v.count = n_time;
@@ -959,6 +970,142 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
     }
 
     // Convert super vector to a list and return
+    auto ivals_out = bp::list();
+    for (int j=0; j<ranges.size(); j++) {
+        auto ivals = bp::list();
+        for (int i_det=0; i_det<n_det; i_det++) {
+            auto iv = ranges[j][i_det];
+            ivals.append(bp::object(iv));
+        }
+        ivals_out.append(bp::extract<bp::object>(ivals)());
+    }
+    return bp::extract<bp::object>(ivals_out);
+}
+
+template<typename C, typename P, typename S>
+vector<int> ProjectionEngine<C,P,S>::tile_hits(
+    bp::object pbore, bp::object pofs)
+{
+    auto _none = bp::object();
+
+    auto pointer = Pointer<C>();
+    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    int n_tile = _pixelizor.tile_count();
+    if (n_tile < 0)
+        throw general_exception("No tiles in this pixelization.");
+
+    vector<int> hits(n_tile);
+    vector<vector<int>> temp;
+
+#pragma omp parallel
+    {
+        int n_domain = omp_get_num_threads();
+#pragma omp single
+        {
+            for (int i=0; i<n_domain; i++)
+                temp.push_back(vector<int>(n_tile));
+        }
+
+#pragma omp for
+        for (int i_det = 0; i_det < n_det; ++i_det) {
+            double dofs[4];
+            pointer.InitPerDet(i_det, dofs);
+            int pixel_offset[P::index_count] = {-1};
+            int thread = omp_get_thread_num();
+            for (int i_time = 0; i_time < n_time; ++i_time) {
+                double coords[4];
+                pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+                _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
+                if (pixel_offset[0] >= 0)
+                    temp[thread][pixel_offset[0]]++;
+            }
+        }
+#pragma omp single
+        {
+            for (int i=0; i<n_domain; i++) {
+                for (int j=0; j<n_tile; j++)
+                    hits[j] += temp[i][j];
+            }
+        }
+    }
+
+    return hits;
+}
+
+//tile_ranges: create RangesInt32 information for n threads, such that
+//each thread is active only on certain tiles.  tile_map should be a
+//list of lists of tiles.
+template<typename C, typename P, typename S>
+bp::object ProjectionEngine<C,P,S>::tile_ranges(
+    bp::object pbore, bp::object pofs, bp::object tile_lists)
+{
+    auto _none = bp::object();
+
+    auto pointer = Pointer<C>();
+    pointer.TestInputs(_none, pbore, pofs, _none, _none);
+    int n_det = pointer.DetCount();
+    int n_time = pointer.TimeCount();
+
+    int n_tile = _pixelizor.tile_count();
+    if (n_tile < 0)
+        throw general_exception("No tiles in this pixelization.");
+
+    // Make a vector that maps tile into thread.
+    vector<int> thread_idx(n_tile, -1);
+    for (int i=0; i<bp::len(tile_lists); i++) {
+        auto tile_list = tile_lists[i];
+        for (int j=0; j<bp::len(tile_list); j++) {
+            int tile_idx = PyLong_AsLong(bp::object(tile_list[j]).ptr());
+            thread_idx[tile_idx] = i;
+       }
+    }
+
+    // Make a bunch of Ranges, index them with [thread, det].  Note
+    // thread isn't the OMP thread index, below, but the thread_index
+    // determined from tile_lists.  It's safe to populate these
+    // structures in parallel provided that only one thread touches
+    // each Ranges object, which is the case since each OMP thread
+    // below specializes in certain detectors.
+    vector<vector<RangesInt32>> ranges;
+    for (int i=0; i<bp::len(tile_lists); i++) {
+        vector<RangesInt32> v(n_det);
+        for (auto &_v: v)
+            _v.count = n_time;
+        ranges.push_back(v);
+    }
+
+#pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        int last_slice = -1;
+        int slice_start = 0;
+        int pixel_offset[P::index_count] = {-1};
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
+
+            int this_slice = -1;
+            if (pixel_offset[0] >= 0)
+                this_slice = thread_idx[pixel_offset[0]];
+            if (this_slice != last_slice) {
+                if (last_slice >= 0)
+                    ranges[last_slice][i_det].append_interval_no_check(
+                        slice_start, i_time);
+                slice_start = i_time;
+                last_slice = this_slice;
+            }
+        }
+        if (last_slice >= 0)
+            ranges[last_slice][i_det].append_interval_no_check(
+                slice_start, n_time);
+    }
+
+    // Convert vector<vector<Ranges>> to a list and return it.
     auto ivals_out = bp::list();
     for (int j=0; j<ranges.size(); j++) {
         auto ivals = bp::list();
@@ -1523,6 +1670,8 @@ TYPEDEF_PIX(ZEA)
     .add_property("comp_count", &CLASSNAME::comp_count)                 \
     .def("coords", &CLASSNAME::coords)                                  \
     .def("pixels", &CLASSNAME::pixels)                                  \
+    .def("tile_hits", &CLASSNAME::tile_hits)                            \
+    .def("tile_ranges", &CLASSNAME::tile_ranges)                        \
     .def("pointing_matrix", &CLASSNAME::pointing_matrix)                \
     .def("pixel_ranges", &CLASSNAME::pixel_ranges)                      \
     .def("zeros", &CLASSNAME::zeros)                                    \
