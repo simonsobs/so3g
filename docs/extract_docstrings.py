@@ -116,7 +116,6 @@ def prepare_readthedocs(src_branch='master',
 
     if version_file is None:
         version_file = os.path.join('../docs/_so3g_rtd_version.txt')
-    open(version_file, 'w').write(so3g.__version__)
 
     for cmd in [
             'git checkout %s' % dest_branch,
@@ -128,9 +127,11 @@ def prepare_readthedocs(src_branch='master',
             'git commit --allow-empty -m "Doc-ready build : %s"' % so3g.version(),
     ]:
         if cmd is None:
-            # Write the lib shell.
+            # Write the lib shell and version file.
             print('Creating docstring shells in %s...' % dest_file)
             create_docstring_shells(so3g, open(dest_file, 'w'))
+            print('Writing version to %s' % version_file)
+            open(version_file, 'w').write(so3g.__version__)
         else:
             print('run: %s' % cmd)
             code = os.system(cmd)
