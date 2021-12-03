@@ -28,7 +28,7 @@
 # No handler for "load_pybindings"
 
 def version():
-  return "0.1.0+117.g75c1d8d"
+  return "0.1.0+130.g87b3549"
 # No handler for "useful_info"
 
 # No handler for "greet"
@@ -972,6 +972,18 @@ class ProjEng_Flat_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -979,10 +991,10 @@ class ProjEng_Flat_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1024,6 +1036,18 @@ class ProjEng_Flat_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1031,10 +1055,10 @@ class ProjEng_Flat_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1076,6 +1100,18 @@ class ProjEng_Flat_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1083,10 +1119,10 @@ class ProjEng_Flat_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1128,6 +1164,18 @@ class ProjEng_Flat_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1135,10 +1183,10 @@ class ProjEng_Flat_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1180,6 +1228,18 @@ class ProjEng_Flat_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1187,10 +1247,10 @@ class ProjEng_Flat_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1232,6 +1292,18 @@ class ProjEng_Flat_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1239,10 +1311,10 @@ class ProjEng_Flat_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1284,6 +1356,18 @@ class ProjEng_Quat_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1291,10 +1375,10 @@ class ProjEng_Quat_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1336,6 +1420,18 @@ class ProjEng_Quat_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1343,10 +1439,10 @@ class ProjEng_Quat_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1388,6 +1484,18 @@ class ProjEng_Quat_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1395,10 +1503,10 @@ class ProjEng_Quat_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1440,6 +1548,18 @@ class ProjEng_Quat_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1447,10 +1567,10 @@ class ProjEng_Quat_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1492,6 +1612,18 @@ class ProjEng_Quat_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1499,10 +1631,10 @@ class ProjEng_Quat_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1544,6 +1676,18 @@ class ProjEng_Quat_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1551,10 +1695,10 @@ class ProjEng_Quat_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1596,6 +1740,18 @@ class ProjEng_CAR_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1603,10 +1759,10 @@ class ProjEng_CAR_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1648,6 +1804,18 @@ class ProjEng_CAR_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1655,10 +1823,10 @@ class ProjEng_CAR_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1700,6 +1868,18 @@ class ProjEng_CAR_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1707,10 +1887,10 @@ class ProjEng_CAR_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1752,6 +1932,18 @@ class ProjEng_CAR_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1759,10 +1951,10 @@ class ProjEng_CAR_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1804,6 +1996,18 @@ class ProjEng_CAR_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1811,10 +2015,10 @@ class ProjEng_CAR_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1856,6 +2060,18 @@ class ProjEng_CAR_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1863,10 +2079,10 @@ class ProjEng_CAR_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1908,6 +2124,18 @@ class ProjEng_CEA_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1915,10 +2143,10 @@ class ProjEng_CEA_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -1960,6 +2188,18 @@ class ProjEng_CEA_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -1967,10 +2207,10 @@ class ProjEng_CEA_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2012,6 +2252,18 @@ class ProjEng_CEA_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2019,10 +2271,10 @@ class ProjEng_CEA_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2064,6 +2316,18 @@ class ProjEng_CEA_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2071,10 +2335,10 @@ class ProjEng_CEA_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2116,6 +2380,18 @@ class ProjEng_CEA_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2123,10 +2399,10 @@ class ProjEng_CEA_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2168,6 +2444,18 @@ class ProjEng_CEA_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2175,10 +2463,10 @@ class ProjEng_CEA_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2220,6 +2508,18 @@ class ProjEng_ARC_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2227,10 +2527,10 @@ class ProjEng_ARC_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2272,6 +2572,18 @@ class ProjEng_ARC_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2279,10 +2591,10 @@ class ProjEng_ARC_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2324,6 +2636,18 @@ class ProjEng_ARC_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2331,10 +2655,10 @@ class ProjEng_ARC_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2376,6 +2700,18 @@ class ProjEng_ARC_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2383,10 +2719,10 @@ class ProjEng_ARC_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2428,6 +2764,18 @@ class ProjEng_ARC_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2435,10 +2783,10 @@ class ProjEng_ARC_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2480,6 +2828,18 @@ class ProjEng_ARC_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2487,10 +2847,10 @@ class ProjEng_ARC_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2532,6 +2892,18 @@ class ProjEng_TAN_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2539,10 +2911,10 @@ class ProjEng_TAN_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2584,6 +2956,18 @@ class ProjEng_TAN_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2591,10 +2975,10 @@ class ProjEng_TAN_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2636,6 +3020,18 @@ class ProjEng_TAN_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2643,10 +3039,10 @@ class ProjEng_TAN_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2688,6 +3084,18 @@ class ProjEng_TAN_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2695,10 +3103,10 @@ class ProjEng_TAN_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2740,6 +3148,18 @@ class ProjEng_TAN_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2747,10 +3167,10 @@ class ProjEng_TAN_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2792,6 +3212,18 @@ class ProjEng_TAN_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2799,10 +3231,10 @@ class ProjEng_TAN_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2844,6 +3276,18 @@ class ProjEng_ZEA_T_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2851,10 +3295,10 @@ class ProjEng_ZEA_T_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2896,6 +3340,18 @@ class ProjEng_ZEA_T_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2903,10 +3359,10 @@ class ProjEng_ZEA_T_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -2948,6 +3404,18 @@ class ProjEng_ZEA_QU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -2955,10 +3423,10 @@ class ProjEng_ZEA_QU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -3000,6 +3468,18 @@ class ProjEng_ZEA_QU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -3007,10 +3487,10 @@ class ProjEng_ZEA_QU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -3052,6 +3532,18 @@ class ProjEng_ZEA_TQU_Tiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -3059,10 +3551,10 @@ class ProjEng_ZEA_TQU_Tiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
@@ -3104,6 +3596,18 @@ class ProjEng_ZEA_TQU_NonTiled:
     C++ signature :
         boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
   def pointing_matrix():
     """pointing_matrix(arg2, arg3, arg4, arg5) -> object
 
@@ -3111,10 +3615,10 @@ class ProjEng_ZEA_TQU_NonTiled:
         boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
-    """pixel_ranges(arg2, arg3, arg4) -> object
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
