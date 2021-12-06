@@ -27,8 +27,12 @@ if os.getenv('READTHEDOCS') == 'True':
     import extract_docstrings as edocs
     edocs.install_fake_spt3g(repo_root)
     edocs.install_fake_so3g(repo_root)
+    so3g_version = open(os.path.join(repo_root, 'docs/_so3g_rtd_version.txt'), 'r').read()
 
-import so3g
+else:
+    import so3g
+    so3g_version = so3g.__version__
+
 
 # -- Project information -----------------------------------------------------
 
@@ -37,9 +41,9 @@ copyright = '2018-2019, Simons Observatory Collaboration'
 author = 'Simons Observatory Collaboration'
 
 # The short X.Y version
-version = so3g.__version__
+version = so3g_version
 # The full version, including alpha/beta/rc tags.
-release = so3g.__version__
+release = so3g_version
 
 
 # -- General configuration ---------------------------------------------------
@@ -104,8 +108,8 @@ autoclass_content = 'both'
 # some external dependencies are not met at build time and break the
 # building process.
 autodoc_mock_imports = []
-for missing in ('numpy', 'matplotlib', 'healpy', 'astropy',
-                'quaternionarray'):
+for missing in ('matplotlib', 'healpy', 'astropy',
+                'quaternionarray', 'sqlalchemy', 'yaml', 'ephem', 'tqdm'):
     try:
         foo = import_module(missing)
     except ImportError:

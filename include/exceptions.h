@@ -77,6 +77,21 @@ public:
     }
 };
 
+class tiling_exception : public so3g_exception
+{
+public:
+    int tile_idx;
+    std::string msg;
+    tiling_exception(int tile_idx, std::string msg) :
+        tile_idx{tile_idx}, msg{msg} {}
+
+    std::string msg_for_python() const throw() {
+        std::ostringstream s;
+        s << "Tiling problem (index " << tile_idx << "): " << msg;
+        return s.str();
+    }
+};
+
 class general_agreement_exception : public so3g_exception
 {
 public:

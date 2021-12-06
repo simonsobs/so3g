@@ -4,6 +4,8 @@ from . import quat
 import numpy as np
 
 from .ranges import Ranges, RangesMatrix
+from . import mapthreads
+
 
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
@@ -56,12 +58,12 @@ class Projectionist:
     * ``wcs`` - the WCS describing the celestial axes of the map.
       Together with ``shape`` this is a geometry; see pixell.enmap
       documentation.
-    * ``threads`` - a RangesMatrix with shape
-      (n_threads,n_dets,n_samps), used to specify which samples should
-      be treated by each thread in TOD-to-map operations.  Such
-      objects should satisfy the condition that
-      threads[x,j]*threads[y,j] is the empty Range; i.e. each
-      detector-sample is assigned to exactly one thread.
+    * ``threads`` - the thread assignment, which is a RangesMatrix
+      with shape (n_threads,n_dets,n_samps), used to specify which
+      samples should be treated by each thread in TOD-to-map
+      operations.  Such objects should satisfy the condition that
+      threads[x,j]*threads[y,j] is the empty Range for x != y;
+      i.e. each detector-sample is assigned to at most one thread.
 
     Attributes:
         naxis: 2-element integer array specifying the map shape (for
@@ -73,10 +75,10 @@ class Projectionist:
         q_celestial_to_native: quaternion rotation taking celestial
             coordinates to the native spherical coordinates of the
             projection.
-        tiled: bool, indicates if map is tiled.
         tile_shape: 2-element integer array specifying the tile shape
             (this is the shape of one full-size sub-tile, not the
             decimation factor on each axis).
+        tiling: a _Tiling object if the map is tiled, None otherwise.
 
     """
     @staticmethod
@@ -105,10 +107,16 @@ class Projectionist:
 
     def __init__(self):
         self._q0 = None
-        self.tiled = False
+        self.tile_shape = None
         self.naxis = np.array([0, 0])
         self.cdelt = np.array([0., 0.])
         self.crpix = np.array([0., 0.])
+
+    @property
+    def tiling(self):
+        if self.tile_shape is None:
+            return None
+        return _Tiling(self.naxis[::-1], self.tile_shape)
 
     @classmethod
     def for_geom(cls, shape, wcs):
@@ -127,6 +135,7 @@ class Projectionist:
                                shape[ndim - ax2 - 1]], dtype=int)
         # Get just the celestial part.
         wcs = wcs.celestial
+        self.wcs = wcs
 
         # Extract the projection name (e.g. CAR)
         proj = [c[-3:] for c in wcs.wcs.ctype]
@@ -178,7 +187,7 @@ class Projectionist:
         return self
 
     @classmethod
-    def for_tiled(cls, shape, wcs, tile_shape, pop_opts=True):
+    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True):
         """Construct a Projectionist for use with the specified geometry
         (shape, wcs), cut into tiles of shape tile_shape.
 
@@ -186,7 +195,7 @@ class Projectionist:
 
         Args:
             tile_shape: tuple of ints, giving the shape of each tile.
-            pop_opts: bool or list of ints.  Specifies which tiles
+            active_tiles: bool or list of ints.  Specifies which tiles
                 should be considered active.  If True, all tiles are
                 populated.  If None or False, this will remain
                 uninitialized and attempts to generate blank maps
@@ -197,17 +206,14 @@ class Projectionist:
 
         """
         self = cls.for_geom(shape, wcs)
-        self.tiled = True
         self.tile_shape = np.array(tile_shape, 'int')
-        nt0 = int(np.ceil(shape[0] / self.tile_shape[0]))
-        nt1 = int(np.ceil(shape[1] / self.tile_shape[1]))
-        if pop_opts is True:
-            self.pop_list = list(range(nt0*nt1))
-        elif pop_opts in [False, None]:
-            self.pop_list = None
+        if active_tiles is True:
+            self.active_tiles = list(range(self.tiling.tile_count))
+        elif active_tiles in [False, None]:
+            self.active_tiles = None
         else:
             # Presumably a list of tile numbers.
-            self.pop_list = pop_opts
+            self.active_tiles = active_tiles
         return self
 
     def _get_pixelizor_args(self):
@@ -220,10 +226,10 @@ class Projectionist:
         args = (int(self.naxis[1]), int(self.naxis[0]),
                 float(self.cdelt[1]), float(self.cdelt[0]),
                 float(self.crpix[1]), float(self.crpix[0]))
-        if self.tiled:
+        if self.tiling:
             args += tuple(map(int, self.tile_shape))
-            if self.pop_list is not None:
-                args += (self.pop_list,)
+            if self.active_tiles is not None:
+                args += (self.active_tiles,)
         return args
 
     def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
@@ -234,7 +240,7 @@ class Projectionist:
         """
         if proj_name is None:
             proj_name = self.proj_name
-        tile_suffix = 'Tiled' if self.tiled else 'NonTiled'
+        tile_suffix = 'Tiled' if self.tiling else 'NonTiled'
         projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}'
         if not get:
             return projeng_name
@@ -420,22 +426,71 @@ class Projectionist:
             src_map, q1, assembly.dets, signal)
         return signal_out
 
-    def assign_threads(self, assembly):
-        """Get a thread assignment RangesMatrix, using simple information
-        returned by the underlying pixelization.
+    def assign_threads(self, assembly, method='domdir', n_threads=None):
+        """Get a thread assignment RangesMatrix.  Different algorithms can be
+        chosen, though this method does not provide fine-grained
+        control of algorithm parameters and instead seeks to apply
+        reasonable defaults.
+
+        The methods exposed here are:
+
+        - ``'simple'``: Divides the map into n_threads horizontal
+          bands, and assigns the pixels in each band to a single
+          thread.  This tends to be bad for scans that aren't
+          horizontally correlated, or that don't have equal weight
+          throughout the map.  The 'domdir' algorithm addresses both
+          of those problems.
+        - ``'domdir'``: For constant elevation scans, determines the
+          dominant scan direction in the map and divides it into bands
+          parallel to that scan direction.  The thickness of bands is
+          adjusted so roughly equal numbers of samples fall into each
+          band.
+        - ``'tiles'``: In Tiled projections, assign each tile to a
+          thread.  Some effort is made to balance the total number of
+          samples over the threads.
 
         The returned object can be passed to the ``threads`` argument
-        of the projection methods in this object.
+        of the projection methods in this class.
 
         See class documentation for description of standard arguments.
 
-        """
-        projeng = self.get_ProjEng('T')
-        q1 = self._get_cached_q(assembly.Q)
-        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None)
-        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+        Args:
+          method (str): Algorithm to use.
 
-    def assign_threads_from_map(self, assembly, tmap):
+        """
+        if method not in THREAD_ASSIGNMENT_METHODS:
+            raise ValueError(f'No thread assignment method "{method}"; '
+                             f'expected one of {THREAD_ASSIGNMENT_METHODS}')
+        n_threads = mapthreads.get_num_threads(n_threads)
+
+        if method == 'simple':
+            projeng = self.get_ProjEng('T')
+            q1 = self._get_cached_q(assembly.Q)
+            omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None, n_threads)
+            return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+
+        elif method == 'domdir':
+            q1 = self._get_cached_q(assembly.Q)
+            offs_rep = assembly.dets[::100]
+            if (self.tiling is not None) and (self.active_tiles is None):
+                tile_info = self.get_active_tiles(assembly)
+                active_tiles = tile_info['active_tiles']
+                self.active_tiles = active_tiles
+            else:
+                active_tiles = None
+            return mapthreads.get_threads_domdir(
+                q1, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
+                tile_shape=self.tile_shape, active_tiles=active_tiles,
+                n_threads=n_threads, offs_rep=offs_rep)
+
+        elif method == 'tiles':
+            tile_info = self.get_active_tiles(assembly, assign=n_threads)
+            self.active_tiles = tile_info['active_tiles']
+            return tile_info['group_ranges']
+
+        raise RuntimeError(f"Unimplemented method: {method}.")
+
+    def assign_threads_from_map(self, assembly, tmap, n_threads=None):
         """Assign threads based on a map.
 
         The returned object can be passed to the ``threads`` argument
@@ -451,15 +506,101 @@ class Projectionist:
         """
         projeng = self.get_ProjEng('T')
         q1 = self._get_cached_q(assembly.Q)
-        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap)
+        n_threads = mapthreads.get_num_threads(n_threads)
+        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap, n_threads)
         return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
-    def get_active_tiles(self, assembly):
-        assert(self.tiled)  # Only makes sense for Tiled maps.
-        # Count the samples entering each Tile.
-        p = self.get_pixels(assembly)
-        tiles_hit = set()
-        for _p in p:
-            # First index of each sample's tuple is the tile index.
-            tiles_hit.update(_p[:,0])
-        return sorted([i for i in tiles_hit if i >= 0])
+    def get_active_tiles(self, assembly, assign=False):
+        """For a tiled Projection, figure out what tiles are hit by an
+        assembly.
+
+        See class documentation for description of standard arguments.
+
+        Args:
+          assign (bool or int): If True or an int, then the function
+            will also compute a thread assignment, based on assigning
+            each tile to a particular thread.  If this is an int, it
+            sets the thread count; if it is simply True then
+            OMP_NUM_THREADS is used.
+
+        Returns:
+          dict : The basic analysis results are:
+
+            - ``'active_tiles'`` (list of int): sorted, non-repeating
+              list of tiles that are hit by the assembly.
+            - ``'hit_counts'`` (list of int): the number of hits in
+              each tile returned in 'active_tiles', respectively.
+
+          If the thread assignment took place then the dict will also
+          contain:
+
+            - ``'group_tiles'`` (list of lists of ints): There is one
+              entry per thread, and the entry lists the tiles that
+              have been assigned to that thread.
+            - ``'group_ranges'`` (RangesMatrix): The thread
+              assignments; shape (n_thread, n_det, n_samp).
+
+        """
+        if self.tiling is None:
+            raise RuntimeError("This Projectionist not set up for Tiled maps.")
+        projeng = self.get_ProjEng('T')
+        q1 = self._get_cached_q(assembly.Q)
+        # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
+        hits = np.array(projeng.tile_hits(q1, assembly.dets))
+        tiles = np.nonzero(hits)[0]
+        hits = hits[tiles]
+        if assign is True:
+            assign = so3g.useful_info()['omp_num_threads']
+        if assign > 0:
+            group_n = np.array([0 for g in range(assign)])
+            group_tiles = [[] for _ in group_n]
+            cands = sorted(list(zip(hits, tiles)), reverse=True) # [(1000, 12), (900, 4), ...]
+            for _n, _t in cands:
+                idx = group_n.argmin()
+                group_n[idx] += _n
+                group_tiles[idx].append(_t)
+            # Now paint them into Ranges.
+            R = projeng.tile_ranges(q1, assembly.dets, group_tiles)
+            R = RangesMatrix([RangesMatrix(r) for r in R])
+            return {
+                'active_tiles': list(tiles),
+                'hit_counts': list(hits),
+                'group_ranges': R,
+                'group_tiles': group_tiles,
+            }
+        return {
+            'active_tiles': list(tiles),
+            'hit_counts': list(hits),
+        }
+
+
+class _Tiling:
+    """Utility class for computations involving tiled maps.
+
+    """
+    def __init__(self, shape, tile_shape):
+        self.shape = shape[-2:]
+        self.tile_shape = tile_shape
+        nt0 = int(np.ceil(self.shape[0] / self.tile_shape[0]))
+        nt1 = int(np.ceil(self.shape[1] / self.tile_shape[1]))
+        self.super_shape = (nt0, nt1)
+        self.tile_count = nt0 * nt1
+    def tile_dims(self, tile):
+        rowcol = self.tile_rowcol(tile)
+        return (min(self.shape[0] - rowcol[0] * self.tile_shape[0], self.tile_shape[0]),
+                min(self.shape[1] - rowcol[1] * self.tile_shape[1], self.tile_shape[1]))
+    def tile_rowcol(self, tile):
+        if tile >= self.tile_count:
+            raise ValueError(f"Request for tile {tile} is out of bounds for "
+                             f"super_shape={self.super_shape}")
+        return (tile // self.super_shape[1], tile % self.super_shape[1])
+    def tile_offset(self, tile):
+        row, col = self.tile_rowcol(tile)
+        return row * self.tile_shape[0], col * self.tile_shape[1]
+
+
+THREAD_ASSIGNMENT_METHODS = [
+    'simple',
+    'domdir',
+    'tiles',
+]

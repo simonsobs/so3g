@@ -305,35 +305,47 @@ to use OpenMP safely, or else they will default to a single thread
 implementation.
 
 The reason that thread-safety is non-trivial for ``to_map`` and
-``to_weights`` is that, depending on how the job is threaded, multiple
-threads might try to update to the same pixel at the ~same time.  This
-is a race condition that must be dealt with carefully.  Typical
-approaches would be:
+``to_weights`` is that one must be careful that different threads to
+not try to update the same pixel value at the ~same time.  Some common
+approaches to dealing with this race condition are:
 
 - Maintain separate copies of the output map for each thread, then add
-  them together at the end.  (This is memory-intensive.)
-- Use atomic update operations.  (This requires locking, which can be
-  very slow to somewhat slow depending on the architecture.)
+  them together at the end.  This is memory-intensive, requiring a
+  separate copy of the map for each thread, and requires
+  post-processing to combine the maps.
+- Use atomic update operations.  This requires locking, which can be
+  very slow to somewhat slow depending on the architecture.
 
-The approach that is currently implemented is to assign each pixel of
-the map to a particular thread, and then for each detector to identify
-all ranges of time samples that strike pixels belonging to each
-thread.  Then each OpenMP thread loops over all detectors, but only
-processes the ranges of samples that have been pre-identified as
-belonging to that thread.  The result is that each thread touches a
-disjoint set of pixels.
+The approach that is implemented in so3g.proj is to assign different
+regions of the map (i.e. different groups of pixels) to specific
+threads.  In a precomputation step, the code determines and caches,
+for each detector, which samples correspond to which pixel group.
+Then, in TOD-to-map operations, each OpenMP thread loops over all
+detectors but only processes the samples belonging to that thread.
+The result is that each thread touches a disjoint set of pixels.
 
-The precomputation needed to execute the above is non-trivial, and the
-best way to assign pixels to threads depends on the particulars of the
-scan pattern.  So OMP should be used with care.
+The assignment of ranges of samples to threads is called a *thread
+assignment* and is passed to Projectionist methods through the
+``threads=`` argument.  The thread assignment is carried in a
+:class:`RangesMatrix` object, with shape ``(n_threads, n_dets,
+n_samps)``.
 
-The assignment of pixels to threads, and thus of sample-ranges to
-threads, is encoded in a RangesMatrix object.  To get one, try the
-LINK THIS :func:`Projectionist.assign_threads` method, then pass the
-result to :func:`to_map() <Projectionist.to_map>` or :func:`from_map()
-<Projectionist.from_map>` argument ``threads=``::
+The thread assignment approach requires precomputation, which can
+itself be somewhat expensive, so this solution is targeting use cases
+where the projection operations need to be applied multiple times.
+The best way to assign pixels to threads depends on the particulars of
+the scan pattern.  Below we describe a few ways to generate the thread
+assignment.
 
-  threads = p.assign_threads(asm)
+Although it is not perfectly general, for constant elevation scans the
+``domdir`` method is has proven quite successful so you might want to
+start there.
+
+The function :func:`Projectionist.assign_threads` can be used to
+compute thread assignments using a few different algorithms.  For
+example::
+
+  threads = p.assign_threads(asm, method='domdir')
   map_pol2 = p.to_map(signal, asm, comps='TQU', threads=threads)
 
 Inspecting::
@@ -343,13 +355,64 @@ Inspecting::
   >>> map_pol2[:,45,106]
   array([10.        ,  4.97712898,  8.67341805])
 
+The same ``threads`` result can be passed to ``p.to_weights``.
 
-The default algorithm for thread assignment is not very smart... it
-simply cuts the maps into horizontal blocks.  If you know there's a
-better way to assign pixels than this, you can create a map that has
-the thread number for each pixel, and pass that to the method
-:func:`assign_threads_from_map()
-<Projectionist.assign_threads_from_map>``.
+In the sections below, a bit more detail is provided on the thread
+assignment options.
+
+
+Simple thread assignment (simple)
+`````````````````````````````````
+
+The ``simple`` algorithm works by dividing the map into ``n_threads``
+equal-sized horizontal bands, and assigning each band to a thread.
+This works well if the scan is horizontal and the data fill the entire
+map area.  It tends to perform poorly otherwise, usually because the
+weight in the map is heavier in the center than the edges.  Access
+this by passing ``method='simple'`` to
+:func:`Projectionist.assign_threads`.
+
+Dominant Direction (domdir)
+```````````````````````````
+
+The ``domdir`` algorithm is a generalization of the ``simple``
+algorithm that accounts for the dominant scan direction and for
+imbalance of weight in the map.  Determining the scan direction
+involves a TOD-to-map projection operation, but can be accomplished
+with a decimated focal plane.  The balancing of weights in threads
+requires a projection from map-to-TOD, which requires creating a new
+TOD-sized data structure (temporarily).
+
+You can access this method by passing ``method='domdir'`` to
+:func:`Projectionist.assign_threads`.  For finer-grained control, see
+:func:`so3g.proj.mapthreads.get_threads_domdir`.
+
+
+Tile-based thread assignment (tiles)
+````````````````````````````````````
+
+In Tiled mapping, the ``tiles`` provide convenient grouping of pixels,
+and can be used as the units for thread assignments.  The tiles can be
+assigned to a thread, accounting for the number of samples ending up
+in each tile to balance the work.  However, a good balance is probably
+not possible unless you have managed to end up with many more active
+tiles than threads.
+
+You can access this method by passing ``method='tiles'`` to
+:func:`Projectionist.assign_threads`.  The thread assignment in this
+case is computed by :func:`Projectionist.get_active_tiles`.
+
+
+Thread assignment from map
+``````````````````````````
+
+If you want to "manually" assign pixels to threads, consider using
+:func:`Projectionist.assign_threads_from_map`.  You must first create
+a single component map where the value of the pixel is the index of
+the thread to which you want to assign the pixel.  Using this map, the
+code determines the thread index of every sample in the TOD, and
+returns the RangesMatrix with the result.  (This function is used by
+the ``domdir`` method.)
 
 For example, we might know that slicing the map into wide columns is a
 good way to assign threads.  So we make a map with 0s, 1s, 2s and 3s
@@ -361,9 +424,9 @@ RangesMatrix::
 
   # Stripe it.
   full_width = thread_map.shape[-1]
-  thread_count = 4
-  for i in range(thread_count):
-    thread_map[...,i*full_width//thread_count:] = i
+  n_threads = 4
+  for i in range(n_threads):
+    thread_map[...,i*full_width//n_threads:] = i
 
   # Convert to RangesMatrix
   threads = p.assign_threads_from_map(asm, thread_map)
@@ -424,7 +487,7 @@ right and lower left corners::
   p = so3g.proj.Projectionist.for_tiled(shape, wcs, (20, 50),
       [0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 18, 19])
 
-Such a list can be generated automatically using ``get_active_tiles``,
+Such a list can be generated automatically using :func:`get_active_tiles`,
 which can then be used to construct a new Projectionist::
 
   # Construct without tile list...
@@ -444,16 +507,14 @@ We endeavor to limit the expression of rotations in terms of tuples of
 angles to three representations: ``iso``, ``lonlat``, and ``xieta``.
 These are defined and applied in tod2maps_docs/coord_sys.  Routines
 for converting between angle tuples and quaternions are provided in
-the :mod:`quat` submodule.
+the :mod:`so3g.proj.quat` submodule.
 
 
 Class and module reference
 ==========================
 
-*The core classes and submodules from* ``so3g.proj`` *are
-auto-documented here.  If you see a bunch of headings and no
-docstrings, then probably Sphinx could not import so3g properly when
-building the docs!*
+*Several core classes and submodules from* ``so3g.proj`` *should be
+auto-documented below.*
 
 Assembly
 --------
@@ -471,8 +532,13 @@ EarthlySite
    :members:
 
 FocalPlane
------------
+----------
 .. autoclass:: so3g.proj.FocalPlane
+   :members:
+
+mapthread
+---------
+.. automodule:: so3g.proj.mapthreads
    :members:
 
 Projectionist
