@@ -24,6 +24,7 @@ find_package(Spt3g REQUIRED)
 
 find_package(PythonInterp 3)
 find_package(PythonLibs 3)
+find_package(FLAC)
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -80,7 +81,7 @@ file(GLOB MY_PYTHONS_SMURF
   "${CMAKE_CURRENT_SOURCE_DIR}/python/smurf/*.py")
 
 # Provide list of libs to link against.
-target_link_libraries(so3g spt3g::core)
+target_link_libraries(so3g spt3g::core FLAC)
 
 # You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)
