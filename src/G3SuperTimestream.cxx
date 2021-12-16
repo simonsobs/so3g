@@ -187,6 +187,7 @@ struct G3SuperTimestream::array_blob encode_array(
 	ablob.count = 0;
 	ablob.offsets.push_back(0);
 
+	// Other buffers ...
 	int32_t d[n_samps];
 	const int32_t *chan_ptrs[1] = {d};
 
@@ -195,10 +196,9 @@ struct G3SuperTimestream::array_blob encode_array(
 	auto r64 = (int64_t*)r;
 
 	npy_intp type_num = PyArray_TYPE(array);
-	char *src = (char*)(PyArray_DATA(array));
 
 	int32_t M = (1 << 24);
-	for (int i=0; i<n_chans; i++, src+=PyArray_STRIDES(array)[0]) {
+	for (int i=0; i<n_chans; i++) {
 		// Save the current ablob.buf pointer in case we need to
 		// roll back the compression, which we will do if we
 		// end up writing to block_limit or beyond.
@@ -208,28 +208,53 @@ struct G3SuperTimestream::array_blob encode_array(
 		// Oh, the things we'll try.
 		bool try_flac = (options.data_algo & G3SuperTimestream::ALGO_DO_FLAC);
 		bool try_bz = (options.data_algo & G3SuperTimestream::ALGO_DO_BZ);
-		bool try_const = false;
+		bool try_const = try_bz;
 
 		int8_t algo_used = 0;
-		bool ok = true;
+
+		// Pointer to the data that must be transmitted,
+		// either in raw or compressed form.
+		char *src0 = (char*)(PyArray_DATA(array)) + i*PyArray_STRIDES(array)[0];
+
+		// Remove quanta?
+		switch(type_num) {
+		case NPY_FLOAT32:
+			for (int j=0; j < n_samps; j++)
+				r32[j] = roundf(((float*)src0)[j] / quanta[i]);
+			src0 = (char*)r;
+			break;
+		case NPY_FLOAT64:
+			for (int j=0; j < n_samps; j++)
+				r64[j] = round(((double*)src0)[j] / quanta[i]);
+			src0 = (char*)r;
+			break;
+		}
+
+		// Pointer to data that remains to be compressed.  Set
+		// to nullptr if all data have been consumed
+		// successfuly already.
+		char *src = src0;
+
+		// Boolean indicating if we've given up on compression
+		// and need to just drop in the raw data at the end.
+		bool fallback = (options.data_algo == G3SuperTimestream::ALGO_NONE);
 
 		if (try_flac) {
+			int flac_ablob_reset = ablob.count; // in case we need to bail.
 			int32_t *flac_size = reserve_size_field(&ablob);
-			int branches = 0;
-			if (type_num == NPY_INT32) {
-				branches = rebranch<int32_t>(d, r32, (int32_t*)src, n_samps, M, M/2);
-			} else if (type_num == NPY_INT64) {
-				branches = rebranch<int64_t>(d, r64, (int64_t*)src, n_samps, M, M/2);
-			} else if (type_num == NPY_FLOAT32) {
-				for (int j=0; j < n_samps; j++)
-					r32[j] = roundf(((float*)src)[j] / quanta[i]);
-				branches = rebranch<int32_t>(d, r32, r32, n_samps, M, M/2);
-			} else if (type_num == NPY_FLOAT64) {
-				for (int j=0; j < n_samps; j++)
-					r64[j] = round(((double*)src)[j] / quanta[i]);
-				branches = rebranch<int64_t>(d, r64, r64, n_samps, M, M/2);
-			} else
+			// Decompose into d+r.  Note src may already point to r.
+			switch(type_num) {
+			case NPY_INT32:
+			case NPY_FLOAT32:
+				rebranch<int32_t>(d, r32, (int32_t*)src, n_samps, M, M/2);
+				break;
+			case NPY_INT64:
+			case NPY_FLOAT64:
+				rebranch<int64_t>(d, r64, (int64_t*)src, n_samps, M, M/2);
+				break;
+			default:
 				throw g3supertimestream_exception("Invalid array type encountered.");
+			}
 
 			// Re-using this encoder for all
 			// detectors... seems to not work if process
@@ -243,7 +268,6 @@ struct G3SuperTimestream::array_blob encode_array(
 
 			// If encoding fails, check that it looks like
 			// a simple buffer-to-small error, then continue.
-			int err1;
 			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) || 
 			    !FLAC__stream_encoder_finish(encoder)) {
 				auto state = FLAC__stream_encoder_get_state(encoder);
@@ -255,40 +279,47 @@ struct G3SuperTimestream::array_blob encode_array(
 					throw g3supertimestream_exception(s.str());
 				}
 				// Discard any partial encoding ... let bzip have a go.
-				ablob.count = block_start + 1;
+				ablob.count = flac_ablob_reset;
                         } else {
 				// Great, update FLAC block size and record it.
-				ok = close_size_field(&ablob, flac_size);
+				close_size_field(&ablob, flac_size);
 				algo_used |= G3SuperTimestream::ALGO_DO_FLAC;
 
-				// Const remainder?
-				if (branches <= 1) {
-					try_bz = false;
-					try_const = true;
-				}
+				// Target for subsequent compression is the remainder vector.
+				src = r;
 			}
 			FLAC__stream_encoder_delete(encoder);
 		}
 
-		if (!(algo_used & G3SuperTimestream::ALGO_DO_FLAC)) {
-			// Just copy the raw data into the r buffer,
-			// where the bz code will pick it up.
-			memcpy(r, src, n_samps * itemsize);
-			if (type_num == NPY_FLOAT32) {
-				for (int j=0; j<n_samps; j++)
-					((int32_t*)r)[j] = roundf(((float*)r)[j] / quanta[i]);
-			} else if (type_num == NPY_FLOAT64) {
-				for (int j=0; j<n_samps; j++)
-					((int64_t*)r)[j] = round(((double*)r)[j] / quanta[i]);
-			}
-		}
+		if (!fallback && try_const) {
+			// Check for constness.
+			bool is_const = true;
+			bool is_zero = false;
+			int n_copy = 0;
 
-		if (ok && try_const) {
-			// Note "try_const" means "the data are
-			// constant, it's ok to treat them as such".
-			// The code below doesn't check the
-			// assumption.
-			//
+			switch (type_num) {
+			case NPY_FLOAT32:
+			case NPY_INT32:
+			{
+				auto s = (int32_t*)src;
+				n_copy = sizeof(s[0]);
+				is_zero = (s[0] == 0);
+				for (int i=0; is_const && i<n_samps; i++)
+					is_const = (s[i] == s[0]);
+				break;
+			}
+			case NPY_FLOAT64:
+			case NPY_INT64:
+			{
+				auto s = (int64_t*)src;
+				n_copy = sizeof(s[0]);
+				is_zero = (s[0] == 0);
+				for (int i=0; is_const && i<n_samps; i++)
+					is_const = (s[i] == s[0]);
+				break;
+			}
+			}
+
 			// Take care in the cute handling of special
 			// case r[0] == 0.  If you naively leave out
 			// the ALGO_DO_CONST bit, and if FLAC
@@ -296,32 +327,19 @@ struct G3SuperTimestream::array_blob encode_array(
 			// storing algo=0, which the decoder will
 			// interpret as raw format, not zero-byte
 			// ultracompression representing all zeros!
-			int n_copy = 0;
-			switch (type_num) {
-			case NPY_FLOAT32:
-			case NPY_INT32:
-				if (r32[0] != 0 || algo_used == 0)
-					n_copy = sizeof(int32_t);
-				break;
-			case NPY_FLOAT64:
-			case NPY_INT64:
-				if (r64[0] != 0 || algo_used == 0)
-					n_copy = sizeof(int64_t);
-				break;
-			}
-			if (ablob.count + n_copy < block_limit) {
-				if (n_copy > 0) {
-					memcpy(ablob.buf + ablob.count, r, n_copy);
-					ablob.count += n_copy;
-					algo_used |= G3SuperTimestream::ALGO_DO_CONST;
-				}
+			if (is_const && is_zero && algo_used != 0) {
+				src = nullptr;
+			} else if (is_const && (ablob.count + n_copy < block_limit)) {
+				memcpy(ablob.buf + ablob.count, src, n_copy);
+				ablob.count += n_copy;
+				algo_used |= G3SuperTimestream::ALGO_DO_CONST;
+				src = nullptr;
 			} else {
-				ok = false;
+				// Fail, pass to next phase.
 			}
 		}
-		if (ok && try_bz) {
+		if (!fallback && (src != nullptr) && try_bz) {
 			int32_t *bz_size = reserve_size_field(&ablob);
-			algo_used |= G3SuperTimestream::ALGO_DO_BZ;
 			if (ablob.count < block_limit) {
 				unsigned int n_write = block_limit - ablob.count;
 				int err = BZ2_bzBuffToBuffCompress(
@@ -329,25 +347,29 @@ struct G3SuperTimestream::array_blob encode_array(
 					SO3G_BZ2_BLOCKSIZE, SO3G_BZ2_VERBOSITY, options.bz2_workFactor);
 				if (err == BZ_OUTBUFF_FULL) {
 					// Too long, don't bother.
-					ok = false;
+					fallback = true;
 				} else if (err != BZ_OK) {
 					throw g3supertimestream_exception(get_bz2_error_string(err));
 				} else {
 					ablob.count += n_write;
-					ok = close_size_field(&ablob, bz_size);
+					close_size_field(&ablob, bz_size);
+					src = nullptr;
+					algo_used |= G3SuperTimestream::ALGO_DO_BZ;
 				}
 			} else
-				ok = false;
+				fallback = true;
 		}
 
-		if (ok && ablob.count < block_limit) {
-			// That went well.
-			ablob.buf[block_start] = algo_used;
-		} else {
+		if (fallback) {
 			// Bail out into raw copy.
 			ablob.buf[block_start] = G3SuperTimestream::ALGO_NONE;
-			memcpy(ablob.buf + block_start + 1, src, n_samps * itemsize);
+			memcpy(ablob.buf + block_start + 1, src0, n_samps * itemsize);
 			ablob.count = block_limit;
+		} else if (src != nullptr) {
+			throw g3supertimestream_exception("Unexpected state.");
+		} else {
+			// That went well.
+			ablob.buf[block_start] = algo_used;
 		}
 		ablob.offsets.push_back(ablob.count);
 	}
