@@ -187,9 +187,10 @@ class TestSuperTimestream(unittest.TestCase):
 
         """
         # Short segments
-        ts = self._get_ts(1, 10, sigma=0, dtype='int32')
-        ts.encode()
-        self._readback_compare(ts)
+        for nsamp in range(1, 20):
+            ts = self._get_ts(1, nsamp, sigma=0, dtype='int32')
+            ts.encode()
+            self._readback_compare(ts)
         
         # Random time vector.
         n = 200
@@ -203,6 +204,14 @@ class TestSuperTimestream(unittest.TestCase):
         ts = self._get_ts(1, n, sigma=0, dtype='int64')
         ts.data = (np.random.uniform(size=n*8) * 256).astype('uint8').view(dtype='int64').reshape(1,-1)
         self._readback_compare(ts)
+
+        # Small n_det (note 1-10 weren't causing a problem by 11+ were...)
+        for n_det in range(1, 20):
+            ts = self._get_ts(n_det, 1, sigma=0, dtype='int64')
+            ts.data = (np.random.uniform(size=n_det*8) * 256).astype('uint8') \
+                .view(dtype='int64').reshape(-1, 1)
+            ts.encode()
+            self._readback_compare(ts)
 
     def test_20_encode_float(self):
         for dtype in FLOAT_DTYPES:
