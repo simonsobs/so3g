@@ -547,6 +547,8 @@ class Projectionist:
         q1 = self._get_cached_q(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
         hits = np.array(projeng.tile_hits(q1, assembly.dets))
+        if np.sum(hits) == 0:
+            raise RuntimeError(f"There are no hits to any of the {len(hits)} tiles")
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
