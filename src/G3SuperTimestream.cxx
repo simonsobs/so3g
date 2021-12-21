@@ -418,7 +418,7 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 
 	if (options.times_algo == ALGO_DO_BZ) {
 		// Try to bz2 compress.  Convert to a vector of int64_t first.
-		auto time_ints = vector<int64_t>(times.begin(), times.end());
+		auto time_ints = vector<long>(times.begin(), times.end());
 		int n_samps = time_ints.size();
 		unsigned int max_bytes = n_samps * sizeof(time_ints[0]);
 
