@@ -81,13 +81,12 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
 
     # Get a Projectionist -- note it can be used with full or
     # representative assembly.
-    pmat = so3g.proj.wcs.Projectionist.for_tiled(
-        shape, wcs, tile_shape=tile_shape, active_tiles=active_tiles
-    )
+    pmat = so3g.proj.wcs.Projectionist.for_tiled(shape, wcs, tile_shape=tile_shape)
     if active_tiles is None:
         # This is OMPed, but it's still better to pass in active_tiles
         # if you've already computed it somehow.
-        pmat.active_tiles = pmat.get_active_tiles(asm_full, assign=True)['active_tiles']
+        active_tiles = pmat.get_active_tiles(asm_full)['active_tiles']
+    pmat.active_tiles = active_tiles
     tiling = pmat.tiling
 
     # For the scan direction map, use the "representative" subset
@@ -120,7 +119,7 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
     # parallel to the scan direction.
     idx_maps = pmat.zeros((1,))
     lims = None
-    for t in pmat.active_tiles:
+    for t in active_tiles:
         y0, x0 = tiling.tile_offset(t)
         ny, nx = tiling.tile_dims(t)
         y, x = y0 + np.arange(ny), x0 + np.arange(nx)
@@ -143,7 +142,7 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
     n_bins = 200
     bins = np.linspace(lims[0], lims[1], n_bins+1)
     H = np.zeros(n_bins)
-    for t in pmat.active_tiles:
+    for t in active_tiles:
         H += np.histogram(idx_maps[t].ravel(), bins=bins,
                           weights=scan_maps[t][0].ravel())[0]
     del scan_maps
@@ -161,7 +160,7 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
     superbins = np.hstack((bins[0], ys[1:-1], bins[-1]))
 
     # Create maps where the pixel value is a superbin index.
-    for t in pmat.active_tiles:
+    for t in active_tiles:
         temp = np.zeros(idx_maps[t].shape)
         for i in range(n_threads):
             s = (superbins[i] <= idx_maps[t])*(idx_maps[t] < superbins[i+1])
