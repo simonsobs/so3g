@@ -926,11 +926,12 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
 
 #pragma omp parallel
     {
-        if (n_domain <= 0)
+        if (n_domain <= 0) {
             n_domain = 1;
             #ifdef _OPENMP
             n_domain = omp_get_num_threads();
             #endif
+        }
 #pragma omp single
         {
             for (int i=0; i<n_domain; i++) {
@@ -1009,7 +1010,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
     {
         int n_domain = 1;
         #ifdef _OPENMP
-        omp_get_num_threads();
+        n_domain = omp_get_num_threads();
         #endif
 #pragma omp single
         {

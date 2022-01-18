@@ -24,7 +24,7 @@ const std::string version()
 }
 
 bp::object useful_info() {
-    int omp_num_threads = -1;
+    int omp_num_threads = 1;
 #pragma omp parallel
     {
         #ifdef _OPENMP

@@ -1,0 +1,14 @@
+# Requirements to install with conda, if using
+# that.
+astropy==4.3.1
+matplotlib
+numpy
+scipy
+ephem
+pytz
+pyaml
+sqlalchemy
+pysqlite3
+tqdm
+pytest
+cmake

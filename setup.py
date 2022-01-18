@@ -106,15 +106,16 @@ def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, versi
 
     # Make a copy of the environment so that we can modify it
     env = os.environ.copy()
+
+    ccomp = env.get("CC", None)
+    cxxcomp = env.get("CXX", None)
+    cflags = env.get("CFLAGS", None)
     cxxflags = env.get("CXXFLAGS", "")
     cxxflags = "{} -DVERSION_INFO='{}'".format(cxxflags, version)
     if sys.platform.lower() == "darwin":
         cmake_args += ["-DCMAKE_SHARED_LINKER_FLAGS='-undefined dynamic_lookup'"]
     env["CXXFLAGS"] = cxxflags
 
-    ccomp = env.get("CC", None)
-    cxxcomp = env.get("CXX", None)
-    cflags = env.get("CFLAGS", None)
     if ccomp is not None:
         cmake_args += [f"-DCMAKE_C_COMPILER={ccomp}"]
     if cxxcomp is not None:
@@ -265,13 +266,13 @@ class CMakeBuild(build_ext):
             f"-DPython_LIBRARY_DIRS=''",
             f"-DPython_VERSION_MAJOR={py_maj}",
             f"-DPython_VERSION_MINOR={py_min}",
-            "-DBOOST_ROOT=/usr/local", # Hack for testing
             "-DBoost_ARCHITECTURE=-x64",
             f"-DBoost_PYTHON_TYPE=python{py_maj}{py_min}",
-            "-DBoost_ARCHITECTURE=-x64",
             "-DBoost_DEBUG=ON",
             f"-DPYTHON_MODULE_DIR={install_spt3g_py}",
         ]
+        if "BOOST_ROOT" in os.environ:
+            dlist3g.append(f"-DBOOST_ROOT={os.environ['BOOST_ROOT']}")
 
         build_spt3g(
             spt3g_src_dir,
@@ -327,7 +328,7 @@ conf = dict()
 conf["name"] = "so3g"
 conf["description"] = "Tools for Simons Observatory work with spt3g_software"
 conf["long_description"] = readme()
-conf["long_description_content_type"] = "text/rst"
+conf["long_description_content_type"] = "text/x-rst"
 conf["author"] = "Simons Observatory Collaboration"
 conf["author_email"] = "so_software@simonsobservatory.org"
 conf["license"] = "MIT"
@@ -337,14 +338,14 @@ conf["python_requires"] = ">=3.7.0"
 conf["setup_requires"] = (["wheel", "cmake"],)
 conf["install_requires"] = [
     "numpy",
-    "astropy",
+    "astropy<5",
     "matplotlib",
     "scipy",
     "ephem",
     "pytz",
     "pyaml",
     "sqlalchemy",
-    "pysqlite3",
+    "pysqlite3-wheels",
     "tqdm",
 ]
 

@@ -43,13 +43,16 @@ jobs:
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "CC=clang CXX=clang++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11 -stdlib=libc++' BOOST_ROOT=/usr/local"
+      CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
-      CIBW_BEFORE_TEST:
-      CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from spt3g import core'
+      CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
+      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_COMMAND: >
+        python -c 'import so3g.smurf.reader; from spt3g import core' &&
+        python -m pytest {package}/test
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.4.0
@@ -82,13 +85,16 @@ jobs:
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "CC=clang CXX=clang++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11 -stdlib=libc++' BOOST_ROOT=/usr/local"
+      CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
-      CIBW_BEFORE_TEST:
-      CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from spt3g import core'
+      CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
+      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_COMMAND: >
+        python -c 'import so3g.smurf.reader; from spt3g import core' &&
+        python -m pytest {package}/test
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.4.0
@@ -121,13 +127,16 @@ jobs:
       CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "CC=clang CXX=clang++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11 -stdlib=libc++' BOOST_ROOT=/usr/local"
+      CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
-      CIBW_BEFORE_TEST:
-      CIBW_TEST_COMMAND: python -c 'import so3g.smurf.reader; from spt3g import core'
+      CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
+      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_COMMAND: >
+        python -c 'import so3g.smurf.reader; from spt3g import core' &&
+        python -m pytest {package}/test
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.4.0

@@ -24,6 +24,7 @@ pip install pyaml numpy cmake
 
 # Install requirements
 pip install -r requirements.txt
+pip install pytest
 
 # Build options
 
