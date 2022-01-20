@@ -470,7 +470,6 @@ class Projectionist:
             return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
         elif method == 'domdir':
-            q1 = self._get_cached_q(assembly.Q)
             offs_rep = assembly.dets[::100]
             if (self.tiling is not None) and (self.active_tiles is None):
                 tile_info = self.get_active_tiles(assembly)
@@ -479,7 +478,7 @@ class Projectionist:
             else:
                 active_tiles = None
             return mapthreads.get_threads_domdir(
-                q1, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
+                assembly.Q, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
                 tile_shape=self.tile_shape, active_tiles=active_tiles,
                 n_threads=n_threads, offs_rep=offs_rep)
 
