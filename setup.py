@@ -10,19 +10,37 @@ import subprocess as sp
 import glob
 import shutil
 from pathlib import Path
-import datetime
 
-import numpy
-
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.command.clean import clean
 
 # Absolute path to the directory with this file
 topdir = Path(__file__).resolve().parent
 
-# The version of spt3g we will be installing
-upstream_spt3g_version = "acd66e76dff1318a79b0fffc0ed24ca4bfde11a5"
+# The version of spt3g we will be installing.  Get this from the
+# Dockerfile for consistency.
+def get_spt3g_version():
+    dockerfile = os.path.join(topdir, "Dockerfile")
+    ver = None
+    linepat = re.compile(r".*simonsobs/spt3g:(.*)\s*")
+    verpat = re.compile(r".*-g(.*)")
+    with open(dockerfile, "r") as f:
+        for line in f:
+            mat = linepat.match(line)
+            if mat is not None:
+                fullver = mat.group(1)
+                vermat = verpat.match(fullver)
+                if vermat is None:
+                    # This must be an actual tag
+                    ver = fullver
+                else:
+                    # Extract the short hash
+                    ver = vermat.group(1)
+    return ver
+
+upstream_spt3g_version = get_spt3g_version()
+print(f"Using upstream spt3g_software version {upstream_spt3g_version}")
 
 # The name of the spt3g source and package dirs
 spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g_internal")

@@ -65,7 +65,11 @@ Python Wheels
 
 Binary wheels are built using the included setup.py, which downloads
 a copy of spt3g_software and uses cmake to build both that package and
-so3g.  Although you can build wheels locally, usually these are built
+so3g.  NOTE:  The spt3g_software version to use when building wheels
+is obtained from the version in the Dockerfile.  This is the one place
+where that version should be specified.
+
+Although you can build wheels locally, usually these are built
 using github workflows.  The "wheels" directory contains scripts which
 are used by the cibuildwheel package running in the github workflows.
 
