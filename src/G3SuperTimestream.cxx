@@ -196,9 +196,6 @@ struct G3SuperTimestream::array_blob encode_array(
 
 	npy_intp type_num = PyArray_TYPE(array);
 	char *src = (char*)(PyArray_DATA(array));
-	FLAC__StreamEncoder *encoder = nullptr;
-	if (options.data_algo & G3SuperTimestream::ALGO_DO_FLAC)
-		encoder = FLAC__stream_encoder_new();
 
 	int32_t M = (1 << 24);
 	for (int i=0; i<n_chans; i++, src+=PyArray_STRIDES(array)[0]) {
@@ -233,22 +230,49 @@ struct G3SuperTimestream::array_blob encode_array(
 				branches = rebranch<int64_t>(d, r64, r64, n_samps, M, M/2);
 			} else
 				throw g3supertimestream_exception("Invalid array type encountered.");
-			if (branches <= 1) {
-				try_bz = false;
-				try_const = true;
-			}
 
+			// Re-using this encoder for all
+			// detectors... seems to not work if process
+			// or finish exit with failure.
+			auto encoder = FLAC__stream_encoder_new();
 			FLAC__stream_encoder_set_channels(encoder, 1);
 			FLAC__stream_encoder_set_bits_per_sample(encoder, 24);
 			FLAC__stream_encoder_set_compression_level(encoder, options.flac_level);
 			FLAC__stream_encoder_init_stream(
 				encoder, flac_encoder_write_cb, NULL, NULL, NULL, (void*)(&ablob));
+
+			// If encoding fails, check that it looks like
+			// a simple buffer-to-small error, then continue.
+			int err1;
 			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) || 
-			    !FLAC__stream_encoder_finish(encoder))
-				throw g3supertimestream_exception("FLAC encoding fail.");
-			ok = close_size_field(&ablob, flac_size);
-			algo_used |= G3SuperTimestream::ALGO_DO_FLAC;
-		} else {
+			    !FLAC__stream_encoder_finish(encoder)) {
+				auto state = FLAC__stream_encoder_get_state(encoder);
+				if (state != FLAC__STREAM_ENCODER_CLIENT_ERROR) {
+					const char *estr = FLAC__stream_encoder_get_resolved_state_string(encoder);
+					std::ostringstream s;
+					s << "Unexpected FLAC encoder error: " << estr
+					  << " on channel " << i << " (" << n_samps << " samples)";
+					throw g3supertimestream_exception(s.str());
+				}
+				// Discard any partial encoding ... let bzip have a go.
+				ablob.count = block_start + 1;
+                        } else {
+				// Great, update FLAC block size and record it.
+				ok = close_size_field(&ablob, flac_size);
+				algo_used |= G3SuperTimestream::ALGO_DO_FLAC;
+
+				// Const remainder?
+				if (branches <= 1) {
+					try_bz = false;
+					try_const = true;
+				}
+			}
+			FLAC__stream_encoder_delete(encoder);
+		}
+
+		if (!(algo_used & G3SuperTimestream::ALGO_DO_FLAC)) {
+			// Just copy the raw data into the r buffer,
+			// where the bz code will pick it up.
 			memcpy(r, src, n_samps * itemsize);
 			if (type_num == NPY_FLOAT32) {
 				for (int j=0; j<n_samps; j++)
@@ -260,6 +284,11 @@ struct G3SuperTimestream::array_blob encode_array(
 		}
 
 		if (ok && try_const) {
+			// Note "try_const" means "the data are
+			// constant, it's ok to treat them as such".
+			// The code below doesn't check the
+			// assumption.
+			//
 			// Take care in the cute handling of special
 			// case r[0] == 0.  If you naively leave out
 			// the ALGO_DO_CONST bit, and if FLAC
@@ -322,8 +351,6 @@ struct G3SuperTimestream::array_blob encode_array(
 		}
 		ablob.offsets.push_back(ablob.count);
 	}
-	if (encoder != nullptr)
-		FLAC__stream_encoder_delete(encoder);
 
 	return ablob;
 }
@@ -418,7 +445,7 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 
 	if (options.times_algo == ALGO_DO_BZ) {
 		// Try to bz2 compress.  Convert to a vector of int64_t first.
-		auto time_ints = vector<int64_t>(times.begin(), times.end());
+		auto time_ints = vector<long>(times.begin(), times.end());
 		int n_samps = time_ints.size();
 		unsigned int max_bytes = n_samps * sizeof(time_ints[0]);
 
