@@ -139,22 +139,28 @@ a shell function like this::
   load_so3g () {
     # Load the appropriate python environment (edit this!)
     source "${HOME}/simons/bin/activate"
+
     # Location of our installed spt3g / so3g
     dir="${HOME}/so3g"
-    # Prepend our executable path and shared library search path
+
+    # Prepend our executable search path
     export PATH="${dir}/bin:${PATH}"
+
     # Get the python major / minor version
     pyver=$(python3 --version 2>&1 | awk '{print $2}' \
       | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
+
     # Put our python module into our search path
     export PYTHONPATH="${dir}/lib/python${pyver}/site-packages"
-    # These lines are for linux
+
+    # Prepend our executable path and shared library search path.
+    # These lines are for linux:
     if [ -z ${LD_LIBRARY_PATH} ]; then
       export LD_LIBRARY_PATH="${dir}/lib"
     else
       export LD_LIBRARY_PATH="${dir}/lib:${LD_LIBRARY_PATH}"
     fi
-    # These lines are for MacOS
+    # These lines are for MacOS:
     #if [ -z DYLD_LIBRARY_PATH ]; then
     #    export DYLD_LIBRARY_PATH="${dir}/lib"
     #else
@@ -176,10 +182,11 @@ that you install dependencies from OS packages, use the python3 from your OS or
 package manager, and use a virtualenv as described in the first section.
 If you use a conda-provided python, then you have two choices:
 
-  1.  Build boost from source using that python (so that boost-python works
-      correctly).
-  2.  Install the conda package for boost (and other dependencies) and use
-      conda provided compilers to build spt3g / so3g.
+1.  Build boost from source using that python (so that boost-python works
+    correctly).
+
+2.  Install the conda package for boost (and other dependencies) and use
+    conda provided compilers to build spt3g / so3g.
 
 Both of these choices are beyond the scope of this README.  Below we assume
 that you are using a virtualenv created with the system (or homebrew / macports)
