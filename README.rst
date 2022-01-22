@@ -231,7 +231,7 @@ Prerequisites on MacOS
 
 The so3g / spt3g_software does not seem to run on MacOS when built with the
 clang++ compiler (unit tests fail with a cereal error).  Instead, we will use
-homebrew to install our dependencies and the latest gcc compiler tools.
+homebrew to install our dependencies and the latest gcc compiler tools::
 
   brew install \
   flac \
