@@ -1,4 +1,5 @@
 import unittest
+import itertools
 
 from so3g import proj
 
@@ -31,7 +32,7 @@ def get_scan():
     return times, az*DEG, el*DEG
 
 
-def get_basics():
+def get_basics(clipped=True):
     t, az, el = get_scan()
     csl = proj.CelestialSightLine.az_el(t, az, el, weather='vacuum', site='so')
     fp = proj.FocalPlane.from_xieta(['a', 'b'], [0., .1*DEG], [0, .1*DEG])
@@ -40,8 +41,11 @@ def get_basics():
     # And a map ... of where?
     ra, dec = csl.coords()[:, :2].T
     ra0, dec0 = ra.mean(), dec.mean()
+    shape = (250, 300)  # This will clip some samples
+    if not clipped:
+        shape = (200, 350)  # This will not.
     shape, wcs = enmap.geometry((dec0, ra0), res=(.01*DEG, -0.01*DEG),
-                                shape=(300, 300), proj='tan', ref=(dec0, ra0))
+                                shape=shape, proj='tan', ref=(dec0, ra0))
     return ((t, az, el), asm, (shape, wcs))
 
 
@@ -78,30 +82,38 @@ class TestProjEng(unittest.TestCase):
 
     @requires_pixell
     def test_20_threads(self):
-        scan, asm, (shape, wcs) = get_basics()
-        p = proj.Projectionist.for_geom(shape, wcs)
-        sig = np.ones((2, len(scan[0])), 'float32')
-        n_threads = 3
-        for method in proj.wcs.THREAD_ASSIGNMENT_METHODS:
-            print(f'Assigning threads using {method}...')
-            if method not in ['tiles']:
-                threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-                self.assertEqual(threads.shape, (n_threads,) + sig.shape)
+        for (clipped, tiled, method) in itertools.product(
+                [False, True],
+                [False, True],
+                proj.wcs.THREAD_ASSIGNMENT_METHODS):
+            # For error messages ...
+            detail = f'(method={method}, tiled={tiled}, clipped={clipped})'
+            scan, asm, (shape, wcs) = get_basics(clipped=clipped)
+            if tiled:
+                p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False)
             else:
-                with self.assertRaises(RuntimeError):
-                    threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+                p = proj.Projectionist.for_geom(shape, wcs)
+            sig = np.ones((2, len(scan[0])), 'float32')
+            n_threads = 3
 
-    @requires_pixell
-    def test_21_threads_tiled(self):
-        scan, asm, (shape, wcs) = get_basics()
-        sig = np.ones((len(asm.dets), len(scan[0])), 'float32')
-        n_threads = 3
-        comps = 'T'
-        for method in proj.wcs.THREAD_ASSIGNMENT_METHODS:
-            p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False)
-            print(f'Assigning threads using {method}...')
-            threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-            self.assertEqual(threads.shape, (n_threads,) + sig.shape)
+            if method in ['tiles'] and not tiled:
+                with self.assertRaises(RuntimeError, msg=
+                                       f'Expected assignment to fail ({detail})'):
+                    threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+                continue
+            else:
+                threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+            self.assertEqual(threads.shape, (n_threads,) + sig.shape,
+                             msg=f'threads has wrong shape ({detail})')
+
+            # Make sure the threads cover the TOD, or not,
+            # depending on clipped.
+            counts = np.zeros(threads.shape[1:], int)
+            for t in threads:
+                counts += t.mask()
+            target = set([0,1]) if clipped else set([1])
+            self.assertEqual(set(counts.ravel()), target,
+                             msg=f'threads does not cover TOD ({detail})')
 
 
 if __name__ == '__main__':
