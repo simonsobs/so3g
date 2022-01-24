@@ -85,13 +85,15 @@ jobs:
             python: 310
             platform_id: macosx_x86_64
 
-          # MacOS arm64
-          - os: macos-11
-            python: 39
-            platform_id: macosx_arm64
-          - os: macos-11
-            python: 310
-            platform_id: macosx_arm64
+          # MacOS arm64 - Re-enable after github CI supports M1 runners:
+          #   https://github.com/actions/virtual-environments/issues/2187
+          #
+          # - os: macos-11
+          #   python: 39
+          #   platform_id: macosx_arm64
+          # - os: macos-11
+          #   python: 310
+          #   platform_id: macosx_arm64
     env:
       CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
