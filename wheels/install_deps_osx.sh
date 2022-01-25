@@ -8,8 +8,9 @@ set -e
 
 # Location of this script
 pushd $(dirname $0) >/dev/null 2>&1
-topdir=$(pwd)
+scriptdir=$(pwd)
 popd >/dev/null 2>&1
+echo "Wheel script directory = ${scriptdir}"
 
 # Build options.  If we use clang, then use accelerate framework.  Otherwise
 # build and use OpenBLAS.
@@ -44,20 +45,35 @@ if [ "x${use_gcc}" = "xyes" ]; then
     brew install gcc
 fi
 
+# In order to maximize ABI compatibility with numpy, build with the newest numpy
+# version containing the oldest ABI version compatible with the python we are using.
+pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
+if [ ${pyver} == "3.7" ]; then
+    numpy_ver="1.20"
+fi
+if [ ${pyver} == "3.8" ]; then
+    numpy_ver="1.20"
+fi
+if [ ${pyver} == "3.9" ]; then
+    numpy_ver="1.20"
+fi
+if [ ${pyver} == "3.10" ]; then
+    numpy_ver="1.22"
+fi
+
 # Update pip
 pip install --upgrade pip
 
 # Install a couple of base packages that are always required
-pip install pyaml numpy cmake
+pip install -v pyaml "numpy<${numpy_ver}" cmake
 
-# Install requirements
-pip install -r requirements.txt
-pip install pytest
+# Install build requirements.
+CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt"
 
 # Optionally Install Openblas
 
 if [ "x${use_gcc}" = "xyes" ]; then
-    openblas_version=0.3.13
+    openblas_version=0.3.19
     openblas_dir=OpenBLAS-${openblas_version}
     openblas_pkg=${openblas_dir}.tar.gz
 
@@ -72,25 +88,25 @@ if [ "x${use_gcc}" = "xyes" ]; then
     rm -rf ${openblas_dir}
     tar xzf ${openblas_pkg} \
         && pushd ${openblas_dir} >/dev/null 2>&1 \
-        && make USE_OPENMP=1 NO_SHARED=1 \
+        && make USE_OPENMP=1 \
         MAKE_NB_JOBS=${MAKEJ} \
         CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 TARGET=GENERIC \
         COMMON_OPT="${CFLAGS}" FCOMMON_OPT="${FCFLAGS}" \
-        LDFLAGS="-fopenmp -lm" \
-        && make NO_SHARED=1 DYNAMIC_ARCH=1 TARGET=GENERIC PREFIX="${PREFIX}" install \
+        LDFLAGS="-fopenmp -lm" libs netlib shared \
+        && make DYNAMIC_ARCH=1 TARGET=GENERIC PREFIX="${PREFIX}" install \
         && popd >/dev/null 2>&1
 fi
 
 # Install boost
 
-boost_version=1_76_0
+boost_version=1_78_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."
@@ -121,6 +137,16 @@ tar xjf ${boost_pkg} \
 
 # Install qpoint
 
+echo "Attempting to trigger astropy IERS download..."
+
+python3 -c '
+from astropy.utils.iers import IERS_Auto
+columns = ["year", "month", "day", "MJD", "PM_x", "PM_y", "UT1_UTC"]
+iers_table = IERS_Auto.open()[columns].as_array()
+'
+
+echo "Done with IERS download."
+
 qpoint_version=828126de9f195f88bfaf1996527f633382457461
 qpoint_dir="qpoint"
 
@@ -138,6 +164,8 @@ pushd ${qpoint_dir} \
         git branch -D so3g; fi \
     && git fetch \
     && git checkout -b so3g ${qpoint_version} \
+    && CC="${CC}" CFLAGS="${CFLAGS}" \
+    python3 setup.py build \
     && CC="${CC}" CFLAGS="${CFLAGS}" \
     python3 setup.py install --prefix "${PREFIX}" \
     && popd > /dev/null
