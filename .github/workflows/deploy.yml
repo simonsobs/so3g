@@ -18,29 +18,81 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Set up Python 3.7
+
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.9
+
       - name: Install Dependencies
         run: pip install twine
+
       - name: Create dist directory
         run: mkdir -p dist && rm -f dist/*
+
       - name: Build source package
         run: ./wheels/build_sdist.sh
+
       - name: Upload to PyPI
         run: |
           python -m twine upload dist/so3g*.tar.gz
-  wheels-py37:
-    name: Python 3.7 wheels for ${{ matrix.os }}
+
+  build_wheels:
+    name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # Ensure that a wheel builder finishes even if another fails.  Useful for
+      # debugging multiple problems in parallel.
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          # Linux 64 bit manylinux2014
+          - os: ubuntu-latest
+            python: 37
+            platform_id: manylinux_x86_64
+            manylinux_image: manylinux2014
+          - os: ubuntu-latest
+            python: 38
+            platform_id: manylinux_x86_64
+            manylinux_image: manylinux2014
+          - os: ubuntu-latest
+            python: 39
+            platform_id: manylinux_x86_64
+            manylinux_image: manylinux2014
+          - os: ubuntu-latest
+            python: 310
+            platform_id: manylinux_x86_64
+            manylinux_image: manylinux2014
+
+          # MacOS x86_64
+          - os: macos-latest
+            python: 37
+            platform_id: macosx_x86_64
+          - os: macos-latest
+            python: 38
+            platform_id: macosx_x86_64
+          - os: macos-latest
+            bitness: 64
+            python: 39
+            platform_id: macosx_x86_64
+          - os: macos-latest
+            python: 310
+            platform_id: macosx_x86_64
+
+          # MacOS arm64 - Re-enable after github CI supports M1 runners:
+          #   https://github.com/actions/virtual-environments/issues/2187
+          #
+          # - os: macos-11
+          #   python: 39
+          #   platform_id: macosx_arm64
+          # - os: macos-11
+          #   python: 310
+          #   platform_id: macosx_arm64
     env:
-      CIBW_BUILD: cp37-macosx_x86_64 cp37-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
+      CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
+      CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
+      CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_image }}
+      CIBW_TEST_SKIP: "*-macosx_arm64"
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
       CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
@@ -58,102 +110,23 @@ jobs:
         uses: styfle/cancel-workflow-action@0.4.0
         with:
           access_token: ${{ github.token }}
+
       - name: Checkout
         uses: actions/checkout@v2
+
       - uses: actions/setup-python@v2
         name: Install Python
         with:
-          python-version: '3.7'
+          python-version: '3.9'
+
       - name: Install cibuildwheel
         run: |
-          python -m pip install twine cibuildwheel==2.3.1
+          python -m pip install cibuildwheel==2.3.1
+
       - name: Build wheel
         run: |
           python -m cibuildwheel --output-dir wheelhouse
-      - name: Upload to PyPI
-        run: |
-          python -m twine upload wheelhouse/so3g*.whl
-  wheels-py38:
-    name: Python 3.8 wheels for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    env:
-      CIBW_BUILD: cp38-macosx_x86_64 cp38-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
-      CIBW_BUILD_VERBOSITY: 3
-      CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
-      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
-      CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
-      CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
-      CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
-      CIBW_TEST_REQUIRES: pytest
-      CIBW_TEST_COMMAND: >
-        python -c 'import so3g.smurf.reader; from spt3g import core' &&
-        python -m pytest {package}/test
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.4.0
-        with:
-          access_token: ${{ github.token }}
-      - name: Checkout
-        uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        name: Install Python
-        with:
-          python-version: '3.7'
-      - name: Install cibuildwheel
-        run: |
-          python -m pip install twine cibuildwheel==2.3.1
-      - name: Build wheel
-        run: |
-          python -m cibuildwheel --output-dir wheelhouse
-      - name: Upload to PyPI
-        run: |
-          python -m twine upload wheelhouse/so3g*.whl
-  wheels-py39:
-    name: Python 3.9 wheels for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    env:
-      CIBW_BUILD: cp39-macosx_x86_64 cp39-manylinux_x86_64
-      CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
-      CIBW_BUILD_VERBOSITY: 3
-      CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
-      CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
-      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
-      CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
-      CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
-      CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
-      CIBW_TEST_REQUIRES: pytest
-      CIBW_TEST_COMMAND: >
-        python -c 'import so3g.smurf.reader; from spt3g import core' &&
-        python -m pytest {package}/test
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.4.0
-        with:
-          access_token: ${{ github.token }}
-      - name: Checkout
-        uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        name: Install Python
-        with:
-          python-version: '3.7'
-      - name: Install cibuildwheel
-        run: |
-          python -m pip install twine cibuildwheel==2.3.1
-      - name: Build wheel
-        run: |
-          python -m cibuildwheel --output-dir wheelhouse
+
       - name: Upload to PyPI
         run: |
           python -m twine upload wheelhouse/so3g*.whl
