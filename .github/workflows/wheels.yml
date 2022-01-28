@@ -16,33 +16,6 @@ on:
     - cron: '0 4 * * *'
 
 jobs:
-  sdist:
-    name: Python source dist
-    runs-on: ubuntu-latest
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.4.0
-        with:
-          access_token: ${{ github.token }}
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
-        name: Install Python
-        with:
-          python-version: '3.9'
-
-      - name: Create dist directory
-        run: mkdir -p dist && rm -f dist/*
-
-      - name: Build source package
-        run: ./wheels/build_sdist.sh
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: sdist
-          path: ./dist/so3g*.gz
   build_wheels:
     name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
     runs-on: ${{ matrix.os }}
@@ -88,6 +61,8 @@ jobs:
           # MacOS arm64 - Re-enable after github CI supports M1 runners:
           #   https://github.com/actions/virtual-environments/issues/2187
           #
+          #  Note:  this may also require a revisit of clang / cereal errors.
+          #
           # - os: macos-11
           #   python: 39
           #   platform_id: macosx_arm64
@@ -98,7 +73,6 @@ jobs:
       CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
       CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_image }}
-      CIBW_TEST_SKIP: "*-macosx_arm64"
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
       CIBW_ENVIRONMENT_MACOS: "CC=gcc-11 CXX=g++-11 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++11' BOOST_ROOT=/usr/local"
@@ -113,7 +87,7 @@ jobs:
         python -m pytest {package}/test
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.4.0
+        uses: styfle/cancel-workflow-action@0.9.1
         with:
           access_token: ${{ github.token }}
 

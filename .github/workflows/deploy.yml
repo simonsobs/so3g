@@ -12,31 +12,6 @@ env:
   TWINE_PASSWORD: ${{ secrets.TWINE_TOKEN }}
 
 jobs:
-  sdist:
-    name: Python source dist
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
-      - name: Install Dependencies
-        run: pip install twine
-
-      - name: Create dist directory
-        run: mkdir -p dist && rm -f dist/*
-
-      - name: Build source package
-        run: ./wheels/build_sdist.sh
-
-      - name: Upload to PyPI
-        run: |
-          python -m twine upload dist/so3g*.tar.gz
-
   build_wheels:
     name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
     runs-on: ${{ matrix.os }}
@@ -107,7 +82,7 @@ jobs:
         python -m pytest {package}/test
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.4.0
+        uses: styfle/cancel-workflow-action@0.9.1
         with:
           access_token: ${{ github.token }}
 

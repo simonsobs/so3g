@@ -317,7 +317,7 @@ class CMakeBuild(build_ext):
             install_so3g,
             [
                 "-DPYTHON_INSTALL_DEST={}".format(install_so3g),
-                f"-DCMAKE_PREFIX_PATH={temp_spt3g}",
+                f"-DCMAKE_PREFIX_PATH={install_spt3g_fake}",
             ],
             self.debug,
         )
