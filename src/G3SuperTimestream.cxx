@@ -445,8 +445,9 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 	ar & make_nvp("flac_level", options.flac_level);
 	ar & make_nvp("bz2_workFactor", options.bz2_workFactor);
 
-	if (options.times_algo == ALGO_DO_BZ) {
+	if (options.times_algo == ALGO_DO_BZ && times.size() > 0) {
 		// Try to bz2 compress.  Convert to a vector of int64_t first.
+		// Note this doesn't run unless n_samps > 0.
 		auto time_ints = vector<long>(times.begin(), times.end());
 		int n_samps = time_ints.size();
 		unsigned int max_bytes = n_samps * sizeof(time_ints[0]);
