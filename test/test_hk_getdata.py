@@ -23,40 +23,8 @@ class Seeder(list):
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
 
-def get_v0_stream():
-    """Generate some example HK data, in schema version 0.
-
-    Returns a list of frames constituting a valid version 0 HK stream.
-
-    """
-    # Create something to help us track the aggregator session.
-    hksess = so3g.hk.HKSessionHelper(session_id=1234,
-                                     hkagg_version=0,
-                                     description="Test HK data.")
-
-    # Register a data provider.
-    prov_id = hksess.add_provider(
-        description='Fake data for the real world.')
-
-    # Start the stream -- write the initial session and status frames.
-    frames = [
-        hksess.session_frame(),
-        hksess.status_frame(),
-    ]
-
-    # Now make a data frame.
-    f = hksess.data_frame(prov_id=prov_id)
-
-    # Add a data block.
-    hk = so3g.IrregBlockDouble()
-    hk.prefix = 'hwp_'
-    hk.data['position'] = [1, 2, 3, 4, 5]
-    hk.data['speed'] = [1.2, 1.2, 1.2, 1.2, 1.2]
-    hk.t = [0, 1, 2, 3, 4]
-    f['blocks'].append(hk)
-
-    frames.append(f)
-    return frames
+def get_g3vectortime(dt):
+    return core.G3VectorTime((np.asarray(dt) + 1581638400.)*core.G3Units.seconds)
 
 def get_v2_stream():
     """Generate some example HK data, in schema version 2.
@@ -79,25 +47,58 @@ def get_v2_stream():
         hksess.status_frame(),
     ]
 
-    # Now make a data frame.
+    # First data frame ...
     f = hksess.data_frame(prov_id=prov_id)
 
     # Add some data blocks.
     hk = core.G3TimesampleMap()
-    hk.times = core.G3VectorTime([core.G3Time(i*core.G3Units.seconds) for i in [0, 1, 2, 3, 4]])
-    hk['speed'] = core.G3VectorDouble([1.2, 1.2, 1.2, 1.2, 1.2])
+    hk.times = get_g3vectortime(range(4))
+    hk['speed'] = core.G3VectorDouble([1.2] * 4)
     f['blocks'].append(hk)
     f['block_names'].append('group0')
 
     hk = core.G3TimesampleMap()
-    hk.times = core.G3VectorTime([core.G3Time(i*core.G3Units.seconds) for i in [0, 1, 2, 3, 4]])
+    hk.times = get_g3vectortime(range(5))
     hk['position'] = core.G3VectorInt([1, 2, 3, 4, 5])
-    hk['mode'] = core.G3VectorString(['going', 'going', 'going', 'going', 'gone/'])
+    hk['mode'] = core.G3VectorString(['going', 'going', 'going', 'going', 'gone'])
+    hk['flag'] = core.G3VectorBool([False, False, True, False, False])
     f['blocks'].append(hk)
     f['block_names'].append('group1')
 
+    # ... save frame.
     frames.append(f)
-    return frames
+
+    # Second data frame ...
+    f = hksess.data_frame(prov_id=prov_id)
+    hk = core.G3TimesampleMap()
+    hk.times = get_g3vectortime(range(3))
+    hk['speed'] = core.G3VectorDouble([1.2, 1.2, 1.2])
+    f['blocks'].append(hk)
+    f['block_names'].append('group0')
+
+    # ... save frame.
+    frames.append(f)
+
+    # Third data frame ...
+    f = hksess.data_frame(prov_id=prov_id)
+    hk = core.G3TimesampleMap()
+    hk.times = get_g3vectortime(range(6, 6+6))
+    hk['position'] = core.G3VectorInt([6, 7, 8, 9, 10, 11])
+    hk['mode'] = core.G3VectorString(['left', 'right', 'left',
+                                      'right', 'left', 'halt'])
+    hk['flag'] = core.G3VectorBool([False, False, True, False, False, False])
+    f['blocks'].append(hk)
+    f['block_names'].append('group1')
+
+    # ... save frame.
+    frames.append(f)
+
+    return frames, {
+        'speed': (np.floating, 7),
+        'position': (np.integer, 11),
+        'mode': (np.str_, 11),
+        'flag': (np.bool_, 11),
+    }
 
 
 def write_example_file(filename='hk_out.g3', hkagg_version=2):
@@ -118,15 +119,16 @@ def write_example_file(filename='hk_out.g3', hkagg_version=2):
     w.Add(HKTranslator(target_version=hkagg_version))
     w.Add(core.G3Writer(test_file))
 
-    if hkagg_version <= 1:
-        seeder.extend(get_v0_stream())
-    else:
-        seeder.extend(get_v2_stream())
+    assert(hkagg_version == 2)
+    frames, fields = get_v2_stream()
+    seeder.extend(frames)
     w.Run()
     del w
 
+    return fields
 
-def load_data(filename, fields=['position', 'speed']):
+def load_data(filename, fields=['position', 'speed', 'mode', 'flag'],
+              raw=False):
     """Boiled down example of loading the data using an HKArchiveScanner.
 
     Args:
@@ -139,47 +141,62 @@ def load_data(filename, fields=['position', 'speed']):
     hkas = HKArchiveScanner()
     hkas.process_file(filename)
     cat = hkas.finalize()
-    fields, timelines = cat.get_data(fields, short_match=True)
-    return fields, timelines
+    data = cat.get_data(fields, short_match=True, raw=raw)
+    if not raw:
+        return data
+    else:
+        return dict(data)
 
 
 class TestGetData(unittest.TestCase):
     """TestCase for testing hk.getdata.py."""
     def setUp(self):
         """Generate some test HK data."""
-        self._files = [(0, 'test_0.g3'),
-                       (1, 'test_1.g3'),
-                       (2, 'test_2.g3')]
-        for v, f in self._files:
-            write_example_file(f, v)
+        self._files = [[2, 'test_2.g3', None]]
+        self._fields = []
+        for row in self._files:
+            row[2] = write_example_file(row[1], row[0])
 
     def tearDown(self):
         """Remove the temporary file we made."""
-        for v, f in self._files:
+        for v, f, fields in self._files:
             os.remove(f)
 
     def test_hk_getdata_field_array_type(self):
-        """Make sure we return the fields as a numpy array when we get_data."""
-        for v, f in self._files:
-            fields, _ = load_data(f)
-            self.assertIsInstance(fields['position'], np.ndarray)
+        """Make sure we return all expected fields, as numpy arrays, with
+        expected types and lengths.
+        """
+        for v, f, fields in self._files:
+            data, _ = load_data(f)
+            for k, (dtype, n) in fields.items():
+                self.assertIsInstance(data[k][0], dtype)
+                self.assertEqual(len(data[k]), n)
+
+    def test_hk_getdata_raw(self):
+        """Check raw form of get_data."""
+        for v, f, fields in self._files:
+            data = load_data(f, fields=list(fields.keys()), raw=True)
+            for group_name, g3map in data.items():
+                for k in g3map.keys():
+                    self.assertIsInstance(g3map[k], core.G3FrameObject)
+                    self.assertEqual(len(g3map[k]), fields[k][1])
 
     def test_hk_getdata_timeline_array_type(self):
         """Make sure we return the timelines as a numpy array when we
         get_data.
         """
-        for v, f in self._files:
+        for v, f, fields in self._files:
             _, timelines = load_data(f)
             self.assertIsInstance(timelines['group0']['t'], np.ndarray)
 
     def test_hk_getdata_strings(self):
         """Make sure strings are returned as arrays of unicode."""
-        for v, f in self._files:
+        for v, f, fields in self._files:
             if v < 2:
                 continue
-            fields, _ = load_data(f, ['mode'])
-            self.assertIsInstance(fields['mode'], np.ndarray)
-            self.assertEqual(fields['mode'].dtype.char, 'U',
+            data, _ = load_data(f, ['mode'])
+            self.assertIsInstance(data['mode'], np.ndarray)
+            self.assertEqual(data['mode'].dtype.char, 'U',
                              "String data should unpack to Unicode array.")
 
 
