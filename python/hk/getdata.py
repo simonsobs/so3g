@@ -43,6 +43,7 @@ _SCHEMA_V1_BLOCK_TYPES = [
     core.G3VectorDouble,
     core.G3VectorInt,
     core.G3VectorString,
+    core.G3VectorBool,
 ]
 
 
