@@ -1,6 +1,6 @@
 # This is the set of packages to install in the build environment
 # AFTER installing our pinned version of numpy.
-astropy<5
+astropy
 matplotlib
 scipy
 ephem
