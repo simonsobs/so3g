@@ -15,6 +15,20 @@ echo "Wheel script directory = ${scriptdir}"
 yum update -y
 yum install -y flac-devel bzip2-devel zlib-devel sqlite-devel netcdf-devel
 
+# Build options
+
+CC=gcc
+CXX=g++
+FC=gfortran
+
+CFLAGS="-O3 -fPIC -pthread"
+CXXFLAGS="-O3 -fPIC -pthread -std=c++11"
+FCFLAGS="-O3 -fPIC -pthread"
+
+MAKEJ=2
+
+PREFIX=/usr/local
+
 # In order to maximize ABI compatibility with numpy, build with the newest numpy
 # version containing the oldest ABI version compatible with the python we are using.
 pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
@@ -39,20 +53,6 @@ pip install -v pyaml "numpy<${numpy_ver}" cmake
 
 # Install build requirements.
 CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt"
-
-# Build options
-
-CC=gcc
-CXX=g++
-FC=gfortran
-
-CFLAGS="-O3 -fPIC -pthread"
-CXXFLAGS="-O3 -fPIC -pthread -std=c++11"
-FCFLAGS="-O3 -fPIC -pthread"
-
-MAKEJ=2
-
-PREFIX=/usr/local
 
 # Install Openblas
 
