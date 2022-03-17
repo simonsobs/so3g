@@ -12,6 +12,7 @@ import os
 import pytz
 import yaml
 import logging
+import pickle
 
 import numpy as np
 import datetime as dt
@@ -436,13 +437,14 @@ class HKArchiveScanner:
     HKArchive that can be used to load data more efficiently.
 
     """
-    def __init__(self):
+    def __init__(self, pre_proc_dir=None):
         self.session_id = None
         self.providers = {}
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
         self.translator = so3g.hk.HKTranslator()
+        self.pre_proc_dir=pre_proc_dir
 
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
@@ -587,6 +589,32 @@ class HKArchiveScanner:
             self.flush()
 
 
+    def process_file_with_cache(self, filename):
+        """Processes file specified by ``filename`` using the process_file method above.
+        But, it loads pickled HKArchvieScanner objects and concatenates with self isntead of 
+        re-processing each frame, if the corresponding file exists.  Otherwise, it saves the 
+        result of that processing so it can be loaded on future calls of the fn.
+        """
+        folder = str(int(start_ctime/1e5))
+        path = os.path.join( self.pre_proc_dir, folder, filename )
+
+        if os.path.exists(path):
+            with open(path, 'rb') as pkfl:
+                hksc = pickle.load(pkfl)
+
+        else:
+            hksc = HKArchiveScanner()
+            hksc.process_file(filename)
+            with open(paht, 'wb') as pkfl:
+                pickle.pickle(hksc, pkfl)
+
+        self.providers.update(hksc.providers)
+        self.field_groups += hksc.field_groups
+        self.counter+= hksc.counter
+
+
+
+
 class _FieldGroup:
     """Container object for look-up information associated with a group of
     fields that share a timeline (i.e. a group of fields that are
@@ -654,7 +682,7 @@ def to_timestamp(some_time, str_format=None):
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
 def load_range(start, stop, fields=None, alias=None, 
-               data_dir=None,config=None,):
+               data_dir=None,config=None, pre_proc_dir=None):
     '''
     Args:
         start - datetime object to start looking
@@ -666,6 +694,7 @@ def load_range(start, stop, fields=None, alias=None,
         data_dir - directory where all the ctime folders are. 
                 If None, tries to use $OCS_DATA_DIR
         config - a .yaml configuration file for loading data_dir / fields / alias
+        pre_proc_dir - place to store picled HKArchiveScanners for g3 files to speed up loading
                 
     Returns - Dictionary of the format:
         {
@@ -718,7 +747,7 @@ def load_range(start, stop, fields=None, alias=None,
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
-    hksc = HKArchiveScanner()
+    hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
     
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
         base = data_dir+'/'+str(folder)
@@ -734,7 +763,7 @@ def load_range(start, stop, fields=None, alias=None,
                 continue
             if t >= start_ctime-3600 and t <=stop_ctime+3600:
                 hk_logger.debug('Processing {}'.format(base+'/'+file))
-                hksc.process_file( base+'/'+file)
+                hksc.process_file_with_cache( base+'/'+file)
     
     
     cat = hksc.finalize()
@@ -756,7 +785,7 @@ def load_range(start, stop, fields=None, alias=None,
         if field not in all_fields:
             hk_logger.info('`{}` not in available fields, skipping'.format(field))
             continue
-        t,x = cat.simple(field)
+        t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
         msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
         data[name] = t[msk],x[msk]
         
