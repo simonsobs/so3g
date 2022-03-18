@@ -595,8 +595,12 @@ class HKArchiveScanner:
         re-processing each frame, if the corresponding file exists.  Otherwise, it saves the 
         result of that processing so it can be loaded on future calls of the fn.
         """
-        folder = str(int(start_ctime/1e5))
-        path = os.path.join( self.pre_proc_dir, folder, filename )
+        if self.pre_proc_dir is None:
+            self.process_file(filename)
+            return
+
+        folder = os.path.basename(filename)[:5]
+        path = os.path.join( self.pre_proc_dir, folder, os.path.basename(filename).replace(".g3",'') )
 
         if os.path.exists(path):
             with open(path, 'rb') as pkfl:
@@ -605,8 +609,11 @@ class HKArchiveScanner:
         else:
             hksc = HKArchiveScanner()
             hksc.process_file(filename)
-            with open(paht, 'wb') as pkfl:
-                pickle.pickle(hksc, pkfl)
+            if not os.path.exists( os.path.dirname(path) ):
+                os.umask(000)
+                os.makedirs( os.path.dirname(path), mode=0o777)
+            with open(path, 'wb') as pkfl:
+                pickle.dump(hksc, pkfl)
 
         self.providers.update(hksc.providers)
         self.field_groups += hksc.field_groups
