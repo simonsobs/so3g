@@ -437,14 +437,15 @@ class HKArchiveScanner:
     HKArchive that can be used to load data more efficiently.
 
     """
-    def __init__(self, pre_proc_dir=None):
+    def __init__(self, pre_proc_dir=None, pre_proc_mode=None):
         self.session_id = None
         self.providers = {}
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
         self.translator = so3g.hk.HKTranslator()
-        self.pre_proc_dir=pre_proc_dir
+        self.pre_proc_dir = pre_proc_dir
+        self.pre_proc_mode = pre_proc_mode
 
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
@@ -591,16 +592,18 @@ class HKArchiveScanner:
 
     def process_file_with_cache(self, filename):
         """Processes file specified by ``filename`` using the process_file method above.
-        But, it loads pickled HKArchvieScanner objects and concatenates with self isntead of 
-        re-processing each frame, if the corresponding file exists.  Otherwise, it saves the 
-        result of that processing so it can be loaded on future calls of the fn.
+
+        If self.pre_proc_dir is specified (not None), it will load pickled HKArchvieScanner objects and 
+        concatenates with self instead of re-processing each frame, if the corresponding file exists.  
+        If the pkl file does not exist, it processes it and saves the result (in the pre_proc_dir) so it 
+        can be used in the future.  If self.pre_proc_dir is not specified, this becomes equivalent to process_file.
         """
         if self.pre_proc_dir is None:
             self.process_file(filename)
             return
 
         folder = os.path.basename(filename)[:5]
-        path = os.path.join( self.pre_proc_dir, folder, os.path.basename(filename).replace(".g3",'') )
+        path = os.path.join( self.pre_proc_dir, folder, os.path.basename(filename).replace(".g3",'.pkl') )
 
         if os.path.exists(path):
             with open(path, 'rb') as pkfl:
@@ -609,15 +612,19 @@ class HKArchiveScanner:
         else:
             hksc = HKArchiveScanner()
             hksc.process_file(filename)
+            # Make dirs if needed
             if not os.path.exists( os.path.dirname(path) ):
-                os.umask(000)
-                os.makedirs( os.path.dirname(path), mode=0o777)
+                os.makedirs( os.path.dirname(path) )
+                if self.pre_proc_mode is not None:
+                    os.chmod( os.path.dirname(path), self.pre_proc_mode )
+            # Save pkl file
             with open(path, 'wb') as pkfl:
                 pickle.dump(hksc, pkfl)
+            if self.pre_proc_mode is not None:
+                os.chmod( path, self.pre_proc_mode )            
 
-        self.providers.update(hksc.providers)
         self.field_groups += hksc.field_groups
-        self.counter+= hksc.counter
+        self.counter += hksc.counter
 
 
 
@@ -689,7 +696,7 @@ def to_timestamp(some_time, str_format=None):
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
 def load_range(start, stop, fields=None, alias=None, 
-               data_dir=None,config=None, pre_proc_dir=None):
+               data_dir=None,config=None, pre_proc_dir=None, pre_proc_mode=None):
     '''
     Args:
         start - datetime object to start looking
@@ -701,7 +708,9 @@ def load_range(start, stop, fields=None, alias=None,
         data_dir - directory where all the ctime folders are. 
                 If None, tries to use $OCS_DATA_DIR
         config - a .yaml configuration file for loading data_dir / fields / alias
-        pre_proc_dir - place to store picled HKArchiveScanners for g3 files to speed up loading
+        pre_proc_dir - place to store pickled HKArchiveScanners for g3 files to speed up loading
+        pre_proc_mode - permissions (passed to os.chmod) to be used on dirs and pkl files in the pre_proc_dir. No chmod if None.
+
                 
     Returns - Dictionary of the format:
         {
