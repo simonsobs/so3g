@@ -696,7 +696,8 @@ def to_timestamp(some_time, str_format=None):
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
 def load_range(start, stop, fields=None, alias=None, 
-               data_dir=None,config=None, pre_proc_dir=None, pre_proc_mode=None):
+               data_dir=None,config=None, pre_proc_dir=None, pre_proc_mode=None,
+               strict=True):
     '''
     Args:
         start - datetime object to start looking
@@ -710,6 +711,7 @@ def load_range(start, stop, fields=None, alias=None,
         config - a .yaml configuration file for loading data_dir / fields / alias
         pre_proc_dir - place to store pickled HKArchiveScanners for g3 files to speed up loading
         pre_proc_mode - permissions (passed to os.chmod) to be used on dirs and pkl files in the pre_proc_dir. No chmod if None.
+        strict - if False, skip 
 
                 
     Returns - Dictionary of the format:
@@ -801,7 +803,14 @@ def load_range(start, stop, fields=None, alias=None,
         if field not in all_fields:
             hk_logger.info('`{}` not in available fields, skipping'.format(field))
             continue
-        t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
+        try:
+            t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
+        except Exception as e:
+            if not strict and isinstance(e, KeyError):
+                hk_logger.error(f'{e} -- skipping field')
+                continue
+            else:
+                raise(e)
         msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
         data[name] = t[msk],x[msk]
         
