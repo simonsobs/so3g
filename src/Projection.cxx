@@ -1260,8 +1260,9 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
 }
 
 static
-vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
-                                          int n_det, int n_time)
+vector<vector<RangesInt32>> derive_ranges(
+    bp::object thread_intervals, int n_det, int n_time,
+    std::string arg_name)
 {
     // The first index of the returned object should correspond to
     // (OMP) execution thread; the second index is over detectors.
@@ -1286,6 +1287,23 @@ vector<vector<RangesInt32>> derive_ranges(bp::object thread_intervals,
             // Assumed it is list of lists of ranges.
             for (int i=0; i<bp::len(thread_intervals); i++)
                 ivals.push_back(extract_ranges<int32_t>(thread_intervals[i]));
+        }
+        // Check that these all have the right shape.
+        for (auto const &ival: ivals) {
+            if (ival.size() != n_det) {
+                std::ostringstream err;
+                err << "Expected RangesMatrix with n_det=" << n_det
+                    << " but encountered n_det=" << ival.size();
+                throw shape_exception(arg_name, err.str());
+            }
+            for (auto const &ri: ival) {
+                if (ri.count != n_time) {
+                    std::ostringstream err;
+                    err << "Expected RangesMatrix with n_time=" << n_time
+                        << " but encountered n_time=" << ri.count;
+                    throw shape_exception(arg_name, err.str());
+                }
+            }
         }
     }
     return ivals;
@@ -1318,7 +1336,8 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     // For multi-threading, the principle here is that all threads
     // loop over all detectors, but the sample ranges encoded in ivals
     // are disjoint.
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
+                               "thread_intervals");
 
     if (ivals.size() <= 1) {
         // This block may also be used if OMP is disabled.
@@ -1374,13 +1393,14 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
     // For multi-threading, the principle here is that all threads
     // loop over all detectors, but the sample ranges encoded in ivals
     // are disjoint.
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
+                               "thread_intervals");
 
     if (ivals.size() <= 1) {
         // This block may also be used if OMP is disabled.
         for (int i_thread=0; i_thread < ivals.size(); i_thread++)
             to_weight_map_single_thread<C,P,S>(
-                pointer, _pixelizor, ivals[i_thread],_det_weights);
+                pointer, _pixelizor, ivals[i_thread], _det_weights);
     } else {
 #pragma omp parallel
         {
@@ -1579,7 +1599,8 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
         throw shape_exception("pixel_index",
                               "Fast dimension of pixel indices must be close-packed.");
 
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
+                               "thread_intervals");
 
     if (ivals.size() <= 1) {
         // This block may also be used if OMP is disabled.
@@ -1641,7 +1662,8 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
         throw shape_exception("pixel_index",
                               "Fast dimension of pixel indices must be close-packed.");
 
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time);
+    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
+                               "thread_intervals");
 
     if (ivals.size() <= 1) {
         // This block may also be used if OMP is disabled.
