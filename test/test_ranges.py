@@ -21,6 +21,15 @@ class TestRanges(unittest.TestCase):
         self.assertCountEqual(f[0].mask(), (~t[0]).mask())
         self.assertCountEqual(f[0].mask(), (~t)[0].mask())
 
+        for shape in [(10, 100), (0, 200), (10, 0), (0, 0)]:
+            r = RangesMatrix.zeros(shape)
+            self.assertEqual(r.shape, shape)
+            r = r.copy()
+            self.assertEqual(r.shape, shape)
+            mask = np.zeros(shape=shape, dtype=bool)
+            r = RangesMatrix.from_mask(mask)
+            self.assertEqual(r.shape, shape)
+
     def test_broadcast(self):
         r0 = RangesMatrix.zeros((100, 1000))
         self.assertCountEqual(r0.shape, (100, 1000))
@@ -46,6 +55,19 @@ class TestRanges(unittest.TestCase):
 
         rc = RangesMatrix.concatenate([r0, r2], axis=0)
         self.assertCountEqual(rc.shape, (30, 100))
+
+        # Zero size is special case
+        rx = RangesMatrix.zeros((0, 100))
+        rc = RangesMatrix.concatenate([r0, rx], axis=0)
+        self.assertEqual(rc.shape, r0.shape)
+        rc = RangesMatrix.concatenate([rx, r0], axis=0)
+        self.assertEqual(rc.shape, r0.shape)
+
+        rx = RangesMatrix.zeros((10, 0))
+        rc = RangesMatrix.concatenate([r0, rx], axis=1)
+        self.assertEqual(rc.shape, r0.shape)
+        rc = RangesMatrix.concatenate([rx, r0], axis=1)
+        self.assertEqual(rc.shape, r0.shape)
 
         # These should fail due to shape incompat.
         with self.assertRaises(ValueError):
