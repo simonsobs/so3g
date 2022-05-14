@@ -36,13 +36,16 @@ class RangesMatrix():
         return self.shape[0]
 
     def copy(self):
-        return RangesMatrix([x.copy() for x in self.ranges])
+        return RangesMatrix([x.copy() for x in self.ranges],
+                            child_shape=self.shape[1:])
 
     def zeros_like(self):
-        return RangesMatrix([x.zeros_like() for x in self.ranges])
+        return RangesMatrix([x.zeros_like() for x in self.ranges],
+                            child_shape=self.shape[1:])
     
     def ones_like(self):
-        return RangesMatrix([x.ones_like() for x in self.ranges])
+        return RangesMatrix([x.ones_like() for x in self.ranges],
+                            child_shape=self.shape[1:])
 
     def buffer(self, buff):
         [x.buffer(buff) for x in self.ranges]
@@ -180,9 +183,10 @@ class RangesMatrix():
                     for item in items:
                         r.extend(item.ranges() + n)
                         n += item.count
-                    r = Ranges.from_array(np.array(r, dtype='int32'), n)
+                    r = Ranges.from_array(
+                        np.array(r, dtype='int32').reshape((-1, 2)), n)
                     return r
-            return RangesMatrix(ranges)
+            return RangesMatrix(ranges, child_shape=items[0].shape[1:])
         return collect(items, axis)
 
     def get_stats(self):
@@ -231,7 +235,8 @@ class RangesMatrix():
                 r = ~r
             return r
         return RangesMatrix([RangesMatrix.full(shape[1:], fill_value)
-                             for i in range(shape[0])])
+                             for i in range(shape[0])],
+                            child_shape=shape[1:])
 
     @classmethod
     def zeros(cls, shape):
