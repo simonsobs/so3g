@@ -100,6 +100,14 @@ def get_v2_stream():
         'flag': (np.bool_, 11),
     }
 
+def get_v1_stream():
+    frames, data = get_v2_stream()
+    for f in frames:
+        del f['hkagg_version']
+        f['hkagg_version'] = 1
+        if 'block_names' in f:
+            del f['block_names']
+    return frames, data
 
 def write_example_file(filename='hk_out.g3', hkagg_version=2):
     """Generate some example HK data and write to file.
@@ -119,8 +127,11 @@ def write_example_file(filename='hk_out.g3', hkagg_version=2):
     w.Add(HKTranslator(target_version=hkagg_version))
     w.Add(core.G3Writer(test_file))
 
-    assert(hkagg_version == 2)
-    frames, fields = get_v2_stream()
+    if hkagg_version == 1:
+        frames, fields = get_v1_stream()
+    elif hkagg_version == 2:
+        frames, fields = get_v2_stream()
+
     seeder.extend(frames)
     w.Run()
     del w
@@ -152,7 +163,10 @@ class TestGetData(unittest.TestCase):
     """TestCase for testing hk.getdata.py."""
     def setUp(self):
         """Generate some test HK data."""
-        self._files = [[2, 'test_2.g3', None]]
+        self._files = [
+            [2, 'test_v2.g3', None],
+            [1, 'test_v1.g3', None],
+        ]
         self._fields = []
         for row in self._files:
             row[2] = write_example_file(row[1], row[0])
