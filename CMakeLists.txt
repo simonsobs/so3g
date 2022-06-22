@@ -29,6 +29,7 @@ find_package(FLAC)
 find_package(OpenMP)
 if(OPENMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 else()
   message(WARNING "OpenMP not being linked -- this may affect performance.")
 endif()
@@ -99,6 +100,14 @@ if(BLAS_FOUND)
   else()
     message("-- cblas bindings not found in BLAS; adding cblas.")
     target_link_libraries(so3g cblas)
+  endif()
+
+  # On MacOS with clang linking to the Accelerate framework, the cblas
+  # headers are not always found.  Handle this case.
+  if(BLAS_Accelerate_LIBRARY)
+    #string(REGEX REPLACE "^(.*)/System/Library/Frameworks/Accelerate.framework" "\\1" FRAMEWORK_INCLUDE "${BLAS_Accelerate_LIBRARY}")
+    #target_compile_options(so3g PRIVATE -F ${FRAMEWORK_INCLUDE})
+    target_include_directories(so3g PRIVATE ${BLAS_Accelerate_LIBRARY}/Versions/A/Frameworks/vecLib.framework/Headers)
   endif()
 endif(BLAS_FOUND)
 

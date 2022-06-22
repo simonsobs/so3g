@@ -6,6 +6,32 @@ import numpy as np
 from .ranges import Ranges, RangesMatrix
 from . import mapthreads
 
+# For coordinate systems we use the following abbreviations:
+#
+# - DC: Detector coordinates
+# - FP: Focal plane coordinates
+# - CS: Celestial spherical coordinates (likely equatorial)
+# - NS: Native spherical coordinates of the map projection
+#
+# Saying that a quaternion rotation q_B<A "takes A to B", where A and
+# B are coordinate systems, means that if a vector has coordinates v_A
+# in system A then its coordinates in system B are:
+#
+#      v_B = q_B<A v_A q_B<A*
+#
+# The rotation taking detector coordinates to native spherical
+# coordinates is the product
+#
+#     q_NS<DC = q_NS<CS q_CS<FP q_FP<DC
+#
+# In this module, quaternion rotations are written as:
+# - Q_CS<FP: Assembly.Q (vector in samples)
+# - Q_FP<DC: Assembly.dets (vector in dets)
+# - Q_NS<CS: Projectionst.q_celestial_to_native
+#
+# The Projectionist caches a vector of Q_NS<FP, which is then simply
+# called "q_native".  This is usually the thing to pass to C++ level.
+
 
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
@@ -13,7 +39,7 @@ class Projectionist:
 
     On instantiation, it carries information about the relation
     between celestial spherical coordinates and the Native Spherical
-    coordinates of the projection, as and also the pixelization scheme
+    coordinates of the projection, and also the pixelization scheme
     for the projection.
 
     As in pixell, the code and discussion here uses the term
@@ -106,7 +132,8 @@ class Projectionist:
         return Q
 
     def __init__(self):
-        self._q0 = None
+        self._q_fp_to_native = None
+        self._q_fp_to_celestial = None
         self.tile_shape = None
         self.naxis = np.array([0, 0])
         self.cdelt = np.array([0., 0.])
@@ -254,11 +281,16 @@ class Projectionist:
             return projeng_cls
         return projeng_cls(self._get_pixelizor_args())
 
-    def _get_cached_q(self, new_q0):
-        if new_q0 is not self._q0:
-            self._q0 = new_q0
-            self._qv = self.q_celestial_to_native * self._q0
-        return self._qv
+    def _cache_q_fp_to_native(self, q_fp_to_celestial):
+        """Get q_fp_to_native for argument q_fp_to_celestial, and cache the
+        result, and return that result later if called with the same
+        argument.
+
+        """
+        if q_fp_to_celestial is not self._q_fp_to_celestial:
+            self._q_fp_to_native = self.q_celestial_to_native * q_fp_to_celestial
+            self._q_fp_to_celestial = q_fp_to_celestial
+        return self._q_fp_to_native
 
     def _guess_comps(self, map_shape):
         if len(map_shape) != 3:
@@ -284,8 +316,8 @@ class Projectionist:
 
         """
         projeng = self.get_ProjEng('TQU')
-        q1 = self._get_cached_q(assembly.Q)
-        return projeng.pixels(q1, assembly.dets, None)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
+        return projeng.pixels(q_native, assembly.dets, None)
 
     def get_pointing_matrix(self, assembly):
         """Get the pointing matrix information, which is to say both the pixel
@@ -300,8 +332,8 @@ class Projectionist:
 
         """
         projeng = self.get_ProjEng('TQU')
-        q1 = self._get_cached_q(assembly.Q)
-        return projeng.pointing_matrix(q1, assembly.dets, None, None)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
+        return projeng.pointing_matrix(q_native, assembly.dets, None, None)
 
     def get_coords(self, assembly, use_native=False, output=None):
         """Get the spherical coordinates for the provided pointing Assembly.
@@ -324,10 +356,10 @@ class Projectionist:
         """
         projeng = self.get_ProjEng('TQU', 'CAR')
         if use_native:
-            q1 = self._get_cached_q(assembly.Q)
+            q_native = self._cache_q_fp_to_native(assembly.Q)
         else:
-            q1 = assembly.Q
-        return projeng.coords(q1, assembly.dets, output)
+            q_native = assembly.Q
+        return projeng.coords(q_native, assembly.dets, output)
 
     def get_planar(self, assembly, output=None):
         """Get projection plane coordinates for all detectors at all times.
@@ -340,9 +372,9 @@ class Projectionist:
         angle.
 
         """
-        q1 = self._get_cached_q(assembly.Q)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
         projeng = self.get_ProjEng('TQU')
-        return projeng.coords(q1, assembly.dets, output)
+        return projeng.coords(q_native, assembly.dets, output)
 
     def zeros(self, super_shape):
         """Return a map, filled with zeros, with shape (super_shape,) +
@@ -373,9 +405,9 @@ class Projectionist:
         if comps is None:
             comps = self._guess_comps(output.shape)
         projeng = self.get_ProjEng(comps)
-        q1 = self._get_cached_q(assembly.Q)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
         map_out = projeng.to_map(
-            output, q1, assembly.dets, signal, det_weights, threads)
+            output, q_native, assembly.dets, signal, det_weights, threads)
         return map_out
 
     def to_weights(self, assembly, output=None, det_weights=None,
@@ -398,9 +430,9 @@ class Projectionist:
             assert(output.shape[0] == output.shape[1])
             comps = self._guess_comps(output.shape[1:])
         projeng = self.get_ProjEng(comps)
-        q1 = self._get_cached_q(assembly.Q)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
         map_out = projeng.to_weight_map(
-            output, q1, assembly.dets, det_weights, threads)
+            output, q_native, assembly.dets, det_weights, threads)
         return map_out
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
@@ -421,9 +453,9 @@ class Projectionist:
         if comps is None:
             comps = self._guess_comps(src_map.shape)
         projeng = self.get_ProjEng(comps)
-        q1 = self._get_cached_q(assembly.Q)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
         signal_out = projeng.from_map(
-            src_map, q1, assembly.dets, signal)
+            src_map, q_native, assembly.dets, signal)
         return signal_out
 
     def assign_threads(self, assembly, method='domdir', n_threads=None):
@@ -465,12 +497,11 @@ class Projectionist:
 
         if method == 'simple':
             projeng = self.get_ProjEng('T')
-            q1 = self._get_cached_q(assembly.Q)
-            omp_ivals = projeng.pixel_ranges(q1, assembly.dets, None, n_threads)
+            q_native = self._cache_q_fp_to_native(assembly.Q)
+            omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, None, n_threads)
             return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
         elif method == 'domdir':
-            q1 = self._get_cached_q(assembly.Q)
             offs_rep = assembly.dets[::100]
             if (self.tiling is not None) and (self.active_tiles is None):
                 tile_info = self.get_active_tiles(assembly)
@@ -479,7 +510,7 @@ class Projectionist:
             else:
                 active_tiles = None
             return mapthreads.get_threads_domdir(
-                q1, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
+                assembly.Q, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
                 tile_shape=self.tile_shape, active_tiles=active_tiles,
                 n_threads=n_threads, offs_rep=offs_rep)
 
@@ -505,9 +536,9 @@ class Projectionist:
 
         """
         projeng = self.get_ProjEng('T')
-        q1 = self._get_cached_q(assembly.Q)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
         n_threads = mapthreads.get_num_threads(n_threads)
-        omp_ivals = projeng.pixel_ranges(q1, assembly.dets, tmap, n_threads)
+        omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, tmap, n_threads)
         return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
 
     def get_active_tiles(self, assembly, assign=False):
@@ -544,9 +575,9 @@ class Projectionist:
         if self.tiling is None:
             raise RuntimeError("This Projectionist not set up for Tiled maps.")
         projeng = self.get_ProjEng('T')
-        q1 = self._get_cached_q(assembly.Q)
+        q_native = self._cache_q_fp_to_native(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
-        hits = np.array(projeng.tile_hits(q1, assembly.dets))
+        hits = np.array(projeng.tile_hits(q_native, assembly.dets))
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
@@ -560,7 +591,7 @@ class Projectionist:
                 group_n[idx] += _n
                 group_tiles[idx].append(_t)
             # Now paint them into Ranges.
-            R = projeng.tile_ranges(q1, assembly.dets, group_tiles)
+            R = projeng.tile_ranges(q_native, assembly.dets, group_tiles)
             R = RangesMatrix([RangesMatrix(r) for r in R])
             return {
                 'active_tiles': list(tiles),

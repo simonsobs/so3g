@@ -8,7 +8,9 @@
 #include <G3SuperTimestream.h>
 #include <cereal/types/utility.hpp>
 
-#include <omp.h>
+#ifdef _OPENMP
+# include <omp.h>
+#endif // ifdef _OPENMP
 #include <FLAC/stream_encoder.h>
 #include <bzlib.h>
 
@@ -244,7 +246,7 @@ struct G3SuperTimestream::array_blob encode_array(
 			// If encoding fails, check that it looks like
 			// a simple buffer-to-small error, then continue.
 			int err1;
-			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) || 
+			if (!FLAC__stream_encoder_process(encoder, chan_ptrs, n_samps) ||
 			    !FLAC__stream_encoder_finish(encoder)) {
 				auto state = FLAC__stream_encoder_get_state(encoder);
 				if (state != FLAC__STREAM_ENCODER_CLIENT_ERROR) {
@@ -443,8 +445,9 @@ template <class A> void G3SuperTimestream::save(A &ar, unsigned v) const
 	ar & make_nvp("flac_level", options.flac_level);
 	ar & make_nvp("bz2_workFactor", options.bz2_workFactor);
 
-	if (options.times_algo == ALGO_DO_BZ) {
+	if (options.times_algo == ALGO_DO_BZ && times.size() > 0) {
 		// Try to bz2 compress.  Convert to a vector of int64_t first.
+		// Note this doesn't run unless n_samps > 0.
 		auto time_ints = vector<long>(times.begin(), times.end());
 		int n_samps = time_ints.size();
 		unsigned int max_bytes = n_samps * sizeof(time_ints[0]);
@@ -1066,7 +1069,8 @@ G3SuperTimestreamPtr test_cxx_interface(int nsamps, int first, int second)
 {
 	int shape[2] = {3, nsamps};
 	int typenum = NPY_INT32;
-	int32_t buf[shape[0] * shape[1]] = {0};
+	std::vector<int32_t> buf(shape[0] * shape[1]);
+	std::fill(buf.begin(), buf.end(), 0);
 
 	auto times = G3VectorTime();
 	for (int i=first; i<second; i++)
@@ -1080,7 +1084,7 @@ G3SuperTimestreamPtr test_cxx_interface(int nsamps, int first, int second)
 	for (int i=first; i<second; i++)
 		buf[i] = 77;
 
-	ts->SetDataFromBuffer((void*)buf, 2, shape, typenum,
+	ts->SetDataFromBuffer((void*)buf.data(), 2, shape, typenum,
 			      std::pair<int,int>(first, second));
 
 	return ts;

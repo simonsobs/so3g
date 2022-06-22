@@ -60,3 +60,50 @@ Here is how to update readthedocs:
     rm so3g
     rm -r spt3g
 
+Python Wheels
+=============
+
+Binary wheels are built using the included setup.py, which downloads
+a copy of spt3g_software and uses cmake to build both that package and
+so3g.  NOTE:  The spt3g_software version to use when building wheels
+is obtained from the version in the Dockerfile.  This is the one place
+where that version should be specified.
+
+Although you can build wheels locally, usually these are built
+using github workflows.  The "wheels" directory contains scripts which
+are used by the cibuildwheel package running in the github workflows.
+
+Testing Wheels on Github CI
+---------------------------
+
+The wheels.yml workflow builds the wheels for a variety of python versions
+and platforms.  It normally runs once per day and takes about an hour.
+After building each wheel, it installs the wheel into a virtualenv and
+runs the tests.  If you are debugging the builds, open a PR with your
+changes.  Then comment out the cron entry at the top of this workflow and
+un-comment the other entry which enables building for pull requests against
+master.  Push commits to your PR to get things working, then swap these
+entries back.
+
+If you make changes to wheels.yml, make the same changes to deploy.yml,
+which builds the wheels and uploads to PyPI whenever a git tag is made.
+
+Testing Wheels Locally
+----------------------
+
+On linux, if you have docker installed, you can test the wheel building
+locally, which saves a lot of time and commit noise.  Create a virtualenv
+for testing and pip install the "cibuildwheel" package.  Then run
+``./wheels/test_local_cibuildwheel.sh`` from the top of the source tree.
+This will run cibuildwheel, which builds the wheels inside the same
+manylinux docker container with the same scripts as used during the CI
+builds.
+
+Deploying New Wheels
+--------------------
+
+Just make a tag, and ensure that the version string of the package conforms
+to the python package versioning scheme (e.g. 1.2.3, 2.3.4rc1, etc).  This
+should happen as long as the git tag starts with a "v".  The deploy.yml
+workflow will use an API token stored in the github repo "secret" parameters
+to upload the resulting wheels and source dist with twine.

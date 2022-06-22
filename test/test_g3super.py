@@ -266,7 +266,16 @@ class TestSuperTimestream(unittest.TestCase):
                 records.append(ts.data.copy())
                 f['a'] = ts
                 w.Process(f)
+
+        # show we can write a zero-sample object
+        f = core.G3Frame()
+        ts = self._get_ts(4, 0)
+        f['a0'] = ts
+        w.Process(f)
+
+        # flush
         del w
+
         # readback
         r = core.G3Reader(test_file)
         for dtype in ALL_DTYPES:

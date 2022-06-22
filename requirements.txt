@@ -1,11 +1,14 @@
 astropy
 matplotlib
 numpy
+scipy
 ephem
 pytz
 pyaml
 sqlalchemy
-pysqlite3
+pysqlite3-wheels
+tqdm
+cmake
 
 # Required for full pointing support and testing
 pixell
