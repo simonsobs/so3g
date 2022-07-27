@@ -591,12 +591,14 @@ class HKArchiveScanner:
 
 
     def process_file_with_cache(self, filename):
-        """Processes file specified by ``filename`` using the process_file method above.
-
-        If self.pre_proc_dir is specified (not None), it will load pickled HKArchvieScanner objects and 
-        concatenates with self instead of re-processing each frame, if the corresponding file exists.  
-        If the pkl file does not exist, it processes it and saves the result (in the pre_proc_dir) so it 
-        can be used in the future.  If self.pre_proc_dir is not specified, this becomes equivalent to process_file.
+        """Processes file specified by ``filename`` using the process_file
+           method above. If self.pre_proc_dir is specified (not None), it
+           will load pickled HKArchiveScanner objects and concatenates with
+           self instead of re-processing each frame, if the corresponding
+           file exists.  If the pkl file does not exist, it processes it and
+           saves the result (in the pre_proc_dir) so it can be used in the
+           future.  If self.pre_proc_dir is not specified, this becomes
+           equivalent to process_file.
         """
         if self.pre_proc_dir is None:
             self.process_file(filename)
@@ -709,9 +711,12 @@ def load_range(start, stop, fields=None, alias=None,
         data_dir - directory where all the ctime folders are. 
                 If None, tries to use $OCS_DATA_DIR
         config - a .yaml configuration file for loading data_dir / fields / alias
-        pre_proc_dir - place to store pickled HKArchiveScanners for g3 files to speed up loading
-        pre_proc_mode - permissions (passed to os.chmod) to be used on dirs and pkl files in the pre_proc_dir. No chmod if None.
-        strict - if False, skip 
+        pre_proc_dir - place to store pickled HKArchiveScanners for g3 files
+                to speed up loading
+        pre_proc_mode - permissions (passed to os.chmod) to be used on dirs and
+                pkl files in the pre_proc_dir. No chmod if None.
+        strict - If False, log and skip missing fields rather than raising
+                an KeyError.
 
                 
     Returns - Dictionary of the format:
@@ -807,7 +812,7 @@ def load_range(start, stop, fields=None, alias=None,
             t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
         except Exception as e:
             if not strict and isinstance(e, KeyError):
-                hk_logger.error(f'{e} -- skipping field')
+                hk_logger.warning(f'{e} -- skipping field')
                 continue
             else:
                 raise(e)
