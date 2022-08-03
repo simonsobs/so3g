@@ -135,14 +135,14 @@ class CelestialSightLine:
         site = cls.decode_site(site)
         assert isinstance(site, EarthlySite)
 
-        if weather == 'typical':
-            weather = site.typical_weather
-        elif weather == 'vacuum':
-            weather = weather_factory('vacuum')
         if weather is None:
             raise ValueError('High-precision pointing requires a weather '
-                             'object.  Try passing \'typical\', or '
+                             'object.  Try passing \'toco\', \'typical\', or '
                              '\'vacuum\'.')
+        elif weather == 'typical':
+            weather = site.typical_weather
+        else:
+            weather = weather_factory(weather)
 
         self = cls()
         # Note that passing num_threads explicitly to qpoint will
