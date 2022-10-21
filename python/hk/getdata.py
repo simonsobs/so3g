@@ -370,8 +370,7 @@ class HKArchive:
 
         # Scale out time units and mark last time.
         for timeline in timelines.values():
-            timeline['t'] = timeline['t_g3']/core.G3Units.seconds
-            del timeline['t_g3']
+            timeline['t'] = timeline.pop('t_g3') / core.G3Units.seconds
             timeline['finalized_until'] = timeline['t'][-1]
 
         return (data, timelines)
