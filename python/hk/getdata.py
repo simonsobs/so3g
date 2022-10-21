@@ -854,8 +854,11 @@ def load_range(start, stop, fields=None, alias=None,
                 continue
             else:
                 raise(e)
-        msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
-        data[name] = t[msk],x[msk]
+        # This msk should not be needed, as .simple should now trim to (start, stop).
+        msk = (start_ctime <= t) * (t < stop_ctime)
+        if not np.all(msk):
+            t, x = t[msk], x[msk]
+        data[name] = (t, x)
         
     return data
 
