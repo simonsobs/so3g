@@ -327,7 +327,7 @@ class HKArchive:
                     if group_name not in timelines:
                         # This block is init that happens only once per group.
                         timelines[group_name] = {
-                            't': np.zeros(gi['count']),
+                            't_g3': np.zeros(gi['count'], dtype=np.int64),
                             'fields': [f for f,s in gi['fields']],
                         }
                         hk_logger.debug('get_data: creating group "%s" with %i fields'
@@ -345,7 +345,7 @@ class HKArchive:
                     # Copy in block data.
                     n = len(block.times)
                     # Note this is in G3 time units for now... fixed later.
-                    timelines[group_name]['t'][offset:offset+n] = [_t.time for _t in block.times]
+                    timelines[group_name]['t_g3'][offset:offset+n] = block.times
                     for (field, f_short), dtype in zip(gi['fields'], gi['types']):
                         if dtype.char == 'U':
                             data[field].append((offset, list(map(str, block[f_short]))))
@@ -370,7 +370,7 @@ class HKArchive:
 
         # Scale out time units and mark last time.
         for timeline in timelines.values():
-            timeline['t'] /= core.G3Units.seconds
+            timeline['t'] = timeline.pop('t_g3') / core.G3Units.seconds
             timeline['finalized_until'] = timeline['t'][-1]
 
         return (data, timelines)
