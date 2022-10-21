@@ -376,9 +376,25 @@ class HKArchive:
                         *[x for i, x in sorted(data[field])])))
                     assert(len(data[field]) == gi['count'])
 
-        # Scale out time units and mark last time.
+        # Scale out time units.
         for timeline in timelines.values():
             timeline['t'] = timeline.pop('t_g3') / core.G3Units.seconds
+
+        # Restrict to only the requested time range.
+        if start is not None or end is not None:
+            for timeline in timelines.values():
+                i0, i1 = 0, len(timeline['t'])
+                if start is not None:
+                    i0 = np.searchsorted(timeline['t'], start)
+                if end is not None:
+                    i1 = np.searchsorted(timeline['t'], end)
+                sl = slice(i0, i1)
+                timeline['t'] = timeline['t'][sl]
+                for k in timeline['fields']:
+                    data[k] = data[k][sl]
+
+        # Mark last time
+        for timeline in timelines.values():
             timeline['finalized_until'] = timeline['t'][-1]
 
         return (data, timelines)
