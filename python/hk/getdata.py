@@ -669,17 +669,20 @@ class _FieldGroup:
 
 
 def to_timestamp(some_time, str_format=None): 
-    '''
+    """Convert the argument to a unix timestamp.
+
     Args:
-        some_time - if datetime, converted to UTC and used
-                    if int or float - assumed to be ctime, no change
-                    if string - trys to parse into datetime object
-                              - assumed to be in UTC
-        str_format - allows user to define a string format if they don't
-                    want to use a default option
+      some_time: If a datetime, it is converted to UTC timezone and
+        then to a unix timestamp.  If int or float, the value is
+        returned unprocessed.  If str, a date will be extracted based
+        on a few trial date format strings.
+      str_format: a format string (for strptime) to try, instead of
+        the default(s).
+
     Returns:
-        ctime of some_time
-    '''
+        float: Unix timestamp corresponding to some_time.
+
+    """
     
     if type(some_time) == dt.datetime:
         return some_time.astimezone(dt.timezone.utc).timestamp()
@@ -699,51 +702,65 @@ def to_timestamp(some_time, str_format=None):
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
 def load_range(start, stop, fields=None, alias=None, 
-               data_dir=None,config=None, pre_proc_dir=None, pre_proc_mode=None,
+               data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
                strict=True):
-    '''
-    Args:
-        start - datetime object to start looking
-                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
-        stop - datetime object to stop looking
-                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
-        fields - fields to return, if None, returns all fields
-        alias - if not None, needs to be the length of fields
-        data_dir - directory where all the ctime folders are. 
-                If None, tries to use $OCS_DATA_DIR
-        config - a .yaml configuration file for loading data_dir / fields / alias
-        pre_proc_dir - place to store pickled HKArchiveScanners for g3 files
-                to speed up loading
-        pre_proc_mode - permissions (passed to os.chmod) to be used on dirs and
-                pkl files in the pre_proc_dir. No chmod if None.
-        strict - If False, log and skip missing fields rather than raising
-                an KeyError.
+    """Args:
 
+      start: Earliest time to search for data (see note on time
+        formats).
+      stop: Latest time to search for data (see note on time formats).
+      fields: Fields to return, if None, returns all fields.
+      alias: If not None, must be a list of strings providing exactly
+        one value for each entry in fields.
+      data_dir: directory where all the ctime folders are.  If None,
+        tries to use $OCS_DATA_DIR.
+      config: filename of a .yaml file for loading data_dir / fields /
+        alias
+      pre_proc_dir: Place to store pickled HKArchiveScanners for g3
+        files to speed up loading
+      pre_proc_mode: Permissions (passed to os.chmod) to be used on
+        dirs and pkl files in the pre_proc_dir. No chmod if None.
+      strict: If False, log and skip missing fields rather than
+        raising a KeyError.
                 
-    Returns - Dictionary of the format:
+    Returns:
+
+      Dictionary with structure::
+
         {
             alias[i] : (time[i], data[i])
         }
-        It will be masked to only have data between start and stop
+
+      It will be masked to only have data between start and stop.
         
-    Example use:
-    fields = [
-        'observatory.HAN.feeds.temperatures.Channel 1 T',
-        'observatory.HAN.feeds.temperatures.Channel 2 T',
-    ]
+    Notes:
 
-    alias = [
-        'HAN 1', 'HAN 2',
-    ]
+      The "start" and "stop" argument accept a variety of formats,
+      including datetime objects, unix timestamps, and strings (see
+      to_timestamp function).  In the case of datetime objects, you
+      should set tzinfo=dt.timezone.utc explicitly if the system is
+      not set to UTC time.
 
-    start = dt.datetime(2020,2,19,18,48)
-    stop = dt.datetime(2020,2,22)
-    data = load_range(start, stop, fields=fields, alias=alias)
-    
-    plt.figure()
-    for name in alias:
-        plt.plot( data[name][0], data[name][1])
-    '''
+      Example usage::
+
+        fields = [
+            'observatory.HAN.feeds.temperatures.Channel 1 T',
+            'observatory.HAN.feeds.temperatures.Channel 2 T',
+        ]
+
+        alias = [
+            'HAN 1', 'HAN 2',
+        ]
+
+        start = dt.datetime(2020,2,19,18,48)
+        stop = dt.datetime(2020,2,22)
+        data = load_range(start, stop, fields=fields, alias=alias)
+
+        plt.figure()
+        for name in alias:
+            plt.plot( data[name][0], data[name][1])
+
+    """
     if config is not None:
         if not (data_dir is None and fields is None and alias is None):
             hk_logger.warning('''load_range has a config file - data_dir, fields, and alias are ignored''')
