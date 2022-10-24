@@ -841,25 +841,17 @@ def load_range(start, stop, fields=None, alias=None,
     else:
         alias = fields
     
-    data = {}
+    # Single pass load.
+    keepers = []
     for name, field in zip(alias, fields):
         if field not in all_fields:
             hk_logger.info('`{}` not in available fields, skipping'.format(field))
             continue
-        try:
-            t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
-        except Exception as e:
-            if not strict and isinstance(e, KeyError):
-                hk_logger.warning(f'{e} -- skipping field')
-                continue
-            else:
-                raise(e)
-        # This msk should not be needed, as .simple should now trim to (start, stop).
-        msk = (start_ctime <= t) * (t < stop_ctime)
-        if not np.all(msk):
-            t, x = t[msk], x[msk]
-        data[name] = (t, x)
-        
+        keepers.append((name, field))
+    data = cat.simple([f for n, f in keepers],
+                      start=start_ctime, end=stop_ctime)
+    data = {name: data[i] for i, (name, field) in enumerate(keepers)}
+
     return data
 
 if __name__ == '__main__':
