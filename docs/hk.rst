@@ -16,7 +16,7 @@ Loading Data Saved OCS/SO Style
 
 One of the most basic things we might want to do is load data between
 a time range. For `.g3` files that are saved by an OCS Aggregator, there
-is a specific folder structure and file naming scheme. ``so3g.hk.load_range``
+is a specific folder structure and file naming scheme. :func:`so3g.hk.load_range`
 is writen to load data for a specified time frame saved in that style.
 
 Example Use::
@@ -27,8 +27,8 @@ Example Use::
 Defining Time Ranges
 ````````````````````
 
-There are several options for defining start and stop. These options are passed
-to ``so3g.hk.to_timestamp(some_time)`` to be parsed.
+There are several options for defining start and stop. These options
+are passed to :func:`so3g.hk.getdata.to_timestamp` to be parsed.
 
 * ``datetime.datetime`` objects::
 
@@ -51,41 +51,44 @@ Define Where to Look for Data
 
 * **Option 1** 
 
-Use the ``data_dir = /path/to/ocs/hk/data`` keyword argument. This should be the
-directory where all the first five digit ctime folders are located. ``load_range`` will 
-look for the data there. 
+  Use the ``data_dir='/path/to/ocs/hk/data'`` keyword argument. This
+  should be the directory where all the first five digit ctime folders
+  are located. ``load_range`` will look for the data there.
 
 * **Option 2** 
 
-Set an environment variable ``export OCS_DATA_DIR = /path/to/ocs/hk/data``. 
-``load_range`` will will automatically look there if it isn't over-ridden by option 1.
+  Set an environment variable ``export
+  OCS_DATA_DIR=/path/to/ocs/hk/data``.  ``load_range`` will will
+  automatically look there if it isn't overridden by option 1.
 
 * **Option 3**
 
-Use a configuration file. See Below.
+  Use a configuration file. See Below.
+
 
 Define Which Data to Load
 `````````````````````````
 
 * **Option 1** 
 
-No keyword arguments means ``load_range`` will return *every* field it can find. this
-might take a very long time.
+  No keyword arguments means ``load_range`` will return *every* field
+  it can find. this might take a very long time.
 
 * **Option 2** 
 
-Use the ``fields = [list, of, field, names]`` keyword argument. Example::
+  Use the ``fields = [list, of, field, names]`` keyword argument. Example::
     
     fields = [
-        'observatory.LS240_ID.feeds.temperatures.Channel 7 T',
-        'observatory.LS240_ID.feeds.temperatures.Channel 5 T',
+        'observatory.LS240_ID.feeds.temperatures.Channel_7_T',
+        'observatory.LS240_ID.feeds.temperatures.Channel_5_T',
     ]
 
 * **Option 3**
 
-Use a configuration file. See Below.
+  Use a configuration file. See Below.
 
-Define How the data is returned
+
+Define How the Data is Returned
 ```````````````````````````````
 
 The data is returned as a dictionary of the format::
@@ -98,37 +101,47 @@ The data is returned as a dictionary of the format::
 
 * **Option 1** 
 
-No keyword arguments means ``load_range`` will return ``name`` set to be the
-field name. But this is long.
+  No keyword arguments means ``load_range`` will return ``name`` set
+  to be the field name. But this is long.
 
 * **Option 2** 
 
-Use the ``alias = [list, of, desired, names]`` which must be the length of 
-``fields``. Now the dictionary will have these alias as the ``name``.
+  Use the ``alias = [list, of, desired, names]`` which must be the
+  length of ``fields``. Now the dictionary will have these alias as
+  the ``name``.
 
 * **Option 3**
 
-Use a configuration file. See Below.
+  Use a configuration file. See Below.
+
 
 Create a Configuration file
 ```````````````````````````
 
 Because why deal with all these individual pieces when you don't have to?
 
-Define a ``yaml`` file and pass it to ``load_range`` with the ``config``
-keyword argument. Ex File::
+Create a ``yaml`` file and pass the filename to ``load_range`` with
+the ``config`` keyword argument. Example file::
 
     data_dir: '/data/ocs'
     
     field_list:
-        '40k_dr_side' : 'observatory.LEIA.feeds.temperatures.Channel 7 T'
-        '40k_far_side': 'observatory.LEIA.feeds.temperatures.Channel 8 T'
-        '80k_dr_side' : 'observatory.LEIA.feeds.temperatures.Channel 5 T' 
-        '80k_far_side': 'observatory.LEIA.feeds.temperatures.Channel 6 T'
-        '4k_far_side' : 'observatory.YODA.feeds.temperatures.Channel 1 T'
-        '4k_dr_side'  : 'observatory.YODA.feeds.temperatures.Channel 2 T'
+        '40k_dr_side' : 'observatory.LEIA.feeds.temperatures.Channel_7_T'
+        '40k_far_side': 'observatory.LEIA.feeds.temperatures.Channel_8_T'
+        '80k_dr_side' : 'observatory.LEIA.feeds.temperatures.Channel_5_T'
+        '80k_far_side': 'observatory.LEIA.feeds.temperatures.Channel_6_T'
+        '4k_far_side' : 'observatory.YODA.feeds.temperatures.Channel_1_T'
+        '4k_dr_side'  : 'observatory.YODA.feeds.temperatures.Channel_2_T'
 
 ``data_dir`` sets the directory and ``field_list`` has the list of ``'alias':'field'``.
+
+
+Function References
+```````````````````
+
+.. autofunction:: so3g.hk.load_range
+
+.. autofunction:: so3g.hk.getdata.to_timestamp
 
 
 Reading HK Data
@@ -224,8 +237,8 @@ Class references
 .. autoclass:: so3g.hk.HKArchiveScanner
    :members:
 
-HK Data Types and File Structure [weak]
----------------------------------------
+HK Data Types and File Structure
+--------------------------------
 
 The HK file structures and versions are described in
 https://github.com/simonsobs/tod2maps_docs/tod_format.
