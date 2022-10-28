@@ -41,9 +41,9 @@ echo "Using homebrew installation in ${brew_root}"
 
 # Export compiler information
 use_gcc=yes
-export CC=gcc-11
-export CXX=g++-11
-export FC=gfortran-11
+export CC=gcc-12
+export CXX=g++-12
+export FC=gfortran-12
 # export CC=clang
 # export CXX=clang++
 # export FC=

@@ -99,7 +99,7 @@ If you will be using the pointing code in so3g, install pixell and qpoint
 with pip (regardless of whether you are using a conda env or virtualenv)::
 
   pip install pixell
-  pip install git+https://github.com/arahlin/qpoint
+  pip install qpoint
 
 
 Installing Pre-Built Wheels

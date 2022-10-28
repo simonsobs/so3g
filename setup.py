@@ -90,13 +90,14 @@ def get_spt3g():
                 upstream_spt3g_version,
             ]
         )
-        # Apply a patch with any changes
-        patch_file = os.path.join(topdir, "wheels", "spt3g.patch")
-        if os.path.isfile(patch_file):
-            start_dir = os.getcwd()
-            os.chdir(spt3g_src_dir)
-            sp.check_call(["patch", "-p1", "-i", patch_file])
-            os.chdir(start_dir)
+        # Apply patches with any changes
+        patches = glob.glob(f"{topdir}/wheels/spt3g*.patch")
+        for patch_file in patches:
+            if os.path.isfile(patch_file):
+                start_dir = os.getcwd()
+                os.chdir(spt3g_src_dir)
+                sp.check_call(["patch", "-p1", "-i", patch_file])
+                os.chdir(start_dir)
 
 
 def extract_cmake_env(varprefix):
@@ -291,6 +292,20 @@ class CMakeBuild(build_ext):
         ]
         if "BOOST_ROOT" in os.environ:
             dlist3g.append(f"-DBOOST_ROOT={os.environ['BOOST_ROOT']}")
+        if "FLAC_ROOT" in os.environ:
+            # The spt3g package uses a custom FindFLAC.cmake, while so3g uses
+            # the built-in one.  Override the spt3g detection.
+            flcroot = os.environ["FLAC_ROOT"]
+            flcext = "so"
+            if sys.platform.lower() == "darwin":
+                flcext = "dylib"
+            dlist3g.extend(
+                [
+                    f"-DFLAC_LIBRARIES={flcroot}/lib/libFLAC.{flcext}",
+                    f"-DFLAC_INCLUDE_DIR={flcroot}/include",
+                    f"-DFLAC_FOUND=1",
+                ]
+            )
 
         build_spt3g(
             spt3g_src_dir,
