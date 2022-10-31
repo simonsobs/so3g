@@ -686,7 +686,7 @@ def to_timestamp(some_time, str_format=None):
     
     if type(some_time) == dt.datetime:
         return some_time.astimezone(dt.timezone.utc).timestamp()
-    if type(some_time) == int or type(some_time) == float:
+    if isinstance(some_time, (int, float)):
         return some_time
     if type(some_time) == str:
         if str_format is not None:
