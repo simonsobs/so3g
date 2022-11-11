@@ -23,12 +23,14 @@
 
 # No handler for "os"
 
+# No handler for "spt3g"
+
 # No handler for "spt3g_core"
 
 # No handler for "load_pybindings"
 
 def version():
-  return "0.1.0+130.g87b3549"
+  return "0.1.4+20.g1b92429"
 # No handler for "useful_info"
 
 # No handler for "greet"
