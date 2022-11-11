@@ -12,6 +12,7 @@ import os
 import pytz
 import yaml
 import logging
+import pickle
 
 import numpy as np
 import datetime as dt
@@ -43,6 +44,7 @@ _SCHEMA_V1_BLOCK_TYPES = [
     core.G3VectorDouble,
     core.G3VectorInt,
     core.G3VectorString,
+    core.G3VectorBool,
 ]
 
 
@@ -325,7 +327,7 @@ class HKArchive:
                     if group_name not in timelines:
                         # This block is init that happens only once per group.
                         timelines[group_name] = {
-                            't': np.zeros(gi['count']),
+                            't_g3': np.zeros(gi['count'], dtype=np.int64),
                             'fields': [f for f,s in gi['fields']],
                         }
                         hk_logger.debug('get_data: creating group "%s" with %i fields'
@@ -343,7 +345,7 @@ class HKArchive:
                     # Copy in block data.
                     n = len(block.times)
                     # Note this is in G3 time units for now... fixed later.
-                    timelines[group_name]['t'][offset:offset+n] = [_t.time for _t in block.times]
+                    timelines[group_name]['t_g3'][offset:offset+n] = block.times
                     for (field, f_short), dtype in zip(gi['fields'], gi['types']):
                         if dtype.char == 'U':
                             data[field].append((offset, list(map(str, block[f_short]))))
@@ -368,7 +370,7 @@ class HKArchive:
 
         # Scale out time units and mark last time.
         for timeline in timelines.values():
-            timeline['t'] /= core.G3Units.seconds
+            timeline['t'] = timeline.pop('t_g3') / core.G3Units.seconds
             timeline['finalized_until'] = timeline['t'][-1]
 
         return (data, timelines)
@@ -436,13 +438,15 @@ class HKArchiveScanner:
     HKArchive that can be used to load data more efficiently.
 
     """
-    def __init__(self):
+    def __init__(self, pre_proc_dir=None, pre_proc_mode=None):
         self.session_id = None
         self.providers = {}
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
         self.translator = so3g.hk.HKTranslator()
+        self.pre_proc_dir = pre_proc_dir
+        self.pre_proc_mode = pre_proc_mode
 
     def __call__(self, *args, **kw):
         return self.Process(*args, **kw)
@@ -587,6 +591,47 @@ class HKArchiveScanner:
             self.flush()
 
 
+    def process_file_with_cache(self, filename):
+        """Processes file specified by ``filename`` using the process_file
+           method above. If self.pre_proc_dir is specified (not None), it
+           will load pickled HKArchiveScanner objects and concatenates with
+           self instead of re-processing each frame, if the corresponding
+           file exists.  If the pkl file does not exist, it processes it and
+           saves the result (in the pre_proc_dir) so it can be used in the
+           future.  If self.pre_proc_dir is not specified, this becomes
+           equivalent to process_file.
+        """
+        if self.pre_proc_dir is None:
+            self.process_file(filename)
+            return
+
+        folder = os.path.basename(filename)[:5]
+        path = os.path.join( self.pre_proc_dir, folder, os.path.basename(filename).replace(".g3",'.pkl') )
+
+        if os.path.exists(path):
+            with open(path, 'rb') as pkfl:
+                hksc = pickle.load(pkfl)
+
+        else:
+            hksc = HKArchiveScanner()
+            hksc.process_file(filename)
+            # Make dirs if needed
+            if not os.path.exists( os.path.dirname(path) ):
+                os.makedirs( os.path.dirname(path) )
+                if self.pre_proc_mode is not None:
+                    os.chmod( os.path.dirname(path), self.pre_proc_mode )
+            # Save pkl file
+            with open(path, 'wb') as pkfl:
+                pickle.dump(hksc, pkfl)
+            if self.pre_proc_mode is not None:
+                os.chmod( path, self.pre_proc_mode )            
+
+        self.field_groups += hksc.field_groups
+        self.counter += hksc.counter
+
+
+
+
 class _FieldGroup:
     """Container object for look-up information associated with a group of
     fields that share a timeline (i.e. a group of fields that are
@@ -624,17 +669,20 @@ class _FieldGroup:
 
 
 def to_timestamp(some_time, str_format=None): 
-    '''
+    """Convert the argument to a unix timestamp.
+
     Args:
-        some_time - if datetime, converted to UTC and used
-                    if int or float - assumed to be ctime, no change
-                    if string - trys to parse into datetime object
-                              - assumed to be in UTC
-        str_format - allows user to define a string format if they don't
-                    want to use a default option
+      some_time: If a datetime, it is converted to UTC timezone and
+        then to a unix timestamp.  If int or float, the value is
+        returned unprocessed.  If str, a date will be extracted based
+        on a few trial date format strings.
+      str_format: a format string (for strptime) to try, instead of
+        the default(s).
+
     Returns:
-        ctime of some_time
-    '''
+        float: Unix timestamp corresponding to some_time.
+
+    """
     
     if type(some_time) == dt.datetime:
         return some_time.astimezone(dt.timezone.utc).timestamp()
@@ -654,43 +702,65 @@ def to_timestamp(some_time, str_format=None):
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
 def load_range(start, stop, fields=None, alias=None, 
-               data_dir=None,config=None,):
-    '''
-    Args:
-        start - datetime object to start looking
-                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
-        stop - datetime object to stop looking
-                (should set tzinfo=dt.timezone.utc if your computer is not in utc)
-        fields - fields to return, if None, returns all fields
-        alias - if not None, needs to be the length of fields
-        data_dir - directory where all the ctime folders are. 
-                If None, tries to use $OCS_DATA_DIR
-        config - a .yaml configuration file for loading data_dir / fields / alias
+               data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
+               strict=True):
+    """Args:
+
+      start: Earliest time to search for data (see note on time
+        formats).
+      stop: Latest time to search for data (see note on time formats).
+      fields: Fields to return, if None, returns all fields.
+      alias: If not None, must be a list of strings providing exactly
+        one value for each entry in fields.
+      data_dir: directory where all the ctime folders are.  If None,
+        tries to use $OCS_DATA_DIR.
+      config: filename of a .yaml file for loading data_dir / fields /
+        alias
+      pre_proc_dir: Place to store pickled HKArchiveScanners for g3
+        files to speed up loading
+      pre_proc_mode: Permissions (passed to os.chmod) to be used on
+        dirs and pkl files in the pre_proc_dir. No chmod if None.
+      strict: If False, log and skip missing fields rather than
+        raising a KeyError.
                 
-    Returns - Dictionary of the format:
+    Returns:
+
+      Dictionary with structure::
+
         {
             alias[i] : (time[i], data[i])
         }
-        It will be masked to only have data between start and stop
+
+      It will be masked to only have data between start and stop.
         
-    Example use:
-    fields = [
-        'observatory.HAN.feeds.temperatures.Channel 1 T',
-        'observatory.HAN.feeds.temperatures.Channel 2 T',
-    ]
+    Notes:
 
-    alias = [
-        'HAN 1', 'HAN 2',
-    ]
+      The "start" and "stop" argument accept a variety of formats,
+      including datetime objects, unix timestamps, and strings (see
+      to_timestamp function).  In the case of datetime objects, you
+      should set tzinfo=dt.timezone.utc explicitly if the system is
+      not set to UTC time.
 
-    start = dt.datetime(2020,2,19,18,48)
-    stop = dt.datetime(2020,2,22)
-    data = load_range(start, stop, fields=fields, alias=alias)
-    
-    plt.figure()
-    for name in alias:
-        plt.plot( data[name][0], data[name][1])
-    '''
+      Example usage::
+
+        fields = [
+            'observatory.HAN.feeds.temperatures.Channel 1 T',
+            'observatory.HAN.feeds.temperatures.Channel 2 T',
+        ]
+
+        alias = [
+            'HAN 1', 'HAN 2',
+        ]
+
+        start = dt.datetime(2020,2,19,18,48)
+        stop = dt.datetime(2020,2,22)
+        data = load_range(start, stop, fields=fields, alias=alias)
+
+        plt.figure()
+        for name in alias:
+            plt.plot( data[name][0], data[name][1])
+
+    """
     if config is not None:
         if not (data_dir is None and fields is None and alias is None):
             hk_logger.warning('''load_range has a config file - data_dir, fields, and alias are ignored''')
@@ -718,7 +788,7 @@ def load_range(start, stop, fields=None, alias=None,
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
-    hksc = HKArchiveScanner()
+    hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
     
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
         base = data_dir+'/'+str(folder)
@@ -734,7 +804,7 @@ def load_range(start, stop, fields=None, alias=None,
                 continue
             if t >= start_ctime-3600 and t <=stop_ctime+3600:
                 hk_logger.debug('Processing {}'.format(base+'/'+file))
-                hksc.process_file( base+'/'+file)
+                hksc.process_file_with_cache( base+'/'+file)
     
     
     cat = hksc.finalize()
@@ -756,7 +826,14 @@ def load_range(start, stop, fields=None, alias=None,
         if field not in all_fields:
             hk_logger.info('`{}` not in available fields, skipping'.format(field))
             continue
-        t,x = cat.simple(field)
+        try:
+            t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
+        except Exception as e:
+            if not strict and isinstance(e, KeyError):
+                hk_logger.warning(f'{e} -- skipping field')
+                continue
+            else:
+                raise(e)
         msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
         data[name] = t[msk],x[msk]
         

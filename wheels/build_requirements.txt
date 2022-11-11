@@ -1,0 +1,11 @@
+# This is the set of packages to install in the build environment
+# AFTER installing our pinned version of numpy.
+astropy
+matplotlib
+scipy
+ephem
+pytz
+sqlalchemy
+pysqlite3-wheels
+tqdm
+pytest
