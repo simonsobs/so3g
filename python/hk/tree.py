@@ -7,6 +7,10 @@ from so3g.hk import getdata
 import time
 import os
 import yaml
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class HKRef(object):
@@ -165,16 +169,21 @@ class HKTree:
             data_dir = os.environ['OCS_DATA_DIR']
 
         # Walk the files -- same approach as load_ranges
+        logger.info('Scanning %s (pre_proc=%s)' % (data_dir, pre_proc_dir))
         hksc = getdata.HKArchiveScanner(pre_proc_dir=pre_proc_dir)
         for folder in range(int(start / 1e5), int(stop / 1e5) + 1):
             base = os.path.join(data_dir, str(folder))
+            logger.debug(f' ... checking {base}')
             if not os.path.exists(base):
                 continue
 
             for filename in sorted(os.listdir(base)):
+                logger.debug(f' ... ... processing {filename}')
                 try:
                     t = int(filename[:-3])
                 except ValueError:
+                    logger.warning(' ... ... filename does not lead with '
+                                   f'timestamp, skipping: {filename}')
                     continue
                 if t >= start - 3600 and t <= stop + 3600:
                     hksc.process_file_with_cache(os.path.join(base, filename))
@@ -276,7 +285,7 @@ class HKTree:
         (see HKRef._load).
 
         """
-        return self([self._children], **kw)
+        return self(self._private['children'], **kw)
 
     def _clear(self):
         """Drop all loaded data."""
