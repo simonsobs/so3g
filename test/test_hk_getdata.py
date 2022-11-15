@@ -1,12 +1,17 @@
 import unittest
 import os
 import numpy as np
+import tempfile
 
 import so3g
-from so3g.hk import HKArchiveScanner
-from so3g.hk import HKTranslator
+from so3g.hk import HKArchiveScanner, HKTranslator, HKTree
+from so3g.hk.tree import HKRef, HKDeadend
 
 from spt3g import core
+
+# Timestamp near which to place test data.
+_BASE_TIME = 1581638400.
+
 
 class Seeder(list):
     """Module that can be pre-initialized with frames to feed into a
@@ -24,7 +29,7 @@ class Seeder(list):
         return self.Process(*args, **kw)
 
 def get_g3vectortime(dt):
-    return core.G3VectorTime((np.asarray(dt) + 1581638400.)*core.G3Units.seconds)
+    return core.G3VectorTime((np.asarray(dt) + _BASE_TIME)*core.G3Units.seconds)
 
 def get_v2_stream():
     """Generate some example HK data, in schema version 2.
@@ -39,7 +44,7 @@ def get_v2_stream():
 
     # Register a data provider.
     prov_id = hksess.add_provider(
-        description='Fake data for the real world.')
+        description='observatory.test_agent.feeds.test_feed')
 
     # Start the stream -- write the initial session and status frames.
     frames = [
@@ -117,7 +122,8 @@ def write_example_file(filename='hk_out.g3', hkagg_version=2):
         hkagg_version (int): which HK version to write to file
 
     """
-    test_file = filename
+    test_file = os.path.realpath(filename)
+    os.makedirs(os.path.split(test_file)[0], exist_ok=True)
 
     # Write a stream of HK frames.
     # (Inspect the output with 'spt3g-dump hk_out.g3 so3g'.)
@@ -212,6 +218,42 @@ class TestGetData(unittest.TestCase):
             self.assertIsInstance(data['mode'], np.ndarray)
             self.assertEqual(data['mode'].dtype.char, 'U',
                              "String data should unpack to Unicode array.")
+
+
+class TestHkTree(unittest.TestCase):
+    def setUp(self):
+        """Generate some test HK data."""
+        self._tempdir = tempfile.TemporaryDirectory()
+        self._filename = os.path.join(self._tempdir.name,
+                                      f'{int(_BASE_TIME/1e5):05d}',
+                                      f'{int(_BASE_TIME):05d}.g3')
+        self._fields = write_example_file(self._filename)
+
+    def tearDown(self):
+        """Remove all temporary files."""
+        self._tempdir.cleanup()
+
+    def test_hk_tree(self):
+        tree = HKTree(_BASE_TIME-3600, stop=_BASE_TIME+3600,
+                      data_dir=self._tempdir.name)
+        # Check that attributes resolve as expected
+        for ref in [
+                tree.test_agent.test_feed,
+                tree.test_agent.test_feed.speed]:
+            self.assertIsInstance(ref, HKRef)
+        for deadend in [
+                tree.test_agent.nowhere,
+                tree.test_agent.test_feed.nothing]:
+            self.assertIsInstance(deadend, HKDeadend)
+        # Load a single field
+        ref = tree.test_agent.test_feed.mode
+        data = ref._load()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 1)
+        # Load a bunch of fields
+        ref = tree.test_agent
+        data2 = ref._load()
+        self.assertGreater(len(data2), 1)
 
 
 if __name__ == '__main__':
