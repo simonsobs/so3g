@@ -7,4 +7,5 @@ from .scanner import HKScanner
 from .session import HKSessionHelper
 from .translator import HKTranslator
 from .tree import HKTree
+from . import cli
 from . import util
