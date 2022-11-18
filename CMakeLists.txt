@@ -142,6 +142,8 @@ install(FILES ${MY_PYTHONS_PROJ}
 install(FILES ${MY_PYTHONS_SMURF}
         DESTINATION ${INSTALL_DEST}/smurf)
 
+install(PROGRAMS scripts/so-hk-tool DESTINATION bin)
+
 add_custom_target(prep-readthedocs
   COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py
           --prep-rtd --source-branch=master
