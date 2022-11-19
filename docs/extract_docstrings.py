@@ -16,6 +16,7 @@ def install_fake_spt3g(dest_dir):
                 'G3VectorDouble',
                 'G3VectorInt',
                 'G3VectorString',
+                'G3VectorBool',
         ]:
             fout.write('class %s:\n    pass\n' % core_class)
 
