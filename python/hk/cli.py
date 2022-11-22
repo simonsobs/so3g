@@ -7,6 +7,13 @@ import csv
 import argparse
 
 
+_UNITS = {
+    'bytes': 1,
+    'kb': 1024,
+    'mb': 1024*1024,
+    'gb': 1024*1024*1024,
+}
+
 def get_parser():
     parser = argparse.ArgumentParser(
         epilog="Run '%(prog)s COMMAND --help' to see additional "
@@ -27,6 +34,9 @@ def get_parser():
         '--strip-tokens', default='observatory.feeds',
         help="Tokens to hide in provider and field names. "
         "Pass this is a single .-delimited string.")
+    data_args.add_argument(
+        '--block-size', '-B', default='b',
+        help="Summarize storage in units of bytes,kB,MB,GB (pass b,k,M,G).")
 
     output_args = argparse.ArgumentParser(add_help=False)
     output_args.add_argument(
@@ -173,6 +183,27 @@ def format_table(rows, header=None, fmts=None, align=None):
     return '\n'.join([' '.join(r) for r in rows])
 
 
+def convert_units(rows, cols, args):
+    units = args.block_size.lower()
+    if units == 'b':
+        units = 'bytes'
+    if units not in _UNITS:
+        units += 'b'
+    if units not in _UNITS:
+        raise ValueError(f'Cannot interpret {args.block_size} '
+                         'as a block size (b,k,M,G).')
+    factor = _UNITS[units]
+    if factor == 1:
+        fmt = '%d'
+    else:
+        fmt = '%.1f'
+    rows = [
+        tuple([(fmt % (c/factor)) if i in cols else c
+               for i, c in enumerate(r)])
+        for r in rows]
+    return rows, units
+
+
 def write_csv(filename, rows, header=None):
     with open(filename, 'w', newline='') as csvfile:
         cw = csv.writer(csvfile)#, dialect='memberdb')
@@ -224,9 +255,12 @@ def main(args=None):
                     break
             rows.append((filename, file_size, end,
                          {True: 'no', False: 'YES'}[clean_exit]))
-        header = ['filename', 'size_bytes',
-                  'usable_bytes', 'error']
-        produce_output(rows, header, csv=args.csv)
+        rows, units = convert_units(rows, [1, 2], args)
+
+        header = ['filename', f'size_{units}',
+                  f'usable_{units}', 'error']
+        produce_output(rows, header, align={1: 'right', 2: 'right'},
+                       csv=args.csv)
 
     elif args.mode == 'list-provs':
         counts = {}
@@ -247,11 +281,12 @@ def main(args=None):
                         counts[key] = []
                     counts[key].append(end - start)
 
-        header = ['provider_name', 'total_bytes', 'frame_bytes']
-        fmts = {'frame_bytes': '{:.1f}'}
         rows = [(k, np.sum(v).tolist(), np.mean(v))
                 for k, v in sorted(counts.items())]
-        produce_output(rows, header, fmts=fmts, csv=args.csv)
+        rows, units = convert_units(rows, [1, 2], args)
+        header = ['provider_name', f'total_{units}', f'frame_{units}']
+        produce_output(rows, header, align={1: 'right', 2: 'right'},
+                       csv=args.csv)
 
     elif args.mode == 'list-fields':
         # Count samples.
