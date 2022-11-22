@@ -37,6 +37,9 @@ def get_parser():
     data_args.add_argument(
         '--block-size', '-B', default='b',
         help="Summarize storage in units of bytes,kB,MB,GB (pass b,k,M,G).")
+    data_args.add_argument(
+        '--sort-size', '-s', action='store_true',
+        help="Sort results, if applicable, by size (descending).")
 
     output_args = argparse.ArgumentParser(add_help=False)
     output_args.add_argument(
@@ -255,6 +258,10 @@ def main(args=None):
                     break
             rows.append((filename, file_size, end,
                          {True: 'no', False: 'YES'}[clean_exit]))
+
+        if args.sort_size:
+            rows = sorted(rows, key=lambda row: -row[1])
+
         rows, units = convert_units(rows, [1, 2], args)
 
         header = ['filename', f'size_{units}',
@@ -283,6 +290,10 @@ def main(args=None):
 
         rows = [(k, np.sum(v).tolist(), np.mean(v))
                 for k, v in sorted(counts.items())]
+
+        if args.sort_size:
+            rows = sorted(rows, key=lambda row: -row[1])
+
         rows, units = convert_units(rows, [1, 2], args)
         header = ['provider_name', f'total_{units}', f'frame_{units}']
         produce_output(rows, header, align={1: 'right', 2: 'right'},
@@ -312,6 +323,10 @@ def main(args=None):
                             counts[field] += n
         header = ['field_name', 'samples']
         rows = sorted(counts.items())
+
+        if args.sort_size:
+            rows = sorted(rows, key=lambda row: -row[1])
+
         produce_output(rows, header, csv=args.csv)
 
     elif args.mode is None:
