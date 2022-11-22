@@ -42,7 +42,7 @@ def get_parser():
     output_args.add_argument(
         '--csv', help=
         "Store data as CSV to specified filename.")
-    
+
     # Main "mode" subprocessors.
 
     # "list-files"
@@ -67,7 +67,7 @@ def get_parser():
 
     %(prog)s [options] FILE [...]
 
-        This module reads all specified files and reports a list of 
+        This module reads all specified files and reports a list of
         all data providers (a.k.a. feeds) encountered in the data,
         along with total data volume and average frame size, per
         provider.
@@ -82,7 +82,7 @@ def get_parser():
 
     %(prog)s [options] FILE [...]
 
-        This module reads all specified files and reports a list of 
+        This module reads all specified files and reports a list of
         all data fields with their total sample count.
         """)
 
@@ -107,7 +107,7 @@ def get_file_list(args, suffix='.g3'):
 
 def format_table(rows, header=None, fmts=None, align=None):
     """Return a string with data from rows organized into a text table.
-    
+
     If you pass header, it must be a list with the same number of
     elements as the first row.
 
@@ -302,7 +302,6 @@ def main(args=None):
                 f = f[0]
                 if 'address' in f:
                     addr = renamer(f['address'])
-                    
                     for block in f['blocks']:
                         keys = block.keys()
                         n = len(block.times)
