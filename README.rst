@@ -300,9 +300,10 @@ Optional, site-specific parameters may be set in the file local.cmake.
 Lines declaring set(VARIABLE, value) should have the same effect as
 passing -DVARIABLE=value to the cmake invocation.
 
-To change the destination directory for the installation, add a line
+To change the destination directory for the installation, add lines
 like this one::
 
+  set(CMAKE_INSTALL_PREFIX $ENV{HOME}/.local/)
   set(PYTHON_INSTALL_DEST $ENV{HOME}/.local/lib/python3.7/site-packages/)
 
 To point cmake to the spt3g build directory, add a line like this
