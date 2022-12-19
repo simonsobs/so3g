@@ -2,7 +2,7 @@
 so3g
 ====
 
-.. image:: https://img.shields.io/github/workflow/status/simonsobs/so3g/Build%20Official%20Docker%20Images/master
+.. image:: https://img.shields.io/github/actions/workflow/status/simonsobs/so3g/official-docker-images.yml?branch=master
     :target: https://github.com/simonsobs/so3g/actions?query=workflow%3A%22Build+Official+Docker+Images%22
     :alt: GitHub Workflow Status (branch)
 
