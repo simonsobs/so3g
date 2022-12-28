@@ -94,7 +94,7 @@ class RangesMatrix():
                 raise IndexError("Too many indices to RangesMatrix.")
 
             if isinstance(index[0], np.ndarray):
-                if index[0].dtype is np.bool:
+                if index[0].dtype is bool:
                     return RangesMatrix([self.ranges[i][index[1:]]
                                            for i in index[0].nonzero()[0]])
                 return RangesMatrix([self.ranges[i][index[1:]] for i in index[0]],
