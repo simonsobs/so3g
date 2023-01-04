@@ -405,6 +405,47 @@ Class references
 .. autoclass:: so3g.hk.HKArchiveScanner
    :members:
 
+Checking Files with so-hk-tool
+------------------------------
+
+The command line tool ``so-hk-tool`` can be used to scan one or more SO
+HK files and summarize info about the files, the providers, and the
+fields within.  For example::
+
+  $ so-hk-tool list-provs /mnt/so1/data/ucsd-sat1/hk/16685/1668577223.g3
+  provider_name                           total_bytes frame_bytes
+  --------------------------------------- ----------- -----------
+  BK9130C-1.psu_output                          67152     11192.0
+  BK9130C-2.psu_output                          67152     11192.0
+  DRptc1.ptc_status                           1006500     16775.0
+  LSA21US.temperatures                         388271      6365.1
+  LSA21YC.temperatures                         869316    144886.0
+  LSA22QC.temperatures                         585204     97534.0
+  LSA24LY.temperatures                         897660     14961.0
+  LSA24M5.temperatures                         896376     14939.6
+  LSA2619.temperatures                         895620     14927.0
+  SSG3KRM-2_2.ups                               34169      5694.8
+  ...
+
+The tool can run the following analyses:
+
+- ``list-files``: List each file, its size, and report any stray bytes
+  (partial trailing frames).
+- ``list-provs``: List each provider found in the files.
+- ``list-fields``: List each field found in the files.
+
+See more details below.  Please note that when presenting provider and
+field names, the program strips out tokens ``observatory`` and
+``feeds``, by default (for example, ``observatory.DRptc1.feeds.ptc_status``
+becomes ``DRptc1.ptc_status``).  Pass ``--strip-tokens=""` to instead
+show the full provider / feed names.
+
+.. argparse::
+   :prog: so-hk-tool
+   :module: so3g.hk.cli
+   :func: get_parser
+
+
 HK Data Types and File Structure
 --------------------------------
 
