@@ -52,7 +52,7 @@ pip install --upgrade pip
 pip install -v pyaml "numpy<${numpy_ver}" cmake
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt"
+CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}"
 
 # Install Openblas
 
