@@ -272,11 +272,14 @@ class CMakeBuild(build_ext):
         py_exe = sys.executable
         py_maj = sys.version_info[0]
         py_min = sys.version_info[1]
-        py_incl = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(py_exe))),
-            "include",
-            f"python{py_maj}.{py_min}",
+        # The includes vary slightly between builds and versions, so we call out
+        # to the python-config script for this.
+        out = sp.check_output(
+            ["python3-config", "--includes"],
+            universal_newlines=True,
         )
+        raw_incl = out.split()[0]
+        py_incl = re.sub("-I", "", raw_incl)
         dlist3g = [
             f"-DPython_EXECUTABLE={py_exe}",
             f"-DPython_INCLUDE_DIRS={py_incl}",
