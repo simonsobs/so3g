@@ -82,7 +82,7 @@ file(GLOB MY_PYTHONS_SMURF
   "${CMAKE_CURRENT_SOURCE_DIR}/python/smurf/*.py")
 
 # Provide list of libs to link against.
-target_link_libraries(so3g spt3g::core FLAC)
+target_link_libraries(so3g spt3g::core)
 
 # You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)

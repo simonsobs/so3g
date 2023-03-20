@@ -1,6 +1,6 @@
 # Requirements to install with conda, if using
 # that.
-astropy==4.3.1
+astropy
 matplotlib
 numpy
 scipy

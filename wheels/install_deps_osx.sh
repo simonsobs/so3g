@@ -6,44 +6,54 @@
 
 set -e
 
+# Note:  we are not cross-compiling here.  This is for selecting the
+# openblas tarball to fetch.
+arch=$1
+
 # Location of this script
 pushd $(dirname $0) >/dev/null 2>&1
 scriptdir=$(pwd)
 popd >/dev/null 2>&1
 echo "Wheel script directory = ${scriptdir}"
 
-# Build options.  If we use clang, then use accelerate framework.  Otherwise
-# build and use OpenBLAS.
+# Build options.
 
+# FIXME:  would be nice to switch to clang once spt3g / cereal
+# runtime registration works.
 use_gcc=yes
+# use_gcc=no
 
-CC=gcc-11
-CXX=g++-11
-FC=gfortran-11
-#CC=clang
-#CXX=clang++
-#FC=
-
-CFLAGS="-O3 -fPIC"
-FCFLAGS="-O3 -fPIC"
-# Use the second when building with clang
-CXXFLAGS="-O3 -fPIC -std=c++11"
-#CXXFLAGS="-O3 -fPIC -std=c++11 -stdlib=libc++"
+if [ "x${use_gcc}" = "xyes" ]; then
+    CC=gcc-12
+    CXX=g++-12
+    CFLAGS="-O3 -fPIC"
+    CXXFLAGS="-O3 -fPIC -std=c++14"
+else
+    CC=clang
+    CXX=clang++
+    CFLAGS="-O3 -fPIC"
+    CXXFLAGS="-O3 -fPIC -std=c++11 -stdlib=libc++"
+fi
 
 MAKEJ=2
 
 PREFIX=/usr/local
 
 # Install library dependencies with homebrew
-brew install flac
-brew install bzip2
 brew install netcdf
 brew install sqlite3
+brew install flac
 
 # Optionally install gcc
 if [ "x${use_gcc}" = "xyes" ]; then
-    brew install gcc
+    brew install gcc@12
 fi
+
+# Update pip
+pip install --upgrade pip
+
+# Install a couple of base packages that are always required
+pip install -v cmake wheel
 
 # In order to maximize ABI compatibility with numpy, build with the newest numpy
 # version containing the oldest ABI version compatible with the python we are using.
@@ -60,53 +70,54 @@ fi
 if [ ${pyver} == "3.10" ]; then
     numpy_ver="1.22"
 fi
-
-# Update pip
-pip install --upgrade pip
-
-# Install a couple of base packages that are always required
-pip install -v pyaml "numpy<${numpy_ver}" cmake
+if [ ${pyver} == "3.11" ]; then
+    numpy_ver="1.24"
+fi
 
 # Install build requirements.
 CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}"
 
-# Optionally Install Openblas
+# Install openblas from the multilib package- the same one numpy uses.
 
-if [ "x${use_gcc}" = "xyes" ]; then
-    openblas_version=0.3.19
-    openblas_dir=OpenBLAS-${openblas_version}
-    openblas_pkg=${openblas_dir}.tar.gz
-
-    echo "Fetching OpenBLAS..."
-
-    if [ ! -e ${openblas_pkg} ]; then
-        curl -SL https://github.com/xianyi/OpenBLAS/archive/v${openblas_version}.tar.gz -o ${openblas_pkg}
-    fi
-
-    echo "Building OpenBLAS..."
-
-    rm -rf ${openblas_dir}
-    tar xzf ${openblas_pkg} \
-        && pushd ${openblas_dir} >/dev/null 2>&1 \
-        && make USE_OPENMP=1 \
-        MAKE_NB_JOBS=${MAKEJ} \
-        CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 TARGET=GENERIC \
-        COMMON_OPT="${CFLAGS}" FCOMMON_OPT="${FCFLAGS}" \
-        LDFLAGS="-fopenmp -lm" libs netlib shared \
-        && make DYNAMIC_ARCH=1 TARGET=GENERIC PREFIX="${PREFIX}" install \
-        && popd >/dev/null 2>&1
+if [ "${arch}" = "macosx_arm64" ]; then
+    openblas_pkg="openblas-v0.3.21-macosx_11_0_arm64-gf_5272328.tar.gz"
+else
+    openblas_pkg="openblas-v0.3.21-macosx_10_9_x86_64-gf_1becaaa.tar.gz"
 fi
+openblas_url="https://anaconda.org/multibuild-wheels-staging/openblas-libs/v0.3.21/download/${openblas_pkg}"
+
+if [ ! -e ${openblas_pkg} ]; then
+    echo "Fetching OpenBLAS..."
+    curl -SL ${openblas_url} -o ${openblas_pkg}
+fi
+
+echo "Extracting OpenBLAS"
+tar -x -z -v -C "${PREFIX}" --strip-components 2 -f ${openblas_pkg}
+
+# Install the gfortran (and libgcc) that was used for openblas compilation
+
+curl -L https://github.com/MacPython/gfortran-install/raw/master/archives/gfortran-4.9.0-Mavericks.dmg -o gfortran.dmg
+GFORTRAN_SHA256=$(shasum -a 256 gfortran.dmg)
+KNOWN_SHA256="d2d5ca5ba8332d63bbe23a07201c4a0a5d7e09ee56f0298a96775f928c3c4b30  gfortran.dmg"
+if [ "$GFORTRAN_SHA256" != "$KNOWN_SHA256" ]; then
+    echo sha256 mismatch
+    exit 1
+fi
+
+hdiutil attach -mountpoint /Volumes/gfortran gfortran.dmg
+sudo installer -pkg /Volumes/gfortran/gfortran.pkg -target /
+otool -L /usr/local/gfortran/lib/libgfortran.3.dylib
 
 # Install boost
 
-boost_version=1_78_0
+boost_version=1_80_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."
@@ -135,7 +146,7 @@ tar xjf ${boost_pkg} \
     variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1
 
-# Install qpoint
+# Astropy caching...
 
 echo "Attempting to trigger astropy IERS download..."
 
@@ -146,26 +157,3 @@ iers_table = IERS_Auto.open()[columns].as_array()
 '
 
 echo "Done with IERS download."
-
-qpoint_version=828126de9f195f88bfaf1996527f633382457461
-qpoint_dir="qpoint"
-
-echo "Fetching qpoint..."
-
-if [ ! -d ${qpoint_dir} ]; then
-    git clone https://github.com/arahlin/qpoint.git ${qpoint_dir}
-fi
-
-echo "Building qpoint..."
-
-pushd ${qpoint_dir} \
-    && git checkout master \
-    && if [ "x$(git branch -l | grep so3g)" != x ]; then \
-        git branch -D so3g; fi \
-    && git fetch \
-    && git checkout -b so3g ${qpoint_version} \
-    && CC="${CC}" CFLAGS="${CFLAGS}" \
-    python3 setup.py build \
-    && CC="${CC}" CFLAGS="${CFLAGS}" \
-    python3 setup.py install --prefix "${PREFIX}" \
-    && popd > /dev/null
