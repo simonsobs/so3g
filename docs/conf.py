@@ -109,7 +109,7 @@ autoclass_content = 'both'
 # some external dependencies are not met at build time and break the
 # building process.
 autodoc_mock_imports = []
-for missing in ('matplotlib', 'healpy', 'astropy',
+for missing in ('matplotlib', 'healpy', 'astropy', 'pytz',
                 'quaternionarray', 'sqlalchemy', 'yaml', 'ephem', 'tqdm'):
     try:
         foo = import_module(missing)
