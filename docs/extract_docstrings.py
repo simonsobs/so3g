@@ -143,7 +143,7 @@ def prepare_readthedocs(src_branch='master',
     print('Merging into the %s branch seems to have succeeded. Check that \n'
           'everything is right and then push to github.  You are on branch:\n'
           % dest_branch)
-    os.system('git branch --show-current')
+    os.system('git symbolic-ref HEAD --short')
     print()
     return 0
 
