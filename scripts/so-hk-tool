@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+
+import so3g
+so3g.hk.cli.main()

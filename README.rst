@@ -2,7 +2,7 @@
 so3g
 ====
 
-.. image:: https://img.shields.io/github/workflow/status/simonsobs/so3g/Build%20Official%20Docker%20Images/master
+.. image:: https://img.shields.io/github/actions/workflow/status/simonsobs/so3g/official-docker-images.yml?branch=master
     :target: https://github.com/simonsobs/so3g/actions?query=workflow%3A%22Build+Official+Docker+Images%22
     :alt: GitHub Workflow Status (branch)
 
@@ -99,7 +99,7 @@ If you will be using the pointing code in so3g, install pixell and qpoint
 with pip (regardless of whether you are using a conda env or virtualenv)::
 
   pip install pixell
-  pip install git+https://github.com/arahlin/qpoint
+  pip install qpoint
 
 
 Installing Pre-Built Wheels
@@ -300,9 +300,10 @@ Optional, site-specific parameters may be set in the file local.cmake.
 Lines declaring set(VARIABLE, value) should have the same effect as
 passing -DVARIABLE=value to the cmake invocation.
 
-To change the destination directory for the installation, add a line
+To change the destination directory for the installation, add lines
 like this one::
 
+  set(CMAKE_INSTALL_PREFIX $ENV{HOME}/.local/)
   set(PYTHON_INSTALL_DEST $ENV{HOME}/.local/lib/python3.7/site-packages/)
 
 To point cmake to the spt3g build directory, add a line like this

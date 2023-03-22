@@ -144,6 +144,174 @@ Function References
 .. autofunction:: so3g.hk.getdata.to_timestamp
 
 
+Exploring HK Data
+-----------------
+
+The HKTree object provides a way to browse through available HK data
+fields from within an interactive python session (such as through the
+python or ipython interpreters or in a jupyter session).
+
+Instead of accessing HK fields through their long string names, such as::
+
+  field_name = "observatory.hk.rotation.feeds.hwprotation.kikusui_curr"
+
+a field can be referred to as a named object in a hierarchy of
+attributes::
+
+  tree = HKTree('2022-10-20', '2022-10-22', config='hk.yaml')
+  field = tree.hk.rotation.hwprotation.kikusui_curr
+
+By exposing the available fields as a tree of attributes, rather than
+huge set of long string keys, a user working interactively can use
+tab-completion to find fields easily.
+
+Having identified a field or set of fields of interest, the data can
+be loaded by calling pseudo-private methods on the field directly, e.g.::
+
+  data_dict = field._load()
+
+After calling load, the data are stored in the field reference itself,
+and so can be retrieved with::
+
+  times, values = field._data
+
+The ``_load`` method can be called on "non-terminal" nodes of the
+tree, for example::
+
+  data_dict = tree.hk.rotation._load()
+
+would load all the fields that are sub- (or sub-sub-, ...) attributes
+of ``tree.hk.rotation``.
+
+The system is intended to complement :func:`so3g.hk.load_range`, and
+uses the same sort of configuration file.
+
+See more detailed examples below, as well as the :ref:`Class Reference
+<HKTree Class Reference>`.
+
+Instantiating an HKTree
+```````````````````````
+
+To create an HKTree requires at least a path to an "OCS style" data
+directory (in the same sense as :func:`so3g.hk.load_range`)::
+
+  tree = hk.HKTree(data_dir='/mnt/so1/data/ucsd-sat1/hk/')
+
+By default, the returned object will only look through data from the
+past 24 hours.  To specify a range of dates of interest, use the start
+and stop parameters::
+
+  tree = hk.HKTree(data_dir='/mnt/so1/data/ucsd-sat1/hk/',
+                   start='2022-10-20', stop='2022-10-22')
+
+As with ``load_range``, passing ``data_dir`` is not necessary if the
+``OCS_DATA_DIR`` environment variable is set.  However, a config file
+may be the best way to go.
+
+
+Configuration file
+``````````````````
+
+The configuration file syntax is as in ``load_range``.  However you
+can also specify:
+
+- ``pre_proc_dir``: The default value for ``pre_proc_dir``.
+- ``skip_tokens``: Tokens to append to the ``skip`` parameter for
+  ``HKTree()``.
+
+Aliases are treated in a special way by HKTree; see `Using ._aliases`
+below.
+
+
+Finding and Loading data
+````````````````````````
+
+The nodes in the tree are all either "terminal" or not.  The terminal
+nodes are associated with a single specific HK field
+(e.g. ``tree.hk.rotation.hwprotation.kikusui_curr``) while
+non-terminal nodes are do not have associated fields, but have child
+attributes (e.g. ``tree.hk.rotation``).
+
+Data is loaded by calling ``._load()`` on any node in the tree.  This
+function will return a dictionary of data, mapping the full field names
+to tuples of data (this is similar to what ``load_range`` returns).
+
+Following load, the tuples are also available in the ``._data``
+attribute of each terminal node.  For example::
+
+  data_dict = tree.hk.rotation._load()
+
+will return a dict with multiple fields.  But after that call one can
+also access single field data on terminal nodes, e.g.::
+
+  t, val = tree.hk.rotation.kikusui_curr
+
+If you want to clear RAM / start over, call ``._clear()`` on any node
+in the tree to clear the data from all its child nodes.  E.g.::
+
+  tree.hk._clear()
+
+
+Using ._aliases
+```````````````
+
+The ``load_range`` function permits users to associate aliases with
+long field names, using the ``field_list`` in the config file (or the
+``aliases`` argument).  The ``HKTree`` makes those fields available,
+under their aliases, in a special attribute called aliases.  For
+example the config assignments like this::
+
+    field_list:
+        't40k_dr_side' : 'observatory.LEIA.feeds.temperatures.Channel_7_T'
+        't40k_far_side': 'observatory.LEIA.feeds.temperatures.Channel_8_T'
+
+would lead to the existence of attributes::
+
+  tree._aliases.t40k_dr_side
+  tree._aliases.t40k_far_side
+
+(Note that attributes can't be accessed if they begin with a digit or
+contain special characters... so avoid them in your field_list.)
+
+Fields exposed under ``._aliases`` also exist in the full tree -- the
+terminal attributes here are actually the same ones .  You
+can run ``._load()`` and ``._clear()`` on ``._aliases`` and it will
+operate on all the attributes contained there.
+
+In particular note that ``tree._aliases._load()`` should return a data
+dictionary where the alias names are used as the keys, instead of the
+
+You can dynamicaly add new fields to the aliases list (as a way of
+grouping things together under shorter names) using
+``tree._add_alias()``, providing an alias string and a target field.
+The following are equivalent::
+
+  tree._add_alias('short_name', tree.LEIA.temperatures.Channel_1_T)
+  tree._add_alias('short_name', 'observatory.tree.LEIA.feeds.temperatures.Channel_1_T')
+
+You can add a sub-tree with children; the aliases will be generated
+automatically; for example:
+
+  tree._add_alias('terms', tree.LEIA.temperatures)
+
+Would create aliases called ``'therms_Channel_1T'``,
+``'therms_Channel_2T'``, etc.
+
+
+.. _HKTree Class Reference:
+
+Class Reference
+```````````````
+
+You should see auto-generated class documentation below.
+
+.. autoclass:: so3g.hk.tree.HKTree
+   :members: _load, _clear, _add_alias
+
+.. autoclass:: so3g.hk.tree.HKRef
+   :members: _load, _clear
+
+
 Reading HK Data
 ---------------
 
@@ -236,6 +404,47 @@ Class references
 
 .. autoclass:: so3g.hk.HKArchiveScanner
    :members:
+
+Checking Files with so-hk-tool
+------------------------------
+
+The command line tool ``so-hk-tool`` can be used to scan one or more SO
+HK files and summarize info about the files, the providers, and the
+fields within.  For example::
+
+  $ so-hk-tool list-provs /mnt/so1/data/ucsd-sat1/hk/16685/1668577223.g3
+  provider_name                           total_bytes frame_bytes
+  --------------------------------------- ----------- -----------
+  BK9130C-1.psu_output                          67152     11192.0
+  BK9130C-2.psu_output                          67152     11192.0
+  DRptc1.ptc_status                           1006500     16775.0
+  LSA21US.temperatures                         388271      6365.1
+  LSA21YC.temperatures                         869316    144886.0
+  LSA22QC.temperatures                         585204     97534.0
+  LSA24LY.temperatures                         897660     14961.0
+  LSA24M5.temperatures                         896376     14939.6
+  LSA2619.temperatures                         895620     14927.0
+  SSG3KRM-2_2.ups                               34169      5694.8
+  ...
+
+The tool can run the following analyses:
+
+- ``list-files``: List each file, its size, and report any stray bytes
+  (partial trailing frames).
+- ``list-provs``: List each provider found in the files.
+- ``list-fields``: List each field found in the files.
+
+See more details below.  Please note that when presenting provider and
+field names, the program strips out tokens ``observatory`` and
+``feeds``, by default (for example, ``observatory.DRptc1.feeds.ptc_status``
+becomes ``DRptc1.ptc_status``).  Pass ``--strip-tokens=""` to instead
+show the full provider / feed names.
+
+.. argparse::
+   :prog: so-hk-tool
+   :module: so3g.hk.cli
+   :func: get_parser
+
 
 HK Data Types and File Structure
 --------------------------------

@@ -12,7 +12,7 @@ cmake
 
 # Required for full pointing support and testing
 pixell
-#qpoint
+qpoint
 
 # testing
 pytest

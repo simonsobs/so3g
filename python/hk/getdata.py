@@ -269,17 +269,25 @@ class HKArchive:
             #   },
             # ...
         }
+
+        def check_overlap(time_range):
+            # Note the time_range is inclusive on both ends.
+            return ((start is None or start <= time_range[1]) and
+                    (end is None or end > time_range[0]))
+
         for group_name, fields, fgrps in grouped:
             # This is a group of co-sampled fields.  The fields share
             # a sample count and a frame-index map.
             all_frame_refs = []
             for fg in fgrps:
                 all_frame_refs.extend(
-                    [(b['timestamp'], b['count'], b['filename'], b['byte_offset'], b['block_index'])
+                    [(b['time_range'], b['count'], b['filename'], b['byte_offset'], b['block_index'])
                      for b in fg.index_info])
             all_frame_refs.sort()
             vector_offset = 0
-            for _, n, filename, byte_offset, block_index in all_frame_refs:
+            for time_range, n, filename, byte_offset, block_index in all_frame_refs:
+                if not check_overlap(time_range):
+                    continue
                 if not filename in files:
                     files[filename] = {}
                 if byte_offset not in files[filename]:
@@ -368,9 +376,25 @@ class HKArchive:
                         *[x for i, x in sorted(data[field])])))
                     assert(len(data[field]) == gi['count'])
 
-        # Scale out time units and mark last time.
+        # Scale out time units.
         for timeline in timelines.values():
             timeline['t'] = timeline.pop('t_g3') / core.G3Units.seconds
+
+        # Restrict to only the requested time range.
+        if start is not None or end is not None:
+            for timeline in timelines.values():
+                i0, i1 = 0, len(timeline['t'])
+                if start is not None:
+                    i0 = np.searchsorted(timeline['t'], start)
+                if end is not None:
+                    i1 = np.searchsorted(timeline['t'], end)
+                sl = slice(i0, i1)
+                timeline['t'] = timeline['t'][sl]
+                for k in timeline['fields']:
+                    data[k] = data[k][sl]
+
+        # Mark last time
+        for timeline in timelines.values():
             timeline['finalized_until'] = timeline['t'][-1]
 
         return (data, timelines)
@@ -515,7 +539,8 @@ class HKArchiveScanner:
                 # the "end" time has to be after the final sample.
                 prov.blocks[bname]['end'] = b.times[-1].time / core.G3Units.seconds + SPAN_BUFFER_SECONDS
                 ii = {'block_index': bidx,
-                      'timestamp': b.times[0].time,
+                      'time_range': (b.times[0].time / core.G3Units.seconds,
+                                     b.times[-1].time / core.G3Units.seconds),
                       'count': len(b.times)}
                 ii.update(index_info)
                 prov.blocks[bname]['index_info'].append(ii)
@@ -581,7 +606,7 @@ class HKArchiveScanner:
             assert len(frames) <= 1
             if len(frames) == 0:
                 break
-            self(frames[0], info)
+            self.Process(frames[0], info)
         # Calling flush() here protects us against the odd case that
         # we process files from a single session in non-consecutive
         # order.  In that case the start' and 'end' times will get
@@ -647,12 +672,24 @@ class _FieldGroup:
           the constructor.
         index_info (list of dict): Information that the consumer will
           use to locate and load the data efficiently.  The entries in
-          the list represent time-ordered frames.  The look-up
-          information in each dict includes 'filename' (string; the
-          filename where the HKData frame lives), 'byte_offset' (int;
-          the offset into the file where the frame starts), and
-          'block_index' (int; the index of the frame.blocks where the
-          fields' data lives).
+          the list represent time-ordered frames. See Notes.
+
+    Notes:
+
+      Each entry of index_info is a dict providing information about a
+      single frame and block where data can be found.  The fields are:
+
+      - 'filename' (str): The file in which the frame is located.
+      - 'byte_offset' (int): The offset within the file at which to
+        find the frame.
+      - 'block_index' (int): The index of the block, within the
+        corresponding frame, where the data are found.
+      - 'count' (int): the number of samples in this block.
+      - 'time_range' (tuple): (first time, last time), as unix
+        timestamps.  Note the last time is the time of the last
+        sample, not some time beyond that.
+      - 'counter' (int): An index providing the order in which the
+        frames were scanned.
 
     """
     def __init__(self, prefix, fields, start, end, index_info):
@@ -821,22 +858,17 @@ def load_range(start, stop, fields=None, alias=None,
     else:
         alias = fields
     
-    data = {}
+    # Single pass load.
+    keepers = []
     for name, field in zip(alias, fields):
         if field not in all_fields:
             hk_logger.info('`{}` not in available fields, skipping'.format(field))
             continue
-        try:
-            t,x = cat.simple(field, start=start_ctime, end=stop_ctime)
-        except Exception as e:
-            if not strict and isinstance(e, KeyError):
-                hk_logger.warning(f'{e} -- skipping field')
-                continue
-            else:
-                raise(e)
-        msk = np.all([t>=start_ctime, t<stop_ctime], axis=0)
-        data[name] = t[msk],x[msk]
-        
+        keepers.append((name, field))
+    data = cat.simple([f for n, f in keepers],
+                      start=start_ctime, end=stop_ctime)
+    data = {name: data[i] for i, (name, field) in enumerate(keepers)}
+
     return data
 
 if __name__ == '__main__':
