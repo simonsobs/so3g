@@ -22,7 +22,7 @@ import so3g
 from spt3g import core
 
 
-hk_logger = logging.getLogger('hk_logger')
+hk_logger = logging.getLogger(__name__)
 hk_logger.setLevel(logging.INFO)
 
 SPAN_BUFFER_SECONDS = 1.0
@@ -130,6 +130,9 @@ class HKArchive:
             set of fields that are co-sampled over the requested time
             interval.  Each of the requested fields will thus appear
             in at most one group.
+
+            If a requested field is not found, it will not be listed
+            in any group.
 
         """
         span = so3g.IntervalsDouble()
@@ -395,7 +398,10 @@ class HKArchive:
 
         # Mark last time
         for timeline in timelines.values():
-            timeline['finalized_until'] = timeline['t'][-1]
+            if len(timeline['t']):
+                timeline['finalized_until'] = timeline['t'][-1]
+            else:
+                timeline['finalized_until'] = start if start is not None else 0.
 
         return (data, timelines)
 
@@ -419,18 +425,27 @@ class HKArchive:
             numpy arrays of equal length containing the timestamps and
             field readings, respectively.  In cases where two fields
             are co-sampled, the time vector will be the same object.
+
+            In cases where there are no data for the requested field
+            in the time range, a pair of length 0 float arrays is returned.
+
         """
         unpack = isinstance(fields, str)
         if unpack:
             fields = [fields]
         data, timelines = self.get_data(fields, start, end, min_stride, raw, short_match)
         output = {}
+        fields_not_found = [f for f in fields]
         for timeline in timelines.values():
             # Make the array here, so that the same object is returned
             # for all fields in this group.
             _t = np.array(timeline['t'])
             for f in timeline['fields']:
                 output[f] = (_t, np.array(data[f]))
+                fields_not_found.remove(f)
+        nothing = np.zeros((0,))
+        for f in fields_not_found:
+            output[f] = (nothing, nothing)
         output = [output[f] for f in fields]
         if unpack:
             output = output[0]
