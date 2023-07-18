@@ -22,7 +22,7 @@ import so3g
 from spt3g import core
 
 
-hk_logger = logging.getLogger('hk_logger')
+hk_logger = logging.getLogger(__name__)
 hk_logger.setLevel(logging.INFO)
 
 SPAN_BUFFER_SECONDS = 1.0
