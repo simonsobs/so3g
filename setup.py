@@ -383,6 +383,8 @@ conf["install_requires"] = [
     "sqlalchemy",
     "pysqlite3-wheels",
     "tqdm",
+    "pixell",
+    "qpoint",
 ]
 
 # Since the so3g python package is in a directory called "python", we can't use the
