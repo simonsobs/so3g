@@ -312,7 +312,7 @@ class HKArchive:
         data = {}
         timelines = {}
         for filename, file_map in sorted(files.items()):
-            hk_logger.info('get_data: reading %s' % filename)
+            hk_logger.debug('get_data: reading %s' % filename)
             reader = so3g.G3IndexedReader(filename)
             for byte_offset, frame_info in sorted(file_map.items()):
                 # Seek and decode.
@@ -877,7 +877,7 @@ def load_range(start, stop, fields=None, alias=None,
     keepers = []
     for name, field in zip(alias, fields):
         if field not in all_fields:
-            hk_logger.info('`{}` not in available fields, skipping'.format(field))
+            hk_logger.debug('`{}` not in available fields, skipping'.format(field))
             continue
         keepers.append((name, field))
     data = cat.simple([f for n, f in keepers],
