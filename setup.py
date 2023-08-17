@@ -383,7 +383,6 @@ conf["install_requires"] = [
     "sqlalchemy",
     "pysqlite3-wheels",
     "tqdm",
-    "pixell",
     "qpoint",
 ]
 
