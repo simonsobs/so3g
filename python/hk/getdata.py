@@ -772,7 +772,7 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
-      platform: String of type of HK book (satp1, lat, site) to load,
+      platform: String of type of HK book (Ex: satp1, lat, site) to load,
         required to open books as book directories are more specific.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
@@ -847,7 +847,7 @@ def load_range(start, stop, fields=None, alias=None,
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
         if platform is not None:
             book_path = 'hk_'+str(folder)+'_'+platform
-            base = '/'+data_dir+'/'+str(book_path)
+            base = data_dir+'/'+str(book_path)
         else:
             base = data_dir+'/'+str(folder)
         
