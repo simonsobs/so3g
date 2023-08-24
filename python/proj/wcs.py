@@ -146,7 +146,7 @@ class Projectionist:
         return _Tiling(self.naxis[::-1], self.tile_shape)
 
     @classmethod
-    def for_geom(cls, shape, wcs):
+    def for_geom(cls, shape, wcs, interpol="nearest"):
         """Construct a Projectionist for use with the specified "geometry".
 
         The shape and wcs are the core information required to prepare
@@ -176,6 +176,9 @@ class Projectionist:
         # Store the grid info.
         self.cdelt = np.array(wcs.wcs.cdelt) * quat.DEG
         self.crpix = np.array(wcs.wcs.crpix)
+
+        # Pixel interpolation mode
+        self.interpol = interpol
 
         return self
 
@@ -214,7 +217,7 @@ class Projectionist:
         return self
 
     @classmethod
-    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True):
+    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True, interpol="nearest"):
         """Construct a Projectionist for use with the specified geometry
         (shape, wcs), cut into tiles of shape tile_shape.
 
@@ -232,7 +235,7 @@ class Projectionist:
                 populate on such calls.
 
         """
-        self = cls.for_geom(shape, wcs)
+        self = cls.for_geom(shape, wcs, interpol=interpol)
         self.tile_shape = np.array(tile_shape, 'int')
         if active_tiles is True:
             self.active_tiles = list(range(self.tiling.tile_count))
@@ -260,20 +263,25 @@ class Projectionist:
         return args
 
     def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
-                    instance=True):
+                    instance=True, interpol=None):
         """Returns an so3g.ProjEng object appropriate for use with the
         configured geometry.
 
         """
-        if proj_name is None:
-            proj_name = self.proj_name
+        if proj_name is None: proj_name = self.proj_name
         tile_suffix = 'Tiled' if self.tiling else 'NonTiled'
-        projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}'
+        # Interpolation mode
+        if interpol is None: interpol = self.interpol
+        if interpol in ["nn", "nearest"]: interpol_suffix = ""
+        elif interpol in ["lin", "bilinear"]: interpol_suffix = "_Bilinear"
+        else: raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
+        projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}{interpol_suffix}'
         if not get:
             return projeng_name
         try:
             projeng_cls = getattr(so3g, projeng_name)
         except AttributeError:
+            print(dir(so3g))
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
                              f'"{comps}" (tried "{projeng_name}").')
@@ -499,7 +507,7 @@ class Projectionist:
             projeng = self.get_ProjEng('T')
             q_native = self._cache_q_fp_to_native(assembly.Q)
             omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, None, n_threads)
-            return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+            return wrap_ivals(omp_ivals)
 
         elif method == 'domdir':
             offs_rep = assembly.dets[::100]
@@ -539,7 +547,7 @@ class Projectionist:
         q_native = self._cache_q_fp_to_native(assembly.Q)
         n_threads = mapthreads.get_num_threads(n_threads)
         omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, tmap, n_threads)
-        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+        return wrap_ivals(omp_ivals)
 
     def get_active_tiles(self, assembly, assign=False):
         """For a tiled Projection, figure out what tiles are hit by an
@@ -578,6 +586,7 @@ class Projectionist:
         q_native = self._cache_q_fp_to_native(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
         hits = np.array(projeng.tile_hits(q_native, assembly.dets))
+        print("hits", hits)
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
@@ -592,7 +601,7 @@ class Projectionist:
                 group_tiles[idx].append(_t)
             # Now paint them into Ranges.
             R = projeng.tile_ranges(q_native, assembly.dets, group_tiles)
-            R = RangesMatrix([RangesMatrix(r) for r in R])
+            R = wrap_ivals(R)
             return {
                 'active_tiles': list(tiles),
                 'hit_counts': list(hits),
@@ -629,6 +638,8 @@ class _Tiling:
         row, col = self.tile_rowcol(tile)
         return row * self.tile_shape[0], col * self.tile_shape[1]
 
+def wrap_ivals(ivals):
+    return RangesMatrix([RangesMatrix([RangesMatrix(y) for y in x]) for x in ivals])
 
 THREAD_ASSIGNMENT_METHODS = [
     'simple',
