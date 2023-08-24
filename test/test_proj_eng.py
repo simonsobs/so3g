@@ -103,13 +103,14 @@ class TestProjEng(unittest.TestCase):
                 continue
             else:
                 threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-            self.assertEqual(threads.shape, (n_threads,) + sig.shape,
+            # This may need to be generalized if we implement fancier threads schemes.
+            self.assertEqual(threads[0].shape, (n_threads,) + sig.shape,
                              msg=f'threads has wrong shape ({detail})')
 
             # Make sure the threads cover the TOD, or not,
-            # depending on clipped.
-            counts = np.zeros(threads.shape[1:], int)
-            for t in threads:
+            # depending on clipped. This may also need generalization
+            counts = np.zeros(threads[0].shape[1:], int)
+            for t in threads[0]:
                 counts += t.mask()
             target = set([0,1]) if clipped else set([1])
             self.assertEqual(set(counts.ravel()), target,
