@@ -755,7 +755,7 @@ def to_timestamp(some_time, str_format=None):
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
-               platform=None, strict=True):
+               daq_node=None, strict=True):
     """Args:
 
       start: Earliest time to search for data (see note on time
@@ -772,8 +772,9 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
-      platform: String of type of HK book (Ex: satp1, lat, site) to load,
-        required to open books as book directories are more specific.
+      daq_node:  String of type of HK book (Ex: satp1, lat, site) to load
+        if daq_node name not in data_dir. If None, daq_node name in
+        data_dir, or loading .g3 files.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
@@ -850,18 +851,17 @@ def load_range(start, stop, fields=None, alias=None,
             node = i
     
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        if platform is None:
+        if daq_node is None:
             if node in data_dir:
                 book_path = 'hk_'+str(folder)+'_'+node
                 base = data_dir+'/'+str(book_path)
-                print(base)
             else:
-                print(f'No daq node information provided in {data_dir}; going to assume path' 
-                        'is for .g3 files instead of books')
+                print(f'No daq node info provided in {data_dir}, and daq_node
+                        arg is None; going to assume data_dir is for .g3 files')
                 # assumes .g3 files but should be more explicit
                 base = data_dir+'/'+str(folder)
         else:
-            book_path = 'hk_'+str(folder)+'_'+platform
+            book_path = 'hk_'+str(folder)+'_'+daq_node
             base = data_dir+'/'+str(book_path)
         
         if not os.path.exists(base):
