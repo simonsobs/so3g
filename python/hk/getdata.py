@@ -844,12 +844,25 @@ def load_range(start, stop, fields=None, alias=None,
 
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
 
+    node_options = ['satp1', 'satp2', 'satp3', 'lat', 'site']
+    for i in node_options:
+        if i in data_dir:
+            node = i
+    
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        if platform is not None:
+        if platform is None:
+            if node in data_dir:
+                book_path = 'hk_'+str(folder)+'_'+node
+                base = data_dir+'/'+str(book_path)
+                print(base)
+            else:
+                print(f'No daq node information provided in {data_dir}; going to assume path' 
+                        'is for .g3 files instead of books')
+                # assumes .g3 files but should be more explicit
+                base = data_dir+'/'+str(folder)
+        else:
             book_path = 'hk_'+str(folder)+'_'+platform
             base = data_dir+'/'+str(book_path)
-        else:
-            base = data_dir+'/'+str(folder)
         
         if not os.path.exists(base):
             hk_logger.debug('{} does not exist, skipping'.format(base))
