@@ -287,7 +287,6 @@ class Projectionist:
         try:
             projeng_cls = getattr(so3g, projeng_name)
         except AttributeError:
-            print(dir(so3g))
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
                              f'"{comps}" (tried "{projeng_name}").')
