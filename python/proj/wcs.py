@@ -617,6 +617,8 @@ class Projectionist:
             'hit_counts': list(hits),
         }
 
+    _ivals_format = 2
+
 
 class _Tiling:
     """Utility class for computations involving tiled maps.
