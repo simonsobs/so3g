@@ -592,7 +592,6 @@ class Projectionist:
         q_native = self._cache_q_fp_to_native(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
         hits = np.array(projeng.tile_hits(q_native, assembly.dets))
-        print("hits", hits)
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
