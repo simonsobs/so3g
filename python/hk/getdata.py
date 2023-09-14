@@ -856,8 +856,9 @@ def load_range(start, stop, fields=None, alias=None,
                 book_path = 'hk_'+str(folder)+'_'+node
                 base = data_dir+'/'+str(book_path)
             else:
-                print(f'No daq node info provided in {data_dir}, and daq_node'
-                        'arg is None; going to assume data_dir points to .g3 files')
+                hk_logger.debug(f'No daq node info provided in {data_dir}, and'
+                                'daq_node arg is None; going to assume data_dir'
+                                'points to .g3 files')
                 # assumes .g3 files but should be more explicit
                 base = data_dir+'/'+str(folder)
         else:
