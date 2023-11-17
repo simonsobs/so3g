@@ -579,7 +579,7 @@ template <typename Interpol>
 class Pixelizor2_Flat<Tiled, Interpol> {
 public:
     static const int index_count = 3;
-    static const int interp_count;
+    static const int interp_count = Interpol::interp_count;
     Pixelizor2_Flat() {};
     Pixelizor2_Flat(int ny, int nx, double dy, double dx,
                     double iy0, double ix0, int tiley, int tilex) {
@@ -746,9 +746,6 @@ public:
 // Take care of the parts that depend on the interpolation order.
 // First NearestNeighbor interpolation
 template<>
-const int Pixelizor2_Flat<Tiled, NearestNeighbor>::interp_count = 1;
-
-template<>
 inline int Pixelizor2_Flat<Tiled, NearestNeighbor>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     int ix = int(coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5);
     if (ix < 0 || ix >= parent_pix.naxis[1]) return 0;
@@ -765,9 +762,6 @@ inline int Pixelizor2_Flat<Tiled, NearestNeighbor>::GetPixels(int i_det, int i_t
 }
 
 // Then Bilinear interpolation
-template<>
-const int Pixelizor2_Flat<Tiled, Bilinear>::interp_count = 4;
-
 template<>
 inline int Pixelizor2_Flat<Tiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     // For bilinear mapmaking we need to visit the four bounding pixels
