@@ -22,7 +22,7 @@ import so3g
 from spt3g import core
 
 
-hk_logger = logging.getLogger('hk_logger')
+hk_logger = logging.getLogger(__name__)
 hk_logger.setLevel(logging.INFO)
 
 SPAN_BUFFER_SECONDS = 1.0
@@ -130,6 +130,9 @@ class HKArchive:
             set of fields that are co-sampled over the requested time
             interval.  Each of the requested fields will thus appear
             in at most one group.
+
+            If a requested field is not found, it will not be listed
+            in any group.
 
         """
         span = so3g.IntervalsDouble()
@@ -309,7 +312,7 @@ class HKArchive:
         data = {}
         timelines = {}
         for filename, file_map in sorted(files.items()):
-            hk_logger.info('get_data: reading %s' % filename)
+            hk_logger.debug('get_data: reading %s' % filename)
             reader = so3g.G3IndexedReader(filename)
             for byte_offset, frame_info in sorted(file_map.items()):
                 # Seek and decode.
@@ -395,7 +398,10 @@ class HKArchive:
 
         # Mark last time
         for timeline in timelines.values():
-            timeline['finalized_until'] = timeline['t'][-1]
+            if len(timeline['t']):
+                timeline['finalized_until'] = timeline['t'][-1]
+            else:
+                timeline['finalized_until'] = start if start is not None else 0.
 
         return (data, timelines)
 
@@ -419,18 +425,27 @@ class HKArchive:
             numpy arrays of equal length containing the timestamps and
             field readings, respectively.  In cases where two fields
             are co-sampled, the time vector will be the same object.
+
+            In cases where there are no data for the requested field
+            in the time range, a pair of length 0 float arrays is returned.
+
         """
         unpack = isinstance(fields, str)
         if unpack:
             fields = [fields]
         data, timelines = self.get_data(fields, start, end, min_stride, raw, short_match)
         output = {}
+        fields_not_found = [f for f in fields]
         for timeline in timelines.values():
             # Make the array here, so that the same object is returned
             # for all fields in this group.
             _t = np.array(timeline['t'])
             for f in timeline['fields']:
                 output[f] = (_t, np.array(data[f]))
+                fields_not_found.remove(f)
+        nothing = np.zeros((0,))
+        for f in fields_not_found:
+            output[f] = (nothing, nothing)
         output = [output[f] for f in fields]
         if unpack:
             output = output[0]
@@ -740,7 +755,7 @@ def to_timestamp(some_time, str_format=None):
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
-               strict=True):
+               daq_node=None, strict=True):
     """Args:
 
       start: Earliest time to search for data (see note on time
@@ -757,6 +772,9 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
+      daq_node:  String of type of HK book (Ex: satp1, lat, site) to load
+        if daq_node name not in data_dir. If None, daq_node name in
+        data_dir, or loading .g3 files.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
@@ -821,19 +839,40 @@ def load_range(start, stop, fields=None, alias=None,
         data_dir = os.environ['OCS_DATA_DIR']
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
-    
+
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
+
+    node_options = ['satp1', 'satp2', 'satp3', 'lat', 'site']
+    for i in node_options:
+        if i in data_dir:
+            node = i
     
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        base = data_dir+'/'+str(folder)
+        if daq_node is None:
+            if node in data_dir:
+                book_path = 'hk_'+str(folder)+'_'+node
+                base = data_dir+'/'+str(book_path)
+            else:
+                hk_logger.debug(f'No daq node info provided in {data_dir}, and'
+                                'daq_node arg is None; going to assume data_dir'
+                                'points to .g3 files')
+                # assumes .g3 files but should be more explicit
+                base = data_dir+'/'+str(folder)
+        else:
+            book_path = 'hk_'+str(folder)+'_'+daq_node
+            base = data_dir+'/'+str(book_path)
+        
         if not os.path.exists(base):
             hk_logger.debug('{} does not exist, skipping'.format(base))
             continue
     
         for file in sorted(os.listdir(base)):
+            for i in file.split('.'):
+                if i == '.yaml':
+                    continue
             try:
                 t = int(file[:-3])
             except:
@@ -862,7 +901,7 @@ def load_range(start, stop, fields=None, alias=None,
     keepers = []
     for name, field in zip(alias, fields):
         if field not in all_fields:
-            hk_logger.info('`{}` not in available fields, skipping'.format(field))
+            hk_logger.debug('`{}` not in available fields, skipping'.format(field))
             continue
         keepers.append((name, field))
     data = cat.simple([f for n, f in keepers],

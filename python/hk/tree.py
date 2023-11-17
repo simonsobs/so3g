@@ -169,7 +169,7 @@ class HKTree:
             data_dir = os.environ['OCS_DATA_DIR']
 
         # Walk the files -- same approach as load_ranges
-        logger.info('Scanning %s (pre_proc=%s)' % (data_dir, pre_proc_dir))
+        logger.debug('Scanning %s (pre_proc=%s)' % (data_dir, pre_proc_dir))
         hksc = getdata.HKArchiveScanner(pre_proc_dir=pre_proc_dir)
         for folder in range(int(start / 1e5), int(stop / 1e5) + 1):
             base = os.path.join(data_dir, str(folder))

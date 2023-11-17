@@ -9,11 +9,4 @@ sqlalchemy
 pysqlite3-wheels
 tqdm
 cmake
-
-# Required for full pointing support and testing
-pixell
 qpoint
-
-# testing
-pytest
-pytest-cov
