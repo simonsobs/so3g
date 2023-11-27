@@ -90,6 +90,13 @@ class Projectionist:
       operations.  Such objects should satisfy the condition that
       threads[x,j]*threads[y,j] is the empty Range for x != y;
       i.e. each detector-sample is assigned to at most one thread.
+    * ``interpol``: How positions that fall between pixel centers will
+      be handled. Options are "nearest" (default): Use Nearest
+      Neighbor interpolation, so a sample takes the value of
+      whatever pixel is closest; or "bilinear": linearly
+      interpolate between the four closest pixels. bilinear is
+      slower (around 60%) but avoids problems caused by a
+      discontinuous model.
 
     Attributes:
         naxis: 2-element integer array specifying the map shape (for
@@ -146,13 +153,12 @@ class Projectionist:
         return _Tiling(self.naxis[::-1], self.tile_shape)
 
     @classmethod
-    def for_geom(cls, shape, wcs):
+    def for_geom(cls, shape, wcs, interpol=None):
         """Construct a Projectionist for use with the specified "geometry".
 
         The shape and wcs are the core information required to prepare
         a Projectionist, so this method is likely to be called by
         other constructors.
-
         """
         self = cls()
         ax1, ax2 = wcs.wcs.lng, wcs.wcs.lat
@@ -177,10 +183,14 @@ class Projectionist:
         self.cdelt = np.array(wcs.wcs.cdelt) * quat.DEG
         self.crpix = np.array(wcs.wcs.crpix)
 
+        # Pixel interpolation mode
+        if interpol is None: interpol = "nearest"
+        self.interpol = interpol
+
         return self
 
     @classmethod
-    def for_map(cls, emap, wcs=None):
+    def for_map(cls, emap, wcs=None, interpol=None):
         """Construct a Projectionist for use with maps having the same
         geometry as the provided enmap.
 
@@ -190,7 +200,6 @@ class Projectionist:
             with shape attribute), provided that wcs is provided
             separately.
           wcs: optional WCS object to use instead of emap.wcs.
-
         """
         if wcs is None:
             wcs = emap.wcs
@@ -214,7 +223,7 @@ class Projectionist:
         return self
 
     @classmethod
-    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True):
+    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True, interpol=None):
         """Construct a Projectionist for use with the specified geometry
         (shape, wcs), cut into tiles of shape tile_shape.
 
@@ -232,7 +241,7 @@ class Projectionist:
                 populate on such calls.
 
         """
-        self = cls.for_geom(shape, wcs)
+        self = cls.for_geom(shape, wcs, interpol=interpol)
         self.tile_shape = np.array(tile_shape, 'int')
         if active_tiles is True:
             self.active_tiles = list(range(self.tiling.tile_count))
@@ -260,15 +269,19 @@ class Projectionist:
         return args
 
     def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
-                    instance=True):
+                    instance=True, interpol=None):
         """Returns an so3g.ProjEng object appropriate for use with the
         configured geometry.
 
         """
-        if proj_name is None:
-            proj_name = self.proj_name
+        if proj_name is None: proj_name = self.proj_name
         tile_suffix = 'Tiled' if self.tiling else 'NonTiled'
-        projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}'
+        # Interpolation mode
+        if interpol is None: interpol = self.interpol
+        if interpol in ["nn", "nearest"]: interpol_suffix = ""
+        elif interpol in ["lin", "bilinear"]: interpol_suffix = "_Bilinear"
+        else: raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
+        projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}{interpol_suffix}'
         if not get:
             return projeng_name
         try:
@@ -499,7 +512,7 @@ class Projectionist:
             projeng = self.get_ProjEng('T')
             q_native = self._cache_q_fp_to_native(assembly.Q)
             omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, None, n_threads)
-            return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+            return wrap_ivals(omp_ivals)
 
         elif method == 'domdir':
             offs_rep = assembly.dets[::100]
@@ -539,7 +552,7 @@ class Projectionist:
         q_native = self._cache_q_fp_to_native(assembly.Q)
         n_threads = mapthreads.get_num_threads(n_threads)
         omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, tmap, n_threads)
-        return RangesMatrix([RangesMatrix(x) for x in omp_ivals])
+        return wrap_ivals(omp_ivals)
 
     def get_active_tiles(self, assembly, assign=False):
         """For a tiled Projection, figure out what tiles are hit by an
@@ -592,7 +605,7 @@ class Projectionist:
                 group_tiles[idx].append(_t)
             # Now paint them into Ranges.
             R = projeng.tile_ranges(q_native, assembly.dets, group_tiles)
-            R = RangesMatrix([RangesMatrix(r) for r in R])
+            R = wrap_ivals(R)
             return {
                 'active_tiles': list(tiles),
                 'hit_counts': list(hits),
@@ -603,6 +616,8 @@ class Projectionist:
             'active_tiles': list(tiles),
             'hit_counts': list(hits),
         }
+
+    _ivals_format = 2
 
 
 class _Tiling:
@@ -629,6 +644,8 @@ class _Tiling:
         row, col = self.tile_rowcol(tile)
         return row * self.tile_shape[0], col * self.tile_shape[1]
 
+def wrap_ivals(ivals):
+    return RangesMatrix([RangesMatrix([RangesMatrix(y) for y in x]) for x in ivals])
 
 THREAD_ASSIGNMENT_METHODS = [
     'simple',
