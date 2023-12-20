@@ -645,7 +645,7 @@ class _Tiling:
         return row * self.tile_shape[0], col * self.tile_shape[1]
 
 def wrap_ivals(ivals):
-    return RangesMatrix([RangesMatrix([RangesMatrix(y) for y in x]) for x in ivals])
+    return tuple([RangesMatrix([RangesMatrix(y) for y in x]) for x in ivals])
 
 THREAD_ASSIGNMENT_METHODS = [
     'simple',
