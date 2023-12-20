@@ -25,6 +25,7 @@ class RangesMatrix():
         self.ranges = [x for x in items]
         if len(items):
             child_shape = items[0].shape
+            assert all([(item.shape == child_shape) for item in items])
         elif child_shape is None:
             child_shape = ()
         self._child_shape = child_shape

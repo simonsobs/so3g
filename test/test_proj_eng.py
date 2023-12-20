@@ -82,17 +82,19 @@ class TestProjEng(unittest.TestCase):
 
     @requires_pixell
     def test_20_threads(self):
-        for (clipped, tiled, method) in itertools.product(
+        for (clipped, tiled, interpol, method) in itertools.product(
                 [False, True],
                 [False, True],
+                ['nearest', 'bilinear'],
                 proj.wcs.THREAD_ASSIGNMENT_METHODS):
             # For error messages ...
-            detail = f'(method={method}, tiled={tiled}, clipped={clipped})'
+            detail = f'(method={method}, tiled={tiled}, clipped={clipped}, interpol={interpol})'
             scan, asm, (shape, wcs) = get_basics(clipped=clipped)
             if tiled:
-                p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False)
+                p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False,
+                                                 interpol=interpol)
             else:
-                p = proj.Projectionist.for_geom(shape, wcs)
+                p = proj.Projectionist.for_geom(shape, wcs, interpol=interpol)
             sig = np.ones((2, len(scan[0])), 'float32')
             n_threads = 3
 
@@ -104,17 +106,28 @@ class TestProjEng(unittest.TestCase):
             else:
                 threads = p.assign_threads(asm, method=method, n_threads=n_threads)
             # This may need to be generalized if we implement fancier threads schemes.
-            self.assertEqual(threads[0].shape, (n_threads,) + sig.shape,
-                             msg=f'threads has wrong shape ({detail})')
+            self.assertIsInstance(threads, list,
+                                  msg=f'a thread assignment routine did not return a list ({detail})')
 
             # Make sure the threads cover the TOD, or not,
-            # depending on clipped. This may also need generalization
-            counts = np.zeros(threads[0].shape[1:], int)
-            for t in threads[0]:
-                counts += t.mask()
+            # depending on clipped.
+            counts0 = threads[0].mask().sum(axis=0)
+            counts1 = np.zeros(counts0.shape, int)
+
+            self.assertEqual(threads[0].shape, (n_threads,) + sig.shape,
+                             msg=f'a thread bunch has wrong shape ({detail})')
+
+            for t in threads[1:]:
+                counts1 += t.mask().sum(axis=0)
+                self.assertEqual(t.shape[1:], sig.shape,
+                                 msg=f'a thread bunch has unexpected shape ({detail})')
+
             target = set([0,1]) if clipped else set([1])
-            self.assertEqual(set(counts.ravel()), target,
+            self.assertEqual(set((counts0 + counts1).ravel()), target,
                              msg=f'threads does not cover TOD ({detail})')
+            # Only the first segment should be non-empty, unless bilinear.
+            if interpol == 'nearest':
+                self.assertEqual(counts1.sum(), 0)
 
 
 if __name__ == '__main__':

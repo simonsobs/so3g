@@ -84,12 +84,22 @@ class Projectionist:
     * ``wcs`` - the WCS describing the celestial axes of the map.
       Together with ``shape`` this is a geometry; see pixell.enmap
       documentation.
-    * ``threads`` - the thread assignment, which is a RangesMatrix
-      with shape (n_threads,n_dets,n_samps), used to specify which
-      samples should be treated by each thread in TOD-to-map
-      operations.  Such objects should satisfy the condition that
-      threads[x,j]*threads[y,j] is the empty Range for x != y;
-      i.e. each detector-sample is assigned to at most one thread.
+    * ``threads`` - the thread assignment, consisting of a list of
+      RangesMatrix objects.  Each RangesMatrix object must have shape
+      (n_threads, n_dets, n_samps).  The n_threads does not need to
+      be the same for every entry in the list.  In TOD-to-map
+      operations, each entry of this list is processed fully before
+      proceeding to the next one.  Each entry "ranges" is processed
+      using (up to) the specified number of threads, such that thread
+      i performs operations only on the samples included in
+      ranges[i,:,:].  Most thread assignment routines in this module
+      will return a list of two RangesMatrix objects,
+      [ranges_parallel, ranges_serial].  The first item represents the
+      part of the computation that can be done in parallel, and has
+      shape (n_threads, n_dets, n_samps).  The ranges_serial object
+      has shape (1, n_dets, n_samps) and represents any samples that
+      need to be treated in a single thread.  The ranges_serial is
+      only non-trivial when interpolation is active.
     * ``interpol``: How positions that fall between pixel centers will
       be handled. Options are "nearest" (default): Use Nearest
       Neighbor interpolation, so a sample takes the value of
@@ -645,7 +655,34 @@ class _Tiling:
         return row * self.tile_shape[0], col * self.tile_shape[1]
 
 def wrap_ivals(ivals):
-    return RangesMatrix([RangesMatrix([RangesMatrix(y) for y in x]) for x in ivals])
+    """Thread computation routines at C++ level return nested lists of
+    Ranges objects; i.e. something like this::
+
+      ivals = [
+               [                             # thread assignments for first "bunch"
+                 [Ranges, Ranges, ... ],     # for thread 0
+                 [Ranges, Ranges, ... ],
+                 ...
+                 [Ranges, Ranges, ... ],     # for thread n-1.
+               ],
+               [                             # thread assignments for second "bunch"
+                 [Ranges, Ranges, ... ],     # for thread 0
+               ],
+              ]
+
+    This function wraps and returns each highest level entry into a
+    RangesMatrix, i.e.::
+
+       wrapped = [
+               RangesMatrix(n_threads1, n_det, n_samp),
+               RangesMatrix(n_threads2, n_det, n_samp),
+       ]
+
+    Currently all use cases have len(ivals) == 2 and n_threads2 = 1
+    but the scheme is more general than that.
+
+    """
+    return [RangesMatrix([RangesMatrix(y) for y in x]) for x in ivals]
 
 THREAD_ASSIGNMENT_METHODS = [
     'simple',
