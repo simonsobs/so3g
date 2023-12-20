@@ -84,6 +84,42 @@ inline bool isNone(const bp::object &pyo)
 //   quite easily; the most obvious candidate being spin-1, to carry
 //   information such as in-plane pointing displacements.
 
+// Bilinear mapmaking (and interpolated mapmaking in general)
+//
+// Originally only nearest-neighbor mapmaking was supported. Here,
+// a sample takes the value of the nearest pixel, regardless of where
+// inside this pixel it hits. This means each sample only needs to
+// care about a single pixel, which is computed by Pixelizor's GetPixel.
+// This simple relationship makes it elatively easy to avoid
+// clobbering when using threads in the tod2map operation, as one could
+// assign responsibility for different areas of pixels to different threads,
+// and translate this directly into sample ranges for those threads.
+//
+// In interpolated mapmaking like bilinear mapmaking, the value of a sample
+// is given by some linear combination of several of the nearest pixels.
+// For bilinear mapmaking, these are the four pixels above/below and left/right
+// of the sample, which are each weighted based on how close each pixel is to
+// the sample. The pixels and corresponding weights are calculated using
+// Pixelizor's GetPixels function, which in turn uses the Pixelizor's Interpol
+// template argument to determine which type of interpolation should be used
+// (including the "no interpolation" nearest neighbor case).
+//
+// However, since each sample now hits multiple pixels, it is more difficult
+// build a set of sample ranges that touch disjoint sets of pixels and so can
+// be iterated over in parallel without locking in the tod2map operation.
+// There will always be some samples that hit the edge of each thread's pixel
+// groups, resulting in it affecting multiple threads' pixels. We handle this
+// by generalizing the sample ranges from ranges = vector<vector<RangesInt32>>, which
+// is [nthread][ndet][nrange] in shape, to ranges = vector<vector<vector<RangesInt32>>>
+// which is [nbunch][nthread][ndet][nrange], and where we iterate over the
+// outermost "bunch" level in series, and then in parallel over the next level.
+// This general framework should work for all parallelization schemes, but what
+// we've implemented so far is a simple case where all pixels that unambiguously
+// fall inside a single threads' pixel domain are done as before, and then thew few samples
+// that fall in multiple domains are done by a single thread in the end. This
+// means that ranges[0] has shape [nthread][ndet][nrange] while ranges[1] has
+// shape [1][ndet][nrange]. More complicated schemes could be used, but this
+// seems to work well enough.
 
 // State the template<CoordSys> options
 class ProjQuat;
@@ -99,8 +135,8 @@ class Tiled;
 class NonTiled;
 
 // State the pointing matrix interpolation options
-class NearestNeighbor;
-class Bilinear;
+struct NearestNeighbor { static const int interp_count = 1; };
+struct Bilinear        { static const int interp_count = 4; };
 
 // Helper template for SpinSys...
 template <int N>
@@ -394,7 +430,7 @@ template <typename Interpol>
 class Pixelizor2_Flat<NonTiled, Interpol> {
 public:
     static const int index_count = 2;
-    static const int interp_count;
+    static const int interp_count = Interpol::interp_count;
     Pixelizor2_Flat(int ny, int nx,
                     double dy=1., double dx=1.,
                     double iy0=0., double ix0=0.) {
@@ -496,37 +532,32 @@ public:
 
 // Take care of the parts that depend on the interpolation order.
 // First NearestNeighbor interpolation
-template<>
-const int Pixelizor2_Flat<NonTiled, NearestNeighbor>::interp_count = 1;
 
 template<>
 inline int Pixelizor2_Flat<NonTiled, NearestNeighbor>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     // For nearest neighbor this basically reduces to GetPixel
-    // FIXME: In this function and its siblings (including GetPixel),
-    // the use of int() is buggy for // x < 0 or y < 0 because int
-    // rounds towards zero, not towards -inf.int(floor()) would be
-    // correct, but probably also slightly slow.
-    int ix = int(coords[0] / cdelt[1] + crpix[1] - 1 + 0.5);
-    if (ix < 0 || ix >= naxis[1]) return 0;
-    int iy = int(coords[1] / cdelt[0] + crpix[0] - 1 + 0.5);
-    if (iy < 0 || iy >= naxis[0]) return 0;
-    pixinds[0][0] = iy;
-    pixinds[0][1] = ix;
+    double x = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
+    double y = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
+    if (x < 0 || x >= naxis[1]) return 0;
+    if (y < 0 || y >= naxis[0]) return 0;
+    // SKN: On my laptop int(y)-int(y<0) takes 0.63 ns vs. 0.84 ns for int(floor(y)).
+    // Both are very fast, so maybe it's better to go for the latter, since it's clearer.
+    // For comparison the plain cast was 0.45 ns.
+    pixinds[0][0] = int(y)-int(y<0);
+    pixinds[0][1] = int(x)-int(x<0);
     pixweights[0] = 1;
     return 1;
 }
 
 // Then Bilinear interpolation
-template<>
-const int Pixelizor2_Flat<NonTiled, Bilinear>::interp_count = 4;
 
 template<>
 inline int Pixelizor2_Flat<NonTiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     // For bilinear mapmaking we need to visit the four bounding pixels
     double x  = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
     double y  = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
-    int    x1 = int(x);
-    int    y1 = int(y);
+    int    x1 = int(x)-int(x<0);
+    int    y1 = int(y)-int(y<0);
     double wx[2] = {x-x1, 1-(x-x1)};
     double wy[2] = {y-y1, 1-(y-y1)};
     // Loop through the our cases
@@ -548,7 +579,7 @@ template <typename Interpol>
 class Pixelizor2_Flat<Tiled, Interpol> {
 public:
     static const int index_count = 3;
-    static const int interp_count;
+    static const int interp_count = Interpol::interp_count;
     Pixelizor2_Flat() {};
     Pixelizor2_Flat(int ny, int nx, double dy, double dx,
                     double iy0, double ix0, int tiley, int tilex) {
@@ -715,9 +746,6 @@ public:
 // Take care of the parts that depend on the interpolation order.
 // First NearestNeighbor interpolation
 template<>
-const int Pixelizor2_Flat<Tiled, NearestNeighbor>::interp_count = 1;
-
-template<>
 inline int Pixelizor2_Flat<Tiled, NearestNeighbor>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     int ix = int(coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5);
     if (ix < 0 || ix >= parent_pix.naxis[1]) return 0;
@@ -734,9 +762,6 @@ inline int Pixelizor2_Flat<Tiled, NearestNeighbor>::GetPixels(int i_det, int i_t
 }
 
 // Then Bilinear interpolation
-template<>
-const int Pixelizor2_Flat<Tiled, Bilinear>::interp_count = 4;
-
 template<>
 inline int Pixelizor2_Flat<Tiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     // For bilinear mapmaking we need to visit the four bounding pixels
@@ -1377,33 +1402,8 @@ void to_map_single_thread(Pointer<C> &pointer,
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
                 spin_proj_factors<S>(coords, pf);
                 const FSIGNAL sig = _signalspace->data_ptr[i_det][_signalspace->steps[0]*i_time];
-                // This is where things change for bilinear mapmaking.
-                // Instead of just getting the pixel index, we need the left-down,
-                // right-down, left-up and right-up pixels, along with the subpixel
-                // offset from left-down. Could call pcoord->pixel_offset repeatedly,
-                // but this would be a bit inefficient because it has to redo
-                // calculations and can't assume that it will be called on adjacent
-                // pixels (e.g. needing to do a modulo for each one). Could
-                // alternatively have a function that returns all we need, and then
-                // just loop over that here. That would make this function nice
-                // and general. That's probably the best thing to do. Except: where
-                // should it live? The pixelizor is the right place to do compute
-                // pixel_offset, since this could contain complicated tiling stuff.
-                // It is also the thing that knows how our pixels are laid out, e.g.
-                // healpix or hex-pixels. On the other hand, interpolation
-                // weights seem a bit outside of the reasonable scope for a pixelizor...
-
-                // Ok, so the pixelizor will take care of the interpolation too.
-                // Should the interpolation type be another template argument, defaulting to NN?
-                // Or should it be a subclass? I guess having it be a template argument would be
-                // most in line with how it's already done.
-
-                // Should this be a separate function, or should it just replace the old
-                // to_map_single_thread? I think this depends on the overhead, but logically
-                // it should replace it. After all, nearest neighbor is one of the cases
-                // we cover here. But if so, maybe GetInterpol isn't a good name. Maybe
-                // something like GetPixels or something would be better.
-
+                // In interpolated mapmaking like bilinear mampamking, each sample hits multipe
+                // pixels, each with its own weight.
                 int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
                 for(int i_point = 0; i_point < n_point; ++i_point)
                     for (int i_map=0; i_map<S::comp_count; ++i_map)
@@ -1520,34 +1520,6 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     return ivals;
 }
 
-// WIP for bilinear mapmaking.
-// Things that need to be generalized for bilinear mapmaking
-// 1. Each sample hits multiple pixels. Should therefore not combine
-//    coord -> pixcoord and pixcoord -> pixind as GetPixel does, as that
-//    would end up uselessly repeating coord -> pixcoord.
-// 2. Need the subpixel position
-// 3. Can't assume that a sample falls wholly inside some thread ownership
-//    region. Since each sample hits multiple pixels, samples at a border
-//    would be vulnerable to thread clobbering if we ignore this. I think the
-//    simplest way to generalize this is to change ivals from
-//    [npar,ndet][nrange] to [nserial][npar,ndet][nrange]. That is: instead
-//    of just being an array of detector-ranges that can be looped over in parallel,
-//    ivals would be an array of such arrays. One would loop serially
-//    at the outermost level, and in parallel in the next level. ivals would
-//    then have the signature vector<vector<vector<RangesInt32>>>.
-//
-//    This construction is flexible enought o handle several bilinear
-//    parallelization schemes. For example:
-//     a) serial block 0 = [nthread,ndet][nrange] for unambiguous samples,
-//               block 1 = [1,ndet][nrange] for the ambgiuous samples
-//        In this case only the unambiguous samples are done in parallel.
-//        If there aren't many ambiguous samples, then this should be cheap.
-//        This is easy to build from the current code
-//     b) Split map into lots of regions, then only loop over non-neighboring
-//        regions in parallel. This would result in many serial bunches, all
-//        of which would have nthread parallel blocks inside.
-//    The point is that to_map would not need to know about these details.
-
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_map(
     bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
@@ -1637,7 +1609,10 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
 // The ProjEng_Precomp may be used for very fast projection
 // operations, provided you have precomputed pixel index and spin
 // projection factors for every sample.  This is agnostic of
-// coordinate system, and so not crazily templated.
+// coordinate system, and so not crazily templated. It is
+// hard-coded to nearest neighbor interpolation though
+// (though one could emulate interpolation by calling it repeatedly
+// with different pixel indices and weights).
 //
 
 template<typename TilingSys>
