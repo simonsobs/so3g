@@ -851,23 +851,27 @@ def load_range(start, stop, fields=None, alias=None,
             node = i
     
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        if daq_node is None:
-            if node in data_dir:
-                book_path = 'hk_'+str(folder)+'_'+node
-                base = data_dir+'/'+str(book_path)
-            else:
-                hk_logger.debug(f'No daq node info provided in {data_dir}, and'
-                                'daq_node arg is None; going to assume data_dir'
-                                'points to .g3 files')
-                # assumes .g3 files but should be more explicit
-                base = data_dir+'/'+str(folder)
+        base = os.path.join(data_dir, str(folder))
+        if not os.path.exists(base):
+            # see if book exists instead 
+            #hk_logger.debug(f'{base} does not exist')
+            if daq_node is None:
+                if node in data_dir:
+                    book_path = 'hk_'+str(folder)+'_'+node
+                    base = data_dir+'/'+str(book_path)
+                else:
+                    hk_logger.debug(f'No daq node info provided in {data_dir}, and'
+                                    'daq_node arg is None; going to assume data_dir'
+                                    'points to .g3 files')
+                    # assumes .g3 files but should be more explicit
+                    base = data_dir+'/'+str(folder)
         else:
             book_path = 'hk_'+str(folder)+'_'+daq_node
             base = data_dir+'/'+str(book_path)
         
-        if not os.path.exists(base):
-            hk_logger.debug('{} does not exist, skipping'.format(base))
-            continue
+        #if not os.path.exists(base):
+        #    hk_logger.debug('{} does not exist, skipping'.format(base))
+        #    continue
     
         for file in sorted(os.listdir(base)):
             for i in file.split('.'):
