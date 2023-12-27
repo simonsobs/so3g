@@ -854,25 +854,16 @@ def load_range(start, stop, fields=None, alias=None,
         base = os.path.join(data_dir, str(folder))
         if not os.path.exists(base):
             # see if book exists instead 
-            #hk_logger.debug(f'{base} does not exist')
             if daq_node is None:
                 if node in data_dir:
                     book_path = 'hk_'+str(folder)+'_'+node
                     base = data_dir+'/'+str(book_path)
                 else:
-                    hk_logger.debug(f'No daq node info provided in {data_dir}, and'
-                                    'daq_node arg is None; going to assume data_dir'
-                                    'points to .g3 files')
-                    # assumes .g3 files but should be more explicit
+                    hk_logger.debug(f'No daq node info provided in {data_dir}, cannot'
+                                    'find HK book. Assuming path is to .g3 files.')
+                    # assumes path is to .g3 files instead of HK book
                     base = data_dir+'/'+str(folder)
-        else:
-            book_path = 'hk_'+str(folder)+'_'+daq_node
-            base = data_dir+'/'+str(book_path)
         
-        #if not os.path.exists(base):
-        #    hk_logger.debug('{} does not exist, skipping'.format(base))
-        #    continue
-    
         for file in sorted(os.listdir(base)):
             if i in file.split('.') == '.yaml':
                 continue
