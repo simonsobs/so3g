@@ -865,7 +865,7 @@ def load_range(start, stop, fields=None, alias=None,
                     base = data_dir+'/'+str(folder)
         
         for file in sorted(os.listdir(base)):
-            if i in file.split('.') == '.yaml':
+            if file.endswith('.yaml'):
                 continue
             try:
                 t = int(file[:-3])
