@@ -755,7 +755,7 @@ def to_timestamp(some_time, str_format=None):
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
-               daq_node=None, strict=True):
+               strict=True):
     """Args:
 
       start: Earliest time to search for data (see note on time
@@ -772,9 +772,6 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
-      daq_node:  String of type of HK book (Ex: satp1, lat, site) to load
-        if daq_node name not in data_dir. If None, daq_node name in
-        data_dir, or loading .g3 files.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
@@ -839,40 +836,19 @@ def load_range(start, stop, fields=None, alias=None,
         data_dir = os.environ['OCS_DATA_DIR']
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
-
+    
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
-
-    node_options = ['satp1', 'satp2', 'satp3', 'lat', 'site']
-    for i in node_options:
-        if i in data_dir:
-            node = i
     
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        if daq_node is None:
-            if node in data_dir:
-                book_path = 'hk_'+str(folder)+'_'+node
-                base = data_dir+'/'+str(book_path)
-            else:
-                hk_logger.debug(f'No daq node info provided in {data_dir}, and'
-                                'daq_node arg is None; going to assume data_dir'
-                                'points to .g3 files')
-                # assumes .g3 files but should be more explicit
-                base = data_dir+'/'+str(folder)
-        else:
-            book_path = 'hk_'+str(folder)+'_'+daq_node
-            base = data_dir+'/'+str(book_path)
-        
+        base = data_dir+'/'+str(folder)
         if not os.path.exists(base):
             hk_logger.debug('{} does not exist, skipping'.format(base))
             continue
     
         for file in sorted(os.listdir(base)):
-            for i in file.split('.'):
-                if i == '.yaml':
-                    continue
             try:
                 t = int(file[:-3])
             except:
