@@ -845,25 +845,27 @@ def load_range(start, stop, fields=None, alias=None,
 
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
 
-    node_options = ['satp1', 'satp2', 'satp3', 'lat', 'site']
-    for i in node_options:
-        if i in data_dir:
-            node = i
-    
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
         base = os.path.join(data_dir, str(folder))
+        print('base path', base)
         if not os.path.exists(base):
+            print('looking for books?')
             # see if book exists instead 
-            if daq_node is None:
-                if node in data_dir:
-                    book_path = 'hk_'+str(folder)+'_'+node
-                    base = data_dir+'/'+str(book_path)
-                else:
-                    hk_logger.debug(f'No daq node info provided in {data_dir}, cannot'
-                                    'find HK book. Assuming path is to .g3 files.')
-                    # assumes path is to .g3 files instead of HK book
-                    base = data_dir+'/'+str(folder)
-        
+            #if daq_node is None:
+            for file in sorted(os.listdir(data_dir)):
+                if file.startswith(f'hk_{folder}_'):
+                    print('file book', file)
+                    # extract daq_node from the filename
+                    #daq_node = file[len(f'hk_{folder}_'):].rstrip('_')
+                    base = os.path.join(data_dir, file)
+                    print('base book', base)
+        else:
+            hk_logger.debug(f'No daq node info provided in {data_dir}, cannot'
+                             'find HK book. Assuming path is to .g3 files.')
+            # assumes path is to .g3 files instead of HK book
+            base = os.path.join(data_dir, str(folder))
+    
+        print('base before .yaml', base) 
         for file in sorted(os.listdir(base)):
             if file.endswith('.yaml'):
                 continue
