@@ -67,7 +67,7 @@ class RangesMatrix():
     def __getitem__(self, index):
         if index is None:
             index = (None,)
-        if isinstance(index, slice):
+        if isinstance(index, (slice, np.ndarray)):
             index = (index,)
         if isinstance(index, tuple) and len(index) == 0:
             return self
@@ -95,7 +95,7 @@ class RangesMatrix():
                 raise IndexError("Too many indices to RangesMatrix.")
 
             if isinstance(index[0], np.ndarray):
-                if index[0].dtype is bool:
+                if index[0].dtype == bool:
                     return RangesMatrix([self.ranges[i][index[1:]]
                                            for i in index[0].nonzero()[0]])
                 return RangesMatrix([self.ranges[i][index[1:]] for i in index[0]],
