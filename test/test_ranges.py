@@ -30,6 +30,21 @@ class TestRanges(unittest.TestCase):
             r = RangesMatrix.from_mask(mask)
             self.assertEqual(r.shape, shape)
 
+    def test_indexing(self):
+        r = RangesMatrix.zeros((100, 10000))
+        for i in range(len(r)):
+            r[i].add_interval(i, i+1000)
+        i = np.array([1, 3, 10])
+        r1 = r[i]
+        for _r, _i in zip(r1, i):
+            self.assertEqual(_r.ranges()[0][0], _i)
+
+        s = np.zeros(len(r), bool)
+        s[i] = True
+        r2 = r[s]
+        for _r, _i in zip(r2, i):
+            self.assertEqual(_r.ranges()[0][0], _i)
+
     def test_broadcast(self):
         r0 = RangesMatrix.zeros((100, 1000))
         self.assertCountEqual(r0.shape, (100, 1000))
