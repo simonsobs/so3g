@@ -1390,6 +1390,7 @@ void to_map_single_thread(Pointer<C> &pointer,
         if (_det_weights->obj != NULL)
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
                                  _det_weights->strides[0]*i_det);
+            if (det_wt == 0.) continue;
         double dofs[4];
         double coords[4];
         FSIGNAL pf[S::comp_count];
@@ -1426,6 +1427,7 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
         if (_det_weights->obj != NULL)
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
                                  _det_weights->strides[0]*i_det);
+            if (det_wt == 0.) continue;
         double dofs[4];
         double coords[4];
         FSIGNAL pf[S::comp_count];
@@ -1696,6 +1698,7 @@ void precomp_to_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
         FSIGNAL det_wt = 1.;
         if (_det_weights->obj != NULL)
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
+            if (det_wt == 0.) continue;
 
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
@@ -1730,6 +1733,7 @@ void precomp_to_weight_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
         FSIGNAL det_wt = 1.;
         if (_det_weights->obj != NULL)
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
+            if (det_wt == 0.) continue;
 
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
