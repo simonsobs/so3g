@@ -13,6 +13,7 @@ import pytz
 import yaml
 import logging
 import pickle
+import glob
 
 import numpy as np
 import datetime as dt
@@ -755,7 +756,11 @@ def to_timestamp(some_time, str_format=None):
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
+<<<<<<< Updated upstream
                strict=True):
+=======
+               folder_patterns=None, strict=True):
+>>>>>>> Stashed changes
     """Args:
 
       start: Earliest time to search for data (see note on time
@@ -772,6 +777,10 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
+<<<<<<< Updated upstream
+=======
+      folder_patterns:  FIX
+>>>>>>> Stashed changes
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
@@ -843,38 +852,33 @@ def load_range(start, stop, fields=None, alias=None,
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
 
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        base = os.path.join(data_dir, str(folder))
-        print('base path', base)
-        if not os.path.exists(base):
-            print('looking for books?')
-            # see if book exists instead 
-            #if daq_node is None:
-            for file in sorted(os.listdir(data_dir)):
-                if file.startswith(f'hk_{folder}_'):
-                    print('file book', file)
-                    # extract daq_node from the filename
-                    #daq_node = file[len(f'hk_{folder}_'):].rstrip('_')
+        if folder_patterns is None:
+            folder_patterns = [f'{folder}', f'hk_{folder}']
+        
+        for pattern in folder_patterns:
+            # .g3 files
+            base = os.path.join(data_dir, pattern.format(folder=folder))
+            # HK books
+            if f'hk_{folder}' in pattern:
+                for file in glob.glob(os.path.join(data_dir, f'hk_{folder}*')):
                     base = os.path.join(data_dir, file)
-                    print('base book', base)
-        else:
-            hk_logger.debug(f'No daq node info provided in {data_dir}, cannot'
-                             'find HK book. Assuming path is to .g3 files.')
-            # assumes path is to .g3 files instead of HK book
-            base = os.path.join(data_dir, str(folder))
-    
-        print('base before .yaml', base) 
-        for file in sorted(os.listdir(base)):
-            if file.endswith('.yaml'):
+
+            if not os.path.exists(base):
+                hk_logger.debug('f Folder {base} does not exist, skipping')
                 continue
-            try:
-                t = int(file[:-3])
-            except:
-                hk_logger.debug('{} does not have the right format, skipping'.format(file))
-                continue
-            if t >= start_ctime-3600 and t <=stop_ctime+3600:
-                hk_logger.debug('Processing {}'.format(base+'/'+file))
-                hksc.process_file_with_cache( base+'/'+file)
-    
+
+            for file in sorted(os.listdir(base)):
+                if file.endswith('.yaml'):
+                    continue
+                try:
+                    t = int(file[:-3])
+                except:
+                    hk_logger.debug('{} does not have the right format, skipping'.format(file))
+                    continue
+                if t >= start_ctime-3600 and t <=stop_ctime+3600:
+                    hk_logger.debug('Processing {}'.format(base+'/'+file))
+                    hksc.process_file_with_cache( base+'/'+file)
+
     
     cat = hksc.finalize()
     start_ctime = to_timestamp(start)
