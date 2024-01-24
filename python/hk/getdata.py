@@ -756,11 +756,7 @@ def to_timestamp(some_time, str_format=None):
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
-<<<<<<< Updated upstream
-               strict=True):
-=======
                folder_patterns=None, strict=True):
->>>>>>> Stashed changes
     """Args:
 
       start: Earliest time to search for data (see note on time
@@ -777,10 +773,7 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
-<<<<<<< Updated upstream
-=======
       folder_patterns:  FIX
->>>>>>> Stashed changes
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
