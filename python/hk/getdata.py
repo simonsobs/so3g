@@ -856,7 +856,6 @@ def load_range(start, stop, fields=None, alias=None,
                 try:
                     base = glob.glob(os.path.join(data_dir, extended_pattern))[0]
                 except IndexError:
-                    hk_logger.debug(f'No path with combination {data_dir} and {extended_pattern} found.') 
                     continue
             else:
                 base = os.path.join(data_dir, extended_pattern)
