@@ -844,21 +844,42 @@ def load_range(start, stop, fields=None, alias=None,
 
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
 
-    for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        if folder_patterns is None:
-            folder_patterns = [f'{folder}', f'hk_{folder}']
-        
-        for pattern in folder_patterns:
-            # .g3 files
-            base = os.path.join(data_dir, pattern.format(folder=folder))
-            # HK books
-            if f'hk_{folder}' in pattern:
-                for file in glob.glob(os.path.join(data_dir, f'hk_{folder}*')):
-                    base = os.path.join(data_dir, file)
 
-            if not os.path.exists(base):
+
+    if folder_patterns is None:
+        folder_patterns = ['{folder}', 'hk_{folder}_*']
+    for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
+        bases = []
+        for pattern in folder_patterns:
+            extended_pattern = pattern.replace('{folder}', str(folder))
+            print('pattern', pattern)
+            print('extended pattern', extended_pattern)
+            
+            if '*' in pattern:
+                try:
+                    base = glob.glob(os.path.join(data_dir, extended_pattern))[0]
+                except IndexError:
+                    hk_logger.debug(f'No path with combination {data_dir} and {extended_pattern} found.') 
+                    continue
+            else:
+                base = os.path.join(data_dir, extended_pattern)
+
+            if os.path.exists(base):
+                bases.append(base)
+            else:
                 hk_logger.debug('f Folder {base} does not exist, skipping')
                 continue
+
+            if len(bases) > 1:
+                hk_logger.warn("More than 1 path exists, please fix") # FIX
+                bases.sorted()
+                base = bases[0]
+            elif len(bases) == 1:
+                base = bases[0]
+            elif len(bases) == 0:
+                hk_logger.warn("No folder path exists.") # FIX; wording obscure
+
+            print('base', base)
 
             for file in sorted(os.listdir(base)):
                 if file.endswith('.yaml'):
