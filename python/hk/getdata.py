@@ -851,8 +851,6 @@ def load_range(start, stop, fields=None, alias=None,
         bases = []
         for pattern in folder_patterns:
             extended_pattern = pattern.replace('{folder}', str(folder))
-            print('pattern', pattern)
-            print('extended pattern', extended_pattern)
             
             if '*' in pattern:
                 try:
