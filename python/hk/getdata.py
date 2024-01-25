@@ -845,7 +845,6 @@ def load_range(start, stop, fields=None, alias=None,
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
 
 
-
     if folder_patterns is None:
         folder_patterns = ['{folder}', 'hk_{folder}_*']
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
