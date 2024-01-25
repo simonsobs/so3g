@@ -863,7 +863,7 @@ def load_range(start, stop, fields=None, alias=None,
             if os.path.exists(base):
                 bases.append(base)
             else:
-                hk_logger.debug('f Folder {base} does not exist, skipping')
+                hk_logger.debug(f'Folder {base} does not exist, skipping')
                 continue
 
             if len(bases) > 1:
