@@ -866,28 +866,28 @@ def load_range(start, stop, fields=None, alias=None,
                 hk_logger.debug(f'Folder {base} does not exist, skipping')
                 continue
 
-            if len(bases) > 1:
-                hk_logger.warn("More than 1 path exists, please fix") # FIX
-                bases.sorted()
-                base = bases[0]
-            elif len(bases) == 1:
-                base = bases[0]
-            elif len(bases) == 0:
-                hk_logger.warn("No folder path exists.") # FIX; wording obscure
+        if len(bases) > 1:
+            hk_logger.warn("More than 1 path exists, please fix") # FIX
+            bases.sorted()
+            base = bases[0]
+        elif len(bases) == 1:
+            base = bases[0]
+        elif len(bases) == 0:
+            hk_logger.warn("No folder path exists.") # FIX; wording obscure
 
-            print('base', base)
+        print('base', base)
 
-            for file in sorted(os.listdir(base)):
-                if file.endswith('.yaml'):
-                    continue
-                try:
-                    t = int(file[:-3])
-                except:
-                    hk_logger.debug('{} does not have the right format, skipping'.format(file))
-                    continue
-                if t >= start_ctime-3600 and t <=stop_ctime+3600:
-                    hk_logger.debug('Processing {}'.format(base+'/'+file))
-                    hksc.process_file_with_cache( base+'/'+file)
+        for file in sorted(os.listdir(base)):
+            if file.endswith('.yaml'):
+                continue
+            try:
+                t = int(file[:-3])
+            except:
+                hk_logger.debug('{} does not have the right format, skipping'.format(file))
+                continue
+            if t >= start_ctime-3600 and t <=stop_ctime+3600:
+                hk_logger.debug('Processing {}'.format(base+'/'+file))
+                hksc.process_file_with_cache( base+'/'+file)
 
     
     cat = hksc.finalize()
