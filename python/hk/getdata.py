@@ -852,30 +852,23 @@ def load_range(start, stop, fields=None, alias=None,
         for pattern in folder_patterns:
             extended_pattern = pattern.replace('{folder}', str(folder))
             
-            if '*' in pattern:
-                try:
-                    base = glob.glob(os.path.join(data_dir, extended_pattern))[0]
-                except IndexError:
-                    continue
-            else:
-                base = os.path.join(data_dir, extended_pattern)
-
-            if os.path.exists(base):
-                bases.append(base)
-            else:
-                hk_logger.debug(f'Folder {base} does not exist, skipping')
-                continue
-
+            base = glob.glob(os.path.join(data_dir, extended_pattern))
+            bases.append(base)
+        
+        # remove empty lists in bases
+        bases = list(filter(None, bases))
+        
         if len(bases) > 1:
             hk_logger.warn("More than 1 path exists, please fix") # FIX
-            bases.sorted()
-            base = bases[0]
+            bases.sort
+            base = bases[0][0]
         elif len(bases) == 1:
-            base = bases[0]
+            base = bases[0][0]
         elif len(bases) == 0:
-            hk_logger.warn("No folder path exists.") # FIX; wording obscure
-
-        print('base', base)
+            hk_logger.debug("No folder path exists.") # FIX; wording obscure
+            continue
+        
+        print(base)
 
         for file in sorted(os.listdir(base)):
             if file.endswith('.yaml'):
