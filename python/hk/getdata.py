@@ -859,17 +859,15 @@ def load_range(start, stop, fields=None, alias=None,
         bases = list(filter(None, bases))
         
         if len(bases) > 1:
-            hk_logger.warn("More than 1 path exists, please fix") # FIX
+            hk_logger.warn(f"Multiple base folders found for {folder}, choosing the first one'")
             bases.sort
             base = bases[0][0]
         elif len(bases) == 1:
             base = bases[0][0]
         elif len(bases) == 0:
-            hk_logger.debug("No folder path exists.") # FIX; wording obscure
+            hk_logger.debug(f"No base folder found for {folder}, skipping")
             continue
         
-        print(base)
-
         for file in sorted(os.listdir(base)):
             if file.endswith('.yaml'):
                 continue
