@@ -855,20 +855,17 @@ def load_range(start, stop, fields=None, alias=None,
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
         bases = []
         for pattern in folder_patterns:
-            extended_pattern = pattern.replace('{folder}', str(folder))
+            extended_pattern = pattern.format(folder=folder)
             
             base = glob.glob(os.path.join(data_dir, extended_pattern))
-            bases.append(base)
-        
-        # remove empty lists in bases
-        bases = list(filter(None, bases))
+            bases.extend(base)
         
         if len(bases) > 1:
             bases.sort
-            base = bases[0][0]
+            base = bases[0]
             hk_logger.warn(f"Multiple base folders were found for {folder}. The first one, alphabetically, is selected: {base}")
         elif len(bases) == 1:
-            base = bases[0][0]
+            base = bases[0]
         elif len(bases) == 0:
             hk_logger.debug(f"No base folder found for {folder}, skipping")
             continue
