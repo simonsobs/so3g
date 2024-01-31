@@ -773,7 +773,10 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
-      folder_patterns:  FIX
+      folder_patterns:  List of patterns to search for in folders. If
+        None, default pattern is ['{folder}', 'hk_{folder}_*']. If not
+        None, usage for .g3 folder: ['{folder}'], and example usage 
+        for HK books: ['hk_{folder}_lat']
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
@@ -805,6 +808,8 @@ def load_range(start, stop, fields=None, alias=None,
         alias = [
             'HAN 1', 'HAN 2',
         ]
+
+        folder_patterns = ['hk_{folder}_satp3']
 
         start = dt.datetime(2020,2,19,18,48)
         stop = dt.datetime(2020,2,22)
@@ -859,9 +864,9 @@ def load_range(start, stop, fields=None, alias=None,
         bases = list(filter(None, bases))
         
         if len(bases) > 1:
-            hk_logger.warn(f"Multiple base folders found for {folder}, choosing the first one'")
             bases.sort
             base = bases[0][0]
+            hk_logger.warn(f"Multiple base folders were found for {folder}. The first one, alphabetically, is selected: {base}")
         elif len(bases) == 1:
             base = bases[0][0]
         elif len(bases) == 0:
