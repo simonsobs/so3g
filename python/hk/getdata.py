@@ -872,7 +872,7 @@ def load_range(start, stop, fields=None, alias=None,
         elif len(bases) == 0:
             hk_logger.debug(f"No base folder found for {folder}, skipping")
             continue
-        
+
         for file in sorted(os.listdir(base)):
             if file.endswith('.yaml'):
                 continue
