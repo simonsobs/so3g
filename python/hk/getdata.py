@@ -776,7 +776,9 @@ def load_range(start, stop, fields=None, alias=None,
       folder_patterns:  List of patterns to search for in folders. If
         None, default pattern is ['{folder}', 'hk_{folder}_*']. If not
         None, usage for .g3 folder: ['{folder}'], and example usage 
-        for HK books: ['hk_{folder}_lat']
+        for HK books: ['hk_{folder}_lat'] where {folder} will be replaced
+        with the first 5 digits of the unix timestamp when looping through
+        files.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
                 
@@ -813,7 +815,7 @@ def load_range(start, stop, fields=None, alias=None,
 
         start = dt.datetime(2020,2,19,18,48)
         stop = dt.datetime(2020,2,22)
-        data = load_range(start, stop, fields=fields, alias=alias)
+        data = load_range(start, stop, fields=fields, alias=alias, folder_patterns=folder_patterns)
 
         plt.figure()
         for name in alias:
