@@ -775,13 +775,13 @@ def load_range(start, stop, fields=None, alias=None,
         dirs and pkl files in the pre_proc_dir. No chmod if None.
       folder_patterns:  List of patterns to search for in folders. If
         None, default pattern is ['{folder}', 'hk_{folder}_*']. If not
-        None, usage for .g3 folder: ['{folder}'], and example usage 
+        None, usage for .g3 folder: ['{folder}'], and example usage
         for HK books: ['hk_{folder}_lat'] where {folder} will be replaced
         with the first 5 digits of the unix timestamp when looping through
         files.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
-                
+
     Returns:
 
       Dictionary with structure::
@@ -791,7 +791,7 @@ def load_range(start, stop, fields=None, alias=None,
         }
 
       It will be masked to only have data between start and stop.
-        
+
     Notes:
 
       The "start" and "stop" argument accept a variety of formats,
@@ -858,10 +858,10 @@ def load_range(start, stop, fields=None, alias=None,
         bases = []
         for pattern in folder_patterns:
             extended_pattern = pattern.format(folder=folder)
-            
+
             base = glob.glob(os.path.join(data_dir, extended_pattern))
             bases.extend(base)
-        
+
         if len(bases) > 1:
             bases.sort
             base = bases[0]
