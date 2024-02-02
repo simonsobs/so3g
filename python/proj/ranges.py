@@ -190,6 +190,16 @@ class RangesMatrix():
             return RangesMatrix(ranges, child_shape=items[0].shape[1:])
         return collect(items, axis)
 
+    def close_gaps(self, gap_size=0):
+        """Call close_gaps(gap_size) on all children.  Any ranges that abutt
+        each other within the gap_size are merged into a single entry.
+        Usually a gap_size of 0 is not possible, but if a caller is
+        carefully using append_interval_no_check, then it can happen.
+
+        """
+        for r in self.ranges:
+            r.close_gaps(gap_size)
+
     def get_stats(self):
         samples, intervals = [], []
         for r in self.ranges:
