@@ -11,6 +11,8 @@ extern "C" {
     // sposv: solve Ax = b for A positive definite.
     void sposv_(const char* uplo, int* n, int* nrhs, float* a, int* lda,
                 float* b, int* ldb, int* info );
+    void dposv_(const char* uplo, int* n, int* nrhs, double* a, int* lda,
+                double* b, int* ldb, int* info );
 }
 
 #include <boost/python.hpp>
@@ -402,10 +404,27 @@ void pcut_poly_translate_helper(const vector<RangesInt32> & iranges, const vecto
 // When extract is non-null, it needs to be the right size... this
 // should be checked by get_gap_fill_poly.
 
-void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
-                              float *a, float *b,
+template <typename T>
+inline void Xposv(const char* uplo, int* n, int* nrhs, T* a, int* lda,
+                  T* b, int* ldb, int* info );
+
+template <>
+void Xposv<float>(const char* uplo, int* n, int* nrhs, float* a, int* lda,
+                  float* b, int* ldb, int* info ) {
+    return sposv_(uplo, n, nrhs, a, lda, b, ldb, info);
+}
+
+template <>
+void Xposv<double>(const char* uplo, int* n, int* nrhs, double* a, int* lda,
+                     double* b, int* ldb, int* info ) {
+    return dposv_(uplo, n, nrhs, a, lda, b, ldb, info);
+}
+
+template <typename T>
+void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
+                              T *a, T *b,
                               int buffer, int ncoeff,
-                              bool inplace, float *extract)
+                              bool inplace, T *extract)
 {
     // Generate Ranges corresponding to samples near the edges of
     // intervals we want to fill.
@@ -425,7 +444,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
         int contrib_segs = 0;
         memset(a, 0, ncoeff*ncoeff*sizeof(*a));
         memset(b, 0, ncoeff*sizeof(*b));
-        float x0 = gap.first;
+        T x0 = gap.first;
 
         for (; model_i < rsegs.segments.size(); model_i++) {
             // Advance until just before this gap.
@@ -434,9 +453,9 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
                 continue;
             // Include this interval in the fit.
             for (int i=ival.first; i<ival.second; i++) {
-                float xx = 1.;
-                float yxx = data[i];
-                float x = i - x0;
+                T xx = 1.;
+                T yxx = data[i];
+                T x = i - x0;
                 for (int j=0; j<ncoeff; j++) {
                     b[j] += yxx;
                     yxx *= x;
@@ -476,10 +495,10 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
             // Solve the system...
             int one = 1;
             int err = 0;
-            sposv_("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
+            Xposv("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
         }
-        float *write_to = nullptr;
-        float *save_data = nullptr;
+        T *write_to = nullptr;
+        T *save_data = nullptr;
         if (inplace) {
             // Copy original data to extract, write model to data.
             save_data = extract;
@@ -495,7 +514,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
         }
         if (write_to != nullptr) {
             for (int i=gap.first; i<gap.second; i++, write_to++) {
-                float xx = 1.;
+                T xx = 1.;
                 *write_to = 0.;
                 for (int j=0; j<n_keep; j++) {
                     *write_to += xx * b[j];
@@ -508,6 +527,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
     }
 }
 
+template <typename T>
 void get_gap_fill_poly(const bp::object ranges,
                        const bp::object tod,
                        int buffer,
@@ -519,14 +539,14 @@ void get_gap_fill_poly(const bp::object ranges,
     auto rangemat = extract_ranges<int32_t>(ranges);
     int ndet = rangemat.size();
 
-    BufferWrapper<float> tod_buf  ("tod",  tod,  false, std::vector<int>{ndet,-1});
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{ndet,-1});
     int nsamp = tod_buf->shape[1];
 
     int ncoeff = order + 1; // Let us not speak of order again.
-    float *a = (float*)malloc(ncoeff*(ncoeff+1)*sizeof(*a));
-    float *b = a + ncoeff*ncoeff;
+    T *a = (T*)malloc(ncoeff*(ncoeff+1)*sizeof(*a));
+    T *b = a + ncoeff*ncoeff;
 
-    float *ex_data = nullptr;
+    T *ex_data = nullptr;
     std::vector<int> ex_offsets;
 
     if (ex.ptr() != Py_None) {
@@ -537,13 +557,13 @@ void get_gap_fill_poly(const bp::object ranges,
             for (auto const &r: r.segments)
                 n += (r.second - r.first);
         }
-        BufferWrapper<float> ex_buf("ex", ex, false, std::vector<int>{n});
-        ex_data = (float*)ex_buf->buf;
+        BufferWrapper<T> ex_buf("ex", ex, false, std::vector<int>{n});
+        ex_data = (T*)ex_buf->buf;
     }
 
     for (int di=0; di < rangemat.size(); di++) {
-        float* data = (float*)((char*)tod_buf->buf + di*tod_buf->strides[0]);
-        float* _ex = ex_data;
+        T* data = (T*)((char*)tod_buf->buf + di*tod_buf->strides[0]);
+        T* _ex = ex_data;
         if (_ex != nullptr)
             _ex += ex_offsets[di];
         get_gap_fill_poly_single(rangemat[di], data, a, b, buffer, ncoeff,
@@ -558,17 +578,23 @@ PYBINDINGS("so3g")
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
     bp::def("process_cuts",  process_cuts);
     bp::def("translate_cuts", translate_cuts);
-    bp::def("get_gap_fill_poly",  get_gap_fill_poly,
+    bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
             "get_gap_fill_poly(ranges, signal, buffer, order, extract)\n"
             "\n"
-            "Do polynomial gap-filling.\n"
+            "Do polynomial gap-filling on a float32 array.\n"
             "\n"
             "Args:\n"
             "  ranges: RangesMatrix with shape (ndet, nsamp)\n"
-            "  signal: data array with shape (ndet, nsamp)\n"
+            "  signal: data array (float32) with shape (ndet, nsamp)\n"
             "  buffer: integer stating max number of samples to use on each end\n"
             "  order: order of polynomial to use (1 means linear)\n"
             "  inplace: whether to overwrite data array with the model\n"
             "  extract: array to write the original data samples (inplace)\n"
             "    or the model (!inplace) into.\n");
+    bp::def("get_gap_fill_poly64",  get_gap_fill_poly<double>,
+            "get_gap_fill_poly64(ranges, signal, buffer, order, extract)\n"
+            "\n"
+            "Do polynomial gap-filling for float64 data.\n"
+            "\n"
+            "See details in docstring for get_gap_fill_poly.\n");
 }
