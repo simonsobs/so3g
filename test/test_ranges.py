@@ -114,3 +114,21 @@ class TestRanges(unittest.TestCase):
         with self.assertRaises(ValueError):
             r.add_interval(object(), object())
         self.assertEqual(len(r.ranges()), 2)
+
+    def test_close_gaps(self):
+        def _get_gapped(size=0):
+            r = Ranges(1000)
+            r.append_interval_no_check(10, 20)
+            r.append_interval_no_check(20+size, 30+size)
+            return r
+        r = _get_gapped()
+        assert(len(r.ranges()) == 2)
+        r.close_gaps(0)
+        assert(len(r.ranges()) == 1)
+
+        rr = RangesMatrix([_get_gapped(), _get_gapped(10)])
+        rr.close_gaps()
+        assert(len(rr[0].ranges()) == 1)
+        assert(len(rr[1].ranges()) == 2)
+        rr.close_gaps(10)
+        assert(len(rr[1].ranges()) == 1)
