@@ -8,9 +8,7 @@
 extern "C" {
     #include <cblas.h>
     // Additional prototypes for Fortran LAPACK routines.
-    // sposv: solve Ax = b for A positive definite.
-    void sposv_(const char* uplo, int* n, int* nrhs, float* a, int* lda,
-                float* b, int* ldb, int* info );
+    // dposv: solve Ax = b for A positive definite.
     void dposv_(const char* uplo, int* n, int* nrhs, double* a, int* lda,
                 double* b, int* ldb, int* info );
 }
@@ -405,24 +403,8 @@ void pcut_poly_translate_helper(const vector<RangesInt32> & iranges, const vecto
 // should be checked by get_gap_fill_poly.
 
 template <typename T>
-inline void Xposv(const char* uplo, int* n, int* nrhs, T* a, int* lda,
-                  T* b, int* ldb, int* info );
-
-template <>
-void Xposv<float>(const char* uplo, int* n, int* nrhs, float* a, int* lda,
-                  float* b, int* ldb, int* info ) {
-    return sposv_(uplo, n, nrhs, a, lda, b, ldb, info);
-}
-
-template <>
-void Xposv<double>(const char* uplo, int* n, int* nrhs, double* a, int* lda,
-                     double* b, int* ldb, int* info ) {
-    return dposv_(uplo, n, nrhs, a, lda, b, ldb, info);
-}
-
-template <typename T>
 void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
-                              T *a, T *b,
+                              double *a, double *b,
                               int buffer, int ncoeff,
                               bool inplace, T *extract)
 {
@@ -444,7 +426,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
         int contrib_segs = 0;
         memset(a, 0, ncoeff*ncoeff*sizeof(*a));
         memset(b, 0, ncoeff*sizeof(*b));
-        T x0 = gap.first;
+        double x0 = gap.first;
 
         for (; model_i < rsegs.segments.size(); model_i++) {
             // Advance until just before this gap.
@@ -453,9 +435,9 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
                 continue;
             // Include this interval in the fit.
             for (int i=ival.first; i<ival.second; i++) {
-                T xx = 1.;
-                T yxx = data[i];
-                T x = i - x0;
+                double xx = 1.;
+                double yxx = data[i];
+                double x = i - x0;
                 for (int j=0; j<ncoeff; j++) {
                     b[j] += yxx;
                     yxx *= x;
@@ -495,7 +477,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
             // Solve the system...
             int one = 1;
             int err = 0;
-            Xposv("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
+            dposv_("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
         }
         T *write_to = nullptr;
         T *save_data = nullptr;
@@ -514,7 +496,7 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
         }
         if (write_to != nullptr) {
             for (int i=gap.first; i<gap.second; i++, write_to++) {
-                T xx = 1.;
+                double xx = 1.;
                 *write_to = 0.;
                 for (int j=0; j<n_keep; j++) {
                     *write_to += xx * b[j];
@@ -543,8 +525,8 @@ void get_gap_fill_poly(const bp::object ranges,
     int nsamp = tod_buf->shape[1];
 
     int ncoeff = order + 1; // Let us not speak of order again.
-    T *a = (T*)malloc(ncoeff*(ncoeff+1)*sizeof(*a));
-    T *b = a + ncoeff*ncoeff;
+    double *a = (double*)malloc(ncoeff*(ncoeff+1)*sizeof(*a));
+    double *b = a + ncoeff*ncoeff;
 
     T *ex_data = nullptr;
     std::vector<int> ex_offsets;
