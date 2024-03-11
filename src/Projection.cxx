@@ -425,17 +425,20 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
 //! Pixelizors
 //
 class Pixelizor_Healpix {
+  // Make [1, npix] full-sky maps in HEALPIX RING ordering
   // int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
 public:
   static const int index_count = 2;
   static const int interp_count = 1;
   Pixelizor_Healpix(int npix){
     nside = npix2nside(npix);
-    naxis[0] = 1;
+    naxis[0] = 1; // keep 2d array for compatibility, first axis always len 1
     naxis[1] = npix;
     };
   Pixelizor_Healpix() : naxis{1,1} {};
   Pixelizor_Healpix(bp::object args) {
+    // args[0]: int npix
+    // args[1]: list<int>[nthreads+1] max pixel id for each domain for threading
     bp::tuple args_tuple = bp::extract<bp::tuple>(args);
     int npix = bp::extract<int>(args_tuple[0])();
     bp::list pixRangeMaxes_bp = bp::extract<bp::list>(args_tuple[1])();
@@ -510,6 +513,8 @@ public:
                          mapbuf->strides[3]*pixel_index[1]);
     }
   int stripe(const int pixel_index[], int thread_count) {
+    // Assign ith thread to ith pixel bin as given in externally defined pixRangeMaxes param
+    // Assumes pixRangeMaxes is ordered, contiguous bins, first element 0 and last element npix
     for (int ii=0; ii<thread_count; ii++){
       if ((pixel_index[1] >= pixRangeMaxes[ii]) && (pixel_index[1] < pixRangeMaxes[ii+1]))
         return ii;

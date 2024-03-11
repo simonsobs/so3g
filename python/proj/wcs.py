@@ -175,11 +175,16 @@ class Projectionist:
 
     @classmethod
     def for_healpix(cls, shape, pixRangeMaxes, interpol=None):
+        """ Construct a Projectionist for Healpix maps.
+        The last dimension of shape should be a valid npix in HEALPIX
+        pixRangeMaxes is a list of pixel ranges for thread distribution.
+        Should be len(nthread+1), first element 0, last element npix
+        """
         self=cls()
         self.naxis = np.array(shape[-2:], dtype=int) # naxis[1] should hold npix
         self.wcs = None
         self.proj_name = 'HP'
-        if interpol is not None and interpol != 'nearest':
+        if interpol is not None and (interpol not in ['nearest', 'nn']):
             raise NotImplementedError("Only 'nearest' interpolation is supported for Healpix")
         self.interpol = 'nearest'
         self.q_celestial_to_native = quat.quat(1,0,0,0)
