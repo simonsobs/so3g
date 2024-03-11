@@ -33,6 +33,10 @@ from . import mapthreads
 # called "q_native".  This is usually the thing to pass to C++ level.
 
 
+#: Valid settings for "interpol".  First entry is the default.
+INTERPOLS = ['nearest', 'bilinear']
+
+
 class Projectionist:
     """This class assists with analyzing WCS information to populate data
     structures needed for accelerated pointing routines.
@@ -152,6 +156,12 @@ class Projectionist:
         self._q_fp_to_native = None
         self._q_fp_to_celestial = None
         self.tile_shape = None
+        self.active_tiles = None
+        self.wcs = None
+        self.proj_name = None
+        self.q_celestial_to_native = None
+        self.interpol = INTERPOLS[0]
+
         self.naxis = np.array([0, 0])
         self.cdelt = np.array([0., 0.])
         self.crpix = np.array([0., 0.])
@@ -209,7 +219,8 @@ class Projectionist:
         self.crpix = np.array(wcs.wcs.crpix)
 
         # Pixel interpolation mode
-        if interpol is None: interpol = "nearest"
+        if interpol is None:
+            interpol = INTERPOLS[0]
         self.interpol = interpol
 
         return self
@@ -228,7 +239,7 @@ class Projectionist:
         """
         if wcs is None:
             wcs = emap.wcs
-        return cls.for_geom(emap.shape, wcs)
+        return cls.for_geom(emap.shape, wcs, interpol=interpol)
 
     @classmethod
     def for_source_at(cls, alpha0, delta0, gamma0=0.,
@@ -304,11 +315,17 @@ class Projectionist:
         """
         if proj_name is None: proj_name = self.proj_name
         tile_suffix = 'Tiled' if self.tiling else 'NonTiled'
+
         # Interpolation mode
-        if interpol is None: interpol = self.interpol
-        if interpol in ["nn", "nearest"]: interpol_suffix = ""
-        elif interpol in ["lin", "bilinear"]: interpol_suffix = "_Bilinear"
-        else: raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
+        if interpol is None:
+            interpol = self.interpol
+        if interpol in ["nn", "nearest"]:
+            interpol_suffix = ""
+        elif interpol in ["lin", "bilinear"]:
+            interpol_suffix = "_Bilinear"
+        else:
+            raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
+
         projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}{interpol_suffix}'
         if not get:
             return projeng_name

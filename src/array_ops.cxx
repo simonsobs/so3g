@@ -6,11 +6,11 @@
 #include <vector>
 #include <string>
 extern "C" {
-  #include <cblas.h>
-  // Additional prototypes for Fortran LAPACK routines.
-  // sposv: solve Ax = b for A positive definite.
-  void sposv_(const char* uplo, int* n, int* nrhs, float* a, int* lda,
-              float* b, int* ldb, int* info );
+    #include <cblas.h>
+    // Additional prototypes for Fortran LAPACK routines.
+    // dposv: solve Ax = b for A positive definite.
+    void dposv_(const char* uplo, int* n, int* nrhs, double* a, int* lda,
+                double* b, int* ldb, int* info );
 }
 
 #include <boost/python.hpp>
@@ -402,134 +402,136 @@ void pcut_poly_translate_helper(const vector<RangesInt32> & iranges, const vecto
 // When extract is non-null, it needs to be the right size... this
 // should be checked by get_gap_fill_poly.
 
-void get_gap_fill_poly_single(const RangesInt32 &gaps, float *data,
-                             float *a, float *b,
-                             int buffer, int ncoeff,
-                             bool inplace, float *extract)
+template <typename T>
+void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
+                              double *a, double *b,
+                              int buffer, int ncoeff,
+                              bool inplace, T *extract)
 {
-        // Generate Ranges corresponding to samples near the edges of
-        // intervals we want to fill.
-        RangesInt32 rsegs = gaps.buffered((int32_t)buffer);
-        rsegs.intersect(gaps.complement());
+    // Generate Ranges corresponding to samples near the edges of
+    // intervals we want to fill.
+    RangesInt32 rsegs = gaps.buffered((int32_t)buffer);
+    rsegs.intersect(gaps.complement());
 
-        // We are guaranteed that there is one or two rseg intervals
-        // between each of our gaps, and zero or one rseg intervals
-        // before the first gap and after the second gap.
+    // We are guaranteed that there is one or two rseg intervals
+    // between each of our gaps, and zero or one rseg intervals
+    // before the first gap and after the second gap.
 
-        // Index of the rseg we're working with.
-        int model_i = 0;
+    // Index of the rseg we're working with.
+    int model_i = 0;
 
-        for (auto const &gap: gaps.segments) {
-                // std::cout << "GAP\n";
-                int contrib_samps = 0;
-                int contrib_segs = 0;
-                memset(a, 0, ncoeff*ncoeff*sizeof(*a));
-                memset(b, 0, ncoeff*sizeof(*b));
-                float x0 = gap.first;
+    for (auto const &gap: gaps.segments) {
+        // std::cout << "GAP\n";
+        int contrib_samps = 0;
+        int contrib_segs = 0;
+        memset(a, 0, ncoeff*ncoeff*sizeof(*a));
+        memset(b, 0, ncoeff*sizeof(*b));
+        double x0 = gap.first;
 
-                for (; model_i < rsegs.segments.size(); model_i++) {
-                        // Advance until just before this gap.
-                        auto const &ival = rsegs.segments[model_i];
-                        if (ival.second + 1 < gap.first)
-                                continue;
-                        // Include this interval in the fit.
-                        for (int i=ival.first; i<ival.second; i++) {
-                                float xx = 1.;
-                                float yxx = data[i];
-                                float x = i - x0;
-                                for (int j=0; j<ncoeff; j++) {
-                                        b[j] += yxx;
-                                        yxx *= x;
-                                        a[j] += xx;
-                                        xx *= x;
-                                }
-                                // Now down...
-                                for (int k=2; k<ncoeff+1; k++) {
-                                        a[k*ncoeff - 1] += xx;
-                                        xx *= x;
-                                }
-                        }
-                        contrib_samps += ival.second - ival.first;
-                        contrib_segs += 1;
-                        // If this was the right side interval, bail
-                        // now (so we can possibly re-use this
-                        // interval for next gap).
-                        if (ival.first > gap.first)
-                                break;
+        for (; model_i < rsegs.segments.size(); model_i++) {
+            // Advance until just before this gap.
+            auto const &ival = rsegs.segments[model_i];
+            if (ival.second + 1 < gap.first)
+                continue;
+            // Include this interval in the fit.
+            for (int i=ival.first; i<ival.second; i++) {
+                double xx = 1.;
+                double yxx = data[i];
+                double x = i - x0;
+                for (int j=0; j<ncoeff; j++) {
+                    b[j] += yxx;
+                    yxx *= x;
+                    a[j] += xx;
+                    xx *= x;
                 }
-
-                // Restrict order based on number of contributing samples.
-                int n_keep = std::min(contrib_samps / 10 + 1, ncoeff);
-                if (contrib_samps > 0) {
-                        // Fill in a's interior.
-                        for (int r=1; r<ncoeff; r++)
-                                for (int c=0; c<ncoeff-1; c++)
-                                        a[r*ncoeff + c] = a[r*ncoeff + c - ncoeff + 1];
-
-                        // Re-organize a if the order has changed...
-                        if (n_keep < ncoeff) {
-                                for (int r=1; r<n_keep; r++)
-                                        for (int c=0; c<n_keep; c++)
-                                                a[r*n_keep+c] = a[r*ncoeff+c];
-                        }
-
-                        // Solve the system...
-                        int one = 1;
-                        int err = 0;
-                        sposv_("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
+                // Now down...
+                for (int k=2; k<ncoeff+1; k++) {
+                    a[k*ncoeff - 1] += xx;
+                    xx *= x;
                 }
-                float *write_to = nullptr;
-                float *save_data = nullptr;
-                if (inplace) {
+            }
+            contrib_samps += ival.second - ival.first;
+            contrib_segs += 1;
+            // If this was the right side interval, bail
+            // now (so we can possibly re-use this
+            // interval for next gap).
+            if (ival.first > gap.first)
+                break;
+        }
+
+        // Restrict order based on number of contributing samples.
+        int n_keep = std::min(contrib_samps / 10 + 1, ncoeff);
+        if (contrib_samps > 0) {
+            // Fill in a's interior.
+            for (int r=1; r<ncoeff; r++)
+                for (int c=0; c<ncoeff-1; c++)
+                    a[r*ncoeff + c] = a[r*ncoeff + c - ncoeff + 1];
+
+            // Re-organize a if the order has changed...
+            if (n_keep < ncoeff) {
+                for (int r=1; r<n_keep; r++)
+                    for (int c=0; c<n_keep; c++)
+                        a[r*n_keep+c] = a[r*ncoeff+c];
+            }
+
+            // Solve the system...
+            int one = 1;
+            int err = 0;
+            dposv_("Upper", &n_keep, &one, a, &n_keep, b, &n_keep, &err);
+        }
+        T *write_to = nullptr;
+        T *save_data = nullptr;
+        if (inplace) {
             // Copy original data to extract, write model to data.
             save_data = extract;
             write_to = data + gap.first;
-                } else {
+        } else {
             // Write results to extract, do not touch data.
             write_to = extract;
-                }
+        }
 
-                if (save_data != nullptr) {
+        if (save_data != nullptr) {
             for (int i=gap.first; i<gap.second; i++, save_data++)
                 *save_data = data[i];
-                }
-                if (write_to != nullptr) {
+        }
+        if (write_to != nullptr) {
             for (int i=gap.first; i<gap.second; i++, write_to++) {
-                float xx = 1.;
+                double xx = 1.;
                 *write_to = 0.;
                 for (int j=0; j<n_keep; j++) {
                     *write_to += xx * b[j];
                     xx *= (i - gap.first);
                 }
             }
-                }
-                if (extract != nullptr)
-            extract += (gap.second - gap.first);
         }
+        if (extract != nullptr)
+            extract += (gap.second - gap.first);
+    }
 }
 
+template <typename T>
 void get_gap_fill_poly(const bp::object ranges,
-               const bp::object tod,
-               int buffer,
-               int order,
-               bool inplace,
-               const bp::object ex)
+                       const bp::object tod,
+                       int buffer,
+                       int order,
+                       bool inplace,
+                       const bp::object ex)
 {
-        // As a test, copy data from rangemat into segment.
+    // As a test, copy data from rangemat into segment.
     auto rangemat = extract_ranges<int32_t>(ranges);
-        int ndet = rangemat.size();
+    int ndet = rangemat.size();
 
-        BufferWrapper<float> tod_buf  ("tod",  tod,  false, std::vector<int>{ndet,-1});
-        int nsamp = tod_buf->shape[1];
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{ndet,-1});
+    int nsamp = tod_buf->shape[1];
 
-        int ncoeff = order + 1; // Let us not speak of order again.
-        float *a = (float*)malloc(ncoeff*(ncoeff+1)*sizeof(*a));
-        float *b = a + ncoeff*ncoeff;
+    int ncoeff = order + 1; // Let us not speak of order again.
+    double *a = (double*)malloc(ncoeff*(ncoeff+1)*sizeof(*a));
+    double *b = a + ncoeff*ncoeff;
 
-        float *ex_data = nullptr;
-        std::vector<int> ex_offsets;
+    T *ex_data = nullptr;
+    std::vector<int> ex_offsets;
 
-        if (ex.ptr() != Py_None) {
+    if (ex.ptr() != Py_None) {
         // Compute offsets of each detector into ex.
         int n = 0;
         for (auto const &r: rangemat) {
@@ -537,20 +539,20 @@ void get_gap_fill_poly(const bp::object ranges,
             for (auto const &r: r.segments)
                 n += (r.second - r.first);
         }
-        BufferWrapper<float> ex_buf("ex", ex, false, std::vector<int>{n});
-        ex_data = (float*)ex_buf->buf;
-        }
+        BufferWrapper<T> ex_buf("ex", ex, false, std::vector<int>{n});
+        ex_data = (T*)ex_buf->buf;
+    }
 
-        for (int di=0; di < rangemat.size(); di++) {
-                float* data = (float*)((char*)tod_buf->buf + di*tod_buf->strides[0]);
-                float* _ex = ex_data;
-                if (_ex != nullptr)
+    for (int di=0; di < rangemat.size(); di++) {
+        T* data = (T*)((char*)tod_buf->buf + di*tod_buf->strides[0]);
+        T* _ex = ex_data;
+        if (_ex != nullptr)
             _ex += ex_offsets[di];
-                get_gap_fill_poly_single(rangemat[di], data, a, b, buffer, ncoeff,
-                     inplace, _ex);
-        }
+        get_gap_fill_poly_single(rangemat[di], data, a, b, buffer, ncoeff,
+                                 inplace, _ex);
+    }
 
-        free(a);
+    free(a);
 }
 
 PYBINDINGS("so3g")
@@ -558,17 +560,23 @@ PYBINDINGS("so3g")
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
     bp::def("process_cuts",  process_cuts);
     bp::def("translate_cuts", translate_cuts);
-    bp::def("get_gap_fill_poly",  get_gap_fill_poly,
-                "get_gap_fill_poly(ranges, signal, buffer, order, extract)\n"
-                "\n"
-                "Do polynomial gap-filling.\n"
-                "\n"
-                "Args:\n"
-                "  ranges: RangesMatrix with shape (ndet, nsamp)\n"
-                "  signal: data array with shape (ndet, nsamp)\n"
-                "  buffer: integer stating max number of samples to use on each end\n"
-                "  order: order of polynomial to use (1 means linear)\n"
-        "  inplace: whether to overwrite data array with the model\n"
-        "  extract: array to write the original data samples (inplace)\n"
-        "    or the model (!inplace) into.\n");
+    bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
+            "get_gap_fill_poly(ranges, signal, buffer, order, extract)\n"
+            "\n"
+            "Do polynomial gap-filling on a float32 array.\n"
+            "\n"
+            "Args:\n"
+            "  ranges: RangesMatrix with shape (ndet, nsamp)\n"
+            "  signal: data array (float32) with shape (ndet, nsamp)\n"
+            "  buffer: integer stating max number of samples to use on each end\n"
+            "  order: order of polynomial to use (1 means linear)\n"
+            "  inplace: whether to overwrite data array with the model\n"
+            "  extract: array to write the original data samples (inplace)\n"
+            "    or the model (!inplace) into.\n");
+    bp::def("get_gap_fill_poly64",  get_gap_fill_poly<double>,
+            "get_gap_fill_poly64(ranges, signal, buffer, order, extract)\n"
+            "\n"
+            "Do polynomial gap-filling for float64 data.\n"
+            "\n"
+            "See details in docstring for get_gap_fill_poly.\n");
 }
