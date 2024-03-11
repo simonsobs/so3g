@@ -22,6 +22,7 @@ using namespace std;
 #include "exceptions.h"
 #include "so_linterp.h"
 
+#include "healpix_bare.c"
 
 // TRIG_TABLE_SIZE
 //
@@ -423,6 +424,109 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
 
 //! Pixelizors
 //
+class Pixelizor_Healpix {
+  // int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
+public:
+  static const int index_count = 2;
+  static const int interp_count = 1;
+  Pixelizor_Healpix(int npix){
+    nside = npix2nside(npix);
+    naxis[0] = 1;
+    naxis[1] = npix;
+    };
+  Pixelizor_Healpix() : naxis{1,1} {};
+  Pixelizor_Healpix(bp::object args) {
+    bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+    int npix = bp::extract<int>(args_tuple[0])();
+    bp::list pixRangeMaxes_bp = bp::extract<bp::list>(args_tuple[1])();
+    for (int ii=0; ii<bp::len(pixRangeMaxes_bp); ii++){
+      pixRangeMaxes.push_back(bp::extract<int>(pixRangeMaxes_bp[ii]));
+    }
+    nside = npix2nside(npix);
+    naxis[0] = 1;
+    naxis[1] = npix;
+    }
+    ~Pixelizor_Healpix() {};
+
+    bp::object zeros(vector<int> shape) {
+        shape.push_back(naxis[0]);
+        shape.push_back(naxis[1]);
+        int ndim = 0;
+        npy_intp dims[32];
+        for (auto d: shape)
+            dims[ndim++] = d;
+
+        int dtype = NPY_FLOAT64;
+        PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
+        return bp::object(bp::handle<>(v));
+    }
+
+    inline
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
+      double phi = coords[0]; // lon, -2pi->2pi
+      double theta = M_PI/2 - coords[1]; // colat, 0->pi
+      t_ang ang = (t_ang) {theta, phi};
+      int ix = ang2ring(nside, ang);
+      pixel_index[0] = 0;
+      pixel_index[1] = ix;
+    }
+    inline
+    int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
+      double phi = coords[0]; // lon, -2pi->2pi
+      double theta = M_PI/2 - coords[1]; // colat, 0->pi
+      t_ang ang = (t_ang) {theta, phi};
+      int ix = ang2ring(nside, ang);
+      pixinds[0][0] = 0;
+      pixinds[0][1] = ix;
+      pixweights[0] = 1;
+      return 1;
+    }
+
+    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        if (need_map) {
+            // The map is mandatory, and the leading axis must match the
+            // component count.  It can have 1+ other dimensions.
+            mapbuf = BufferWrapper<double>("map", map, false,
+                                           vector<int>{comp_count,-1,-3});
+        } else if (need_weight_map) {
+            // The map is mandatory, and the two leading axes must match
+            // the component count.  It can have 1+ other dimensions.
+            mapbuf = BufferWrapper<double>("map", map, false,
+                                           vector<int>{comp_count,comp_count,-1,-3});
+        }
+        return true;
+    }
+    double *pix(int imap, const int pixel_index[]) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*pixel_index[0] +
+                         mapbuf->strides[2]*pixel_index[1]);
+    }
+    double *wpix(int imap, int jmap, const int pixel_index[]) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*jmap +
+                         mapbuf->strides[2]*pixel_index[0] +
+                         mapbuf->strides[3]*pixel_index[1]);
+    }
+  int stripe(const int pixel_index[], int thread_count) {
+    for (int ii=0; ii<thread_count; ii++){
+      if ((pixel_index[1] >= pixRangeMaxes[ii]) && (pixel_index[1] < pixRangeMaxes[ii+1]))
+        return ii;
+      }
+    return -1;
+  }
+    int tile_count() {
+      // Could probably implement tiles with a lower nside quite straightforwardly
+        return -1;
+    }
+
+  int nside;
+  int naxis[2]; // int32 should work up to nside8192
+  BufferWrapper<double> mapbuf;
+  vector<int> pixRangeMaxes;
+};
+
 template <typename TilingSys, typename Interpol = NearestNeighbor>
 class Pixelizor2_Flat;
 
@@ -1132,7 +1236,6 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
             target_ranges[i_det].append_interval_no_check(domain_start, n_time);
         }
     }
-
     // Convert super vector to a list and return
     auto ivals = bp::list();
     for (int i=0; i<ranges.size(); i++) {
@@ -1863,6 +1966,10 @@ typedef ProjEng_Precomp<Tiled> ProjEng_Precomp_Tiled;
     typedef ProjectionEngine<Proj ## PIX,Pixelizor2_Flat<TILING,Bilinear>,Spin##SPIN> \
         PROJENG_INTERP(PIX, SPIN, TILING, Bilinear);
 
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix, SpinT> ProjEng_HP_T_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix, SpinQU> ProjEng_HP_QU_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix, SpinTQU> ProjEng_HP_TQU_NonTiled;
+
 #define TYPEDEF_SPIN(PIX, SPIN)                 \
     TYPEDEF_TILING(PIX, SPIN, Tiled)            \
     TYPEDEF_TILING(PIX, SPIN, NonTiled)
@@ -1937,4 +2044,8 @@ PYBINDINGS("so3g")
 
     EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
     EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
+
+    EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
 }

@@ -155,12 +155,27 @@ class Projectionist:
         self.naxis = np.array([0, 0])
         self.cdelt = np.array([0., 0.])
         self.crpix = np.array([0., 0.])
+        self.pixRangeMaxes = None
 
     @property
     def tiling(self):
         if self.tile_shape is None:
             return None
         return _Tiling(self.naxis[::-1], self.tile_shape)
+
+    @classmethod
+    def for_healpix(cls, shape, pixRangeMaxes, interpol=None):
+        self=cls()
+        self.naxis = np.array(shape[-2:], dtype=int) # naxis[1] should hold npix
+        self.wcs = None
+        self.proj_name = 'HP'
+        if interpol is not None and interpol != 'nearest':
+            raise NotImplementedError("Only 'nearest' interpolation is supported for Healpix")
+        self.interpol = 'nearest'
+        self.q_celestial_to_native = quat.quat(1,0,0,0)
+        if pixRangeMaxes is None: pixRangeMaxes = [0, int(self.naxis[1])]
+        self.pixRangeMaxes = pixRangeMaxes
+        return self
 
     @classmethod
     def for_geom(cls, shape, wcs, interpol=None):
@@ -269,6 +284,9 @@ class Projectionist:
         """
         # All these casts are required because boost-python doesn't
         # like numpy scalars.
+        if self.proj_name == "HP":
+            args = (int(self.naxis[1]), list(map(int, self.pixRangeMaxes)))
+            return args
         args = (int(self.naxis[1]), int(self.naxis[0]),
                 float(self.cdelt[1]), float(self.cdelt[0]),
                 float(self.crpix[1]), float(self.crpix[0]))
