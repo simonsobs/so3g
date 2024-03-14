@@ -45,6 +45,88 @@ class TestRanges(unittest.TestCase):
         for _r, _i in zip(r2, i):
             self.assertEqual(_r.ranges()[0][0], _i)
 
+        # Support numpy advanced indexing to the extent possible.
+        r0 = RangesMatrix.ones((8, 4, 1000))
+        i1 = np.arange(1, 3)
+        sl = slice(10, 100)
+        r1 = r0[i1, i1, sl]
+        self.assertEqual(r1.shape, (2, 90))
+
+        i0 = [[0], [1]]
+        i1 = [0, 1]
+        self.assertEqual(r0[i0, i1, sl].shape, (2, 2, 90))
+
+        # Indexing size=0 is remarkably annoying
+        r0 = RangesMatrix.zeros(shape=(0, 3, 4, 100))
+        r0[:, 0, 0]
+        r0[:, :0]
+        r0[:, ..., :0]
+
+        # Run a bunch of slicing / indexing tests and verify that
+        # numpy and RangesMatrix do the same thing (in cases where the
+        # operation is valid on RangesMatrix).
+        shape = (8, 10, 5, 100)
+        mask = (np.arange(8 * 10 * 5 * 100) % 17 > 8).reshape(shape)
+        r0 = RangesMatrix.from_mask(mask)
+        s5 = np.array([False, True, False, True, True])
+        s8 = np.array([False, True, False, True, False, False, True, False])
+        for indices in [
+                # Ellipsis and None.
+                (None, None),
+                (None, Ellipsis),
+                (Ellipsis, slice(None)),
+                (0, 0, 0, None),
+                # Advanced indexing.
+                ([0, 1], [2, 3]),
+                (s8, 0, s5),
+                (s8, [3, 4, 2]),
+                ([[0], [1]], [2, 3]),
+                # Mixing it up ...
+                (slice(None), [[0], [1]], [2, 3]),
+                ([[0], [1]], slice(None), [2, 3]),
+                ([[0], [1]], [2, 3], slice(None)),
+                ([[0], [1]], [2, 3], Ellipsis),
+                (6, [[0], [1]], [2, 3]),
+                ([[0], [1]], 6, [2, 3]),
+                # Zero-size output (slicing)
+                ([[0], [1]], slice(0, 0), [2, 3]),
+                (slice(3, 3), [[0], [1]], [2, 3]),
+                # Zero-size output (advanced indexing)
+                ([[], []], []),
+                (slice(3, 3), [[], []], []),
+        ]:
+            m1 = mask[indices]
+            r1 = r0[indices]
+            np.testing.assert_equal(r1.mask(), m1)
+
+        # The following are forbidden...
+        for indices in [
+                # Forbidden advanced indexes.
+                ([0, 1], [1, 2, 3]),
+                (s5, s5),
+                # Forbidden for RangesMatrix (last dim)
+                (0, 0, 0, 0),
+                (None, 0, 0, 0, 0),
+                (0, 0, 0, None, 0),
+                (Ellipsis, None),
+                (Ellipsis, [1, 2]),
+                (Ellipsis, [True, False, True]),
+        ]:
+            with self.assertRaises((IndexError, ValueError)):
+                r0[indices]
+
+    def test_referencing(self):
+        # With no slice in the samps axis, should get _references_ to
+        # underlying Ranges elements.
+        r0 = RangesMatrix.zeros((10, 1000))
+        r0[0].add_interval(0, 10)
+        self.assertNotEqual(r0.mask()[0].sum(), 0)
+
+        # With a slice, you should get a copy.
+        r0 = RangesMatrix.zeros((10, 1000))
+        r0[0,:].add_interval(0, 10)
+        self.assertEqual(r0.mask()[0].sum(), 0)
+
     def test_broadcast(self):
         r0 = RangesMatrix.zeros((100, 1000))
         self.assertEqual(r0.shape, (100, 1000))
@@ -105,7 +187,6 @@ class TestRanges(unittest.TestCase):
             m1 = rm.mask()
             self.assertEqual(rm.shape, m0.shape)
             self.assertEqual(np.all(m0 == m1), True)
-            print(shape, m0.sum(), rm.shape)
 
     def test_int_args(self):
         r = Ranges(1000)
