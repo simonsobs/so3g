@@ -180,6 +180,20 @@ bool Pointer<CoordSys>::TestInputs(
                                      vector<int>{-1, 4});
     n_time = _pborebuf->shape[0];
     n_det = _pdetbuf->shape[0];
+
+    // Check the detectors for NaNs.
+    for (int i=0; i<n_det; i++) {
+        for (int ic = 0; ic < 4; ++ic) {
+            const char *x = (char*)_pdetbuf->buf
+                + _pdetbuf->strides[0] * i
+                + _pdetbuf->strides[1] * ic;
+            if (std::isnan(*(double*)x)) {
+                std::ostringstream err;
+                err << "Pointing offset error: nan found at index " << i << ".";
+                throw ValueError_exception(err.str());
+            }
+        }
+    }
     return true;
 }
 
