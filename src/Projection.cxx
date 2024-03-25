@@ -1163,7 +1163,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw general_exception("No tiles in this pixelization.");
+        throw RuntimeError_exception("No tiles in this pixelization.");
 
     vector<int> hits(n_tile);
     vector<vector<int>> temp;
@@ -1226,7 +1226,7 @@ bp::object ProjectionEngine<C,P,S>::tile_ranges(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw general_exception("No tiles in this pixelization.");
+        throw RuntimeError_exception("No tiles in this pixelization.");
     int n_domain = bp::len(tile_lists);
 
     // Make a vector that maps tile into thread.
