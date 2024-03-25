@@ -9,14 +9,37 @@
 class so3g_exception : std::exception
 {
 public:
-    virtual std::string msg_for_python() const throw() = 0;
+    std::string text;
+    so3g_exception() {};
+
+    so3g_exception(std::string text) :
+        text{text} {}
+
+    std::string msg_for_python() const throw() {
+        return text;
+    }
+};
+
+
+// The base classes here are mapped to specific Python exceptions.
+// They are registered with boost python in exceptions.cxx.  Sure, you
+// can use these directly.  Why not.
+
+class RuntimeError_exception : public so3g_exception {
+    using so3g_exception::so3g_exception;
+};
+class TypeError_exception : public so3g_exception {
+    using so3g_exception::so3g_exception;
+};
+class ValueError_exception : public so3g_exception {
+    using so3g_exception::so3g_exception;
 };
 
 
 // The exceptions below should be used when processing objects with
 // the buffer protocol (probably numpy arrays).
 
-class buffer_exception : public so3g_exception
+class buffer_exception : public TypeError_exception
 {
 public:
     std::string var_name;
@@ -30,7 +53,7 @@ public:
     }
 };
 
-class shape_exception : public so3g_exception
+class shape_exception : public RuntimeError_exception
 {
 public:
     std::string var_name;
@@ -46,7 +69,7 @@ public:
     }
 };
 
-class dtype_exception : public so3g_exception
+class dtype_exception : public ValueError_exception
 {
 public:
     std::string var_name;
@@ -62,7 +85,7 @@ public:
     }
 };
 
-class agreement_exception : public so3g_exception
+class agreement_exception : public RuntimeError_exception
 {
 public:
     std::string var1, var2, prop;
@@ -77,7 +100,7 @@ public:
     }
 };
 
-class tiling_exception : public so3g_exception
+class tiling_exception : public RuntimeError_exception
 {
 public:
     int tile_idx;
@@ -92,23 +115,11 @@ public:
     }
 };
 
-class general_agreement_exception : public so3g_exception
+class general_agreement_exception : public ValueError_exception
 {
 public:
     std::string text;
     general_agreement_exception(std::string text) :
-        text{text} {}
-
-    std::string msg_for_python() const throw() {
-        return text;
-    }
-};
-
-class general_exception : public so3g_exception
-{
-public:
-    std::string text;
-    general_exception(std::string text) :
         text{text} {}
 
     std::string msg_for_python() const throw() {

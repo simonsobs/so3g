@@ -124,7 +124,7 @@ int process_cuts(const bp::object & range_matrix, const std::string & operation,
     else if(model == "poly") {
         resolution = bp::extract<int>(params.get("resolution"));
         nmax       = bp::extract<int>(params.get("nmax"));
-    } else throw general_exception("process_cuts model can only be 'full' or 'poly'");
+    } else throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
 
     if(operation == "measure") {
         if     (model == "full") return pcut_full_measure_helper(ranges);
@@ -147,7 +147,7 @@ int process_cuts(const bp::object & range_matrix, const std::string & operation,
                     pcut_poly_tod2vals_helper(ranges, resolution, nmax, (float*)tod_buf->buf, nsamp, (float*) vals_buf->buf);
             } else if(operation == "clear") {
                 pcut_clear_helper(ranges, (float*)tod_buf->buf, nsamp);
-            } else throw general_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
+            } else throw ValueError_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
         } else if(dtype == NPY_DOUBLE) {
             BufferWrapper<double> tod_buf  ("tod",  tod,  false, std::vector<int>{-1,-1});
             BufferWrapper<double> vals_buf ("vals", vals, false, std::vector<int>{-1});
@@ -164,8 +164,8 @@ int process_cuts(const bp::object & range_matrix, const std::string & operation,
                     pcut_poly_tod2vals_helper(ranges, resolution, nmax, (double*)tod_buf->buf, nsamp, (double*) vals_buf->buf);
             } else if(operation == "clear") {
                 pcut_clear_helper(ranges, (float*)tod_buf->buf, nsamp);
-            } else throw general_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
-        } else throw general_exception("process_cuts only supports float32 and float64");
+            } else throw ValueError_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
+        } else throw TypeError_exception("process_cuts only supports float32 and float64");
     }
     return 0;
 }
@@ -179,7 +179,7 @@ void translate_cuts(const bp::object & irange_matrix, const bp::object & orange_
         resolution = bp::extract<int>(params.get("resolution"));
         nmax       = bp::extract<int>(params.get("nmax"));
     } else {
-        throw general_exception("process_cuts model can only be 'full' or 'poly'");
+        throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
     }
     auto iranges = extract_ranges<int32_t>(irange_matrix);
     auto oranges = extract_ranges<int32_t>(orange_matrix);

@@ -157,11 +157,11 @@ public:
     // Constructor with no shape or type checking.
     BufferWrapper(std::string name, const bp::object &src, bool optional)
         : BufferWrapper() {
+        if (optional && (src.ptr() == Py_None))
+            return;
         if (PyObject_GetBuffer(src.ptr(), view.get(),
                                PyBUF_RECORDS) == -1) {
             PyErr_Clear();
-            if (optional)
-                return;
             throw buffer_exception(name);
         }
     }
