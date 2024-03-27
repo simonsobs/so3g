@@ -39,6 +39,7 @@ public:
 	string Description() const;
 	string Summary() const;
 
+	bool Extract(bp::object dest);
 	bool Encode();
 	bool Decode();
 	void Calibrate(vector<double> rescale);

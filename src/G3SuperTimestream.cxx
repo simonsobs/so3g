@@ -638,6 +638,22 @@ bool G3SuperTimestream::Decode()
 	array = (PyArrayObject*)
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
+	Py_XINCREF(array);
+	Extract(bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(array)))));
+
+	// Destroy the flac bundle.
+	delete ablob->buf;
+	delete ablob;
+	ablob = nullptr;
+
+	return true;
+}
+
+bool G3SuperTimestream::Extract(bp::object array)
+{
+	PyArrayObject *_array = (PyArrayObject*)array.ptr();
+
+	// Decompress or copy into a buffer.
 	FLAC__StreamDecoderWriteCallback this_write_callback;
 	void (*expand_func)(struct flac_helper *, int, int, char*) = nullptr;
 	void (*broadcast_func)(struct flac_helper *, int) = nullptr;
@@ -666,20 +682,20 @@ bool G3SuperTimestream::Decode()
 	{
 
 	// Each OMP thread needs its own workspace, FLAC decoder, and helper structure
-	char temp[PyArray_SHAPE(array)[1] * elsize + 1];
+	char temp[PyArray_SHAPE(_array)[1] * elsize + 1];
 	FLAC__StreamDecoder *decoder = nullptr;
 	struct flac_helper helper;
 
 #pragma omp for
 	for (int i=0; i<desc.shape[0]; i++) {
-		char* this_data = (char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0]*i;
+		char* this_data = (char*)PyArray_DATA(_array) + PyArray_STRIDES(_array)[0]*i;
 
 		// Cue up this detector's data and read the algo code.
 		helper.src = ablob->buf + ablob->offsets[i];
 		int8_t algo = *(helper.src++);
 
 		if (algo == ALGO_NONE) {
-			memcpy(this_data, helper.src, PyArray_SHAPE(array)[1] * elsize);
+			memcpy(this_data, helper.src, PyArray_SHAPE(_array)[1] * elsize);
 		}
 		if (algo & ALGO_DO_FLAC) {
 			if (decoder == nullptr)
@@ -701,36 +717,31 @@ bool G3SuperTimestream::Decode()
 			helper.dest = this_data;
 			expand_func(&helper,
 				    helper.bytes_remaining,
-				    PyArray_SHAPE(array)[1], (char*)temp);
+				    PyArray_SHAPE(_array)[1], (char*)temp);
 		}
 
 		// Single flat offset?
 		if (algo & ALGO_DO_CONST) {
 			helper.dest = this_data;
-			broadcast_func(&helper, PyArray_SHAPE(array)[1]);
+			broadcast_func(&helper, PyArray_SHAPE(_array)[1]);
 		}
 
 		// Now convert for precision.
 		if (desc.type_num == NPY_FLOAT32) {
 			auto src = (int32_t*)this_data;
 			auto dest = (float*)this_data;
-			for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
+			for (int j=0; j<PyArray_SHAPE(_array)[1]; j++)
 				dest[j] = (float)src[j] * quanta[i];
 		} else if (desc.type_num == NPY_FLOAT64) {
 			auto src = (int64_t*)this_data;
 			auto dest = (double*)this_data;
-			for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
+			for (int j=0; j<PyArray_SHAPE(_array)[1]; j++)
 				dest[j] = src[j] * quanta[i];
 		}
 	}
 	if (decoder != nullptr)
 		FLAC__stream_decoder_delete(decoder);
 	} // omp parallel
-
-	// Destroy the flac bundle.
-	delete ablob->buf;
-	delete ablob;
-	ablob = nullptr;
 
 	return true;
 }
