@@ -103,6 +103,37 @@ debugging and should not be messed with lightly.
 .. _`FLAC__stream_encoder_set_compression_level`: https://xiph.org/flac/api/group__flac__stream__encoder.html#gae49cf32f5256cb47eecd33779493ac85
 .. _`BZ2_bzCompressInit`: https://www.sourceware.org/bzip2/manual/manual.html#bzcompress-init
 
+Controlling Decompression
+`````````````````````````
+
+A G3SuperTimestream, whether constructed in situ or recovered from a
+G3Frame, will automatically decompress itself if you ask for the
+``.data`` array::
+
+  # .data will be created if it is referenced.
+  print(ts.data)
+
+  # Or you can trigger decompression manually (which will populate
+  # ts.data).
+  ts.Decode()
+
+
+If the compressed data is not yet decoded (the user has not accessed
+``.data``, nor called ``.decode()``) then a subset of the channels may
+be extracted directly into an output array, using ``.extract(dest,
+indices)``::
+
+  # Extract full data without "decompressing" ts.
+  shape = (len(ts.names), len(ts.times))
+  dest = np.empty(shape, dtype=ts.dtype)
+  ts.extract(dest, None)
+
+  # Extract only data for detector at index 1.
+  indices = np.array([1])
+  dest = np.empty((len(indices), len(ts.times)), dtype=ts.dtype)
+  ts.extract(dest, indices)
+
+
 How to work with float arrays
 `````````````````````````````
 

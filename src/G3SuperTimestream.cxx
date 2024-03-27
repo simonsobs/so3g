@@ -638,8 +638,8 @@ bool G3SuperTimestream::Decode()
 	array = (PyArrayObject*)
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
-	Py_XINCREF(array);
-	Extract(bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(array)))));
+	Extract(bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(array)))),
+		bp::object());
 
 	// Destroy the flac bundle.
 	delete ablob->buf;
@@ -649,9 +649,43 @@ bool G3SuperTimestream::Decode()
 	return true;
 }
 
-bool G3SuperTimestream::Extract(bp::object array)
+bool G3SuperTimestream::Extract(bp::object array, bp::object indices)
 {
 	PyArrayObject *_array = (PyArrayObject*)array.ptr();
+	PyArrayObject *_indices = (PyArrayObject*)indices.ptr();
+
+	int n_det_ex = desc.shape[0];
+
+	if (PyArray_Check(_indices)) {
+		if (PyArray_TYPE(_indices) != NPY_INT64)
+			throw g3supertimestream_exception(
+				"Indices array must be int64.");
+		n_det_ex = PyArray_SHAPE(_indices)[0];
+	} else if ((PyObject*)_indices != Py_None) {
+		throw g3supertimestream_exception(
+			"Indices must be None, or ndarray.");
+	} else {
+		_indices = nullptr;
+	}
+
+	if (!PyArray_Check(_array))
+		throw g3supertimestream_exception(
+			"Destination array must be ndarray.");
+	if (PyArray_TYPE(_array) != desc.type_num)
+		throw g3supertimestream_exception(
+			"Destination array not of correct type.");
+	if ((PyArray_NDIM(_array) != 2) ||
+	    (PyArray_SHAPE(_array)[0] != n_det_ex))
+		throw g3supertimestream_exception(
+			"Destination array does not have correct shape.");
+	if (PyArray_STRIDE(_array, 1) != PyArray_ITEMSIZE(_array))
+		throw g3supertimestream_exception(
+			"Destination array should be strictly packed on last dimension.");
+
+	// Insist array is not already decompressed.
+	if (ablob == nullptr)
+		throw g3supertimestream_exception(
+			"These data are already fully decoded; use .data.");
 
 	// Decompress or copy into a buffer.
 	FLAC__StreamDecoderWriteCallback this_write_callback;
@@ -687,8 +721,16 @@ bool G3SuperTimestream::Extract(bp::object array)
 	struct flac_helper helper;
 
 #pragma omp for
-	for (int i=0; i<desc.shape[0]; i++) {
-		char* this_data = (char*)PyArray_DATA(_array) + PyArray_STRIDES(_array)[0]*i;
+	for (int out_i=0; out_i<n_det_ex; out_i++) {
+		char* this_data = (char*)PyArray_DATA(_array) + PyArray_STRIDES(_array)[0]*out_i;
+
+		// Source vector index
+		int i = out_i;
+		if (_indices != nullptr) {
+			i = *(int64_t*)PyArray_GETPTR1(_indices, out_i);
+			if (i < 0 || i >= desc.shape[0])
+				continue;
+		}
 
 		// Cue up this detector's data and read the algo code.
 		helper.src = ablob->buf + ablob->offsets[i];
@@ -1138,6 +1180,7 @@ PYBINDINGS("so3g")
 		.add_property("dtype", &safe_get_dtype, "Numpy dtype of enclosed array.")
 		.def("encode", &G3SuperTimestream::Encode, "Compress.")
 		.def("decode", &G3SuperTimestream::Decode, "Decompress.")
+		.def("extract", &G3SuperTimestream::Extract, "Decompress data subset into an array.")
 		.def("calibrate", &G3SuperTimestream::Calibrate,
 		     "calibrate(cal_factors)\n\n"
                      "Apply per-channel scale factors.  Note this puts you in float mode\n"
