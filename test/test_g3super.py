@@ -343,7 +343,7 @@ class TestSuperTimestream(unittest.TestCase):
 
         ts = _get_ts()
         dest = np.zeros((5, 100), dtype='float32')
-        ts.extract(dest, None, None)
+        ts.extract(dest)
         np.testing.assert_array_equal(dest, ts.data)
 
         for dest in [
@@ -354,7 +354,7 @@ class TestSuperTimestream(unittest.TestCase):
                 ]:
             ts = _get_ts()
             with self.assertRaises(ValueError):
-                ts.extract(dest, None, None)
+                ts.extract(dest)
 
         ts = _get_ts()
         idx = np.array([2, 1, 3])
@@ -384,9 +384,9 @@ class TestSuperTimestream(unittest.TestCase):
         ts = _get_ts()
         src_i = np.array([2, 1, 3])
         dest_i = np.array([0, 4, 2])
-        dest = np.zeros((5, 100), dtype='float32')
-        ts.extract(dest, dest_i, src_i)
-        np.testing.assert_array_equal(dest[dest_i], ts.data[src_i])
+        dest = np.zeros((5, 91-10), dtype='float32')
+        ts.extract(dest, dest_i, src_i, 10, 91)
+        np.testing.assert_array_equal(dest[dest_i], ts.data[src_i,10:91])
         self.assertEqual(True, np.all(dest[[1, 3]] == 0))
 
     # Support functions

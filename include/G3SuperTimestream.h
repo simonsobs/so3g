@@ -40,7 +40,8 @@ public:
 	string Description() const;
 	string Summary() const;
 
-	bool Extract(bp::object dest, bp::object dest_indices, bp::object src_indices);
+	bool Extract(bp::object dest, bp::object dest_indices, bp::object src_indices,
+		     int start, int stop);
 	bool Encode();
 	bool Decode();
 	void Calibrate(vector<double> rescale);
