@@ -64,6 +64,18 @@ class TestProjEng(unittest.TestCase):
             w = p.to_weights(asm, comps=comps)[0, 0]
             assert(np.any(w != 0))
 
+        # Does det_weights seem to work?
+        m = p.to_map(sig, asm, comps='T',
+                     det_weights=np.array([0., 0.], dtype='float32'))[0]
+        assert(np.all(m==0))
+
+        # Raise if pointing invalid.
+        asm.dets[1,2] = np.nan
+        with self.assertRaises(ValueError):
+           p.to_map(sig, asm, comps='T')
+        with self.assertRaises(ValueError):
+           p.to_weights(asm, comps='T')
+
     @requires_pixell
     def test_10_tiled(self):
         scan, asm, (shape, wcs) = get_basics()
