@@ -343,7 +343,7 @@ class TestSuperTimestream(unittest.TestCase):
 
         ts = _get_ts()
         dest = np.zeros((5, 100), dtype='float32')
-        ts.extract(dest, None)
+        ts.extract(dest, None, None)
         np.testing.assert_array_equal(dest, ts.data)
 
         for dest in [
@@ -354,22 +354,22 @@ class TestSuperTimestream(unittest.TestCase):
                 ]:
             ts = _get_ts()
             with self.assertRaises(ValueError):
-                ts.extract(dest, None)
+                ts.extract(dest, None, None)
 
         ts = _get_ts()
         idx = np.array([2, 1, 3])
         dest = np.zeros((len(idx), 100), dtype='float32')
-        ts.extract(dest, idx)
+        ts.extract(dest, None, idx)
         np.testing.assert_array_equal(dest, ts.data[idx])
 
         ts = _get_ts()
-        dest = np.zeros((4, 100), dtype='float32')
+        dest = np.zeros((1, 2, 100), dtype='float32')
         with self.assertRaises(ValueError):
-            ts.extract(dest, idx)
+            ts.extract(dest, None, idx)
 
         dest = np.zeros((len(idx), 200), dtype='float32')[:,::2]
         with self.assertRaises(ValueError):
-            ts.extract(dest, idx)
+            ts.extract(dest, None, idx)
 
         # What if decoded already?  This should fail (but not
         # segfault) -- subject to change.
@@ -378,8 +378,16 @@ class TestSuperTimestream(unittest.TestCase):
         idx = np.array([2, 1, 3])
         dest = np.zeros((len(idx), 100), dtype='float32')
         with self.assertRaises(ValueError):
-            ts.extract(dest, idx)
+            ts.extract(dest, None, idx)
 
+        #Injection test.
+        ts = _get_ts()
+        src_i = np.array([2, 1, 3])
+        dest_i = np.array([0, 4, 2])
+        dest = np.zeros((5, 100), dtype='float32')
+        ts.extract(dest, dest_i, src_i)
+        np.testing.assert_array_equal(dest[dest_i], ts.data[src_i])
+        self.assertEqual(True, np.all(dest[[1, 3]] == 0))
 
     # Support functions
 

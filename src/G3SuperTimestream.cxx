@@ -639,7 +639,7 @@ bool G3SuperTimestream::Decode()
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
 	Extract(bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(array)))),
-		bp::object());
+		bp::object(), bp::object());
 
 	// Destroy the flac bundle.
 	delete ablob->buf;
@@ -649,36 +649,52 @@ bool G3SuperTimestream::Decode()
 	return true;
 }
 
-bool G3SuperTimestream::Extract(bp::object array, bp::object indices)
+bool G3SuperTimestream::Extract(
+    bp::object dest, bp::object dest_indices, bp::object src_indices)
 {
-	PyArrayObject *_array = (PyArrayObject*)array.ptr();
-	PyArrayObject *_indices = (PyArrayObject*)indices.ptr();
+	PyArrayObject *_dest = (PyArrayObject*)dest.ptr();
+	PyArrayObject *_dest_indices = (PyArrayObject*)dest_indices.ptr();
+	PyArrayObject *_src_indices = (PyArrayObject*)src_indices.ptr();
 
 	int n_det_ex = desc.shape[0];
 
-	if (PyArray_Check(_indices)) {
-		if (PyArray_TYPE(_indices) != NPY_INT64)
+	if (PyArray_Check(_src_indices)) {
+		if (PyArray_TYPE(_src_indices) != NPY_INT64)
 			throw g3supertimestream_exception(
 				"Indices array must be int64.");
-		n_det_ex = PyArray_SHAPE(_indices)[0];
-	} else if ((PyObject*)_indices != Py_None) {
+		n_det_ex = PyArray_SHAPE(_src_indices)[0];
+	} else if ((PyObject*)_src_indices != Py_None) {
 		throw g3supertimestream_exception(
 			"Indices must be None, or ndarray.");
 	} else {
-		_indices = nullptr;
+		_src_indices = nullptr;
 	}
 
-	if (!PyArray_Check(_array))
+	if (PyArray_Check(_dest_indices)) {
+		if (PyArray_TYPE(_dest_indices) != NPY_INT64)
+			throw g3supertimestream_exception(
+				"dest_indices array must be int64.");
+		if (n_det_ex != PyArray_SHAPE(_dest_indices)[0])
+			throw g3supertimestream_exception(
+                                "dest_indices has wrong length.");
+	} else if ((PyObject*)_dest_indices != Py_None) {
+		throw g3supertimestream_exception(
+			"dest_indices must be None, or ndarray.");
+	} else {
+		_dest_indices = nullptr;
+	}
+
+	if (!PyArray_Check(_dest))
 		throw g3supertimestream_exception(
 			"Destination array must be ndarray.");
-	if (PyArray_TYPE(_array) != desc.type_num)
+	if (PyArray_TYPE(_dest) != desc.type_num)
 		throw g3supertimestream_exception(
 			"Destination array not of correct type.");
-	if ((PyArray_NDIM(_array) != 2) ||
-	    (PyArray_SHAPE(_array)[0] != n_det_ex))
+	if ((PyArray_NDIM(_dest) != 2) ||
+	    (PyArray_SHAPE(_dest)[0] < n_det_ex))
 		throw g3supertimestream_exception(
 			"Destination array does not have correct shape.");
-	if (PyArray_STRIDE(_array, 1) != PyArray_ITEMSIZE(_array))
+	if (PyArray_STRIDE(_dest, 1) != PyArray_ITEMSIZE(_dest))
 		throw g3supertimestream_exception(
 			"Destination array should be strictly packed on last dimension.");
 
@@ -716,28 +732,36 @@ bool G3SuperTimestream::Extract(bp::object array, bp::object indices)
 	{
 
 	// Each OMP thread needs its own workspace, FLAC decoder, and helper structure
-	char temp[PyArray_SHAPE(_array)[1] * elsize + 1];
+	char temp[PyArray_SHAPE(_dest)[1] * elsize + 1];
 	FLAC__StreamDecoder *decoder = nullptr;
 	struct flac_helper helper;
 
 #pragma omp for
-	for (int out_i=0; out_i<n_det_ex; out_i++) {
-		char* this_data = (char*)PyArray_DATA(_array) + PyArray_STRIDES(_array)[0]*out_i;
-
+	for (int i=0; i<n_det_ex; i++) {
 		// Source vector index
-		int i = out_i;
-		if (_indices != nullptr) {
-			i = *(int64_t*)PyArray_GETPTR1(_indices, out_i);
-			if (i < 0 || i >= desc.shape[0])
+		int src_i = i;
+		if (_src_indices != nullptr) {
+			src_i = *(int64_t*)PyArray_GETPTR1(_src_indices, i);
+			if (src_i < 0 || src_i >= desc.shape[0])
 				continue;
 		}
 
+		// Dest vector index
+		int dest_i = i;
+		if (_dest_indices != nullptr) {
+			dest_i = *(int64_t*)PyArray_GETPTR1(_dest_indices, i);
+			if (dest_i < 0 || dest_i >= PyArray_SHAPE(_dest)[0])
+				continue;
+		}
+
+		char* this_data = (char*)PyArray_DATA(_dest) + PyArray_STRIDES(_dest)[0]*dest_i;
+
 		// Cue up this detector's data and read the algo code.
-		helper.src = ablob->buf + ablob->offsets[i];
+		helper.src = ablob->buf + ablob->offsets[src_i];
 		int8_t algo = *(helper.src++);
 
 		if (algo == ALGO_NONE) {
-			memcpy(this_data, helper.src, PyArray_SHAPE(_array)[1] * elsize);
+			memcpy(this_data, helper.src, PyArray_SHAPE(_dest)[1] * elsize);
 		}
 		if (algo & ALGO_DO_FLAC) {
 			if (decoder == nullptr)
@@ -759,26 +783,26 @@ bool G3SuperTimestream::Extract(bp::object array, bp::object indices)
 			helper.dest = this_data;
 			expand_func(&helper,
 				    helper.bytes_remaining,
-				    PyArray_SHAPE(_array)[1], (char*)temp);
+				    PyArray_SHAPE(_dest)[1], (char*)temp);
 		}
 
 		// Single flat offset?
 		if (algo & ALGO_DO_CONST) {
 			helper.dest = this_data;
-			broadcast_func(&helper, PyArray_SHAPE(_array)[1]);
+			broadcast_func(&helper, PyArray_SHAPE(_dest)[1]);
 		}
 
 		// Now convert for precision.
 		if (desc.type_num == NPY_FLOAT32) {
 			auto src = (int32_t*)this_data;
 			auto dest = (float*)this_data;
-			for (int j=0; j<PyArray_SHAPE(_array)[1]; j++)
-				dest[j] = (float)src[j] * quanta[i];
+			for (int j=0; j<PyArray_SHAPE(_dest)[1]; j++)
+				dest[j] = (float)src[j] * quanta[src_i];
 		} else if (desc.type_num == NPY_FLOAT64) {
 			auto src = (int64_t*)this_data;
 			auto dest = (double*)this_data;
-			for (int j=0; j<PyArray_SHAPE(_array)[1]; j++)
-				dest[j] = src[j] * quanta[i];
+			for (int j=0; j<PyArray_SHAPE(_dest)[1]; j++)
+				dest[j] = src[j] * quanta[src_i];
 		}
 	}
 	if (decoder != nullptr)

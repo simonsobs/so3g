@@ -126,12 +126,17 @@ indices)``::
   # Extract full data without "decompressing" ts.
   shape = (len(ts.names), len(ts.times))
   dest = np.empty(shape, dtype=ts.dtype)
-  ts.extract(dest, None)
+  ts.extract(dest, None, None)
 
   # Extract only data for detector at index 1.
   indices = np.array([1])
   dest = np.empty((len(indices), len(ts.times)), dtype=ts.dtype)
-  ts.extract(dest, indices)
+  ts.extract(dest, None, indices)
+
+  # Map data at [1, 3, 5] into output at [0, 2, 4].
+  dest = np.empty((6, len(ts.times)), dtype=ts.dtype)
+  ts.extract(dest, np.array([0, 2, 4]), np.array([1, 3, 5]))
+
 
 
 How to work with float arrays
