@@ -652,37 +652,17 @@ bool G3SuperTimestream::Decode()
 bool G3SuperTimestream::Extract(
     bp::object dest, bp::object dest_indices, bp::object src_indices)
 {
-	PyArrayObject *_dest = (PyArrayObject*)dest.ptr();
-	PyArrayObject *_dest_indices = (PyArrayObject*)dest_indices.ptr();
-	PyArrayObject *_src_indices = (PyArrayObject*)src_indices.ptr();
-
 	int n_det_ex = desc.shape[0];
 
-	if (PyArray_Check(_src_indices)) {
-		if (PyArray_TYPE(_src_indices) != NPY_INT64)
-			throw g3supertimestream_exception(
-				"Indices array must be int64.");
-		n_det_ex = PyArray_SHAPE(_src_indices)[0];
-	} else if ((PyObject*)_src_indices != Py_None) {
-		throw g3supertimestream_exception(
-			"Indices must be None, or ndarray.");
-	} else {
-		_src_indices = nullptr;
-	}
+	PyArrayObject *_dest = (PyArrayObject*)dest.ptr();
 
-	if (PyArray_Check(_dest_indices)) {
-		if (PyArray_TYPE(_dest_indices) != NPY_INT64)
-			throw g3supertimestream_exception(
-				"dest_indices array must be int64.");
-		if (n_det_ex != PyArray_SHAPE(_dest_indices)[0])
-			throw g3supertimestream_exception(
-                                "dest_indices has wrong length.");
-	} else if ((PyObject*)_dest_indices != Py_None) {
-		throw g3supertimestream_exception(
-			"dest_indices must be None, or ndarray.");
-	} else {
-		_dest_indices = nullptr;
-	}
+        auto _src_indices = BufferWrapper<int64_t>("src_indices", src_indices, true,
+                                                   vector<int>{-1});
+        if (_src_indices->obj != NULL)
+            n_det_ex = _src_indices->shape[0];
+
+        auto _dest_indices = BufferWrapper<int64_t>("dest_indices", dest_indices, true,
+                                                   vector<int>{n_det_ex});
 
 	if (!PyArray_Check(_dest))
 		throw g3supertimestream_exception(
@@ -740,16 +720,16 @@ bool G3SuperTimestream::Extract(
 	for (int i=0; i<n_det_ex; i++) {
 		// Source vector index
 		int src_i = i;
-		if (_src_indices != nullptr) {
-			src_i = *(int64_t*)PyArray_GETPTR1(_src_indices, i);
+		if (_src_indices.test()) {
+			src_i = *_src_indices.ptr_1d(i);
 			if (src_i < 0 || src_i >= desc.shape[0])
 				continue;
 		}
 
 		// Dest vector index
 		int dest_i = i;
-		if (_dest_indices != nullptr) {
-			dest_i = *(int64_t*)PyArray_GETPTR1(_dest_indices, i);
+		if (_dest_indices.test()) {
+			dest_i = *_dest_indices.ptr_1d(i);
 			if (dest_i < 0 || dest_i >= PyArray_SHAPE(_dest)[0])
 				continue;
 		}

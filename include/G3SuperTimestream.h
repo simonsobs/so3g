@@ -1,6 +1,7 @@
 #pragma once
 
 #include "so3g_numpy.h"
+#include "numpy_assist.h"
 #include <G3Frame.h>
 #include <G3Map.h>
 
