@@ -334,6 +334,69 @@ class TestSuperTimestream(unittest.TestCase):
             # I think the theoretical limit is 1.3 or so...
             self.assertLess(bits_per_word, sigma_bits * 1.4, err_msg)
 
+    def test_60_extract(self):
+        """Test selective extraction."""
+        def _get_ts():
+            ts = self._get_ts(5, 100, seed=100, dtype='float32')
+            ts.encode()
+            return ts
+
+        ts = _get_ts()
+        dest = np.zeros((5, 100), dtype='float32')
+        ts.extract(dest)
+        np.testing.assert_array_equal(dest, ts.data)
+
+        for dest in [
+                np.zeros((4, 100), dtype='float32'),
+                np.zeros((100), dtype='float32'),
+                np.zeros((5, 100), dtype='int32'),
+                ['blech'],
+                ]:
+            ts = _get_ts()
+            with self.assertRaises(ValueError):
+                ts.extract(dest)
+
+        idx = np.array([2, 1, 3])
+        dest = np.zeros((len(idx), 100), dtype='float32')
+        ts = _get_ts()
+        ts.extract(dest, None, idx)
+        np.testing.assert_array_equal(dest, ts.data[idx])
+        ts = _get_ts()
+        ts.extract(dest, src_indices=idx)
+        np.testing.assert_array_equal(dest, ts.data[idx])
+
+        ts = _get_ts()
+        dest = np.zeros((1, 2, 100), dtype='float32')
+        with self.assertRaises(ValueError):
+            ts.extract(dest, None, idx)
+
+        dest = np.zeros((len(idx), 200), dtype='float32')[:,::2]
+        with self.assertRaises(ValueError):
+            ts.extract(dest, None, idx)
+
+        # What if decoded already?  This should fail (but not
+        # segfault) -- subject to change.
+        ts = _get_ts()
+        ts.decode()
+        idx = np.array([2, 1, 3])
+        dest = np.zeros((len(idx), 100), dtype='float32')
+        with self.assertRaises(ValueError):
+            ts.extract(dest, None, idx)
+
+        # Sample subset
+        ts = _get_ts()
+        dest = np.zeros((5, 91-10), dtype='float32')
+        ts.extract(dest, start=10, stop=91)
+
+        #Injection test.
+        ts = _get_ts()
+        src_i = np.array([2, 1, 3])
+        dest_i = np.array([0, 4, 2])
+        dest = np.zeros((5, 91-10), dtype='float32')
+        ts.extract(dest, dest_i, src_i, 10, 91)
+        np.testing.assert_array_equal(dest[dest_i], ts.data[src_i,10:91])
+        self.assertEqual(True, np.all(dest[[1, 3]] == 0))
+
     # Support functions
 
     def _get_ts(self, nchans, ntimes, sigma=256, dtype='int32', raw=False, seed=None):
