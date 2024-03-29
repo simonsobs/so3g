@@ -126,7 +126,7 @@ indices)``::
   # Extract full data without "decompressing" ts.
   shape = (len(ts.names), len(ts.times))
   dest = np.empty(shape, dtype=ts.dtype)
-  ts.extract(dest, None, None)
+  ts.extract(dest)
 
   # Extract only data for detector at index 1.
   indices = np.array([1])
@@ -136,6 +136,10 @@ indices)``::
   # Map data at [1, 3, 5] into output at [0, 2, 4].
   dest = np.empty((6, len(ts.times)), dtype=ts.dtype)
   ts.extract(dest, np.array([0, 2, 4]), np.array([1, 3, 5]))
+
+  # Extract all dets, samples [100:200].
+  dest = np.empty((len(ts.names), 100), dtype=ts.dtype)
+  ts.extract(dest, None, None, 100, 200)
 
 
 

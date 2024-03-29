@@ -356,10 +356,13 @@ class TestSuperTimestream(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ts.extract(dest)
 
-        ts = _get_ts()
         idx = np.array([2, 1, 3])
         dest = np.zeros((len(idx), 100), dtype='float32')
+        ts = _get_ts()
         ts.extract(dest, None, idx)
+        np.testing.assert_array_equal(dest, ts.data[idx])
+        ts = _get_ts()
+        ts.extract(dest, src_indices=idx)
         np.testing.assert_array_equal(dest, ts.data[idx])
 
         ts = _get_ts()
@@ -379,6 +382,11 @@ class TestSuperTimestream(unittest.TestCase):
         dest = np.zeros((len(idx), 100), dtype='float32')
         with self.assertRaises(ValueError):
             ts.extract(dest, None, idx)
+
+        # Sample subset
+        ts = _get_ts()
+        dest = np.zeros((5, 91-10), dtype='float32')
+        ts.extract(dest, start=10, stop=91)
 
         #Injection test.
         ts = _get_ts()
