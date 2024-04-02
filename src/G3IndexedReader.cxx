@@ -1,6 +1,7 @@
 #include <pybindings.h>
 #include <dataio.h>
 #include <G3IndexedReader.h>
+#include "exceptions.h"
 
 #include <boost/filesystem.hpp>
 
@@ -90,6 +91,10 @@ void G3IndexedReader::Process(G3FramePtr frame, std::deque<G3FramePtr> &out)
 }
 
 int G3IndexedReader::Seek(int offset) {
+    if (stream_.peek() == EOF && offset != Tell()) {
+        log_error("Cannot seek; stream closed at EOF.");
+        throw RuntimeError_exception("Cannot seek; stream closed at EOF.");
+    }
     return boost::iostreams::seek(stream_, offset, std::ios_base::beg);
 }
 
@@ -111,8 +116,11 @@ PYBINDINGS("so3g") {
 	      arg("n_frames_to_read")=0)))
 		.def(init<std::vector<std::string>, int>((arg("filename"), 
                                                           arg("n_frames_to_read")=0)))
-            .def("Tell", &G3IndexedReader::Tell)
-            .def("Seek", &G3IndexedReader::Seek)
+            .def("Tell", &G3IndexedReader::Tell,
+                 "Return the current byte offset from start of stream.")
+            .def("Seek", &G3IndexedReader::Seek,
+                 "Position the stream read pointer at specific byte offset. "
+                 "Note that once EOF is reached, Seek does not work any more.")
 		.def_readonly("__g3module__", true)
 	;
 }

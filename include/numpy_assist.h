@@ -211,6 +211,23 @@ public:
         }
     }
 
+    // These accessors are for convenience but you should probably
+    // roll your own for inner loops.
+    inline
+    T* ptr_1d(int i0) {
+        return (T*)((char*)view->buf + view->strides[0] * i0);
+    }
+
+    inline
+    T* ptr_2d(int i0, int i1) {
+        return (T*)((char*)view->buf + view->strides[0] * i0 + view->strides[1] * i1);
+    }
+
+    inline
+    bool test() {
+        return view->obj != nullptr;
+    }
+
 private:
     std::shared_ptr<Py_buffer> view;
 };
