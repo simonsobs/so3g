@@ -125,7 +125,7 @@ class CelestialSightLine:
         return self
 
     @classmethod
-    def az_el(cls, t, az, el, roll=None, site=None, weather=None):
+    def az_el(cls, t, az, el, roll=None, site=None, weather=None, **kwargs):
         """Construct a SightLine from horizon coordinates.  This uses
         high-precision pointing.
 
@@ -150,7 +150,7 @@ class CelestialSightLine:
         # Note that passing num_threads explicitly to qpoint will
         # cause openmp_set_thread_count to be called!
         qp = qpoint.QPoint(accuracy='high', fast_math=True, mean_aber=True,
-                           rate_ref='always', **weather.to_qpoint())
+                           rate_ref='always', **weather.to_qpoint(), **kwargs)
 
         az, el, t = map(np.asarray, [az, el, t])
         Q_arr = qp.azel2bore(az / DEG, el / DEG, None, None,
