@@ -36,281 +36,12 @@ from . import mapthreads
 #: Valid settings for "interpol".  First entry is the default.
 INTERPOLS = ['nearest', 'bilinear']
 
-
-class Projectionist:
-    """This class assists with analyzing WCS information to populate data
-    structures needed for accelerated pointing routines.
-
-    On instantiation, it carries information about the relation
-    between celestial spherical coordinates and the Native Spherical
-    coordinates of the projection, and also the pixelization scheme
-    for the projection.
-
-    As in pixell, the code and discussion here uses the term
-    "geometry" to refer to the combination of an astropy.WCS object
-    and a 2-d array shape.
-
-    The following symbols are used in docstrings to represent shapes:
-
-    * ``n_dets`` - Number of detectors in the focal plane.
-    * ``n_samps`` - Number of samples in the signal space of each detector.
-    * ``n_threads`` - Number of threads to use in parallelized computation.
-    * ``n_mapidx`` - Number of indices required to specify a pixel in
-      a map.  For simple maps this is probably 2, with the first index
-      specifying row and the second index specifying column.  But for
-      tiled maps n_mapidx is 3, with the first axis specifying the
-      tile number.
-    * ``n_comp`` - Number of map components, such as Stokes components
-      or other spin components.  This takes the value 3, for example,
-      if projection into TQU space has been requested.
-
-    When coordinate computation or projection routines are called, a
-    ProjEng (a wrapped C++ object) is instantiated to perform the
-    accelerated computations.  The spin-composition (i.e. is this a
-    'T' map or a 'TQU' map) must be specified at this time, to
-    instantiate the correct accelerated object.
-
-    Some method parameters are common to many functions and are documented
-    here for consistency:
-
-    * ``assembly`` - an Assembly, providing a focal plane (quaternion
-      offsets for each detector) as well as a boresight vector
-      (quaternion for each time sample).
-    * ``comps`` - a string specifying the Stokes components of the
-      map, for example 'T' or 'TQU'.  When absent, this will be
-      guessed from the map shape; with 1|2|3 mapping to 'T'|'QU'|'TQU'
-      respectively.
-    * ``proj_name`` - a string specifying a projection.  The
-      nomenclature is mostly the same as the FITS CTYPE identifiers.
-      Accepted values: ARC, CAR, CEA, TAN, ZEA, Flat, Quat.
-    * ``shape`` - the shape describing the celestial axes of the map.
-      (For tiled representation this specifies the parent footprint.)
-    * ``wcs`` - the WCS describing the celestial axes of the map.
-      Together with ``shape`` this is a geometry; see pixell.enmap
-      documentation.
-    * ``threads`` - the thread assignment, consisting of a list of
-      RangesMatrix objects.  Each RangesMatrix object must have shape
-      (n_threads, n_dets, n_samps).  The n_threads does not need to
-      be the same for every entry in the list.  In TOD-to-map
-      operations, each entry of this list is processed fully before
-      proceeding to the next one.  Each entry "ranges" is processed
-      using (up to) the specified number of threads, such that thread
-      i performs operations only on the samples included in
-      ranges[i,:,:].  Most thread assignment routines in this module
-      will return a list of two RangesMatrix objects,
-      [ranges_parallel, ranges_serial].  The first item represents the
-      part of the computation that can be done in parallel, and has
-      shape (n_threads, n_dets, n_samps).  The ranges_serial object
-      has shape (1, n_dets, n_samps) and represents any samples that
-      need to be treated in a single thread.  The ranges_serial is
-      only non-trivial when interpolation is active.
-    * ``interpol``: How positions that fall between pixel centers will
-      be handled. Options are "nearest" (default): Use Nearest
-      Neighbor interpolation, so a sample takes the value of
-      whatever pixel is closest; or "bilinear": linearly
-      interpolate between the four closest pixels. bilinear is
-      slower (around 60%) but avoids problems caused by a
-      discontinuous model.
-
-    Attributes:
-        naxis: 2-element integer array specifying the map shape (for
-            the 2 celestial axes).
-        cdelt: 2-element float array specifying the pixel pitch.
-        crpix: 2-element float array specifying the pixel coordinates
-            of the reference point.
-        proj_name: string, name of the projection.
-        q_celestial_to_native: quaternion rotation taking celestial
-            coordinates to the native spherical coordinates of the
-            projection.
-        tile_shape: 2-element integer array specifying the tile shape
-            (this is the shape of one full-size sub-tile, not the
-            decimation factor on each axis).
-        tiling: a _Tiling object if the map is tiled, None otherwise.
-
-    """
-    @staticmethod
-    def get_q(wcs):
-        """Analyze a wcs object to compute the quaternion rotation from
-        celestial to native spherical coordinates.
-
-        """
-        alpha0, delta0 = wcs.wcs.crval  # In degrees.
-        if (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 0.):
-            # This is typical for cylindrical projections.
-            assert((delta0 >= 0 and wcs.wcs.lonpole == 180.0) or
-                   (delta0 <= 0 and wcs.wcs.lonpole ==   0.0))
-            Q = (quat.euler(1,  delta0 * quat.DEG) *
-                 quat.euler(2, -alpha0 * quat.DEG))
-        elif (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 90.):
-            # This is typical for zenithal projections.
-            assert(wcs.wcs.lonpole == 180.0)
-            Q = (quat.euler(2, np.pi) *
-                 quat.euler(1, (delta0 - 90)*quat.DEG) *
-                 quat.euler(2, -alpha0 * quat.DEG))
-        else:
-            raise ValueError(f'Unimplemented NSC reference (phi0,theta0)='
-                             '({wcs.wcs.phi0:.2f},{wcs.wcs.theta0:.2f})')
-        return Q
-
+class _ProjectionistBase:
     def __init__(self):
-        self._q_fp_to_native = None
-        self._q_fp_to_celestial = None
-        self.tile_shape = None
-        self.active_tiles = None
-        self.wcs = None
-        self.proj_name = None
-        self.q_celestial_to_native = None
-        self.interpol = INTERPOLS[0]
-
-        self.naxis = np.array([0, 0])
-        self.cdelt = np.array([0., 0.])
-        self.crpix = np.array([0., 0.])
-        self.pixRangeMaxes = None
-
-    @property
-    def tiling(self):
-        if self.tile_shape is None:
-            return None
-        return _Tiling(self.naxis[::-1], self.tile_shape)
-
-    @classmethod
-    def for_healpix(cls, shape, pixRangeMaxes, interpol=None):
-        """ Construct a Projectionist for Healpix maps.
-        The last dimension of shape should be a valid npix in HEALPIX
-        pixRangeMaxes is a list of pixel ranges for thread distribution.
-        Should be len(nthread+1), first element 0, last element npix
-        """
-        self=cls()
-        self.naxis = np.array(shape[-2:], dtype=int) # naxis[1] should hold npix
-        self.wcs = None
-        self.proj_name = 'HP'
-        if interpol is not None and (interpol not in ['nearest', 'nn']):
-            raise NotImplementedError("Only 'nearest' interpolation is supported for Healpix")
-        self.interpol = 'nearest'
-        self.q_celestial_to_native = quat.quat(1,0,0,0)
-        if pixRangeMaxes is None: pixRangeMaxes = [0, int(self.naxis[1])]
-        self.pixRangeMaxes = pixRangeMaxes
-        return self
-
-    @classmethod
-    def for_geom(cls, shape, wcs, interpol=None):
-        """Construct a Projectionist for use with the specified "geometry".
-
-        The shape and wcs are the core information required to prepare
-        a Projectionist, so this method is likely to be called by
-        other constructors.
-        """
-        self = cls()
-        ax1, ax2 = wcs.wcs.lng, wcs.wcs.lat
-        ndim = len(shape)
-        # The axes are numbered from outside in...
-        self.naxis = np.array([shape[ndim - ax1 - 1],
-                               shape[ndim - ax2 - 1]], dtype=int)
-        # Get just the celestial part.
-        wcs = wcs.celestial
-        self.wcs = wcs
-
-        # Extract the projection name (e.g. CAR)
-        proj = [c[-3:] for c in wcs.wcs.ctype]
-        assert(proj[0] == proj[1])
-        proj_name = proj[0]  # Projection name
-        self.proj_name = proj_name
-
-        # Store the rotation to native spherical coordinates.
-        self.q_celestial_to_native = self.get_q(wcs)
-
-        # Store the grid info.
-        self.cdelt = np.array(wcs.wcs.cdelt) * quat.DEG
-        self.crpix = np.array(wcs.wcs.crpix)
-
-        # Pixel interpolation mode
-        if interpol is None:
-            interpol = INTERPOLS[0]
-        self.interpol = interpol
-
-        return self
-
-    @classmethod
-    def for_map(cls, emap, wcs=None, interpol=None):
-        """Construct a Projectionist for use with maps having the same
-        geometry as the provided enmap.
-
-        Args:
-          emap: enmap from which to extract shape and wcs information.
-            It is acceptable to pass a bare ndarray here (or anything
-            with shape attribute), provided that wcs is provided
-            separately.
-          wcs: optional WCS object to use instead of emap.wcs.
-        """
-        if wcs is None:
-            wcs = emap.wcs
-        return cls.for_geom(emap.shape, wcs, interpol=interpol)
-
-    @classmethod
-    def for_source_at(cls, alpha0, delta0, gamma0=0.,
-                      proj_name='TAN'):
-        """Return a pointing-only Projectionist where some particular
-        equatorial position will be put at the North Pole of the
-        Native spherical coordinates.
-
-        """
-        self = cls()
-        self.proj_name = proj_name
-        assert(gamma0 == 0.)
-        self.q_celestial_to_native = (
-            quat.euler(2, np.pi)
-            * quat.euler(1, (delta0 - 90)*quat.DEG)
-            * quat.euler(2, -alpha0 * quat.DEG))
-        return self
-
-    @classmethod
-    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True, interpol=None):
-        """Construct a Projectionist for use with the specified geometry
-        (shape, wcs), cut into tiles of shape tile_shape.
-
-        See class documentation for description of standard arguments.
-
-        Args:
-            tile_shape: tuple of ints, giving the shape of each tile.
-            active_tiles: bool or list of ints.  Specifies which tiles
-                should be considered active.  If True, all tiles are
-                populated.  If None or False, this will remain
-                uninitialized and attempts to generate blank maps
-                (such as calls to zeros or to projection functions
-                without a target map set) will fail.  Otherwise this
-                must be a list of integers specifying which tiles to
-                populate on such calls.
-
-        """
-        self = cls.for_geom(shape, wcs, interpol=interpol)
-        self.tile_shape = np.array(tile_shape, 'int')
-        if active_tiles is True:
-            self.active_tiles = list(range(self.tiling.tile_count))
-        elif active_tiles in [False, None]:
-            self.active_tiles = None
-        else:
-            # Presumably a list of tile numbers.
-            self.active_tiles = active_tiles
-        return self
+        raise NotImplementedError("Use child class Projectionist or ProjectionistHealpix")
 
     def _get_pixelizor_args(self):
-        """Returns a tuple of arguments that may be passed to the ProjEng
-        constructor to define the pixelization.
-
-        """
-        # All these casts are required because boost-python doesn't
-        # like numpy scalars.
-        if self.proj_name == "HP":
-            args = (int(self.naxis[1]), list(map(int, self.pixRangeMaxes)))
-            return args
-        args = (int(self.naxis[1]), int(self.naxis[0]),
-                float(self.cdelt[1]), float(self.cdelt[0]),
-                float(self.crpix[1]), float(self.crpix[0]))
-        if self.tiling:
-            args += tuple(map(int, self.tile_shape))
-            if self.active_tiles is not None:
-                args += (self.active_tiles,)
-        return args
+        raise NotImplementedError("Use child class Projectionist or ProjectionistHealpix")
 
     def get_ProjEng(self, comps='TQU', proj_name=None, get=True,
                     instance=True, interpol=None):
@@ -653,6 +384,10 @@ class Projectionist:
                 idx = group_n.argmin()
                 group_n[idx] += _n
                 group_tiles[idx].append(_t)
+            imax = np.argmax(group_n)
+            max_ratio = group_n[imax] / np.mean(np.concatenate([group_n[:imax], group_n[imax+1:]]))
+            if len(group_n)>1 and max_ratio > 1.1:
+                print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
             # Now paint them into Ranges.
             R = projeng.tile_ranges(q_native, assembly.dets, group_tiles)
             R = wrap_ivals(R)
@@ -668,6 +403,333 @@ class Projectionist:
         }
 
     _ivals_format = 2
+
+class Projectionist(_ProjectionistBase):
+    """This class assists with analyzing WCS information to populate data
+    structures needed for accelerated pointing routines.
+
+    On instantiation, it carries information about the relation
+    between celestial spherical coordinates and the Native Spherical
+    coordinates of the projection, and also the pixelization scheme
+    for the projection.
+
+    As in pixell, the code and discussion here uses the term
+    "geometry" to refer to the combination of an astropy.WCS object
+    and a 2-d array shape.
+
+    The following symbols are used in docstrings to represent shapes:
+
+    * ``n_dets`` - Number of detectors in the focal plane.
+    * ``n_samps`` - Number of samples in the signal space of each detector.
+    * ``n_threads`` - Number of threads to use in parallelized computation.
+    * ``n_mapidx`` - Number of indices required to specify a pixel in
+      a map.  For simple maps this is probably 2, with the first index
+      specifying row and the second index specifying column.  But for
+      tiled maps n_mapidx is 3, with the first axis specifying the
+      tile number.
+    * ``n_comp`` - Number of map components, such as Stokes components
+      or other spin components.  This takes the value 3, for example,
+      if projection into TQU space has been requested.
+
+    When coordinate computation or projection routines are called, a
+    ProjEng (a wrapped C++ object) is instantiated to perform the
+    accelerated computations.  The spin-composition (i.e. is this a
+    'T' map or a 'TQU' map) must be specified at this time, to
+    instantiate the correct accelerated object.
+
+    Some method parameters are common to many functions and are documented
+    here for consistency:
+
+    * ``assembly`` - an Assembly, providing a focal plane (quaternion
+      offsets for each detector) as well as a boresight vector
+      (quaternion for each time sample).
+    * ``comps`` - a string specifying the Stokes components of the
+      map, for example 'T' or 'TQU'.  When absent, this will be
+      guessed from the map shape; with 1|2|3 mapping to 'T'|'QU'|'TQU'
+      respectively.
+    * ``proj_name`` - a string specifying a projection.  The
+      nomenclature is mostly the same as the FITS CTYPE identifiers.
+      Accepted values: ARC, CAR, CEA, TAN, ZEA, Flat, Quat.
+    * ``shape`` - the shape describing the celestial axes of the map.
+      (For tiled representation this specifies the parent footprint.)
+    * ``wcs`` - the WCS describing the celestial axes of the map.
+      Together with ``shape`` this is a geometry; see pixell.enmap
+      documentation.
+    * ``threads`` - the thread assignment, consisting of a list of
+      RangesMatrix objects.  Each RangesMatrix object must have shape
+      (n_threads, n_dets, n_samps).  The n_threads does not need to
+      be the same for every entry in the list.  In TOD-to-map
+      operations, each entry of this list is processed fully before
+      proceeding to the next one.  Each entry "ranges" is processed
+      using (up to) the specified number of threads, such that thread
+      i performs operations only on the samples included in
+      ranges[i,:,:].  Most thread assignment routines in this module
+      will return a list of two RangesMatrix objects,
+      [ranges_parallel, ranges_serial].  The first item represents the
+      part of the computation that can be done in parallel, and has
+      shape (n_threads, n_dets, n_samps).  The ranges_serial object
+      has shape (1, n_dets, n_samps) and represents any samples that
+      need to be treated in a single thread.  The ranges_serial is
+      only non-trivial when interpolation is active.
+    * ``interpol``: How positions that fall between pixel centers will
+      be handled. Options are "nearest" (default): Use Nearest
+      Neighbor interpolation, so a sample takes the value of
+      whatever pixel is closest; or "bilinear": linearly
+      interpolate between the four closest pixels. bilinear is
+      slower (around 60%) but avoids problems caused by a
+      discontinuous model.
+
+    Attributes:
+        naxis: 2-element integer array specifying the map shape (for
+            the 2 celestial axes).
+        cdelt: 2-element float array specifying the pixel pitch.
+        crpix: 2-element float array specifying the pixel coordinates
+            of the reference point.
+        proj_name: string, name of the projection.
+        q_celestial_to_native: quaternion rotation taking celestial
+            coordinates to the native spherical coordinates of the
+            projection.
+        tile_shape: 2-element integer array specifying the tile shape
+            (this is the shape of one full-size sub-tile, not the
+            decimation factor on each axis).
+        tiling: a _Tiling object if the map is tiled, None otherwise.
+
+    """
+    @staticmethod
+    def get_q(wcs):
+        """Analyze a wcs object to compute the quaternion rotation from
+        celestial to native spherical coordinates.
+
+        """
+        alpha0, delta0 = wcs.wcs.crval  # In degrees.
+        if (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 0.):
+            # This is typical for cylindrical projections.
+            assert((delta0 >= 0 and wcs.wcs.lonpole == 180.0) or
+                   (delta0 <= 0 and wcs.wcs.lonpole ==   0.0))
+            Q = (quat.euler(1,  delta0 * quat.DEG) *
+                 quat.euler(2, -alpha0 * quat.DEG))
+        elif (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 90.):
+            # This is typical for zenithal projections.
+            assert(wcs.wcs.lonpole == 180.0)
+            Q = (quat.euler(2, np.pi) *
+                 quat.euler(1, (delta0 - 90)*quat.DEG) *
+                 quat.euler(2, -alpha0 * quat.DEG))
+        else:
+            raise ValueError(f'Unimplemented NSC reference (phi0,theta0)='
+                             '({wcs.wcs.phi0:.2f},{wcs.wcs.theta0:.2f})')
+        return Q
+
+    def __init__(self):
+        self._q_fp_to_native = None
+        self._q_fp_to_celestial = None
+        self.tile_shape = None
+        self.active_tiles = None
+        self.wcs = None
+        self.proj_name = None
+        self.q_celestial_to_native = None
+        self.interpol = INTERPOLS[0]
+
+        self.naxis = np.array([0, 0])
+        self.cdelt = np.array([0., 0.])
+        self.crpix = np.array([0., 0.])
+
+    @property
+    def tiling(self):
+        if self.tile_shape is None:
+            return None
+        return _Tiling(self.naxis[::-1], self.tile_shape)
+
+    @classmethod
+    def for_geom(cls, shape, wcs, interpol=None):
+        """Construct a Projectionist for use with the specified "geometry".
+
+        The shape and wcs are the core information required to prepare
+        a Projectionist, so this method is likely to be called by
+        other constructors.
+        """
+        self = cls()
+        ax1, ax2 = wcs.wcs.lng, wcs.wcs.lat
+        ndim = len(shape)
+        # The axes are numbered from outside in...
+        self.naxis = np.array([shape[ndim - ax1 - 1],
+                               shape[ndim - ax2 - 1]], dtype=int)
+        # Get just the celestial part.
+        wcs = wcs.celestial
+        self.wcs = wcs
+
+        # Extract the projection name (e.g. CAR)
+        proj = [c[-3:] for c in wcs.wcs.ctype]
+        assert(proj[0] == proj[1])
+        proj_name = proj[0]  # Projection name
+        self.proj_name = proj_name
+
+        # Store the rotation to native spherical coordinates.
+        self.q_celestial_to_native = self.get_q(wcs)
+
+        # Store the grid info.
+        self.cdelt = np.array(wcs.wcs.cdelt) * quat.DEG
+        self.crpix = np.array(wcs.wcs.crpix)
+
+        # Pixel interpolation mode
+        if interpol is None:
+            interpol = INTERPOLS[0]
+        self.interpol = interpol
+
+        return self
+
+    @classmethod
+    def for_map(cls, emap, wcs=None, interpol=None):
+        """Construct a Projectionist for use with maps having the same
+        geometry as the provided enmap.
+
+        Args:
+          emap: enmap from which to extract shape and wcs information.
+            It is acceptable to pass a bare ndarray here (or anything
+            with shape attribute), provided that wcs is provided
+            separately.
+          wcs: optional WCS object to use instead of emap.wcs.
+        """
+        if wcs is None:
+            wcs = emap.wcs
+        return cls.for_geom(emap.shape, wcs, interpol=interpol)
+
+    @classmethod
+    def for_source_at(cls, alpha0, delta0, gamma0=0.,
+                      proj_name='TAN'):
+        """Return a pointing-only Projectionist where some particular
+        equatorial position will be put at the North Pole of the
+        Native spherical coordinates.
+
+        """
+        self = cls()
+        self.proj_name = proj_name
+        assert(gamma0 == 0.)
+        self.q_celestial_to_native = (
+            quat.euler(2, np.pi)
+            * quat.euler(1, (delta0 - 90)*quat.DEG)
+            * quat.euler(2, -alpha0 * quat.DEG))
+        return self
+
+    @classmethod
+    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True, interpol=None):
+        """Construct a Projectionist for use with the specified geometry
+        (shape, wcs), cut into tiles of shape tile_shape.
+
+        See class documentation for description of standard arguments.
+
+        Args:
+            tile_shape: tuple of ints, giving the shape of each tile.
+            active_tiles: bool or list of ints.  Specifies which tiles
+                should be considered active.  If True, all tiles are
+                populated.  If None or False, this will remain
+                uninitialized and attempts to generate blank maps
+                (such as calls to zeros or to projection functions
+                without a target map set) will fail.  Otherwise this
+                must be a list of integers specifying which tiles to
+                populate on such calls.
+
+        """
+        self = cls.for_geom(shape, wcs, interpol=interpol)
+        self.tile_shape = np.array(tile_shape, 'int')
+        if active_tiles is True:
+            self.active_tiles = list(range(self.tiling.tile_count))
+        elif active_tiles in [False, None]:
+            self.active_tiles = None
+        else:
+            # Presumably a list of tile numbers.
+            self.active_tiles = active_tiles
+        return self
+
+    def _get_pixelizor_args(self):
+        """Returns a tuple of arguments that may be passed to the ProjEng
+        constructor to define the pixelization.
+
+        """
+        # All these casts are required because boost-python doesn't
+        # like numpy scalars.
+        args = (int(self.naxis[1]), int(self.naxis[0]),
+                float(self.cdelt[1]), float(self.cdelt[0]),
+                float(self.crpix[1]), float(self.crpix[0]))
+        if self.tiling:
+            args += tuple(map(int, self.tile_shape))
+            if self.active_tiles is not None:
+                args += (self.active_tiles,)
+        return args
+
+
+
+class ProjectionistHealpix(_ProjectionistBase):
+    """Projectionist for Healpix maps.
+       Attributes:
+           nside: int, nside of the map, power of 2 0 < nside < 8192
+           nside_tile: None or int, nside of tiling. Ntile will be 12*nside_tile**2. None for untiled.
+           ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps
+      See Projectionist documentation for further info.
+    """
+    def __init__(self):
+        self._q_fp_to_native = None
+        self._q_fp_to_celestial = None
+        self.active_tiles = None
+        self.proj_name = None
+        self.q_celestial_to_native = quat.quat(1,0,0,0)
+        self.interpol = 'nearest'
+        self.tiling = None
+
+        self.nside = None
+        self.nside_tile = None
+        self.ordering = 'NEST'  # 'RING' or 'NEST'. Only NEST can be used with tiles
+
+    @classmethod
+    def for_healpix(cls, nside, interpol=None, ordering='NEST', nside_tile=None, active_tiles=None):
+        """ Construct a Projectionist for Healpix maps.
+        """
+        self=cls()
+        self.proj_name = 'HP'
+        self.nside = nside
+        self.active_tiles = active_tiles
+        if interpol is not None and (interpol not in ['nearest', 'nn']):
+            raise NotImplementedError("Only 'nearest' interpolation is supported for Healpix")
+        self.interpol = 'nearest'
+
+        self.ordering = ordering
+        if ordering not in ['NEST', 'RING']:
+            raise ValueError("ordering {ordering} should be 'NEST' or 'RING'")
+
+        if nside_tile is not None:
+            self.nside_tile = nside_tile
+            self.tiling = True
+
+        if ordering == 'RING' and self.tiled:
+            raise NotImplementedError("'RING' not supported for tiled maps")
+
+        return self
+
+    def get_coords(self, assembly, use_native=False, output=None):
+        projeng = self.get_ProjEng('TQU')
+        if use_native:
+            q_native = self._cache_q_fp_to_native(assembly.Q)
+        else:
+            q_native = assembly.Q
+        return projeng.coords(q_native, assembly.dets, output)
+
+    def _get_pixelizor_args(self):
+        """Returns a tuple of arguments that may be passed to the ProjEng
+        constructor to define the pixelization.
+
+        """
+        if self.active_tiles is not None:
+            active_tiles = list(map(int, self.active_tiles))
+        else:
+            active_tiles = None
+        nside_tile = None
+        if self.nside_tile is not None:
+            nside_tile = int(self.nside_tile)
+
+        args = (int(self.nside),
+                int(self.ordering == 'NEST'),
+                nside_tile,
+                active_tiles)
+        return args
 
 
 class _Tiling:
