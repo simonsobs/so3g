@@ -438,36 +438,38 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
 
 //! Pixelizors
 //
-class Pixelizor_Healpix {
-  // Make [1, npix] full-sky maps in HEALPIX RING ordering
+
+const int NSIDE_MAX=8192; // int32 should work up to nside8192
+template <typename TilingSys>
+class Pixelizor_Healpix;
+
+template<>
+class Pixelizor_Healpix<NonTiled> {
+  // Make [npix] full-sky maps in HEALPIX NEST or RING ordering
   // int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
 public:
-  static const int index_count = 2;
+  static const int index_count = 1;
   static const int interp_count = 1;
-  Pixelizor_Healpix(int npix){
-    nside = npix2nside(npix);
-    naxis[0] = 1; // keep 2d array for compatibility, first axis always len 1
-    naxis[1] = npix;
+  Pixelizor_Healpix(int nside, bool nest=true){
+    this->nside = nside;
+    this->nest = nest;
+    npix = nside2npix(nside);
+    check_nside(nside);
     };
-  Pixelizor_Healpix() : naxis{1,1} {};
+  Pixelizor_Healpix() {};
   Pixelizor_Healpix(bp::object args) {
-    // args[0]: int npix
-    // args[1]: list<int>[nthreads+1] max pixel id for each domain for threading
     bp::tuple args_tuple = bp::extract<bp::tuple>(args);
-    int npix = bp::extract<int>(args_tuple[0])();
-    bp::list pixRangeMaxes_bp = bp::extract<bp::list>(args_tuple[1])();
-    for (int ii=0; ii<bp::len(pixRangeMaxes_bp); ii++){
-      pixRangeMaxes.push_back(bp::extract<int>(pixRangeMaxes_bp[ii]));
-    }
-    nside = npix2nside(npix);
-    naxis[0] = 1;
-    naxis[1] = npix;
+    // args[0]: int nside
+    nside = bp::extract<int>(args_tuple[0])();
+    // args[1]: bool isnest
+    nest = bp::extract<bool>(args_tuple[1])();
+    npix = nside2npix(nside);
+    check_nside(nside);
     }
     ~Pixelizor_Healpix() {};
 
     bp::object zeros(vector<int> shape) {
-        shape.push_back(naxis[0]);
-        shape.push_back(naxis[1]);
+        shape.push_back(npix);
         int ndim = 0;
         npy_intp dims[32];
         for (auto d: shape)
@@ -483,18 +485,16 @@ public:
       double phi = coords[0]; // lon, -2pi->2pi
       double theta = M_PI/2 - coords[1]; // colat, 0->pi
       t_ang ang = (t_ang) {theta, phi};
-      int ix = ang2ring(nside, ang);
-      pixel_index[0] = 0;
-      pixel_index[1] = ix;
+      int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+      pixel_index[0] = ix;
     }
     inline
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
       double phi = coords[0]; // lon, -2pi->2pi
       double theta = M_PI/2 - coords[1]; // colat, 0->pi
       t_ang ang = (t_ang) {theta, phi};
-      int ix = ang2ring(nside, ang);
-      pixinds[0][0] = 0;
-      pixinds[0][1] = ix;
+      int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+      pixinds[0][0] = ix;
       pixweights[0] = 1;
       return 1;
     }
@@ -516,34 +516,205 @@ public:
     double *pix(int imap, const int pixel_index[]) {
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
-                         mapbuf->strides[1]*pixel_index[0] +
-                         mapbuf->strides[2]*pixel_index[1]);
+                         mapbuf->strides[1]*pixel_index[0]);
     }
     double *wpix(int imap, int jmap, const int pixel_index[]) {
         return (double*)((char*)mapbuf->buf +
                          mapbuf->strides[0]*imap +
                          mapbuf->strides[1]*jmap +
-                         mapbuf->strides[2]*pixel_index[0] +
-                         mapbuf->strides[3]*pixel_index[1]);
+                         mapbuf->strides[2]*pixel_index[0]);
     }
-  int stripe(const int pixel_index[], int thread_count) {
-    // Assign ith thread to ith pixel bin as given in externally defined pixRangeMaxes param
-    // Assumes pixRangeMaxes is ordered, contiguous bins, first element 0 and last element npix
-    for (int ii=0; ii<thread_count; ii++){
-      if ((pixel_index[1] >= pixRangeMaxes[ii]) && (pixel_index[1] < pixRangeMaxes[ii+1]))
-        return ii;
-      }
-    return -1;
-  }
+    int stripe(const int pixel_index[], int thread_count) {
+        return pixel_index[0] * thread_count / npix;
+    }
     int tile_count() {
-      // Could probably implement tiles with a lower nside quite straightforwardly
         return -1;
     }
+  void check_nside(int nside){
+    bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check nside is a power of 2
+    if (! isok){
+      std::ostringstream err;
+      err << "Invalid nside " << nside;
+      throw ValueError_exception(err.str());
+    }
+  }
 
   int nside;
-  int naxis[2]; // int32 should work up to nside8192
+  int npix;
   BufferWrapper<double> mapbuf;
-  vector<int> pixRangeMaxes;
+  bool nest;
+};
+
+template<>
+class Pixelizor_Healpix<Tiled> {
+  // Make a len(nTile) list of [npix/nTile] partial-sky maps in HEALPIX NEST ordering
+  // inactive tiles will contain None
+  // int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
+public:
+  static const int index_count = 2;
+  static const int interp_count = 1;
+  Pixelizor_Healpix(int nside){
+    this->nside = nside;
+    this->nest = true; // we only tile maps in nest
+    populate = vector<bool>(1, true);
+    check_nside(nside);
+    };
+  Pixelizor_Healpix() {};
+  Pixelizor_Healpix(bp::object args) {
+    // args[0]: int nside
+    bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+    nside = bp::extract<int>(args_tuple[0])();
+    // args[1]: bool nestin: MUST BE true ; check that
+    bool nestin = bp::extract<bool>(args_tuple[1])(); // "nest" argument, not used for tiled maps
+    if (! nestin){
+      std::ostringstream err;
+      err << "RING not supported for tiled maps";
+      throw ValueError_exception(err.str());
+    }
+    // args[2] int nside_tile; nside defining the tiling
+    int nside_tile = bp::extract<int>(args_tuple[2])();
+    ntiles = nside2npix(nside_tile);
+    if (bp::len(args) >= 4) {
+        // args[3] list(int) of indexes for active tiles
+        bp::object active_tiles = bp::extract<bp::object>(args_tuple[3])();
+        if (! isNone(active_tiles)){
+          populate = vector<bool>(ntiles, false);
+           for (int i=0; i < bp::len(active_tiles); i++) {
+             int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
+             if (idx >= 0 && idx < ntiles)
+                 populate[idx] = true;
+         }
+        }
+    }
+    int npix = nside2npix(nside);
+    npix_per_tile = npix / ntiles;
+    check_nside(nside); // check validity
+    check_nside(nside_tile);
+  }
+  ~Pixelizor_Healpix() {};
+
+    bp::object zeros(vector<int> shape) {
+        int dtype = NPY_FLOAT64;
+        int ndim = 0;
+        npy_intp dims[32];
+        for (auto d: shape)
+            dims[ndim++] = d;
+        ndim += 1;
+        if (populate.size() == 0)
+          throw RuntimeError_exception("Cannot create blank tiled map unless "
+                                  "user has specified what tiles to populate.");
+
+        bp::list maps_out;
+        auto pop_iter = populate.begin();
+        for (int itile = 0; itile < ntiles; itile++){
+            bool pop_this = (pop_iter != populate.end()) && *(pop_iter++);
+            if (pop_this) {
+                dims[ndim-1] = npix_per_tile;
+                PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
+                maps_out.append(bp::handle<>(v));
+            } else
+                maps_out.append(bp::object());
+        }
+        return maps_out;
+    }
+
+    inline
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
+      double phi = coords[0]; // lon, -2pi->2pi
+      double theta = M_PI/2 - coords[1]; // colat, 0->pi
+      t_ang ang = (t_ang) {theta, phi};
+      int ix = ang2nest(nside, ang);
+      //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+      pixel_index[0] = ix / npix_per_tile;
+      pixel_index[1] = ix % npix_per_tile;
+    }
+    inline
+    int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
+      double phi = coords[0]; // lon, -2pi->2pi
+      double theta = M_PI/2 - coords[1]; // colat, 0->pi
+      t_ang ang = (t_ang) {theta, phi};
+      int ix = ang2nest(nside, ang);
+      //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+      pixinds[0][0] = ix / npix_per_tile;
+      pixinds[0][1] = ix % npix_per_tile;
+      pixweights[0] = 1;
+      return 1;
+    }
+
+    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        vector<int> map_shape_req;
+        if (need_map) {
+            // The map is mandatory, and the leading axis must match the
+            // component count.  It can have 1+ other dimensions.
+            map_shape_req = {comp_count,-1,-3};
+        } else if (need_weight_map) {
+            // The map is mandatory, and the two leading axes must match
+            // the component count.  It can have 1+ other dimensions.
+            map_shape_req = {comp_count,comp_count,-1,-3};
+        }
+        if (map_shape_req.size() == 0)
+            return true;
+        mapbufs.clear();
+        for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
+            if (isNone(map[i_tile])) {
+                if (populate[i_tile])
+                    throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
+                mapbufs.push_back(BufferWrapper<double>());
+            } else {
+                // You should be checking that the shape is as expected.
+                mapbufs.push_back(
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
+            }
+        }
+
+        return true;
+    }
+
+    double *pix(int imap, const int pixel_index[]) {
+        const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*pixel_index[1]);
+    }
+    double *wpix(int imap, int jmap, const int pixel_index[]) {
+        // Expensive shared_ptr copy?
+        const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*jmap +
+                         mapbuf->strides[2]*pixel_index[1]);
+    }
+
+    int stripe(const int pixel_index[], int thread_count) {
+      int ipix = pixel_index[0] * npix_per_tile + pixel_index[1];
+      int npix = npix_per_tile * ntiles;
+      return ipix * thread_count / npix;
+    }
+    int tile_count() {
+      return ntiles;
+    }
+
+  void check_nside(int nside){
+    bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check power of 2
+    if (! isok){
+      std::ostringstream err;
+      err << "Invalid nside " << nside;
+      throw ValueError_exception(err.str());
+    }
+  }
+
+  int nside;
+  int ntiles;
+  int npix_per_tile;
+  vector<bool> populate;
+  vector<BufferWrapper<double>> mapbufs;
+  bool nest;
 };
 
 template <typename TilingSys, typename Interpol = NearestNeighbor>
@@ -1656,20 +1827,16 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
-
     //Do we need a map?  Now is the time.
     if (isNone(map))
         map = _pixelizor.zeros(vector<int>{S::comp_count});
-
     // Confirm that map has the right meta-shape.
     _pixelizor.TestInputs(map, true, false, S::comp_count);
-
     // Get pointers to the signal and (optional) per-det weights.
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
-
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
@@ -1985,9 +2152,12 @@ typedef ProjEng_Precomp<Tiled> ProjEng_Precomp_Tiled;
     typedef ProjectionEngine<Proj ## PIX,Pixelizor2_Flat<TILING,Bilinear>,Spin##SPIN> \
         PROJENG_INTERP(PIX, SPIN, TILING, Bilinear);
 
-typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix, SpinT> ProjEng_HP_T_NonTiled;
-typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix, SpinQU> ProjEng_HP_QU_NonTiled;
-typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix, SpinTQU> ProjEng_HP_TQU_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> ProjEng_HP_T_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> ProjEng_HP_QU_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> ProjEng_HP_TQU_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> ProjEng_HP_T_Tiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> ProjEng_HP_QU_Tiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> ProjEng_HP_TQU_Tiled;
 
 #define TYPEDEF_SPIN(PIX, SPIN)                 \
     TYPEDEF_TILING(PIX, SPIN, Tiled)            \
@@ -2067,4 +2237,8 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
     EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
     EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_T_Tiled);
+    EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
+    EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
+
 }
