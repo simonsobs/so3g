@@ -186,7 +186,7 @@ public:
         // Note special values (-1,-2,-3) permit unknown, arbitrary
         // leading, and arbitrary trailing elements in buffer's shape.
         int i=0, j=0;
-        while (i < shape.size() && j < vshape.size()) {
+        while (i < shape.size()){
             if (shape[i] == -1) {
                 // Match any single entry.
                 j++;
@@ -196,7 +196,7 @@ public:
             } else if (shape[i] == -3) {
                 // Ignore 0 or more trailing entries.
                 j = vshape.size();
-            } else if (shape[i] == vshape[j]) {
+            } else if ((j < vshape.size()) && (shape[i] == vshape[j])) {
                 // Matched exactly.
                 j++;
             } else
