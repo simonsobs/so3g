@@ -1,6 +1,6 @@
 import numpy as np
 import so3g
-import healpy as hp
+import healpy as hp ## Used for convenience in plotting
 from matplotlib import pyplot as plt
 
 def main():
@@ -20,8 +20,10 @@ def main():
     isignal = 0 # What coord to use as signal. 0=ra, 1=dec
 
     ## Mapmaking params ##
-    nside = 512
-    nside_tile = 16
+    nside = 512  # Nside of the map
+    nside_tile = 16  # Nside of tiles to use. None for untiled or 'auto' to compute and set a reasonable number.
+    # 'auto' sets n_tile = nActiveTilesPerThread * nThreads / fsky with nActiveTilesPerThread=5, and rounds up to nearest power of 2
+    # n_tile = 2 ** np.ceil(0.5 * np.log2(nActiveTilesPerThread * nThreads / (12 * fsky)))
     det_weights = None
 
     ## Simulate scanning and make TOD ##
@@ -35,17 +37,21 @@ def main():
     ######## Do simple 1-component mapmaking  ########
     print("Making untiled map")
     ## Make an untiled map ##
+    # Multi-threading possible but current naive thread assignment expected to perform very poorly on small sky area
+    # Use tiled map if you care about multi-thread performance / efficiency
     proj = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile=None)
     proj.assign_threads(asm, 'simple') ## Assign threads
     rhs = proj.to_map(signal, asm, det_weights=det_weights, comps='T')
     weights = proj.to_weights(asm, det_weights=det_weights, comps='T')
     # Now simple combination
     iweights = np.zeros_like(weights)
-    idx = (weights != 0)    
+    idx = (weights != 0)
     iweights[idx] = 1/(weights[idx])
     imap = (rhs * iweights[0])[0]
 
     ## Make a tiled map ##
+    # Tiles used for thread assignment and to efficiently store partial-sky information. Much better performance / thread scaling than untiled
+    # You want a few tiles per thread to allow load balancing so set this for nActiveTiles/nthreads = 12*nside_tile**2 * fsky / nthreads ~5-10
     print("Making tiled map")
     proj = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile=nside_tile)
     proj.assign_threads(asm, 'tiles') ## Assign threads
@@ -54,7 +60,7 @@ def main():
     rhs = untile_healpix(proj.to_map(signal, asm, det_weights=det_weights, comps='T'))
     weights = untile_healpix(proj.to_weights(asm, det_weights=det_weights, comps='T'))
     iweights = np.zeros_like(weights)
-    idx = (weights != 0)    
+    idx = (weights != 0)
     iweights[idx] = 1/(weights[idx])
     imap_tiled = (rhs * iweights[0])[0]
 
@@ -63,7 +69,7 @@ def main():
 
     ## Plot ##
     imap[imap==0] = hp.UNSEEN
-    hp.mollview(imap, nest=True)    
+    hp.mollview(imap, nest=True)
     plt.show()
 
     ## Plot gnomview ##
@@ -75,7 +81,7 @@ def main():
     width_pix = int(np.rad2deg(width) * 60. / reso) * 2
     hp.gnomview(imap, nest=True, rot=center, xsize=width_pix*1.4, reso=reso)
     plt.show()
-    
+
 
 ######## Helper functions for tiled healpix maps ########
 

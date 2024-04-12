@@ -386,8 +386,9 @@ class _ProjectionistBase:
                 group_tiles[idx].append(_t)
             imax = np.argmax(group_n)
             max_ratio = group_n[imax] / np.mean(np.concatenate([group_n[:imax], group_n[imax+1:]]))
-            if len(group_n)>1 and max_ratio > 1.1:
-                print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
+            # if len(group_n)>1 and max_ratio > 1.1:
+            #     print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
+
             # Now paint them into Ranges.
             R = projeng.tile_ranges(q_native, assembly.dets, group_tiles)
             R = wrap_ivals(R)
@@ -703,6 +704,19 @@ class ProjectionistHealpix(_ProjectionistBase):
             raise NotImplementedError("'RING' not supported for tiled maps")
 
         return self
+
+    def get_active_tiles(self, assembly, assign=False):
+        if self.nside_tile == 'auto':
+            nside_tile0 = 4  # ntile = 192, for estimating fsky
+            nActivePerThread = 5 # How many active pixels do you want per thread
+            self.nside_tile = nside_tile0
+            nActive = len(self.get_active_tiles(assembly)['active_tiles'])
+            fsky = nActive / (12 * nside_tile0**2)
+            nThreads = so3g.useful_info()['omp_num_threads']
+            # nside_tile is smallest power of 2 satisfying nTile >= nActivePerThread * nthread / fsky
+            self.nside_tile = int(2**np.ceil(0.5 * np.log2(nActivePerThread * nThreads / (12 * fsky))))
+            #print('Setting nside_tile=', self.nside_tile)
+        return super().get_active_tiles(assembly, assign)
 
     def get_coords(self, assembly, use_native=False, output=None):
         projeng = self.get_ProjEng('TQU')
