@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <cmath>
 extern "C" {
     #include <cblas.h>
     // Additional prototypes for Fortran LAPACK routines.
@@ -555,6 +556,62 @@ void get_gap_fill_poly(const bp::object ranges,
     free(a);
 }
 
+template <typename T>
+void block_moment(const bp::object & tod, const bp::object & out, int bsize, int moment, bool central)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    T* output = (T*)out_buf->buf;
+
+    int nblock = (nsamp/bsize) + 1;
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        for(int bi = 0; bi < nblock; bi++)
+        {
+            int start =  bi * bsize;
+            int stop = start + bsize;
+            int _bsize = bsize;
+            if(bi == nblock - 1)
+            {
+                stop = nsamp;
+                _bsize = stop - start;
+            }
+            // Could replace the loops with boost accumulators?
+            T center = 0.0;
+            if(central == 1 | moment == 1)
+            {
+                for(int si = start; si < stop; si++)
+                {
+                    center = center + tod_data[ioff+si];
+                }
+                center = center / _bsize;
+            }
+            T val = 0;
+            if(moment == 1)
+            {
+                val = center;
+            }
+            else
+            {
+                for(int si = start; si < stop; si++)
+                {
+                    val = val + pow(tod_data[ioff+si] - center, moment);
+                }
+                val = val / _bsize;
+            }
+            for(int si = start; si < stop; si++)
+            {
+                output[ioff+si] = val;
+            }
+        }
+    }
+}
+
 PYBINDINGS("so3g")
 {
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
@@ -579,4 +636,6 @@ PYBINDINGS("so3g")
             "Do polynomial gap-filling for float64 data.\n"
             "\n"
             "See details in docstring for get_gap_fill_poly.\n");
+    bp::def("block_moment", block_moment<float>);
+    bp::def("block_moment64", block_moment<double>);
 }
