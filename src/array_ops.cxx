@@ -557,23 +557,16 @@ void get_gap_fill_poly(const bp::object ranges,
 }
 
 template <typename T>
-void block_moment(const bp::object & tod, const bp::object & out, int bsize, int moment, bool central)
+void _block_moment(T* tod_data, T* output, int bsize, int moment, bool central, int ndet, int nsamp, int shift)
 {
-    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
-    int ndet = tod_buf->shape[0];
-    int nsamp = tod_buf->shape[1];
-    T* tod_data = (T*)tod_buf->buf;
-    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
-    T* output = (T*)out_buf->buf;
-
-    int nblock = (nsamp/bsize) + 1;
+    int nblock = ((nsamp - shift)/bsize) + 1;
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++)
     {
         int ioff = di*nsamp;
         for(int bi = 0; bi < nblock; bi++)
         {
-            int start =  bi * bsize;
+            int start =  (bi * bsize) + shift;
             int stop = start + bsize;
             int _bsize = bsize;
             if(bi == nblock - 1)
@@ -612,6 +605,162 @@ void block_moment(const bp::object & tod, const bp::object & out, int bsize, int
     }
 }
 
+template <typename T>
+void block_moment(const bp::object & tod, const bp::object & out, int bsize, int moment, bool central, int shift)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    T* output = (T*)out_buf->buf;
+    _block_moment(tod_data, output, bsize, moment, central, ndet, nsamp, shift);
+}
+
+template <typename T>
+void matched_jumps(const bp::object & tod, const bp::object & out, int bsize)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    T* output = (T*)out_buf->buf;
+
+    // Get the matched filters, this is basically convolving with a step
+    _block_moment(tod_data, output, bsize, 1, 0, ndet, nsamp, 0);
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        T val = 0;
+        for(int si = 0; si < nsamp; si++)
+        {
+            int i = ioff + si;
+            val = val + tod_data[i] - output[i];
+            output[i] = val;
+        }
+    }
+    
+    // Now do the shifted filter
+    int half_win = bsize / 2;
+    T* buffer = new T[ndet * nsamp];
+    _block_moment(tod_data, buffer, bsize, 1, 0, ndet, nsamp, half_win);
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        for(int si = 0; si < half_win; si++)
+        {
+            int i = ioff + si;
+            buffer[i] = 0.;
+        }
+        T val = 0;
+        for(int si = half_win; si < nsamp; si++)
+        {
+            int i = ioff + si;
+            val = val + tod_data[i] - buffer[i];
+            buffer[i] = val;
+        }
+    }
+
+    // Now we combine
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        for(int si = 0; si < nsamp; si++)
+        {
+            int i = ioff + si;
+            output[i] = max(abs(output[i]), abs(buffer[i]));
+        }
+    }
+
+}
+
+template <typename T>
+void scale_jumps(const bp::object & tod, const bp::object & out, const bp::object & atol, int win_size, T scale)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    T* output = (T*)out_buf->buf;
+    BufferWrapper<T> tol_buf  ("atol",  atol,  false, std::vector<int>{ndet});
+    T* tol = (T*)tol_buf->buf;
+
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        for(int si = 0; si < nsamp; si++)
+        {
+            int i = ioff + si;
+            T val;
+            int idx = 0;
+            if(i > win_size)
+            {
+                idx = i - win_size;
+            }
+            T ratio = (tod_data[i] - tod_data[idx])/scale;
+            if(abs(ratio) < .5)
+            {
+                output[i] = 0;
+                continue;
+            }
+            T rounded = (T)round(ratio);
+            if(abs(ratio - rounded) <= tol[di])
+            {
+                output[i] = rounded * scale;
+            }
+            else
+            {
+                output[i] = 0;
+            }
+        }
+    }
+}
+
+void clean_flag(const bp::object & flag, int width)
+{
+    BufferWrapper<int> flag_buf  ("flag", flag, false, std::vector<int>{-1, -1});
+    int ndet = flag_buf->shape[0];
+    int nsamp = flag_buf->shape[1];
+    int* flag_data = (int*)flag_buf->buf;
+
+    int* buffer = new int[ndet * nsamp];
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        int val = 0;
+        for(int si = 0; si < nsamp; si++)
+        {
+            int i = ioff + si;
+            buffer[i] = flag_data[i];
+            int comp = 0;
+            if(i>=width)
+            {
+                comp = buffer[i-width];
+            }
+            val = val + buffer[i] - comp;
+            if(val >= width)
+            {
+                for(int j = max(1+i-width, ioff); j <= i; j++)
+                {
+                    flag_data[j] = 1;
+                }
+            }
+            else
+            {
+                flag_data[i] = 0;
+            }
+        }
+    }
+}
+
+
 PYBINDINGS("so3g")
 {
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
@@ -638,4 +787,9 @@ PYBINDINGS("so3g")
             "See details in docstring for get_gap_fill_poly.\n");
     bp::def("block_moment", block_moment<float>);
     bp::def("block_moment64", block_moment<double>);
+    bp::def("matched_jumps", matched_jumps<float>);
+    bp::def("matched_jumps64", matched_jumps<double>);
+    bp::def("scale_jumps", scale_jumps<float>);
+    bp::def("scale_jumps64", scale_jumps<double>);
+    bp::def("clean_flag", clean_flag);
 }
