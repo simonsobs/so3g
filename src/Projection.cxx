@@ -443,28 +443,31 @@ const int NSIDE_MAX=8192; // int32 should work up to nside8192
 template <typename TilingSys>
 class Pixelizor_Healpix;
 
+// Pixelizor_Healpix<NonTiled>
+//
+// Make [npix] full-sky maps in HEALPIX NEST or RING ordering
+// int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
+
 template<>
 class Pixelizor_Healpix<NonTiled> {
-  // Make [npix] full-sky maps in HEALPIX NEST or RING ordering
-  // int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
 public:
-  static const int index_count = 1;
-  static const int interp_count = 1;
-  Pixelizor_Healpix(int nside, bool nest=true){
-    this->nside = nside;
-    this->nest = nest;
-    npix = nside2npix(nside);
-    check_nside(nside);
+    static const int index_count = 1;
+    static const int interp_count = 1;
+    Pixelizor_Healpix(int nside, bool nest=true){
+        this->nside = nside;
+        this->nest = nest;
+        npix = nside2npix(nside);
+        check_nside(nside);
     };
-  Pixelizor_Healpix() {};
-  Pixelizor_Healpix(bp::object args) {
-    bp::tuple args_tuple = bp::extract<bp::tuple>(args);
-    // args[0]: int nside
-    nside = bp::extract<int>(args_tuple[0])();
-    // args[1]: bool isnest
-    nest = bp::extract<bool>(args_tuple[1])();
-    npix = nside2npix(nside);
-    check_nside(nside);
+    Pixelizor_Healpix() {};
+    Pixelizor_Healpix(bp::object args) {
+        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+        // args[0]: int nside
+        nside = bp::extract<int>(args_tuple[0])();
+        // args[1]: bool isnest
+        nest = bp::extract<bool>(args_tuple[1])();
+        npix = nside2npix(nside);
+        check_nside(nside);
     }
     ~Pixelizor_Healpix() {};
 
@@ -482,21 +485,21 @@ public:
 
     inline
     void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
-      double phi = coords[0]; // lon, -2pi->2pi
-      double theta = M_PI/2 - coords[1]; // colat, 0->pi
-      t_ang ang = (t_ang) {theta, phi};
-      int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
-      pixel_index[0] = ix;
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixel_index[0] = ix;
     }
     inline
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
-      double phi = coords[0]; // lon, -2pi->2pi
-      double theta = M_PI/2 - coords[1]; // colat, 0->pi
-      t_ang ang = (t_ang) {theta, phi};
-      int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
-      pixinds[0][0] = ix;
-      pixweights[0] = 1;
-      return 1;
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixinds[0][0] = ix;
+        pixweights[0] = 1;
+        return 1;
     }
 
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
@@ -530,67 +533,70 @@ public:
     int tile_count() {
         return -1;
     }
-  void check_nside(int nside){
-    bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check nside is a power of 2
-    if (! isok){
-      std::ostringstream err;
-      err << "Invalid nside " << nside;
-      throw ValueError_exception(err.str());
+    void check_nside(int nside){
+        bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check nside is a power of 2
+        if (! isok){
+          std::ostringstream err;
+          err << "Invalid nside " << nside;
+          throw ValueError_exception(err.str());
+        }
     }
-  }
 
-  int nside;
-  int npix;
-  BufferWrapper<double> mapbuf;
-  bool nest;
+    int nside;
+    int npix;
+    BufferWrapper<double> mapbuf;
+    bool nest;
 };
+
+// Pixelizor_Healpix<Tiled>
+//
+// Make a len(nTile) list of [npix/nTile] partial-sky maps in HEALPIX NEST ordering
+// inactive tiles will contain None
+// int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
 
 template<>
 class Pixelizor_Healpix<Tiled> {
-  // Make a len(nTile) list of [npix/nTile] partial-sky maps in HEALPIX NEST ordering
-  // inactive tiles will contain None
-  // int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
 public:
-  static const int index_count = 2;
-  static const int interp_count = 1;
-  Pixelizor_Healpix(int nside){
-    this->nside = nside;
-    this->nest = true; // we only tile maps in nest
-    populate = vector<bool>(1, true);
-    check_nside(nside);
+    static const int index_count = 2;
+    static const int interp_count = 1;
+    Pixelizor_Healpix(int nside){
+        this->nside = nside;
+        this->nest = true; // we only tile maps in nest
+        populate = vector<bool>(1, true);
+        check_nside(nside);
     };
-  Pixelizor_Healpix() {};
-  Pixelizor_Healpix(bp::object args) {
-    // args[0]: int nside
-    bp::tuple args_tuple = bp::extract<bp::tuple>(args);
-    nside = bp::extract<int>(args_tuple[0])();
-    // args[1]: bool nestin: MUST BE true ; check that
-    bool nestin = bp::extract<bool>(args_tuple[1])(); // "nest" argument, not used for tiled maps
-    if (! nestin){
-      std::ostringstream err;
-      err << "RING not supported for tiled maps";
-      throw ValueError_exception(err.str());
-    }
-    // args[2] int nside_tile; nside defining the tiling
-    int nside_tile = bp::extract<int>(args_tuple[2])();
-    ntiles = nside2npix(nside_tile);
-    if (bp::len(args) >= 4) {
-        // args[3] list(int) of indexes for active tiles
-        bp::object active_tiles = bp::extract<bp::object>(args_tuple[3])();
-        if (! isNone(active_tiles)){
-          populate = vector<bool>(ntiles, false);
-           for (int i=0; i < bp::len(active_tiles); i++) {
-             int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
-             if (idx >= 0 && idx < ntiles)
-                 populate[idx] = true;
-         }
+    Pixelizor_Healpix() {};
+    Pixelizor_Healpix(bp::object args) {
+        // args[0]: int nside
+        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+        nside = bp::extract<int>(args_tuple[0])();
+        // args[1]: bool nestin: MUST BE true ; check that
+        bool nestin = bp::extract<bool>(args_tuple[1])(); // "nest" argument, not used for tiled maps
+        if (! nestin){
+            std::ostringstream err;
+            err << "RING not supported for tiled maps";
+            throw ValueError_exception(err.str());
         }
+        // args[2] int nside_tile; nside defining the tiling
+        int nside_tile = bp::extract<int>(args_tuple[2])();
+        ntiles = nside2npix(nside_tile);
+        if (bp::len(args) >= 4) {
+            // args[3] list(int) of indexes for active tiles
+            bp::object active_tiles = bp::extract<bp::object>(args_tuple[3])();
+            if (! isNone(active_tiles)){
+                populate = vector<bool>(ntiles, false);
+                 for (int i=0; i < bp::len(active_tiles); i++) {
+                     int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
+                     if (idx >= 0 && idx < ntiles)
+                         populate[idx] = true;
+                 }
+            }
+        }
+        int npix = nside2npix(nside);
+        npix_per_tile = npix / ntiles;
+        check_nside(nside); // check validity
+        check_nside(nside_tile);
     }
-    int npix = nside2npix(nside);
-    npix_per_tile = npix / ntiles;
-    check_nside(nside); // check validity
-    check_nside(nside_tile);
-  }
   ~Pixelizor_Healpix() {};
 
     bp::object zeros(vector<int> shape) {
@@ -601,7 +607,7 @@ public:
             dims[ndim++] = d;
         ndim += 1;
         if (populate.size() == 0)
-          throw RuntimeError_exception("Cannot create blank tiled map unless "
+            throw RuntimeError_exception("Cannot create blank tiled map unless "
                                   "user has specified what tiles to populate.");
 
         bp::list maps_out;
@@ -620,25 +626,25 @@ public:
 
     inline
     void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
-      double phi = coords[0]; // lon, -2pi->2pi
-      double theta = M_PI/2 - coords[1]; // colat, 0->pi
-      t_ang ang = (t_ang) {theta, phi};
-      int ix = ang2nest(nside, ang);
-      //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
-      pixel_index[0] = ix / npix_per_tile;
-      pixel_index[1] = ix % npix_per_tile;
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = ang2nest(nside, ang);
+        //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixel_index[0] = ix / npix_per_tile;
+        pixel_index[1] = ix % npix_per_tile;
     }
     inline
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
-      double phi = coords[0]; // lon, -2pi->2pi
-      double theta = M_PI/2 - coords[1]; // colat, 0->pi
-      t_ang ang = (t_ang) {theta, phi};
-      int ix = ang2nest(nside, ang);
-      //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
-      pixinds[0][0] = ix / npix_per_tile;
-      pixinds[0][1] = ix % npix_per_tile;
-      pixweights[0] = 1;
-      return 1;
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = ang2nest(nside, ang);
+        //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixinds[0][0] = ix / npix_per_tile;
+        pixinds[0][1] = ix % npix_per_tile;
+        pixweights[0] = 1;
+        return 1;
     }
 
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
@@ -692,29 +698,29 @@ public:
     }
 
     int stripe(const int pixel_index[], int thread_count) {
-      int ipix = pixel_index[0] * npix_per_tile + pixel_index[1];
-      int npix = npix_per_tile * ntiles;
-      return ipix * thread_count / npix;
+        int ipix = pixel_index[0] * npix_per_tile + pixel_index[1];
+        int npix = npix_per_tile * ntiles;
+        return ipix * thread_count / npix;
     }
     int tile_count() {
-      return ntiles;
+        return ntiles;
     }
 
-  void check_nside(int nside){
-    bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check power of 2
-    if (! isok){
-      std::ostringstream err;
-      err << "Invalid nside " << nside;
-      throw ValueError_exception(err.str());
+    void check_nside(int nside){
+        bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check power of 2
+        if (! isok){
+            std::ostringstream err;
+            err << "Invalid nside " << nside;
+            throw ValueError_exception(err.str());
+        }
     }
-  }
 
-  int nside;
-  int ntiles;
-  int npix_per_tile;
-  vector<bool> populate;
-  vector<BufferWrapper<double>> mapbufs;
-  bool nest;
+    int nside;
+    int ntiles;
+    int npix_per_tile;
+    vector<bool> populate;
+    vector<BufferWrapper<double>> mapbufs;
+    bool nest;
 };
 
 template <typename TilingSys, typename Interpol = NearestNeighbor>
@@ -1426,6 +1432,7 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
             target_ranges[i_det].append_interval_no_check(domain_start, n_time);
         }
     }
+
     // Convert super vector to a list and return
     auto ivals = bp::list();
     for (int i=0; i<ranges.size(); i++) {
@@ -1827,16 +1834,20 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
+
     //Do we need a map?  Now is the time.
     if (isNone(map))
         map = _pixelizor.zeros(vector<int>{S::comp_count});
+
     // Confirm that map has the right meta-shape.
     _pixelizor.TestInputs(map, true, false, S::comp_count);
+
     // Get pointers to the signal and (optional) per-det weights.
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
