@@ -500,6 +500,67 @@ which can then be used to construct a new Projectionist::
   p = so3g.proj.Projectionist.for_tiled(shape, wcs, (20, 50), tile_list)
 
 
+HEALPix Maps
+------------
+In addition to rectangular pixelizations, the
+`HEALPix <https://healpix.sourceforge.io/>`_ pixelization is supported
+through the :class:`ProjectionistHealpix` class.
+This shares most of the routines of the :class:`Projectionist` class for
+rectangular pixelization.
+
+
+We make a simple :class:`ProjectionistHealpix`::
+
+  nside = 128
+  p = so3g.proj.ProjectionistHealpix.for_healpix(nside, ordering='NEST')
+  asm = so3g.proj.Assembly.attach(csl, fp)
+
+The first argument here is HEALPix NSIDE defining the number of pixels.
+The second is an optional argument defining the pixel ordering; it may
+be 'NEST' or 'RING', default 'NEST'. See HEALPix docs for more info.
+
+As for rectangular pixelization we can use ``from_map`` to go from map
+to time domain::
+
+  npix = 12*nside**2
+  imap = np.arange(npix, dtype=np.float64)  # Make a map
+  tod = p.from_map(imap, asm)
+  # We can check the answer with healpy
+  import healpy as hp
+  ftod = np.array(tod, dtype=np.int64).flatten()
+  pix_dec, pix_ra = hp.pix2ang(nside, ftod, nest=True, lonlat=True)
+
+This basic projectionist supports only a very simple threading scheme,
+``'simple'``; this is likely to be highly inefficient for small
+sky-area maps. It is therefore primarily useful for small cases and
+``from_map``.
+For efficient OpenMP parallelization for ``to_map`` and ``to_weights``
+use a Tiled map::
+
+  nside = 128
+  nside_tile = 4 # power of 2 or 'auto'
+  p = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile)
+  threads = p.assign_threads(asm, 'tiles')
+
+Tiles are defined by HEALPix super-pixels at ``nside_tile``, which may
+be given explicitly or computed automatically for efficient threading.
+Tiled maps currently only support 'NEST' ordering.
+
+To project a map::
+
+  # Same dummy signal as above; 3 detectors at 1 time point
+  signal = np.array([[1.], [10.], [100.]], dtype='float32')
+  imap = p.to_map(signal, asm, comps='TQU', threads=threads)
+  weights = p.to_weights(asm, comps='TQU', threads=threads)
+
+A tiled map will be a list of tiles, with ``None`` for empty tiles.
+Converting to a full-sky HEALPix map requires a bit more work,
+for example::
+
+  tile_shape = (3, (nside//nside_tile)**2) # (ncomp, npix_per_tile)
+  full_map = np.hstack([tile if tile is not None else \
+             np.zeros(tile_shape) for tile in imap])
+
 Coordinate Systems
 ==================
 

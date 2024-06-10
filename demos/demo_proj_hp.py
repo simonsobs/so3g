@@ -40,32 +40,58 @@ def main():
     # Multi-threading possible but current naive thread assignment expected to perform very poorly on small sky area
     # Use tiled map if you care about multi-thread performance / efficiency
     proj = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile=None)
-    proj.assign_threads(asm, 'simple') ## Assign threads
-    rhs = proj.to_map(signal, asm, det_weights=det_weights, comps='T')
-    weights = proj.to_weights(asm, det_weights=det_weights, comps='T')
+    threads = proj.assign_threads(asm, 'simple') ## Assign threads
+    output = np.zeros((1, hp.nside2npix(nside)))
+    rhs = proj.to_map(signal, asm, output=output, det_weights=det_weights, comps='T', threads=threads)
+    weights = proj.to_weights(asm, det_weights=det_weights, comps='T', threads=threads)
     # Now simple combination
-    iweights = np.zeros_like(weights)
-    idx = (weights != 0)
-    iweights[idx] = 1/(weights[idx])
+    iweights = invert(weights)
     imap = (rhs * iweights[0])[0]
 
+    ### Test RING ###
+    print("Test RING")
+    imap_nest2ring = hp.reorder(imap, n2r=True)
+    proj_ring = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile=None, ordering='RING')
+    rhs_r = proj_ring.to_map(signal, asm, det_weights=det_weights, comps='T')
+    weights_r = proj_ring.to_weights(asm, det_weights=det_weights, comps='T')
+    imap_r = (rhs_r * invert(weights_r)[0])[0]
+    print("Native ring == reproject: ", np.array_equal(imap_r, imap_nest2ring))
+
+    ### Test from_map ###
+    print("Back to signal")
+    imap2 = np.expand_dims(imap, 0) # Should be (ncomp, npix)
+    imap2 = np.asarray(imap2, dtype=np.float64) # Make sure you have the right dtype
+    sig = np.array(proj.from_map(imap2, asm))
+    print("From map done")
+    idet=0
+    fig, ax = plt.subplots(2)
+    ax[0].plot(signal[idet], label='input')
+    ax[0].plot(sig[idet], label='recovered')
+    ax[0].legend()
+    ax[1].plot((sig-signal)[idet], label='difference')
+    ax[1].axhline(0, color='k')
+    ax[1].legend()
+    plt.show()
+    
     ## Make a tiled map ##
-    # Tiles used for thread assignment and to efficiently store partial-sky information. Much better performance / thread scaling than untiled
-    # You want a few tiles per thread to allow load balancing so set this for nActiveTiles/nthreads = 12*nside_tile**2 * fsky / nthreads ~5-10
+    # Tiles used for thread assignment and to efficiently store partial-sky information.
+    # Much better performance / thread scaling than untiled
+    # You want a few tiles per thread to allow load balancing so set this for
+    # nActiveTiles/nthreads = 12*nside_tile**2 * fsky / nthreads ~5-10
     print("Making tiled map")
     proj = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile=nside_tile)
-    proj.assign_threads(asm, 'tiles') ## Assign threads
+    threads = proj.assign_threads(asm, 'tiles') ## Assign threads
     # Output of to_map and to_weights are len(nTile) lists of None (inactive tiles) or
     # arrays of the tile shape. Use untile_healpix to recover the full map
-    rhs = untile_healpix(proj.to_map(signal, asm, det_weights=det_weights, comps='T'))
-    weights = untile_healpix(proj.to_weights(asm, det_weights=det_weights, comps='T'))
+    rhs = untile_healpix(proj.to_map(signal, asm, det_weights=det_weights, comps='T', threads=threads))
+    weights = untile_healpix(proj.to_weights(asm, det_weights=det_weights, comps='T', threads=threads))
     iweights = np.zeros_like(weights)
     idx = (weights != 0)
     iweights[idx] = 1/(weights[idx])
     imap_tiled = (rhs * iweights[0])[0]
 
     ## Check they are the same ##
-    assert np.array_equal(imap, imap_tiled)
+    print("Tiled map matches un-tiled: ", np.array_equal(imap, imap_tiled))
 
     ## Plot ##
     imap[imap==0] = hp.UNSEEN
@@ -82,13 +108,68 @@ def main():
     hp.gnomview(imap, nest=True, rot=center, xsize=width_pix*1.4, reso=reso)
     plt.show()
 
+    ### From map tiled ###
+    # Convert to tiled if you're starting from a full sky map
+    proj = so3g.proj.ProjectionistHealpix.for_healpix(nside, nside_tile=nside_tile)
+    proj.assign_threads(asm, 'tiles') ## Assign threads; this also computes the tiling
+    active_tiles = np.array(proj.active_tiles)
+    # active_tiles = np.array(proj.get_active_tiles(asm)['active_tiles']) ## Could also get tiling directly like this
+    isactive = [itile in active_tiles for itile in range(12*nside_tile**2)]
+    imap_tiled = np.expand_dims(imap_tiled, 0) # Should be (ncomp, npix)    ## Important to do this *before* tiling
+    tiled_map = tile_healpix(imap_tiled, isactive) # Ntile list of (ncomp, npixPerTile) arrays
+    sig_tiled = np.array(proj.from_map(tiled_map, asm))
+    print("Tiled signal matches un-tiled: ", np.array_equal(sig_tiled, sig))
+
 
 ######## Helper functions for tiled healpix maps ########
+def get_isactive(tiled):
+    return np.array([tile is not None for tile in tiled])
+
+## Top level functions untiled <-> tiled maps in NEST
+def tile_healpix(untiled, isactive):
+    # isactive is an ntile list of True of this tile is active and False if not
+    compressed = compress_healpix(untiled, isactive)
+    tiled = tile_healpix_compressed(compressed, isactive)
+    return tiled
 
 def untile_healpix(tiled):
     compressed = untile_healpix_compressed(tiled)
-    active_tiles = get_active_tiles(tiled)
-    return decompress_healpix(compressed, active_tiles)
+    isactive = get_isactive(tiled)
+    return decompress_healpix(compressed, isactive)
+
+## Untiled <-> "compressed" ie discarding empty tiles
+def compress_healpix(imap, isactive):
+    npix = imap.shape[-1]
+    npix_per_tile = int(npix / len(isactive))
+    cmap = []
+    for tile_ind in range(len(isactive)):
+        if isactive[tile_ind]:
+            cmap.append(imap[..., npix_per_tile * tile_ind : npix_per_tile * (tile_ind+1)])
+    return np.array(cmap, dtype=imap.dtype)
+
+def decompress_healpix(compressed, isactive):
+    """Decompress a healpix map
+    Input: See outputs of untile_healpix_compressed
+    Output: np.array: Full hp map in nest
+    """
+    tile_shape = compressed[0].shape
+    npix_per_tile = tile_shape[-1]
+    super_shape = tile_shape[:-1]
+    npix = len(isactive) * npix_per_tile # ntiles * npix_per_tile
+    out = np.zeros(super_shape + (npix,))
+    tile_inds = [ii for ii in range(len(isactive)) if isactive[ii]]
+    for ii in range(len(compressed)):
+        tile_ind = tile_inds[ii]
+        out[..., npix_per_tile * tile_ind : npix_per_tile * (tile_ind+1)] = compressed[ii]
+    return out
+
+## Compressed <-> tiled
+def tile_healpix_compressed(compressed_map, isactive):
+    tmap = [None] * len(isactive)
+    tile_inds = [ii for ii in range(len(isactive)) if isactive[ii]]
+    for ind, imap in zip(tile_inds, compressed_map):
+        tmap[ind] = imap
+    return tmap
 
 def untile_healpix_compressed(tiled):
     """
@@ -98,24 +179,6 @@ def untile_healpix_compressed(tiled):
     """
     return np.array([tiled[ii] for ii in range(len(tiled)) if tiled[ii] is not None])
 
-def get_active_tiles(tiled):
-    return np.array([tile is not None for tile in tiled])
-
-def decompress_healpix(compressed, active_tiles):
-    """Decompress a healpix map
-    Input: See outputs of untile_healpix_compressed
-    Output: np.array: Full hp map in nest
-    """
-    tile_shape = compressed[0].shape
-    npix_per_tile = tile_shape[-1]
-    super_shape = tile_shape[:-1]
-    npix = len(active_tiles) * npix_per_tile # ntiles * npix_per_tile
-    out = np.zeros(super_shape + (npix,))
-    tile_inds = [ii for ii in range(len(active_tiles)) if active_tiles[ii]]
-    for ii in range(len(compressed)):
-        tile_ind = tile_inds[ii]
-        out[..., npix_per_tile * tile_ind : npix_per_tile * (tile_ind+1)] = compressed[ii]
-    return out
 
 ######## Helper functions to simulate a simple focal plane and TOD ########
 
@@ -162,6 +225,13 @@ def sim_scan(tmax, sample_rate, scan_rate, field_width, el0):
     az = np.abs(az0 % (field_width * 2) - field_width)
     el = np.ones_like(az) * el0
     return time, az, el
+
+def invert(weights):
+    iweights = np.zeros_like(weights)
+    idx = (weights != 0)
+    iweights[idx] = 1/weights[idx]
+    return iweights
+
 
 ##
 if __name__ == '__main__':
