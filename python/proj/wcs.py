@@ -87,9 +87,6 @@ class _ProjectionistBase:
         return self._q_fp_to_native
 
     def _guess_comps(self, map_shape):
-        if len(map_shape) != 3:
-            raise ValueError('Cannot guess components based on '
-                             'map with %i!=3 dimensions!' % len(map_shape))
         if map_shape[0] == 1:
             return 'T'
         elif map_shape[0] == 2:
@@ -98,6 +95,19 @@ class _ProjectionistBase:
             return 'TQU'
         raise ValueError('No default components for ncomp=%i; '
                          'set comps=... explicitly.' % map_shape[0])
+
+    def _get_map_shape(self, imap):
+        """
+        Get map shape, supporting "bare" tiled maps (lists of None or tile array).
+        For a list of tiles it returns the *tile shape*
+        """
+        if isinstance(imap, list): # Assume tile list
+            for tile in imap:
+                if tile is not None:
+                    return tile.shape
+            raise ValueError("map has no non-None entries")
+        else:
+            return imap.shape
 
     def get_pixels(self, assembly):
         """Get the pixel indices for the provided pointing Assembly.  For each
@@ -197,7 +207,7 @@ class _ProjectionistBase:
             raise ValueError("Provide an output map or specify component of "
                              "interest (e.g. comps='TQU').")
         if comps is None:
-            comps = self._guess_comps(output.shape)
+            comps = self._guess_comps(self._get_map_shape(output))
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
         map_out = projeng.to_map(
@@ -221,8 +231,9 @@ class _ProjectionistBase:
             raise ValueError("Provide an output map or specify component of "
                              "interest (e.g. comps='TQU').")
         if comps is None:
-            assert(output.shape[0] == output.shape[1])
-            comps = self._guess_comps(output.shape[1:])
+            shape = self._get_map_shape(output)
+            assert(shape[0] == shape[1])
+            comps = self._guess_comps(shape[1:])
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
         map_out = projeng.to_weight_map(
@@ -241,11 +252,8 @@ class _ProjectionistBase:
         See class documentation for description of standard arguments.
 
         """
-        if src_map.ndim == 2:
-            # Promote to (1,...)
-            src_map = src_map[None]
         if comps is None:
-            comps = self._guess_comps(src_map.shape)
+            comps = self._guess_comps(self._get_map_shape(src_map))
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
         signal_out = projeng.from_map(
@@ -385,7 +393,7 @@ class _ProjectionistBase:
                 group_n[idx] += _n
                 group_tiles[idx].append(_t)
             imax = np.argmax(group_n)
-            max_ratio = group_n[imax] / np.mean(np.concatenate([group_n[:imax], group_n[imax+1:]]))
+            # max_ratio = group_n[imax] / np.mean(np.concatenate([group_n[:imax], group_n[imax+1:]]))
             # if len(group_n)>1 and max_ratio > 1.1:
             #     print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
 
@@ -641,6 +649,12 @@ class Projectionist(_ProjectionistBase):
             self.active_tiles = active_tiles
         return self
 
+    def from_map(self, src_map, assembly, signal=None, comps=None):
+        if src_map.ndim == 2:
+            # Promote to (1,...)
+            src_map = src_map[None]
+        return super().from_map(src_map, assembly, signal, comps)
+
     def _get_pixelizor_args(self):
         """Returns a tuple of arguments that may be passed to the ProjEng
         constructor to define the pixelization.
@@ -657,12 +671,17 @@ class Projectionist(_ProjectionistBase):
                 args += (self.active_tiles,)
         return args
 
+    def _guess_comps(self, map_shape):
+        if len(map_shape) != 3:
+            raise ValueError('Cannot guess components based on '
+                             'map with %i!=3 dimensions!' % len(map_shape))
+        return super()._guess_comps(map_shape)
 
 
 class ProjectionistHealpix(_ProjectionistBase):
     """Projectionist for Healpix maps.
        Attributes:
-           nside: int, nside of the map, power of 2 0 < nside < 8192
+           nside: int, nside of the map, power of 2 0 < nside <= 8192
            nside_tile: None or int, nside of tiling. Ntile will be 12*nside_tile**2. None for untiled.
            ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps
       See Projectionist documentation for further info.
@@ -681,7 +700,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         self.ordering = 'NEST'  # 'RING' or 'NEST'. Only NEST can be used with tiles
 
     @classmethod
-    def for_healpix(cls, nside, interpol=None, ordering='NEST', nside_tile=None, active_tiles=None):
+    def for_healpix(cls, nside, nside_tile=None, active_tiles=None, ordering='NEST', interpol=None):
         """ Construct a Projectionist for Healpix maps.
         """
         self=cls()
@@ -700,22 +719,30 @@ class ProjectionistHealpix(_ProjectionistBase):
             self.nside_tile = nside_tile
             self.tiling = True
 
-        if ordering == 'RING' and self.tiled:
+        if ordering == 'RING' and self.nside_tile is not None:
             raise NotImplementedError("'RING' not supported for tiled maps")
 
         return self
 
-    def get_active_tiles(self, assembly, assign=False):
+    def compute_nside_tile(self, assembly, nActivePerThread=5, nThreads=None):
+        """ Automatically compute nside_tile for good balancing over threads
+            nActivePerThread: int, how many active pixels do you want per thread (minimum)
+            nThreads: int, number of threads to optimize for (takes from OMP_NUM_THREADS if None)"""
         if self.nside_tile == 'auto':
+            ## Estimate fsky
             nside_tile0 = 4  # ntile = 192, for estimating fsky
-            nActivePerThread = 5 # How many active pixels do you want per thread
             self.nside_tile = nside_tile0
             nActive = len(self.get_active_tiles(assembly)['active_tiles'])
             fsky = nActive / (12 * nside_tile0**2)
-            nThreads = so3g.useful_info()['omp_num_threads']
+            if nThreads is None:
+                nThreads = so3g.useful_info()['omp_num_threads']
             # nside_tile is smallest power of 2 satisfying nTile >= nActivePerThread * nthread / fsky
             self.nside_tile = int(2**np.ceil(0.5 * np.log2(nActivePerThread * nThreads / (12 * fsky))))
-            #print('Setting nside_tile=', self.nside_tile)
+            # print('Setting nside_tile =', self.nside_tile)
+        return self.nside_tile
+
+    def get_active_tiles(self, assembly, assign=False):
+        self.compute_nside_tile(assembly) # Set nside_tile if 'auto'
         return super().get_active_tiles(assembly, assign)
 
     def get_coords(self, assembly, use_native=False, output=None):
@@ -725,6 +752,21 @@ class ProjectionistHealpix(_ProjectionistBase):
         else:
             q_native = assembly.Q
         return projeng.coords(q_native, assembly.dets, output)
+
+    def from_map(self, src_map, assembly, signal=None, comps=None):
+        if self.nside_tile is None and src_map.ndim == 1:
+            # Promote to (1,...)
+            src_map = src_map[None]
+        elif self.nside_tile is not None:
+            if not isinstance(src_map, list):
+                raise TypeError(f"Expected list for tiled map; src_map is {type(src_map)}")
+            shape = self._get_map_shape(src_map)
+            if len(shape) == 1:
+                # Promote to (1,...)
+                for itile in range(len(src_map)):
+                    if src_map[itile] is not None:
+                        src_map[itile] = src_map[itile][None]
+        return super().from_map(src_map, assembly, signal, comps)
 
     def _get_pixelizor_args(self):
         """Returns a tuple of arguments that may be passed to the ProjEng
@@ -744,6 +786,12 @@ class ProjectionistHealpix(_ProjectionistBase):
                 nside_tile,
                 active_tiles)
         return args
+
+    def _guess_comps(self, map_shape):
+        if len(map_shape) != 2:
+            raise ValueError('Cannot guess components based on '
+                             'map with %i!=2 dimensions!' % len(map_shape))
+        return super()._guess_comps(map_shape)
 
 
 class _Tiling:
