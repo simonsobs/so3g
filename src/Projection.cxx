@@ -505,12 +505,12 @@ public:
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
-            // component count.  It can have 1+ other dimensions.
+            // component count.  Then the one healpix pixel axis.
             mapbuf = BufferWrapper<double>("map", map, false,
                                            vector<int>{comp_count,-1});
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
-            // the component count.  It can have 1+ other dimensions.
+            // the component count.  Then the one healpix pixel axis.
             mapbuf = BufferWrapper<double>("map", map, false,
                                            vector<int>{comp_count,comp_count,-1});
         }
@@ -791,14 +791,14 @@ public:
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
-            // component count.  It can have 1+ other dimensions.
+            // component count.  And then 2 celestial axes.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,-1,-3});
+                                           vector<int>{comp_count,-1,-1});
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
-            // the component count.  It can have 1+ other dimensions.
+            // the component count.  And then 2 celestial axes.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,comp_count,-1,-3});
+                                           vector<int>{comp_count,comp_count,-1,-1});
         }
         return true;
     }
@@ -980,12 +980,12 @@ public:
         vector<int> map_shape_req;
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
-            // component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,-1,-3};
+            // component count.  And then 2 celestial axes.
+            map_shape_req = {comp_count,-1,-1};
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
-            // the component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,comp_count,-1,-3};
+            // the component count.  And then 2 celestial axes.
+            map_shape_req = {comp_count,comp_count,-1,-1};
         }
         if (map_shape_req.size() == 0)
             return true;
@@ -2125,7 +2125,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
     // Unlike the on-the-fly class, we aren't able to make the map
     // here, because there's no initialized pixelizor.
     auto pixelizor = Pixelizor2_Flat<TilingSys>();
-    pixelizor.TestInputs(map, true, false, n_spin);
+    pixelizor.TestInputs(map, false, true, n_spin);
 
     BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
                                         vector<int>{n_det});
