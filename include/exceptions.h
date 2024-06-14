@@ -15,7 +15,7 @@ public:
     so3g_exception(std::string text) :
         text{text} {}
 
-    std::string msg_for_python() const throw() {
+    virtual std::string msg_for_python() const throw() {
         return text;
     }
 };
