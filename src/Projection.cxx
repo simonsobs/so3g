@@ -507,12 +507,12 @@ public:
             // The map is mandatory, and the leading axis must match the
             // component count.  It can have 1+ other dimensions.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,-1,-3});
+                                           vector<int>{comp_count,-1});
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
             // the component count.  It can have 1+ other dimensions.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,comp_count,-1,-3});
+                                           vector<int>{comp_count,comp_count,-1});
         }
         return true;
     }
@@ -652,11 +652,11 @@ public:
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
             // component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,-1,-3};
+            map_shape_req = {comp_count,-1};
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
             // the component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,comp_count,-1,-3};
+            map_shape_req = {comp_count,comp_count,-1};
         }
         if (map_shape_req.size() == 0)
             return true;
