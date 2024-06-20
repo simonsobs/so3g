@@ -768,6 +768,24 @@ class ProjectionistHealpix(_ProjectionistBase):
                         src_map[itile] = src_map[itile][None]
         return super().from_map(src_map, assembly, signal, comps)
 
+    def assign_threads(self, assembly, method=None, n_threads=None):
+        """Get a thread assignment RangesMatrix.
+           Available methods are ``'simple'`` and ``'tiles'``.
+           See parent class documentation for full description.
+
+        """
+        if method is None:
+            if self.nside_tile is None:
+                method = 'simple'
+            else:
+                method = 'tiles'
+        if (method not in THREAD_ASSIGNMENT_METHODS_HP) and \
+           (method in THREAD_ASSIGNMENT_METHODS):
+           raise ValueError(f'Thread assignment method "{method}" '
+                            'not supported for ProjectionistHealpix. '
+                            f'Expected one of {THREAD_ASSIGNMENT_METHODS_HP}.')
+        return super().assign_threads(assembly, method, n_threads)
+
     def _get_pixelizor_args(self):
         """Returns a tuple of arguments that may be passed to the ProjEng
         constructor to define the pixelization.
@@ -852,4 +870,9 @@ THREAD_ASSIGNMENT_METHODS = [
     'simple',
     'domdir',
     'tiles',
+]
+
+THREAD_ASSIGNMENT_METHODS_HP = [
+    'simple',
+    'tiles'
 ]
