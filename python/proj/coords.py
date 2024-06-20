@@ -127,7 +127,7 @@ class CelestialSightLine:
     @classmethod
     def az_el(cls, t, az, el, roll=None, site=None, weather=None, **kwargs):
         """Construct a SightLine from horizon coordinates.  This uses
-        high-precision pointing.
+        high-precision pointing. kwargs are passed to qpoint.Qpoint.
 
         """
         import qpoint  # https://github.com/arahlin/qpoint

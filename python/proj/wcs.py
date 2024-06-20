@@ -37,6 +37,68 @@ from . import mapthreads
 INTERPOLS = ['nearest', 'bilinear']
 
 class _ProjectionistBase:
+    """This is a base class to assist with populating data
+    structures needed for accelerated pointing routines.
+    This class should not be used directly; call instead
+    :class:`Projectionist` for rectangular pixelizations
+    or :class:`ProjectionistHealpix` for HEALPix.
+
+    On instantiation, it carries information about the relation
+    between celestial spherical coordinates and the Native Spherical
+    coordinates of the projection, and also the pixelization scheme
+    for the projection.
+
+
+    The following symbols are used in docstrings to represent shapes:
+
+    * ``n_dets`` - Number of detectors in the focal plane.
+    * ``n_samps`` - Number of samples in the signal space of each detector.
+    * ``n_threads`` - Number of threads to use in parallelized computation.
+    * ``n_mapidx`` - Number of indices required to specify a pixel in
+      a map.  For simple RectPix maps this is probably 2, with the first
+      index specifying row and the second index specifying column.
+      But for tiled maps n_mapidx is 3, with the first axis specifying
+      the tile number. For HEALPix, n_mapidx is 1 for untiled and 2
+      for tiled maps.
+    * ``n_comp`` - Number of map components, such as Stokes components
+      or other spin components.  This takes the value 3, for example,
+      if projection into TQU space has been requested.
+
+    When coordinate computation or projection routines are called, a
+    ProjEng (a wrapped C++ object) is instantiated to perform the
+    accelerated computations.  The spin-composition (i.e. is this a
+    'T' map or a 'TQU' map) must be specified at this time, to
+    instantiate the correct accelerated object.
+
+    Some method parameters are common to many functions and are documented
+    here for consistency:
+
+    * ``assembly`` - an Assembly, providing a focal plane (quaternion
+      offsets for each detector) as well as a boresight vector
+      (quaternion for each time sample).
+    * ``comps`` - a string specifying the Stokes components of the
+      map, for example 'T' or 'TQU'.  When absent, this will be
+      guessed from the map shape; with 1|2|3 mapping to 'T'|'QU'|'TQU'
+      respectively.
+    * ``threads`` - the thread assignment, consisting of a list of
+      RangesMatrix objects.  Each RangesMatrix object must have shape
+      (n_threads, n_dets, n_samps).  The n_threads does not need to
+      be the same for every entry in the list.  In TOD-to-map
+      operations, each entry of this list is processed fully before
+      proceeding to the next one.  Each entry "ranges" is processed
+      using (up to) the specified number of threads, such that thread
+      i performs operations only on the samples included in
+      ranges[i,:,:].  Most thread assignment routines in this module
+      will return a list of two RangesMatrix objects,
+      [ranges_parallel, ranges_serial].  The first item represents the
+      part of the computation that can be done in parallel, and has
+      shape (n_threads, n_dets, n_samps).  The ranges_serial object
+      has shape (1, n_dets, n_samps) and represents any samples that
+      need to be treated in a single thread.  The ranges_serial is
+      only non-trivial when interpolation is active.
+
+    """
+
     def __init__(self):
         raise NotImplementedError("Use child class Projectionist or ProjectionistHealpix")
 
@@ -415,47 +477,18 @@ class _ProjectionistBase:
 
 class Projectionist(_ProjectionistBase):
     """This class assists with analyzing WCS information to populate data
-    structures needed for accelerated pointing routines.
-
-    On instantiation, it carries information about the relation
-    between celestial spherical coordinates and the Native Spherical
-    coordinates of the projection, and also the pixelization scheme
-    for the projection.
+    structures needed for accelerated pointing routines for rectangular
+    pixelization.
+    See also the methods and parameters defined in the base class
+    :class:`_ProjectionistBase`.
 
     As in pixell, the code and discussion here uses the term
     "geometry" to refer to the combination of an astropy.WCS object
     and a 2-d array shape.
 
-    The following symbols are used in docstrings to represent shapes:
+    Some common method parameters specific to rectangular pixelization
+    are documented here for consistency.
 
-    * ``n_dets`` - Number of detectors in the focal plane.
-    * ``n_samps`` - Number of samples in the signal space of each detector.
-    * ``n_threads`` - Number of threads to use in parallelized computation.
-    * ``n_mapidx`` - Number of indices required to specify a pixel in
-      a map.  For simple maps this is probably 2, with the first index
-      specifying row and the second index specifying column.  But for
-      tiled maps n_mapidx is 3, with the first axis specifying the
-      tile number.
-    * ``n_comp`` - Number of map components, such as Stokes components
-      or other spin components.  This takes the value 3, for example,
-      if projection into TQU space has been requested.
-
-    When coordinate computation or projection routines are called, a
-    ProjEng (a wrapped C++ object) is instantiated to perform the
-    accelerated computations.  The spin-composition (i.e. is this a
-    'T' map or a 'TQU' map) must be specified at this time, to
-    instantiate the correct accelerated object.
-
-    Some method parameters are common to many functions and are documented
-    here for consistency:
-
-    * ``assembly`` - an Assembly, providing a focal plane (quaternion
-      offsets for each detector) as well as a boresight vector
-      (quaternion for each time sample).
-    * ``comps`` - a string specifying the Stokes components of the
-      map, for example 'T' or 'TQU'.  When absent, this will be
-      guessed from the map shape; with 1|2|3 mapping to 'T'|'QU'|'TQU'
-      respectively.
     * ``proj_name`` - a string specifying a projection.  The
       nomenclature is mostly the same as the FITS CTYPE identifiers.
       Accepted values: ARC, CAR, CEA, TAN, ZEA, Flat, Quat.
@@ -464,22 +497,6 @@ class Projectionist(_ProjectionistBase):
     * ``wcs`` - the WCS describing the celestial axes of the map.
       Together with ``shape`` this is a geometry; see pixell.enmap
       documentation.
-    * ``threads`` - the thread assignment, consisting of a list of
-      RangesMatrix objects.  Each RangesMatrix object must have shape
-      (n_threads, n_dets, n_samps).  The n_threads does not need to
-      be the same for every entry in the list.  In TOD-to-map
-      operations, each entry of this list is processed fully before
-      proceeding to the next one.  Each entry "ranges" is processed
-      using (up to) the specified number of threads, such that thread
-      i performs operations only on the samples included in
-      ranges[i,:,:].  Most thread assignment routines in this module
-      will return a list of two RangesMatrix objects,
-      [ranges_parallel, ranges_serial].  The first item represents the
-      part of the computation that can be done in parallel, and has
-      shape (n_threads, n_dets, n_samps).  The ranges_serial object
-      has shape (1, n_dets, n_samps) and represents any samples that
-      need to be treated in a single thread.  The ranges_serial is
-      only non-trivial when interpolation is active.
     * ``interpol``: How positions that fall between pixel centers will
       be handled. Options are "nearest" (default): Use Nearest
       Neighbor interpolation, so a sample takes the value of
@@ -504,6 +521,7 @@ class Projectionist(_ProjectionistBase):
         tiling: a _Tiling object if the map is tiled, None otherwise.
 
     """
+
     @staticmethod
     def get_q(wcs):
         """Analyze a wcs object to compute the quaternion rotation from
@@ -650,6 +668,10 @@ class Projectionist(_ProjectionistBase):
         return self
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
+        """De-project from a map, returning a Signal-like object.
+        See parent class documentation for full description.
+
+        """
         if src_map.ndim == 2:
             # Promote to (1,...)
             src_map = src_map[None]
@@ -680,11 +702,17 @@ class Projectionist(_ProjectionistBase):
 
 class ProjectionistHealpix(_ProjectionistBase):
     """Projectionist for Healpix maps.
+       See base class :class:`_ProjectionistBase` for more methods
+       and explanation of common method parameters.
+
        Attributes:
-           nside: int, nside of the map, power of 2 0 < nside <= 8192
-           nside_tile: None or int, nside of tiling. Ntile will be 12*nside_tile**2. None for untiled.
-           ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps
-      See Projectionist documentation for further info.
+           nside: int, nside of the map, power of 2; 0 < nside <= 8192.
+           nside_tile: None, int, or 'auto', nside of tiling.
+                       Ntile will be 12*nside_tile**2. None for untiled.
+                       If 'auto', an appropriate nside_tile will be computed
+                       and set on calling :func:`compute_nside_tile`.
+           ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps.
+
     """
     def __init__(self):
         self._q_fp_to_native = None
@@ -702,6 +730,9 @@ class ProjectionistHealpix(_ProjectionistBase):
     @classmethod
     def for_healpix(cls, nside, nside_tile=None, active_tiles=None, ordering='NEST', interpol=None):
         """ Construct a Projectionist for Healpix maps.
+
+            See class documentation for description of standard arguments.
+
         """
         self=cls()
         self.proj_name = 'HP'
@@ -725,9 +756,13 @@ class ProjectionistHealpix(_ProjectionistBase):
         return self
 
     def compute_nside_tile(self, assembly, nActivePerThread=5, nThreads=None):
-        """ Automatically compute nside_tile for good balancing over threads
-            nActivePerThread: int, how many active pixels do you want per thread (minimum)
-            nThreads: int, number of threads to optimize for (takes from OMP_NUM_THREADS if None)"""
+        """ Automatically compute and set self.nside_tile for good balancing over threads.
+
+        Arguments:
+          nActivePerThread: int, how many active pixels do you want per thread (minimum)
+          nThreads: int, number of threads to optimize for (takes from OMP_NUM_THREADS if None)
+
+        """
         if self.nside_tile == 'auto':
             ## Estimate fsky
             nside_tile0 = 4  # ntile = 192, for estimating fsky
@@ -742,10 +777,18 @@ class ProjectionistHealpix(_ProjectionistBase):
         return self.nside_tile
 
     def get_active_tiles(self, assembly, assign=False):
+        """ For a tiled Projection, figure out what tiles are hit by an
+        assembly. See parent class documentation for full description.
+
+        """
         self.compute_nside_tile(assembly) # Set nside_tile if 'auto'
         return super().get_active_tiles(assembly, assign)
 
     def get_coords(self, assembly, use_native=False, output=None):
+        """Get the spherical coordinates for the provided pointing Assembly.
+        See parent class documentation for full description.
+
+        """
         projeng = self.get_ProjEng('TQU')
         if use_native:
             q_native = self._cache_q_fp_to_native(assembly.Q)
@@ -754,6 +797,10 @@ class ProjectionistHealpix(_ProjectionistBase):
         return projeng.coords(q_native, assembly.dets, output)
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
+        """De-project from a map, returning a Signal-like object.
+        See parent class documentation for full description.
+
+        """
         if self.nside_tile is None and src_map.ndim == 1:
             # Promote to (1,...)
             src_map = src_map[None]

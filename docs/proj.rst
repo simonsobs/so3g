@@ -602,9 +602,19 @@ mapthread
 .. automodule:: so3g.proj.mapthreads
    :members:
 
+_ProjectionistBase
+-------------------
+.. autoclass:: so3g.proj.wcs._ProjectionistBase
+   :members:
+
 Projectionist
 -------------
 .. autoclass:: so3g.proj.Projectionist
+   :members:
+
+ProjectionistHealpix
+---------------------
+.. autoclass:: so3g.proj.ProjectionistHealpix
    :members:
 
 quat
