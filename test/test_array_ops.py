@@ -92,10 +92,11 @@ class TestJumps(unittest.TestCase):
     def test_01_matched_jump(self):
         a = np.zeros((1, 100), dtype="float32", order="C")
         a[0, 50:] += 1
-        b = np.zeros((1, 100), dtype="float32", order="C")
-        so3g.matched_jumps(a, b, 10)
+        b = np.zeros((1, 100), dtype="int32", order="C")
+        min_size = np.ones(1, dtype="float32", order="C")*.5
+        so3g.matched_jumps(a, b, min_size, 10)
         flagged = np.where(b)[1]
-        np.testing.assert_array_equal(flagged, np.arange(45, 54))
+        np.testing.assert_array_equal(flagged, np.arange(46, 53))
 
     def test_02_scale_jump(self):
         a = np.zeros((1, 100), dtype="float32", order="C")
