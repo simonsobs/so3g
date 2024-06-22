@@ -373,7 +373,7 @@ class Projectionist:
         """
         projeng = self.get_ProjEng('TQU')
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        return projeng.pointing_matrix(q_native, assembly.dets, None, None)
+        return projeng.pointing_matrix(q_native, assembly.fplane.quats, assembly.fplane.resps, None, None)
 
     def get_coords(self, assembly, use_native=False, output=None):
         """Get the spherical coordinates for the provided pointing Assembly.
@@ -446,8 +446,8 @@ class Projectionist:
             comps = self._guess_comps(output.shape)
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        map_out = projeng.to_map(
-            output, q_native, assembly.dets, signal, det_weights, threads)
+        map_out = projeng.to_map(output, q_native, assembly.fplane.quats,
+            assembly.fplane.resps, signal, det_weights, threads)
         return map_out
 
     def to_weights(self, assembly, output=None, det_weights=None,
@@ -471,8 +471,8 @@ class Projectionist:
             comps = self._guess_comps(output.shape[1:])
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        map_out = projeng.to_weight_map(
-            output, q_native, assembly.dets, det_weights, threads)
+        map_out = projeng.to_weight_map(output, q_native, assembly.fplane.quats,
+            assembly.fplane.resps, det_weights, threads)
         return map_out
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
@@ -494,8 +494,8 @@ class Projectionist:
             comps = self._guess_comps(src_map.shape)
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        signal_out = projeng.from_map(
-            src_map, q_native, assembly.dets, signal)
+        signal_out = projeng.from_map(src_map, q_native, assembly.fplane.quats,
+            assembly.fplane.resps, signal)
         return signal_out
 
     def assign_threads(self, assembly, method='domdir', n_threads=None):

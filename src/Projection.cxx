@@ -22,6 +22,7 @@ using namespace std;
 #include "exceptions.h"
 #include "so_linterp.h"
 
+#include <stdio.h>
 
 // TRIG_TABLE_SIZE
 //
@@ -855,35 +856,47 @@ inline int Pixelizor2_Flat<Tiled, Bilinear>::GetPixels(int i_det, int i_time, co
     return iout;
 }
 
+// This struct is used for representing the total intensity and polarization
+// response of a single detector. Originally this was just a length-2 array,
+// but those can't easily be returned from functions. If I could ensure
+// the buffer had stride-1 in the last dimension, then one could simply pass
+// in the address to the first element for a detector, BufferWrapper doesn't make
+// that straightforward, so I think this approach is best.
+struct Response { FSIGNAL T, P; };
+Response get_response(BufferWrapper<FSIGNAL> & buf, int i_det) {
+    Response r = {*buf.ptr_2d(i_det,0), *buf.ptr_2d(i_det,1)};
+    return r;
+}
+
 template <typename SpinSys>
 static inline
-void spin_proj_factors(const double* coords, FSIGNAL *projfacs);
+void spin_proj_factors(const double* coords, const Response & response, FSIGNAL *projfacs);
 
 template <>
-inline void spin_proj_factors<SpinT>(const double* coords, FSIGNAL *projfacs)
+inline void spin_proj_factors<SpinT>(const double* coords, const Response & response, FSIGNAL *projfacs)
 {
-    projfacs[0] = 1.;
+    projfacs[0] = response.T;
 }
 
 template <>
 inline
-void spin_proj_factors<SpinQU>(const double* coords, FSIGNAL *projfacs)
+void spin_proj_factors<SpinQU>(const double* coords, const Response & response, FSIGNAL *projfacs)
 {
     const double c = coords[2];
     const double s = coords[3];
-    projfacs[0] = c*c - s*s;
-    projfacs[1] = 2*c*s;
+    projfacs[0] = response.P*(c*c - s*s);
+    projfacs[1] = response.P*(2*c*s);
 }
 
 template <>
 inline
-void spin_proj_factors<SpinTQU>(const double* coords, FSIGNAL *projfacs)
+void spin_proj_factors<SpinTQU>(const double* coords, const Response & response, FSIGNAL *projfacs)
 {
      const double c = coords[2];
      const double s = coords[3];
-     projfacs[0] = 1.;
-     projfacs[1] = c*c - s*s;
-     projfacs[2] = 2*c*s;
+     projfacs[0] = response.T;
+     projfacs[1] = response.P*(c*c - s*s);
+     projfacs[2] = response.P*(2*c*s);
 }
 
 
@@ -1068,7 +1081,7 @@ bp::object ProjectionEngine<C,P,S>::pixels(
 // sample
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::pointing_matrix(
-    bp::object pbore, bp::object pofs, bp::object pixel, bp::object proj)
+    bp::object pbore, bp::object pofs, bp::object response, bp::object pixel, bp::object proj)
 {
     auto _none = bp::object();
 
@@ -1081,9 +1094,10 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
 
     auto pixel_buf_man = SignalSpace<int32_t>(
         pixel, "pixel", NPY_INT32, n_det, n_time, P::index_count);
-
     auto proj_buf_man = SignalSpace<FSIGNAL>(
         proj, "proj", FSIGNAL_NPY_TYPE, n_det, n_time, S::comp_count);
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -1093,12 +1107,13 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
         FSIGNAL* const proj_buf = proj_buf_man.data_ptr[i_det];
         const int step = pixel_buf_man.steps[0];
         int pixel_offset[P::index_count] = {-1};
+        Response resp = get_response(_response, i_det);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             FSIGNAL pf[S::comp_count];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-            spin_proj_factors<S>(coords, pf);
+            spin_proj_factors<S>(coords, resp, pf);
 
             for (int i_dim = 0; i_dim < P::index_count; i_dim++)
                 pix_buf[i_time * pixel_buf_man.steps[0] +
@@ -1403,7 +1418,7 @@ bp::object ProjectionEngine<C,P,S>::zeros(bp::object shape)
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::from_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object response, bp::object signal)
 {
     auto _none = bp::object();
 
@@ -1419,6 +1434,8 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     // Get pointers to the signal and (optional) per-det weights.
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
     #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -1427,10 +1444,11 @@ bp::object ProjectionEngine<C,P,S>::from_map(
         int pixinds[P::interp_count][P::index_count] = {-1};
         FSIGNAL pixweights[P::interp_count];
         FSIGNAL pf[S::comp_count];
+        Response resp = get_response(_response, i_det);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-            spin_proj_factors<S>(coords, pf);
+            spin_proj_factors<S>(coords, resp, pf);
             FSIGNAL *sig = (_signalspace.data_ptr[i_det] + _signalspace.steps[0]*i_time);
             int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
             for(int i_point = 0; i_point < n_point; ++i_point)
@@ -1445,6 +1463,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
 template<typename C, typename P, typename S>
 static
 void to_map_single_thread(Pointer<C> &pointer,
+                          BufferWrapper<FSIGNAL> & _response,
                           P &_pixelizor,
                           const vector<RangesInt32> & ivals,
                           BufferWrapper<FSIGNAL> &_det_weights,
@@ -1462,13 +1481,14 @@ void to_map_single_thread(Pointer<C> &pointer,
         double coords[4];
         FSIGNAL pf[S::comp_count];
         pointer.InitPerDet(i_det, dofs);
+        Response resp = get_response(_response, i_det);
         // Pointing matrix interpolation stuff
         int pixinds[P::interp_count][P::index_count] = {-1};
         FSIGNAL pixweights[P::interp_count] = {0};
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                spin_proj_factors<S>(coords, pf);
+                spin_proj_factors<S>(coords, resp, pf);
                 const FSIGNAL sig = _signalspace->data_ptr[i_det][_signalspace->steps[0]*i_time];
                 // In interpolated mapmaking like bilinear mampamking, each sample hits multipe
                 // pixels, each with its own weight.
@@ -1484,6 +1504,7 @@ void to_map_single_thread(Pointer<C> &pointer,
 template<typename C, typename P, typename S>
 static
 void to_weight_map_single_thread(Pointer<C> &pointer,
+                                 BufferWrapper<FSIGNAL> & _response,
                                  P &_pixelizor,
                                  vector<RangesInt32> ivals,
                                  BufferWrapper<FSIGNAL> &_det_weights)
@@ -1500,12 +1521,13 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
         double coords[4];
         FSIGNAL pf[S::comp_count];
         pointer.InitPerDet(i_det, dofs);
+        Response resp = get_response(_response, i_det);
         int pixinds[P::interp_count][P::index_count] = {-1};
         FSIGNAL pixweights[P::interp_count] = {0};
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                spin_proj_factors<S>(coords, pf);
+                spin_proj_factors<S>(coords, resp, pf);
 
                 int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
                 // Is this enough? Do we need a double loop over i_point?
@@ -1592,8 +1614,8 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
-    bp::object thread_intervals)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object response,
+    bp::object signal, bp::object det_weights, bp::object thread_intervals)
 {
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
@@ -1613,6 +1635,8 @@ bp::object ProjectionEngine<C,P,S>::to_map(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
@@ -1627,15 +1651,15 @@ bp::object ProjectionEngine<C,P,S>::to_map(
         // or if ivals.size() == 1
         #pragma omp parallel for
         for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
-            to_map_single_thread<C,P,S>(pointer, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
+            to_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
     }
     return map;
 }
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_weight_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object det_weights,
-    bp::object thread_intervals)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object response,
+    bp::object det_weights, bp::object thread_intervals)
 {
     auto _none = bp::object();
 
@@ -1655,6 +1679,8 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
     // Get pointer to (optional) per-det weights.
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
@@ -1669,7 +1695,7 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
         // or if ivals.size() == 1
         #pragma omp parallel for
         for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
-            to_weight_map_single_thread<C,P,S>(pointer, _pixelizor, ivals[i_thread], _det_weights);
+            to_weight_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights);
     }
     return map;
 }
