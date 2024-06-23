@@ -357,7 +357,7 @@ class Projectionist:
         """
         projeng = self.get_ProjEng('TQU')
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        return projeng.pixels(q_native, assembly.dets, None)
+        return projeng.pixels(q_native, assembly.fplane.quats, None)
 
     def get_pointing_matrix(self, assembly):
         """Get the pointing matrix information, which is to say both the pixel
@@ -399,7 +399,7 @@ class Projectionist:
             q_native = self._cache_q_fp_to_native(assembly.Q)
         else:
             q_native = assembly.Q
-        return projeng.coords(q_native, assembly.dets, output)
+        return projeng.coords(q_native, assembly.fplane.quats, output)
 
     def get_planar(self, assembly, output=None):
         """Get projection plane coordinates for all detectors at all times.
@@ -414,7 +414,7 @@ class Projectionist:
         """
         q_native = self._cache_q_fp_to_native(assembly.Q)
         projeng = self.get_ProjEng('TQU')
-        return projeng.coords(q_native, assembly.dets, output)
+        return projeng.coords(q_native, assembly.fplane.quats, output)
 
     def zeros(self, super_shape):
         """Return a map, filled with zeros, with shape (super_shape,) +
@@ -538,11 +538,11 @@ class Projectionist:
         if method == 'simple':
             projeng = self.get_ProjEng('T')
             q_native = self._cache_q_fp_to_native(assembly.Q)
-            omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, None, n_threads)
+            omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.quats, None, n_threads)
             return wrap_ivals(omp_ivals)
 
         elif method == 'domdir':
-            offs_rep = assembly.dets[::100]
+            fplane_rep = assembly.fplane[::100]
             if (self.tiling is not None) and (self.active_tiles is None):
                 tile_info = self.get_active_tiles(assembly)
                 active_tiles = tile_info['active_tiles']
@@ -550,9 +550,9 @@ class Projectionist:
             else:
                 active_tiles = None
             return mapthreads.get_threads_domdir(
-                assembly.Q, assembly.dets, shape=self.naxis[::-1], wcs=self.wcs,
+                assembly.Q, assembly.fplane, shape=self.naxis[::-1], wcs=self.wcs,
                 tile_shape=self.tile_shape, active_tiles=active_tiles,
-                n_threads=n_threads, offs_rep=offs_rep)
+                n_threads=n_threads, fplane_rep=fplane_rep)
 
         elif method == 'tiles':
             tile_info = self.get_active_tiles(assembly, assign=n_threads)
@@ -578,7 +578,7 @@ class Projectionist:
         projeng = self.get_ProjEng('T')
         q_native = self._cache_q_fp_to_native(assembly.Q)
         n_threads = mapthreads.get_num_threads(n_threads)
-        omp_ivals = projeng.pixel_ranges(q_native, assembly.dets, tmap, n_threads)
+        omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.quats, tmap, n_threads)
         return wrap_ivals(omp_ivals)
 
     def get_active_tiles(self, assembly, assign=False):
@@ -617,7 +617,7 @@ class Projectionist:
         projeng = self.get_ProjEng('T')
         q_native = self._cache_q_fp_to_native(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
-        hits = np.array(projeng.tile_hits(q_native, assembly.dets))
+        hits = np.array(projeng.tile_hits(q_native, assembly.fplane.quats))
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
@@ -631,7 +631,7 @@ class Projectionist:
                 group_n[idx] += _n
                 group_tiles[idx].append(_t)
             # Now paint them into Ranges.
-            R = projeng.tile_ranges(q_native, assembly.dets, group_tiles)
+            R = projeng.tile_ranges(q_native, assembly.fplane.quats, group_tiles)
             R = wrap_ivals(R)
             return {
                 'active_tiles': list(tiles),

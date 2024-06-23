@@ -231,7 +231,7 @@ class CelestialSightLine:
             fplane = FocalPlane()
             if output is not None:
                 output = output[None]
-        output = p.coords(self.Q, fplane.quats, fplane.resps, output)
+        output = p.coords(self.Q, fplane.quats, output)
         if collapse:
             output = output[0]
         return output
@@ -253,20 +253,32 @@ class FocalPlane:
         self.resps = np.ones((len(self.quats),2),np.float32)
         if resps is not None:
             self.resps[:] = resps
-
+        if np.any(~np.isfinite(self.quats)):
+            raise ValueError("nan/inf values in detector quaternions")
+        if np.any(~np.isfinite(self.resps)):
+            raise ValueError("nan/inf values in detector responses")
     @classmethod
-    def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0):
+    def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False):
         # The underlying code wants polangle gamma and the T and P
         # response, but we support speifying these as the T, Q and U
         # response too. Writing it like this handles both cases, and
         # as a bonus(?) any combination of them
         gamma = gamma + np.arctan2(U,Q)/2
         P     = P * (Q**2+U**2)**0.5
-        quats = quat.rotation_xieta(np.asarray(xi), np.asarray(eta), np.asarray(gamma))
+        if hwp: gamma = -gamma
+        # Broadcast everything to 1d
+        xi, eta, gamma, T, P, _ = np.broadcast_arrays(xi, eta, gamma, T, P, [0])
+        quats = quat.rotation_xieta(xi, eta, gamma)
         resps = np.ones((len(quats),2))
         resps[:,0] = T
         resps[:,1] = P
         return cls(quats, resps=resps)
+    def __repr__(self):
+        return "FocalPlane(quats=%s,resps=%s)" % (repr(self.quats), repr(self.resps))
+    @property
+    def ndet(self): return len(self.quats)
+    def __getitem__(self, sel):
+        return FocalPlane(quats=self.quats[sel], resps=self.resps[sel])
 
 class Assembly:
     """This class groups together boresight and detector offset
@@ -293,7 +305,7 @@ class Assembly:
                 relative to the boresight, and their response to
                 intensity and polarization
         """
-        self = cls(keyed=keyed)
+        self = cls()
         if isinstance(sight_line, quat.G3VectorQuat):
             self.Q = sight_line
         else:
