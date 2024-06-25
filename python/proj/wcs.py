@@ -479,6 +479,7 @@ class Projectionist(_ProjectionistBase):
     """This class assists with analyzing WCS information to populate data
     structures needed for accelerated pointing routines for rectangular
     pixelization.
+
     See also the methods and parameters defined in the base class
     :class:`_ProjectionistBase`.
 
@@ -702,16 +703,16 @@ class Projectionist(_ProjectionistBase):
 
 class ProjectionistHealpix(_ProjectionistBase):
     """Projectionist for Healpix maps.
-       See base class :class:`_ProjectionistBase` for more methods
-       and explanation of common method parameters.
+    See base class :class:`_ProjectionistBase` for more methods
+    and explanation of common method parameters.
 
-       Attributes:
-           nside: int, nside of the map, power of 2; 0 < nside <= 8192.
-           nside_tile: None, int, or 'auto', nside of tiling.
-                       Ntile will be 12*nside_tile**2. None for untiled.
-                       If 'auto', an appropriate nside_tile will be computed
-                       and set on calling :func:`compute_nside_tile`.
-           ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps.
+    Attributes:
+        nside: int, nside of the map, power of 2; 0 < nside <= 8192.
+        nside_tile: None, int, or 'auto', nside of tiling.
+                    Ntile will be 12*nside_tile**2. None for untiled.
+                    If 'auto', an appropriate nside_tile will be computed
+                    and set on calling :func:`compute_nside_tile`.
+        ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps.
 
     """
     def __init__(self):
@@ -729,9 +730,9 @@ class ProjectionistHealpix(_ProjectionistBase):
 
     @classmethod
     def for_healpix(cls, nside, nside_tile=None, active_tiles=None, ordering='NEST', interpol=None):
-        """ Construct a Projectionist for Healpix maps.
+        """Construct a Projectionist for Healpix maps.
 
-            See class documentation for description of standard arguments.
+        See class documentation for description of standard arguments.
 
         """
         self=cls()
@@ -756,7 +757,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         return self
 
     def compute_nside_tile(self, assembly, nActivePerThread=5, nThreads=None):
-        """ Automatically compute and set self.nside_tile for good balancing over threads.
+        """Automatically compute and set self.nside_tile for good balancing over threads.
 
         Arguments:
           nActivePerThread: int, how many active pixels do you want per thread (minimum)
@@ -777,7 +778,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         return self.nside_tile
 
     def get_active_tiles(self, assembly, assign=False):
-        """ For a tiled Projection, figure out what tiles are hit by an
+        """For a tiled Projection, figure out what tiles are hit by an
         assembly. See parent class documentation for full description.
 
         """
@@ -817,8 +818,8 @@ class ProjectionistHealpix(_ProjectionistBase):
 
     def assign_threads(self, assembly, method=None, n_threads=None):
         """Get a thread assignment RangesMatrix.
-           Available methods are ``'simple'`` and ``'tiles'``.
-           See parent class documentation for full description.
+        Available methods are ``'simple'`` and ``'tiles'``.
+        See parent class documentation for full description.
 
         """
         if method is None:
