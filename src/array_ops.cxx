@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <cmath>
 extern "C" {
     #include <cblas.h>
     // Additional prototypes for Fortran LAPACK routines.
@@ -555,6 +556,261 @@ void get_gap_fill_poly(const bp::object ranges,
     free(a);
 }
 
+template <typename T>
+void _moment(T* data, T* output, int moment, bool central, int start, int stop)
+{
+    int bsize = stop - start;
+    // Could replace the loops with boost accumulators?
+    T center = 0.0;
+    if(central == 1 | moment == 1) {
+        for(int si = start; si < stop; si++) {
+            center = center + data[si];
+        }
+        center = center / bsize;
+    }
+    T val = 0;
+    if(moment == 1) {
+        val = center;
+    }
+    else {
+        for(int si = start; si < stop; si++) {
+            val = val + pow(data[si] - center, moment);
+        }
+        val = val / bsize;
+    }
+    for(int si = start; si < stop; si++) {
+        output[si] = val;
+    }
+
+}
+
+template <typename T>
+void _block_moment(T* tod_data, T* output, int bsize, int moment, bool central, int ndet, int nsamp, int shift)
+{
+    int nblock = ((nsamp - shift)/bsize) + 1;
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        // do the the pre-shift portion
+        if(shift > 0){
+            _moment(tod_data, output, moment, central, ioff, ioff+shift);
+        }
+
+        for(int bi = 0; bi < nblock; bi++) {
+            int start =  (bi * bsize) + shift;
+            int stop = min(start + bsize, nsamp);
+            _moment(tod_data, output, moment, central, ioff+start, ioff+stop);
+        }
+    }
+}
+
+template <typename T>
+void block_moment(const bp::object & tod, const bp::object & out, int bsize, int moment, bool central, int shift)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    T* output = (T*)out_buf->buf;
+    _block_moment(tod_data, output, bsize, moment, central, ndet, nsamp, shift);
+}
+
+
+void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
+{
+    int* buffer = new int[ndet * nsamp];
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++) {
+        int ioff = di*nsamp;
+        int val = 0;
+        for(int si = 0; si < nsamp; si++) {
+            int i = ioff + si;
+            buffer[i] = flag_data[i];
+            int comp = 0;
+            if(i>=width) {
+                comp = buffer[i-width];
+            }
+            val = val + buffer[i] - comp;
+            if(val >= width) {
+                for(int j = max(1+i-width, ioff); j <= i; j++) {
+                    flag_data[j] = 1;
+                }
+            }
+            else {
+                flag_data[i] = 0;
+            }
+        }
+    }
+    delete buffer;
+}
+
+void clean_flag(const bp::object & flag, int width)
+{
+    BufferWrapper<int> flag_buf  ("flag", flag, false, std::vector<int>{-1, -1});
+    int ndet = flag_buf->shape[0];
+    int nsamp = flag_buf->shape[1];
+    if (flag_buf->strides[1] != flag_buf->itemsize || flag_buf->strides[0] != flag_buf->itemsize*nsamp)
+        throw buffer_exception("flag must be C-contiguous along last axis");
+    int* flag_data = (int*)flag_buf->buf;
+    _clean_flag(flag_data, width, ndet, nsamp);
+
+}
+
+
+template <typename T>
+void _jumps_matched_filter(T* tod_data, T* output, int bsize, int shift, int ndet, int nsamp)
+{
+    // Get the matched filter, this is basically convolving with a step
+    _block_moment(tod_data, output, bsize, 1, 0, ndet, nsamp, shift);
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++) {
+        int ioff = di*nsamp;
+        T val = 0;
+        for(int si = 0; si < nsamp; si++) {
+            int i = ioff + si;
+            val = val + tod_data[i] - output[i];
+            output[i] = val;
+        }
+    }
+}
+
+template <typename T>
+void matched_jumps(const bp::object & tod, const bp::object & out, const bp::object & min_size, int bsize)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<int> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    int* output = (int*)out_buf->buf;
+    BufferWrapper<T> size_buf ("min_size",  min_size,  false, std::vector<int>{ndet});
+    if (size_buf->strides[0] != size_buf->itemsize)
+        throw buffer_exception("min_size must be C-contiguous along last axis");
+    T* size = (T*)size_buf->buf;
+    T* buffer = new T[ndet * nsamp];
+    
+    int half_win = bsize / 2;
+    int quarter_win = bsize / 4;
+    float size_fac = 3.0*bsize/32.0;
+    float size_fac_adj = 2.0 - (4.0/bsize);
+
+    // Get the first matched filter, this is basically convolving with a step
+    _jumps_matched_filter(tod_data, buffer, bsize, 0, ndet, nsamp);
+    // Because of the shift the closest to a window edge we can be in win_size/4
+    // In this case the slope of the shorter segment is ~3*height/4
+    // So the peaks should be at least (3*win_size*min_size)/16
+    // We want to include peaks of that size so we use a denominator of 32
+    // Note that after this filtering we are left with at least win_size/4 width
+    # pragma omp parallel for
+    for(int di = 0; di < ndet; di++){
+        int ioff = di*nsamp;
+        T thresh = size_fac*size[di];
+        for(int si = 0; si < nsamp; si++){
+            output[ioff+si] = abs(buffer[ioff+si]) > thresh;
+        }
+    }
+    // Clean spurs 
+    _clean_flag(output, quarter_win, ndet, nsamp);
+    // Recall that we set _min_size to be half the actual peak min above
+    // We allow for .5 samples worth of uncertainty here
+    # pragma omp parallel for
+    for(int di = 0; di < ndet; di++){
+        int ioff = di*nsamp;
+        T thresh = size_fac_adj*size_fac*size[di];
+        for(int si = 0; si < nsamp; si++){
+            output[ioff+si] = (abs(buffer[ioff+si]) > thresh) && (output[ioff+si] == 1);
+        }
+    }
+    
+    // Now do the shifted filter
+    _jumps_matched_filter(tod_data, buffer, bsize, half_win, ndet, nsamp);
+    int* shift_flag = new int[ndet * nsamp];
+    # pragma omp parallel for
+    for(int di = 0; di < ndet; di++){
+        int ioff = di*nsamp;
+        T thresh = size_fac*size[di];
+        for(int si = 0; si < nsamp; si++){
+            shift_flag[ioff+si] = abs(buffer[ioff+si]) > thresh;
+        }
+    }
+    _clean_flag(shift_flag, quarter_win, ndet, nsamp);
+    # pragma omp parallel for
+    for(int di = 0; di < ndet; di++){
+        int ioff = di*nsamp;
+        T thresh = size_fac_adj*size_fac*size[di];
+        for(int si = 0; si < nsamp; si++){
+            shift_flag[ioff+si] = (abs(buffer[ioff+si]) > thresh) && (shift_flag[ioff+si] == 1);
+        }
+    }
+    delete buffer;
+
+    // Now we combine
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++) {
+        int ioff = di*nsamp;
+        for(int si = 0; si < nsamp; si++) {
+            int i = ioff + si;
+            output[i] = output[i] || shift_flag[i]; 
+        }
+    }
+    delete shift_flag;
+}
+
+template <typename T>
+void scale_jumps(const bp::object & tod, const bp::object & out, const bp::object & atol, int win_size, T scale)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    T* output = (T*)out_buf->buf;
+    BufferWrapper<T> tol_buf  ("atol",  atol,  false, std::vector<int>{ndet});
+    if (tol_buf->strides[0] != tol_buf->itemsize)
+        throw buffer_exception("atol must be C-contiguous along last axis");
+    T* tol = (T*)tol_buf->buf;
+
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++) {
+        int ioff = di*nsamp;
+        for(int si = 0; si < nsamp; si++) {
+            int i = ioff + si;
+            T val;
+            int idx = 0;
+            if(i > win_size) {
+                idx = i - win_size;
+            }
+            T ratio = (tod_data[i] - tod_data[idx])/scale;
+            if(abs(ratio) < .5) {
+                output[i] = 0;
+                continue;
+            }
+            T rounded = (T)round(ratio);
+            if(abs(ratio - rounded) <= tol[di]) {
+                output[i] = rounded * scale;
+            }
+            else {
+                output[i] = 0;
+            }
+        }
+    }
+}
+
+
 PYBINDINGS("so3g")
 {
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
@@ -579,4 +835,66 @@ PYBINDINGS("so3g")
             "Do polynomial gap-filling for float64 data.\n"
             "\n"
             "See details in docstring for get_gap_fill_poly.\n");
+    bp::def("block_moment", block_moment<float>,
+            "block_moment(tod, out, bsize, moment, central, shift)\n"
+            "\n"
+            "Compute the nth moment in blocks on a float32 array.\n"
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "  bsize: number of samples in each block\n"
+            "  moment: moment to compute, should be >= 1\n"
+            "  central: whether to compute the central moment in each block\n"
+            "  shift: sample to start block at, used in each row\n");
+    bp::def("block_moment64", block_moment<double>,
+            "block_moment64(tod, out, bsize, moment, central, shift)\n"
+            "\n"
+            "Compute the nth moment in blocks on a float32 array.\n"
+            "\n"
+            "See details in docstring for block_moment.\n");
+    bp::def("matched_jumps", matched_jumps<float>,
+            "matched_jumps(tod, out, min_size, bsize)\n"
+            "\n"
+            "Flag jumps with the matched filter for a unit jump in a float32 array.\n"
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (int32) with shape (ndet, nsamp)\n"
+            "  min_size: minimum jump size for each det, shape (ndet,)\n"
+            "  bsize: number of samples in each block\n");
+    bp::def("matched_jumps64", matched_jumps<double>,
+            "matched_jumps64(tod, out, min_size, bsize)\n"
+            "\n"
+            "Flag jumps with the matched filter for a unit jump in a float64 array.\n"
+            "\n"
+            "See details in docstring for matched_jumps.\n");
+    bp::def("scale_jumps", scale_jumps<float>,
+            "scale_jumps(tod, out, atol, win_size, scale)"
+            "\n"
+            "Search for jumps that are a multiple of a known value in a float32 array.\n"
+            "Output will be 0 where jumps are not found and the assumed jump height where jumps are found.\n"
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "  atol: how close to the multiple of scale a value needs to be to be a jump\n"
+            "        should be an array (float32) with shape (ndet,)\n"
+            "  win_size: size of window to use as buffer when differencing\n"
+            "  scale: the scale of jumps to look for\n");
+    bp::def("scale_jumps64", scale_jumps<double>,
+            "scale_jumps64(tod, out, bsize)\n"
+            "\n"
+            "Search for jumps that are a multiple of a known value in a float64 array.\n"
+            "Output will be 0 where jumps are not found and the assumed jump height where jumps are found.\n"
+            "\n"
+            "See details in docstring for scale_jumps.\n");
+    bp::def("clean_flag", clean_flag,
+            "clean_flag(flag, width)"
+            "\n"
+            "Clean a flag inplace by unflagging regions without enough contiguous flagged values.\n"
+            "\n"
+            "Args:\n"
+            "  flag: flag array (int) with shape (ndet, nsamp)\n"
+            "  width: the minimum number of contiguous flagged samples\n");
 }
