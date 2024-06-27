@@ -120,9 +120,7 @@ static std::string shape_string(std::vector<int> shape)
         else if (shape[i] == -1)
             s << "*";
         else if (shape[i] == -2)
-            s << "...->";
-        else if (shape[i] == -3)
-            s << "->...";
+            s << "...";
         else
             s << "!error";
     }
@@ -183,21 +181,24 @@ public:
         for (int i=0; i<view->ndim; i++)
             vshape.push_back(view->shape[i]);
 
-        // Note special values (-1,-2,-3) permit unknown, arbitrary
-        // leading, and arbitrary trailing elements in buffer's shape.
+        // Note special value -1 is as in numpy -- matches a single
+        // axis.  Special value -2 is treated as an ellipsis -- can be
+        // specified at most once, and matches 0 or more axes.
         int i=0, j=0;
-        while (i < shape.size()){
-            if (shape[i] == -1) {
-                // Match any single entry.
-                j++;
-            } else if (shape[i] == -2) {
+        int ellipsis_count = 0;
+        while (i < shape.size()) {
+            if (shape[i] == -2) {
+                if (ellipsis_count++) {
+                    std::ostringstream s;
+                    s << "Invalid shape specifier " << shape_string(shape) << " (multiple elipses).";
+                    throw shape_exception(name, s.str());
+                }
                 // Ignore 0 or more leading entries.
                 j = vshape.size() - (shape.size() - i) + 1;
-            } else if (shape[i] == -3) {
-                // Ignore 0 or more trailing entries.
-                j = vshape.size();
-            } else if ((j < vshape.size()) && (shape[i] == vshape[j])) {
-                // Matched exactly.
+            } else if (j >= vshape.size()) {
+                break;
+            } else if (shape[i] == -1 || shape[i] == vshape[j]) {
+                // Match.
                 j++;
             } else
                 break;

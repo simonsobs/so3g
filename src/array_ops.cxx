@@ -555,6 +555,18 @@ void get_gap_fill_poly(const bp::object ranges,
     free(a);
 }
 
+
+void test_buffer_wrapper(const bp::object array,
+                         const bp::object dims)
+{
+    std::vector<int> _dims(bp::len(dims));
+    for (int i=0; i<bp::len(dims); i++)
+        _dims[i] = bp::extract<double>(dims[i]);
+    BufferWrapper<double> array_buf  ("array",  array,  false, _dims);
+
+}
+
+
 PYBINDINGS("so3g")
 {
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
@@ -579,4 +591,6 @@ PYBINDINGS("so3g")
             "Do polynomial gap-filling for float64 data.\n"
             "\n"
             "See details in docstring for get_gap_fill_poly.\n");
+    bp::def("test_buffer_wrapper", test_buffer_wrapper,
+            "Pass array and list of dims to match against its shape.");
 }

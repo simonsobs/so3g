@@ -64,6 +64,10 @@ class TestProjEng(unittest.TestCase):
             w = p.to_weights(asm, comps=comps)[0, 0]
             assert(np.any(w != 0))
 
+        target = np.zeros((1, ) + m.shape[:-1])
+        with self.assertRaises(RuntimeError):
+            p.to_map(sig, asm, comps='T', output=target)
+
         # Does det_weights seem to work?
         m = p.to_map(sig, asm, comps='T',
                      det_weights=np.array([0., 0.], dtype='float32'))[0]
