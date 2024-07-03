@@ -507,12 +507,12 @@ public:
             // The map is mandatory, and the leading axis must match the
             // component count.  Then the one healpix pixel axis.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,-1});
+                                           vector<int>{comp_count,npix});
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
             // the component count.  Then the one healpix pixel axis.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,comp_count,-1});
+                                           vector<int>{comp_count,comp_count,npix});
         }
         return true;
     }
@@ -651,12 +651,12 @@ public:
         vector<int> map_shape_req;
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
-            // component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,-1};
+            // component count, second axis the npix_per_tile.
+            map_shape_req = {comp_count,npix_per_tile};
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
-            // the component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,comp_count,-1};
+            // the component count.
+            map_shape_req = {comp_count,comp_count,npix_per_tile};
         }
         if (map_shape_req.size() == 0)
             return true;
