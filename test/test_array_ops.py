@@ -43,6 +43,31 @@ class TestPolyFill(unittest.TestCase):
             np.testing.assert_allclose(BAD_DATA, ex, rtol=tolerance)
 
 
+class TestBufferWrapper(unittest.TestCase):
+    def test_00(self):
+        for array_shape, pattern in [
+                ((2, 4), (2, 4)),
+                ((2, 4), (-1, -1)),
+                ((2, 4), (-2,)),
+                ((2, 4), (-1, -1, -2,)),
+                ((2, 4), (-2, -1, -1)),
+                ((2, 4), (-1, -2, -1)),
+        ]:
+            a = np.zeros(array_shape)
+            so3g.test_buffer_wrapper(a, list(pattern))
+
+        for array_shape, pattern in [
+                ((2, 4), (-2, -2)),
+                ((2, 4), (2,)),
+                ((2, 4), (4,)),
+                ((2, 4), (2, 3)),
+                ((2, 4), (2, 4, -1)),
+                ((2, 4), (2, -1, -1)),
+                ((2, 4), (-1, -1, -1, -2)),
+        ]:
+            a = np.zeros(array_shape)
+            with self.assertRaises(RuntimeError):
+                so3g.test_buffer_wrapper(a, list(pattern))
 
 if __name__ == '__main__':
     unittest.main()
