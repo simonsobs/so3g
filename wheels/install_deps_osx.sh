@@ -53,7 +53,7 @@ fi
 pip install --upgrade pip
 
 # Install a couple of base packages that are always required
-pip install -v cmake wheel
+pip install -v cmake wheel setuptools
 
 # In order to maximize ABI compatibility with numpy, build with the newest numpy
 # version containing the oldest ABI version compatible with the python we are using.

@@ -3,7 +3,9 @@
 # Before running this from the so3g git checkout directory,
 # you should pip install cibuildwheel
 
-export CIBW_BUILD="cp39-manylinux_x86_64"
+export CIBW_DEBUG_KEEP_CONTAINER=TRUE
+
+export CIBW_BUILD="cp310-manylinux_x86_64"
 export CIBW_MANYLINUX_X86_64_IMAGE="manylinux2014"
 export CIBW_BUILD_VERBOSITY=3
 export CIBW_ENVIRONMENT_LINUX="CC=gcc CXX=g++ CFLAGS='-O3 -g -fPIC' CXXFLAGS='-O3 -g -fPIC -std=c++14'"
