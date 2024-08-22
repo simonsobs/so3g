@@ -23,7 +23,7 @@ jobs:
 
     - name: Build docker images
       run: |
-        docker-compose build
+        docker compose build
 
     - name: Test with pytest within a docker container
       run: |
