@@ -75,7 +75,7 @@ if [ ${pyver} == "3.11" ]; then
 fi
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver} scipy_openblas32"
+CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}" "scipy_openblas32"
 
 # We use the scipy openblas wheel to get the openblas to use.
 
