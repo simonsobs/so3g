@@ -80,11 +80,11 @@ CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements
 # Install openblas from the multilib package- the same one numpy uses.
 
 if [ "${arch}" = "macosx_arm64" ]; then
-    openblas_pkg="openblas-v0.3.21-macosx_11_0_arm64-gf_5272328.tar.gz"
+    openblas_pkg="openblas-v0.3.27-macosx_11_0_arm64-gf_5272328.tar.gz"
 else
-    openblas_pkg="openblas-v0.3.21-macosx_10_9_x86_64-gf_1becaaa.tar.gz"
+    openblas_pkg="openblas-v0.3.27-macosx_10_9_x86_64-gf_c469a42.tar.gz"
 fi
-openblas_url="https://anaconda.org/multibuild-wheels-staging/openblas-libs/v0.3.21/download/${openblas_pkg}"
+openblas_url="https://anaconda.org/multibuild-wheels-staging/openblas-libs/v0.3.27/download/${openblas_pkg}"
 
 if [ ! -e ${openblas_pkg} ]; then
     echo "Fetching OpenBLAS..."
@@ -110,14 +110,14 @@ otool -L /usr/local/gfortran/lib/libgfortran.3.dylib
 
 # Install boost
 
-boost_version=1_80_0
+boost_version=1_86_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://archives.boost.io/release/1.86.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."
