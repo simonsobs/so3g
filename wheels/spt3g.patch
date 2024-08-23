@@ -10,6 +10,18 @@ diff -urN spt3g_software_orig/cmake/Spt3gBoostPython.cmake spt3g_software/cmake/
  else()
  	find_package(PythonInterp)
  	find_package(PythonLibs ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+diff -urN spt3g_software_orig/CMakeLists.txt spt3g_software/CMakeLists.txt
+--- spt3g_software_orig/CMakeLists.txt	2024-08-22 10:24:59.301256298 -0700
++++ spt3g_software/CMakeLists.txt	2024-08-23 12:33:59.073140890 -0700
+@@ -42,7 +42,7 @@
+ 
+ # Raise errors on every warning by default
+ # (use target-specific options to disable particular warnings)
+-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
++#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
+ 
+ # Interface library for flags and library dependencies
+ add_library(spt3g INTERFACE)
 diff -urN spt3g_software_orig/core/CMakeLists.txt spt3g_software/core/CMakeLists.txt
 --- spt3g_software_orig/core/CMakeLists.txt	2024-08-06 11:34:45.598647939 -0700
 +++ spt3g_software/core/CMakeLists.txt	2024-08-22 10:29:17.655985088 -0700
