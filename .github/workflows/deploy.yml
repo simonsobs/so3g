@@ -25,54 +25,49 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux 64 bit manylinux2014
+          # Linux 64 bit manylinux
           - os: ubuntu-latest
+            arch: x86_64
             python: 38
-            platform_id: manylinux_x86_64
-            manylinux_image: manylinux2014
+            builder: manylinux
           - os: ubuntu-latest
+            arch: x86_64
             python: 39
-            platform_id: manylinux_x86_64
-            manylinux_image: manylinux2014
+            builder: manylinux
           - os: ubuntu-latest
+            arch: x86_64
             python: 310
-            platform_id: manylinux_x86_64
-            manylinux_image: manylinux2014
+            builder: manylinux
           - os: ubuntu-latest
+            arch: x86_64
             python: 311
-            platform_id: manylinux_x86_64
-            manylinux_image: manylinux2014
+            builder: manylinux
 
-          # MacOS x86_64
+          # MacOS x86_64.  The macos-13 runner is the last
+          # Intel-based runner version.  At some point we'll
+          # need to switch to macos-14 and test cross compiling.
           - os: macos-13
+            arch: x86_64
             python: 39
-            platform_id: macosx_x86_64
+            builder: macosx
           - os: macos-13
+            arch: x86_64
             python: 310
-            platform_id: macosx_x86_64
+            builder: macosx
           - os: macos-13
+            arch: x86_64
             python: 311
-            platform_id: macosx_x86_64
-
-          # MacOS arm64 - Re-enable after github CI supports M1 runners:
-          #   https://github.com/actions/virtual-environments/issues/2187
-          #
-          # - os: macos-11
-          #   python: 39
-          #   platform_id: macosx_arm64
-          # - os: macos-11
-          #   python: 310
-          #   platform_id: macosx_arm64
+            builder: macosx
     env:
-      CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
-      CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
-      CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.manylinux_image }}
+      CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.builder }}_${{ matrix.arch }}
+      CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.builder }}2014
+      CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.builder }}2014
       CIBW_TEST_SKIP: "*-macosx_arm64"
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14' BOOST_ROOT=/usr/local"
       CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=13.0 CC=gcc-14 CXX=g++-14 CFLAGS='-O3 -g -fPIC' CXXFLAGS='-O3 -g -fPIC -std=c++14' BOOST_ROOT=/usr/local FLAC_ROOT=/usr/local BLAS_LIBRARIES=/usr/local/lib/libscipy_openblas.dylib"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
-      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh ${{ matrix.platform_id }}
+      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh ${{ matrix.builder }}_${{ matrix.arch }}
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
       CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
@@ -82,9 +77,9 @@ jobs:
         python -m pytest {package}/test
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         name: Install Python
         with:
           python-version: '3.10'
@@ -99,4 +94,4 @@ jobs:
 
       - name: Upload to PyPI
         run: |
-          python -m twine upload wheelhouse/so3g*.whl
+          python -m twine upload wheelhouse/so3g*cp${{ matrix.python }}-${{ matrix.builder }}*.whl
