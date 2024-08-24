@@ -11,6 +11,10 @@ env:
   TWINE_USERNAME: __token__
   TWINE_PASSWORD: ${{ secrets.TWINE_TOKEN }}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build_wheels:
     name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
@@ -77,11 +81,6 @@ jobs:
         python -c 'import so3g.smurf.reader; from spt3g import core' &&
         python -m pytest {package}/test
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Checkout
         uses: actions/checkout@v3
 
