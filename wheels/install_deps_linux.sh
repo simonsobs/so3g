@@ -83,14 +83,14 @@ tar xzf ${openblas_pkg} \
 
 # Install boost
 
-boost_version=1_80_0
+boost_version=1_86_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://archives.boost.io/release/1.80.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://archives.boost.io/release/1.86.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."
