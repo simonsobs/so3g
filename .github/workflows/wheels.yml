@@ -85,5 +85,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels_cp${{ matrix.python }}-${{ matrix.builder }}
           path: ./wheelhouse/so3g*cp${{ matrix.python }}-${{ matrix.builder }}*.whl
