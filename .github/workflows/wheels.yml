@@ -93,4 +93,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wheels
-          path: ./wheelhouse/so3g*.whl
+          path: ./wheelhouse/so3g*cp${{ matrix.python }}*${{ matrix.platform_id }}*.whl
