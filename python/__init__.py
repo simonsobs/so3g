@@ -1,4 +1,12 @@
 import os
+import numpy as np
+
+# Verify that we are using numpy 1.x
+npversion = np.version.version
+npversplit = npversion.split(".")
+if npversplit[0] != "1":
+    msg = f"so3g requires numpy version 1.x but found version {npversion}"
+    raise RuntimeError(msg)
 
 if os.getenv('DOCS_BUILD') == '1':
     from ._libso3g_docstring_shells import *
