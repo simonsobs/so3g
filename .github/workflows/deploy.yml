@@ -65,7 +65,7 @@ jobs:
       CIBW_TEST_SKIP: "*-macosx_arm64"
       CIBW_BUILD_VERBOSITY: 3
       CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=13.0 CC=gcc-14 CXX=g++-14 CFLAGS='-O3 -g -fPIC' CXXFLAGS='-O3 -g -fPIC -std=c++14' BOOST_ROOT=/usr/local FLAC_ROOT=/usr/local BLAS_LIBRARIES=/usr/local/lib/libscipy_openblas.dylib"
+      CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=13.0 CC=gcc-14 CXX=g++-14 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14' BOOST_ROOT=/usr/local FLAC_ROOT=/usr/local BLAS_LIBRARIES=/usr/local/lib/libscipy_openblas.dylib"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh ${{ matrix.builder }}_${{ matrix.arch }}
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
