@@ -5,15 +5,15 @@ on:
     branches-ignore: [ master ]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Cancel Previous Runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ github.token }}
     - name: Checkout
       uses: actions/checkout@v2
     - name: Set up Python 3.8
@@ -23,7 +23,7 @@ jobs:
 
     - name: Build docker images
       run: |
-        docker-compose build
+        docker compose build
 
     - name: Test with pytest within a docker container
       run: |

@@ -24,8 +24,8 @@ use_gcc=yes
 # use_gcc=no
 
 if [ "x${use_gcc}" = "xyes" ]; then
-    CC=gcc-12
-    CXX=g++-12
+    CC=gcc-14
+    CXX=g++-14
     CFLAGS="-O3 -fPIC"
     CXXFLAGS="-O3 -fPIC -std=c++14"
 else
@@ -46,14 +46,14 @@ brew install flac
 
 # Optionally install gcc
 if [ "x${use_gcc}" = "xyes" ]; then
-    brew install gcc@12
+    brew install gcc@14
 fi
 
 # Update pip
 pip install --upgrade pip
 
 # Install a couple of base packages that are always required
-pip install -v cmake wheel
+pip install -v cmake wheel setuptools
 
 # In order to maximize ABI compatibility with numpy, build with the newest numpy
 # version containing the oldest ABI version compatible with the python we are using.
@@ -75,49 +75,37 @@ if [ ${pyver} == "3.11" ]; then
 fi
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}"
+CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}" "scipy_openblas32"
 
-# Install openblas from the multilib package- the same one numpy uses.
+# We use the scipy openblas wheel to get the openblas to use.
 
-if [ "${arch}" = "macosx_arm64" ]; then
-    openblas_pkg="openblas-v0.3.21-macosx_11_0_arm64-gf_5272328.tar.gz"
-else
-    openblas_pkg="openblas-v0.3.21-macosx_10_9_x86_64-gf_1becaaa.tar.gz"
-fi
-openblas_url="https://anaconda.org/multibuild-wheels-staging/openblas-libs/v0.3.21/download/${openblas_pkg}"
-
-if [ ! -e ${openblas_pkg} ]; then
-    echo "Fetching OpenBLAS..."
-    curl -SL ${openblas_url} -o ${openblas_pkg}
+# First ensure that pkg-config is set to search somewhere
+if [ -z "${PKG_CONFIG_PATH}" ]; then
+    export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
 fi
 
-echo "Extracting OpenBLAS"
-tar -x -z -v -C "${PREFIX}" --strip-components 2 -f ${openblas_pkg}
+python3 -c "import scipy_openblas32; print(scipy_openblas32.get_pkg_config())" > ${PKG_CONFIG_PATH}/scipy-openblas.pc
 
-# Install the gfortran (and libgcc) that was used for openblas compilation
-
-curl -L https://github.com/MacPython/gfortran-install/raw/master/archives/gfortran-4.9.0-Mavericks.dmg -o gfortran.dmg
-GFORTRAN_SHA256=$(shasum -a 256 gfortran.dmg)
-KNOWN_SHA256="d2d5ca5ba8332d63bbe23a07201c4a0a5d7e09ee56f0298a96775f928c3c4b30  gfortran.dmg"
-if [ "$GFORTRAN_SHA256" != "$KNOWN_SHA256" ]; then
-    echo sha256 mismatch
-    exit 1
-fi
-
-hdiutil attach -mountpoint /Volumes/gfortran gfortran.dmg
-sudo installer -pkg /Volumes/gfortran/gfortran.pkg -target /
-otool -L /usr/local/gfortran/lib/libgfortran.3.dylib
+# To help delocate find the libraries, we copy them into /usr/local
+python3 <<EOF
+import os, scipy_openblas32, shutil
+srcdir = os.path.dirname(scipy_openblas32.__file__)
+incdir = os.path.join(srcdir, "include")
+libdir = os.path.join(srcdir, "lib")
+shutil.copytree(libdir, "/usr/local/lib", dirs_exist_ok=True)
+shutil.copytree(incdir, "/usr/local/include", dirs_exist_ok=True)
+EOF
 
 # Install boost
 
-boost_version=1_80_0
+boost_version=1_86_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://archives.boost.io/release/1.86.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."

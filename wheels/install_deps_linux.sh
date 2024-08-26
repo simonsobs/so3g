@@ -33,7 +33,7 @@ PREFIX=/usr/local
 pip install --upgrade pip
 
 # Install a couple of base packages that are always required
-pip install -v cmake wheel
+pip install -v cmake wheel setuptools
 
 # In order to maximize ABI compatibility with numpy, build with the newest numpy
 # version containing the oldest ABI version compatible with the python we are using.
@@ -59,7 +59,7 @@ CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements
 
 # Install Openblas
 
-openblas_version=0.3.21
+openblas_version=0.3.28
 openblas_dir=OpenBLAS-${openblas_version}
 openblas_pkg=${openblas_dir}.tar.gz
 
@@ -83,14 +83,14 @@ tar xzf ${openblas_pkg} \
 
 # Install boost
 
-boost_version=1_80_0
+boost_version=1_86_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://archives.boost.io/release/1.86.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."
