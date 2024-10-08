@@ -3,6 +3,8 @@ import unittest
 import so3g
 import numpy as np
 
+from scipy.interpolate import interp1d
+
 
 class TestPolyFill(unittest.TestCase):
     """Test the polynomial gap filling."""
