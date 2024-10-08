@@ -110,5 +110,120 @@ class TestJumps(unittest.TestCase):
         np.testing.assert_array_equal(flagged, np.arange(50, 60))
 
 
+class TestGslInterpolate(unittest.TestCase):
+    """
+    Test linear interpolation using GSL.
+    """
+
+    def test_00_basic_interp_float32(self):
+        t_start = 0
+        t_end = 999
+        t_size = 500
+
+        t_interp_start = 0
+        t_interp_end = 999
+        t_interp_size = 2000
+
+        ndet = 3
+        dtype = 'float32'
+
+        t = np.linspace(t_start, t_end, t_size, dtype=dtype)
+        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype)
+
+        t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
+
+        f_template = interp1d(t, sig, fill_value='extrapolate')
+        scipy_sig = f_template(t_interp)
+
+        so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype)
+        so3g.gsl_linear_interp(t, sig, t_interp, so3g_sig)
+
+        tolerance = 1e-4
+        np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
+
+    def test_01_basic_interp_float64(self):
+        t_start = 0
+        t_end = 999
+        t_size = 500
+
+        t_interp_start = 0
+        t_interp_end = 999
+        t_interp_size = 2000
+
+        ndet = 3
+        dtype = 'float64'
+
+        t = np.linspace(t_start, t_end, t_size, dtype=dtype)
+        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype)
+
+        t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
+
+        f_template = interp1d(t, sig, fill_value='extrapolate')
+        scipy_sig = f_template(t_interp)
+
+        so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype)
+        so3g.gsl_linear_interp64(t, sig, t_interp, so3g_sig)
+
+        tolerance = 1e-10
+        np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
+
+    def test_02_linear_extrapolation(self):
+        t_start = 0.
+        t_end = 999.
+        t_size = 500
+
+        t_interp_start = -10.0
+        t_interp_end = 1009.
+        t_interp_size = 2000
+
+        ndet = 3
+        dtype = 'float32'
+
+        t = np.linspace(t_start, t_end, t_size, dtype=dtype)
+        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype)
+
+        t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
+
+        f_template = interp1d(t, sig, fill_value='extrapolate')
+        scipy_sig = f_template(t_interp)
+
+        so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype)
+        so3g.gsl_linear_interp(t, sig, t_interp, so3g_sig)
+
+        tolerance = 1e-4
+        np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
+
+    def test_03_uneven_spacing(self):
+        t_start = 0.
+        t_end = 999.
+        t_size = 500
+
+        t_interp_start = 0.
+        t_interp_end = 999.
+        t_interp_size = 2000
+
+        ndet = 3
+        dtype = 'float32'
+
+        # generate uneven spaced time samples with power law
+        t_pow = 1.3
+
+        t = np.linspace(t_start**(1/t_pow), t_end**(1/t_pow), t_size, dtype=dtype)
+        t = t**t_pow
+        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype)
+
+        t_interp = np.linspace(t_interp_start**(1/t_pow), t_interp_end**(1/t_pow), t_interp_size, dtype=dtype)
+        t_interp = t_interp**t_pow
+
+        f_template = interp1d(t, sig, fill_value='extrapolate')
+        scipy_sig = f_template(t_interp)
+
+        so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype)
+        so3g.gsl_linear_interp(t, sig, t_interp, so3g_sig)
+
+        tolerance = 1e-4
+        np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
+
+        
 if __name__ == "__main__":
     unittest.main()

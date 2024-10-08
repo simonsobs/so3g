@@ -822,6 +822,102 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
     }
 }
 
+template <typename T>
+void _gsl_interp(double* x, double* y, double* x_interp, T* y_interp, int n_x, int n_x_interp)
+{
+    // these are not thread safe
+    gsl_interp_accel *acc = gsl_interp_accel_alloc();
+    gsl_spline *spline = gsl_spline_alloc(gsl_interp_linear, n_x);
+    gsl_spline_init(spline, x, y, n_x);
+
+    double x_step_left = x[1] - x[0];
+    double x_step_right = x[n_x - 1] - x[n_x - 2];
+
+    double x_min = x[0];
+    double x_max = x[n_x - 1];
+
+    double slope_left = (y[1] - y[0]) / x_step_left;
+    double slope_right = (y[n_x - 1] -  y[n_x - 2]) / x_step_right;
+
+    for (int si = 0; si < n_x_interp; ++si) {
+
+        // points below minimum value
+        if (x_interp[si] < x_min) {
+            y_interp[si] = y[0] + slope_left * (x_interp[si] - x_min);
+        }
+        // points above maximum value
+        else if (x_interp[si] >= x_max) {
+            y_interp[si] = y[n_x - 1] + slope_right * (x_interp[si] - x_max);
+        } 
+        else{
+            y_interp[si] = gsl_spline_eval(spline, x_interp[si], acc);
+        }
+    }
+
+    gsl_spline_free(spline);
+    gsl_interp_accel_free(acc);
+}
+
+template <typename T>
+void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::object & x_interp, bp::object & y_interp)
+{
+
+    BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
+    int n_rows = y_buf->shape[0];
+    int n_x = y_buf->shape[1];
+
+    T* y_data = (T*)y_buf->buf;
+    
+    BufferWrapper<T> x_buf  ("x",  x,  false, std::vector<int>{n_x});
+    T* x_data = (T*)x_buf->buf;
+
+    BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
+    int n_x_interp = y_interp_buf->shape[1];
+
+    T* y_interp_data = (T*)y_interp_buf->buf;
+
+    BufferWrapper<T> x_interp_buf  ("x_interp",  x_interp,  false, std::vector<int>{n_x_interp});
+    T* x_interp_data = (T*)x_interp_buf->buf;
+
+    if constexpr (std::is_same<T, double>::value) {
+
+        #pragma omp parallel for
+        for (int row = 0; row < n_rows; ++row) {
+
+            int y_row_start = row * n_x;
+            int y_row_end = y_row_start + n_x;
+            int y_interp_row_start = row * n_x_interp;
+
+            _gsl_interp(x_data, y_data + y_row_start, x_interp_data,
+                        y_interp_data + y_interp_row_start, n_x, n_x_interp);
+        }
+    }
+    else if constexpr (std::is_same<T, float>::value) {
+
+        // copy x and x_interp to double arrays for gsl
+        double x_dbl[n_x], x_interp_dbl[n_x_interp];
+
+        std::copy(x_data, x_data + n_x, x_dbl);
+        std::copy(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl);
+
+        #pragma omp parallel for
+        for (int row = 0; row < n_rows; ++row) {
+
+            int y_row_start = row * n_x;
+            int y_row_end = y_row_start + n_x;
+            int y_interp_row_start = row * n_x_interp;
+
+            // copy y row to double array for gsl
+            double y_dbl[n_x];
+            std::copy(y_data + y_row_start, y_data + y_row_end, y_dbl);
+            
+            // don't copy y_interp to doubles as it is cast during assignment
+            _gsl_interp(x_dbl, y_dbl, x_interp_dbl,
+                        y_interp_data + y_interp_row_start, n_x, n_x_interp);
+        }
+    }
+}
+
 
 PYBINDINGS("so3g")
 {
@@ -911,4 +1007,24 @@ PYBINDINGS("so3g")
             "Args:\n"
             "  flag: flag array (int) with shape (ndet, nsamp)\n"
             "  width: the minimum number of contiguous flagged samples\n");
+    bp::def("gsl_linear_interp", gsl_linear_interp<float>,
+            "gsl_linear_interp(x, y, x_interp, y_interp)"
+            "\n"
+            "Perform linear interpolatation over rows of array with GSL"
+            "\n"
+            "Args:\n"
+            "  x: independent variable (float32) of data with shape (nsamp,)\n"
+            "  y: data array (float32) with shape (ndet, nsamp)\n"
+            "  x_interp: indepdent variable for interpolated data (float32) with shape (nsamp_interp,)\n"
+            "  y_interp: interpolated data array (float32) with shape (ndet, nsamp_interp)\n");
+    bp::def("gsl_linear_interp64", gsl_linear_interp<double>,
+            "gsl_linear_interp64(x, y, x_interp, y_interp)"
+            "\n"
+            "Perform linear interpolatation over rows of array with GSL"
+            "\n"
+            "Args:\n"
+            "  x: independent variable (float64) of data with shape (nsamp,)\n"
+            "  y: data array (float64) with shape (ndet, nsamp)\n"
+            "  x_interp: indepdent variable for interpolated data (float64) with shape (nsamp_interp,)\n"
+            "  y_interp: interpolated data array (float64) with shape (ndet, nsamp_interp)\n");
 }
