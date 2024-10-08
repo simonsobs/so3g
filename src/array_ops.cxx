@@ -15,6 +15,7 @@ extern "C" {
 }
 
 #include <boost/python.hpp>
+#include <gsl/gsl_spline.h>
 
 #include <pybindings.h>
 #include "so3g_numpy.h"
@@ -861,13 +862,12 @@ void _gsl_interp(double* x, double* y, double* x_interp, T* y_interp, int n_x, i
 template <typename T>
 void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::object & x_interp, bp::object & y_interp)
 {
-
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
     int n_rows = y_buf->shape[0];
     int n_x = y_buf->shape[1];
 
     T* y_data = (T*)y_buf->buf;
-    
+
     BufferWrapper<T> x_buf  ("x",  x,  false, std::vector<int>{n_x});
     T* x_data = (T*)x_buf->buf;
 
