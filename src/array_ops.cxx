@@ -863,8 +863,8 @@ template <typename T>
 void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::object & x_interp, bp::object & y_interp)
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
-    int n_rows = y_buf->shape[0];
-    int n_x = y_buf->shape[1];
+    const int n_rows = y_buf->shape[0];
+    const int n_x = y_buf->shape[1];
     if (y_buf->strides[1] != y_buf->itemsize || y_buf->strides[0] != y_buf->itemsize*n_x)
         throw buffer_exception("y must be C-contiguous along last axis");
     T* y_data = (T*)y_buf->buf;
@@ -875,7 +875,7 @@ void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::obj
     T* x_data = (T*)x_buf->buf;
 
     BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
-    int n_x_interp = y_interp_buf->shape[1];
+    const int n_x_interp = y_interp_buf->shape[1];
     if (y_interp_buf->strides[1] != y_interp_buf->itemsize || y_interp_buf->strides[0] != y_interp_buf->itemsize*n_x_interp)
         throw buffer_exception("y_interp must be C-contiguous along last axis");
     T* y_interp_data = (T*)y_interp_buf->buf;
@@ -903,11 +903,14 @@ void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::obj
     }
     else if constexpr (std::is_same<T, float>::value) {
 
-        // copy x and x_interp to double arrays for gsl
+        // transform x and x_interp to double arrays for gsl
         double x_dbl[n_x], x_interp_dbl[n_x_interp];
 
-        std::copy(x_data, x_data + n_x, x_dbl);
-        std::copy(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl);
+        std::transform(x_data, x_data + n_x, x_dbl, 
+                       [](float value) { return static_cast<double>(value); });
+        
+        std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl, 
+                       [](float value) { return static_cast<double>(value); });
 
         #pragma omp parallel for
         for (int row = 0; row < n_rows; ++row) {
@@ -916,9 +919,11 @@ void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::obj
             int y_row_end = y_row_start + n_x;
             int y_interp_row_start = row * n_x_interp;
 
-            // copy y row to double array for gsl
+            // transform y row to double array for gsl
             double y_dbl[n_x];
-            std::copy(y_data + y_row_start, y_data + y_row_end, y_dbl);
+            
+            std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl, 
+                       [](float value) { return static_cast<double>(value); });
             
             T* y_interp_row = y_interp_data + y_interp_row_start;
             
