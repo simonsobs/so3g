@@ -865,18 +865,24 @@ void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::obj
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
     int n_rows = y_buf->shape[0];
     int n_x = y_buf->shape[1];
-
+    if (y_buf->strides[1] != y_buf->itemsize || y_buf->strides[0] != y_buf->itemsize*n_x)
+        throw buffer_exception("y must be C-contiguous along last axis");
     T* y_data = (T*)y_buf->buf;
 
     BufferWrapper<T> x_buf  ("x",  x,  false, std::vector<int>{n_x});
+    if (x_buf->strides[0] != x_buf->itemsize)
+        throw buffer_exception("x must be C-contiguous along last axis");
     T* x_data = (T*)x_buf->buf;
 
     BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
     int n_x_interp = y_interp_buf->shape[1];
-
+    if (y_interp_buf->strides[1] != y_interp_buf->itemsize || y_interp_buf->strides[0] != y_interp_buf->itemsize*n_x_interp)
+        throw buffer_exception("y_interp must be C-contiguous along last axis");
     T* y_interp_data = (T*)y_interp_buf->buf;
 
     BufferWrapper<T> x_interp_buf  ("x_interp",  x_interp,  false, std::vector<int>{n_x_interp});
+     if (x_interp_buf->strides[0] != x_interp_buf->itemsize)
+        throw buffer_exception("x_interp must be C-contiguous along last axis");
     T* x_interp_data = (T*)x_interp_buf->buf;
 
     if constexpr (std::is_same<T, double>::value) {
@@ -887,9 +893,12 @@ void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::obj
             int y_row_start = row * n_x;
             int y_row_end = y_row_start + n_x;
             int y_interp_row_start = row * n_x_interp;
+            
+            T* y_row = y_data + y_row_start;
+            T* y_interp_row = y_interp_data + y_interp_row_start;
 
-            _gsl_interp(x_data, y_data + y_row_start, x_interp_data,
-                        y_interp_data + y_interp_row_start, n_x, n_x_interp);
+            _gsl_interp(x_data, y_row, x_interp_data,
+                        y_interp_row, n_x, n_x_interp);
         }
     }
     else if constexpr (std::is_same<T, float>::value) {
@@ -911,9 +920,11 @@ void gsl_linear_interp(const bp::object & x, const bp::object & y, const bp::obj
             double y_dbl[n_x];
             std::copy(y_data + y_row_start, y_data + y_row_end, y_dbl);
             
+            T* y_interp_row = y_interp_data + y_interp_row_start;
+            
             // don't copy y_interp to doubles as it is cast during assignment
             _gsl_interp(x_dbl, y_dbl, x_interp_dbl,
-                        y_interp_data + y_interp_row_start, n_x, n_x_interp);
+                        y_interp_row, n_x, n_x_interp);
         }
     }
 }
@@ -1010,7 +1021,7 @@ PYBINDINGS("so3g")
     bp::def("gsl_linear_interp", gsl_linear_interp<float>,
             "gsl_linear_interp(x, y, x_interp, y_interp)"
             "\n"
-            "Perform linear interpolatation over rows of array with GSL"
+            "Perform linear interpolatation over rows of array with GSL in float32 array."
             "\n"
             "Args:\n"
             "  x: independent variable (float32) of data with shape (nsamp,)\n"
@@ -1020,7 +1031,7 @@ PYBINDINGS("so3g")
     bp::def("gsl_linear_interp64", gsl_linear_interp<double>,
             "gsl_linear_interp64(x, y, x_interp, y_interp)"
             "\n"
-            "Perform linear interpolatation over rows of array with GSL"
+            "Perform linear interpolatation over rows of array with GSL in float64 array."
             "\n"
             "Args:\n"
             "  x: independent variable (float64) of data with shape (nsamp,)\n"
