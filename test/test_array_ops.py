@@ -114,10 +114,10 @@ class TestJumps(unittest.TestCase):
 
 class TestGslInterpolate(unittest.TestCase):
     """
-    Test linear interpolation using GSL.
+    Test interpolation using GSL.
     """
 
-    def test_00_basic_interp_float32(self):
+    def test_00_linear_interp_float32(self):
         t_start = 0
         t_end = 999
         t_size = 500
@@ -139,12 +139,12 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype, order=order)
-        so3g.gsl_linear_interp(t, sig, t_interp, so3g_sig)
+        so3g.gsl_interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
 
-    def test_01_basic_interp_float64(self):
+    def test_01_linear_interp_float64(self):
         t_start = 0
         t_end = 999
         t_size = 500
@@ -166,7 +166,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype, order=order)
-        so3g.gsl_linear_interp64(t, sig, t_interp, so3g_sig)
+        so3g.gsl_interp1d_linear64(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-10
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
@@ -193,7 +193,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
-        so3g.gsl_linear_interp(t, sig, t_interp, so3g_sig)
+        so3g.gsl_interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
@@ -225,7 +225,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
-        so3g.gsl_linear_interp(t, sig, t_interp, so3g_sig)
+        so3g.gsl_interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
