@@ -139,7 +139,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype, order=order)
-        so3g.gsl_interp1d_linear(t, sig, t_interp, so3g_sig)
+        so3g.interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
@@ -166,7 +166,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype, order=order)
-        so3g.gsl_interp1d_linear64(t, sig, t_interp, so3g_sig)
+        so3g.interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-10
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
@@ -193,7 +193,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
-        so3g.gsl_interp1d_linear(t, sig, t_interp, so3g_sig)
+        so3g.interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
@@ -225,7 +225,7 @@ class TestGslInterpolate(unittest.TestCase):
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
-        so3g.gsl_interp1d_linear(t, sig, t_interp, so3g_sig)
+        so3g.interp1d_linear(t, sig, t_interp, so3g_sig)
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)

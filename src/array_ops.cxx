@@ -212,8 +212,8 @@ int get_dtype(const bp::object & arr) {
     if (ob == NULL) throw exception();
     PyArrayObject * a = reinterpret_cast<PyArrayObject*>(ob);
     int res = PyArray_TYPE(a);
-    Py_DECREF(a);
-    return PyArray_TYPE(a);
+    Py_DECREF(ob);
+    return res;
 }
 
 // This is all from Jon's work for ACT.
@@ -824,12 +824,16 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
 }
 
 template <typename T>
-using _gsl_interp_func_pointer = void (*)(const double*, const double*, const double*, T*, const int, const int,
-                                          gsl_spline*, gsl_interp_accel*);
+using _interp_func_pointer = void (*)(const double* x, const double* y,
+                                      const double* x_interp, T* y_interp,
+                                      const int n_x, const int n_x_interp,
+                                      gsl_spline* spline, gsl_interp_accel* acc
+);
 
 template <typename T>
-void _gsl_linear_interp(const double* x, const double* y, const double* x_interp, T* y_interp, const int n_x, const int n_x_interp,
-                        gsl_spline* spline, gsl_interp_accel* acc)
+void _linear_interp(const double* x, const double* y, const double* x_interp,
+                    T* y_interp, const int n_x, const int n_x_interp,
+                    gsl_spline* spline, gsl_interp_accel* acc)
 {
     // re initialize for each row
     gsl_spline_init(spline, x, y, n_x);
@@ -853,22 +857,16 @@ void _gsl_linear_interp(const double* x, const double* y, const double* x_interp
         else if (x_interp[si] >= x_max) {
             y_interp[si] = y[n_x - 1] + slope_right * (x_interp[si] - x_max);
         } 
-        else{
+        else {
             y_interp[si] = gsl_spline_eval(spline, x_interp[si], acc);
         }
     }
 }
 
 template <typename T>
-void _gsl_cspline_interp(const double* x, const double* y, const double* x_interp, T* y_interp, const int n_x, const int n_x_interp,
-                         gsl_spline* spline, gsl_interp_accel* acc)
-{
-    throw RuntimeError_exception("GSL cspline interpolation is not yet implemented.");
-}
-
-template <typename T>
-void _gsl_interp1d(const bp::object & x, const bp::object & y, const bp::object & x_interp, bp::object & y_interp, 
-                   const gsl_interp_type* interp_type, _gsl_interp_func_pointer<T> interp_func)
+void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_interp,
+               bp::object & y_interp,  const gsl_interp_type* interp_type,
+               _interp_func_pointer<T> interp_func)
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
     const int n_rows = y_buf->shape[0];
@@ -884,7 +882,8 @@ void _gsl_interp1d(const bp::object & x, const bp::object & y, const bp::object 
 
     BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
     const int n_x_interp = y_interp_buf->shape[1];
-    if (y_interp_buf->strides[1] != y_interp_buf->itemsize || y_interp_buf->strides[0] != y_interp_buf->itemsize*n_x_interp)
+    if (y_interp_buf->strides[1] != y_interp_buf->itemsize || 
+        y_interp_buf->strides[0] != y_interp_buf->itemsize*n_x_interp)
         throw buffer_exception("y_interp must be C-contiguous along last axis");
     T* y_interp_data = (T*)y_interp_buf->buf;
 
@@ -892,7 +891,7 @@ void _gsl_interp1d(const bp::object & x, const bp::object & y, const bp::object 
     if (x_interp_buf->strides[0] != x_interp_buf->itemsize)
         throw buffer_exception("x_interp must be C-contiguous along last axis");
     T* x_interp_data = (T*)x_interp_buf->buf;
-
+    
     if constexpr (std::is_same<T, double>::value) {
         #pragma omp parallel
         {
@@ -934,8 +933,7 @@ void _gsl_interp1d(const bp::object & x, const bp::object & y, const bp::object 
         {
             // create one accel and spline per thread
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
-            gsl_spline* spline;
-            spline = gsl_spline_alloc(interp_type, n_x);
+            gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
             #pragma omp parallel for
             for (int row = 0; row < n_rows; ++row) {
@@ -964,25 +962,29 @@ void _gsl_interp1d(const bp::object & x, const bp::object & y, const bp::object 
     }
 }
 
-template <typename T>
-void gsl_interp1d_linear(const bp::object & x, const bp::object & y, const bp::object & x_interp, bp::object & y_interp)
+void interp1d_linear(const bp::object & x, const bp::object & y,
+                     const bp::object & x_interp, bp::object & y_interp)
 {
-    // gsl interpolation type and pointer to corresponding interpolation function
-    const gsl_interp_type* interp_type = gsl_interp_linear;
-    _gsl_interp_func_pointer<T> interp_func = &_gsl_linear_interp<T>;
+    // get data type
+    int dtype = get_dtype(y);
 
-    _gsl_interp1d<T>(x, y, x_interp, y_interp, interp_type, interp_func);
-}
+    if (dtype == NPY_FLOAT) {
+        // gsl interpolation type and pointer to corresponding interpolation function
+        const gsl_interp_type* interp_type = gsl_interp_linear;
+        _interp_func_pointer<float> interp_func = &_linear_interp<float>;
 
-template <typename T>
-void gsl_interp1d_cspline(const bp::object & x, const bp::object & y, const bp::object & x_interp, bp::object & y_interp)
-{
-    // the code would look like this:
-    // const gsl_interp_type* interp_type = gsl_interp_cspline;
-    // _gsl_interp_func_pointer<T> interp_func = &_gsl_cspline_interp<T>;
-    // _gsl_interp1d<T>(x, y, x_interp, y_interp, interp_type, interp_func);
+        _interp1d<float>(x, y, x_interp, y_interp, interp_type, interp_func);
+    }
+    else if (dtype == NPY_DOUBLE) {
+        // gsl interpolation type and pointer to corresponding interpolation function
+        const gsl_interp_type* interp_type = gsl_interp_linear;
+        _interp_func_pointer<double> interp_func = &_linear_interp<double>;
 
-    throw RuntimeError_exception("GSL cspline interpolation is not yet implemented.");
+        _interp1d<double>(x, y, x_interp, y_interp, interp_type, interp_func);
+    }
+    else {
+        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+    }
 }
 
 
@@ -1074,44 +1076,19 @@ PYBINDINGS("so3g")
             "Args:\n"
             "  flag: flag array (int) with shape (ndet, nsamp)\n"
             "  width: the minimum number of contiguous flagged samples\n");
-    bp::def("gsl_interp1d_linear", gsl_interp1d_linear<float>,
-            "gsl_interp1d_linear(x, y, x_interp, y_interp)"
+    bp::def("interp1d_linear", interp1d_linear,
+            "interp1d_linear(x, y, x_interp, y_interp)"
             "\n"
-            "Perform linear interpolation over rows of array with GSL."
-            "\n"
-            "Args:\n"
-            "  x: independent variable (float32) of data with shape (nsamp,)\n"
-            "  y: data array (float32) with shape (ndet, nsamp)\n"
-            "  x_interp: independent variable for interpolated data (float32) with shape (nsamp_interp,)\n"
-            "  y_interp: interpolated data array (float32) with shape (ndet, nsamp_interp)");
-    bp::def("gsl_interp1d_linear64", gsl_interp1d_linear<double>,
-            "gsl_interp1d_linear64(x, y, x_interp, y_interp)"
-            "\n"
-            "Perform linear interpolation over rows of array with GSL."
+            "Perform linear interpolation over rows of float32 or float64 array with GSL.\n"
+            "This function uses OMP to parallelize over the dets (rows) axis.\n"
+            "Vector x must be strictly increasing. Values for x_interp beyond the "
+            "domain of x will be computed based on extrapolation."
             "\n"
             "Args:\n"
-            "  x: independent variable (float64) of data with shape (nsamp,)\n"
-            "  y: data array (float64) with shape (ndet, nsamp)\n"
-            "  x_interp: independent variable for interpolated data (float64) with shape (nsamp_interp,)\n"
-            "  y_interp: interpolated data array (float64) with shape (ndet, nsamp_interp)");
-    bp::def("gsl_interp1d_cspline", gsl_interp1d_cspline<float>,
-            "gsl_interp1d_cspline(x, y, x_interp, y_interp)"
-            "\n"
-            "Perform cspline interpolation over rows of array with GSL."
-            "\n"
-            "Args:\n"
-            "  x: independent variable (float32) of data with shape (nsamp,)\n"
-            "  y: data array (float32) with shape (ndet, nsamp)\n"
-            "  x_interp: independent variable for interpolated data (float32) with shape (nsamp_interp,)\n"
-            "  y_interp: interpolated data array (float32) with shape (ndet, nsamp_interp)");
-    bp::def("gsl_interp1d_cspline64", gsl_interp1d_cspline<double>,
-            "gsl_interp1d_cspline64(x, y, x_interp, y_interp)"
-            "\n"
-            "Perform cspline interpolation over rows of array with GSL."
-            "\n"
-            "Args:\n"
-            "  x: independent variable (float64) of data with shape (nsamp,)\n"
-            "  y: data array (float64) with shape (ndet, nsamp)\n"
-            "  x_interp: independent variable for interpolated data (float64) with shape (nsamp_interp,)\n"
-            "  y_interp: interpolated data array (float64) with shape (ndet, nsamp_interp)");
+            "  x: independent variable (float32/float64) of data with shape (nsamp,)\n"
+            "  y: data array (float32/float64) with shape (ndet, nsamp)\n"
+            "  x_interp: independent variable (float32/float64) for interpolated data "
+            "            with shape (nsamp_interp,)\n"
+            "  y_interp: interpolated data array (float32/float64) output buffer to be modified "
+            "            with shape (ndet, nsamp_interp)\n");
 }
