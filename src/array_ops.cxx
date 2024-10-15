@@ -827,15 +827,14 @@ template <typename T>
 using _interp_func_pointer = void (*)(const double* x, const double* y,
                                       const double* x_interp, T* y_interp,
                                       const int n_x, const int n_x_interp,
-                                      gsl_spline* spline, gsl_interp_accel* acc
-);
+                                      gsl_spline* spline, gsl_interp_accel* acc);
 
 template <typename T>
 void _linear_interp(const double* x, const double* y, const double* x_interp,
                     T* y_interp, const int n_x, const int n_x_interp,
                     gsl_spline* spline, gsl_interp_accel* acc)
 {
-    // re initialize for each row
+    // Re-initialize for each row
     gsl_spline_init(spline, x, y, n_x);
 
     double x_step_left = x[1] - x[0];
@@ -848,12 +847,11 @@ void _linear_interp(const double* x, const double* y, const double* x_interp,
     double slope_right = (y[n_x - 1] -  y[n_x - 2]) / x_step_right;
 
     for (int si = 0; si < n_x_interp; ++si) {
-
-        // points below minimum value
+        // Points below minimum value
         if (x_interp[si] < x_min) {
             y_interp[si] = y[0] + slope_left * (x_interp[si] - x_min);
         }
-        // points above maximum value
+        // Points above maximum value
         else if (x_interp[si] >= x_max) {
             y_interp[si] = y[n_x - 1] + slope_right * (x_interp[si] - x_max);
         } 
@@ -865,46 +863,49 @@ void _linear_interp(const double* x, const double* y, const double* x_interp,
 
 template <typename T>
 void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_interp,
-               bp::object & y_interp,  const gsl_interp_type* interp_type,
+               bp::object & y_interp, const gsl_interp_type* interp_type,
                _interp_func_pointer<T> interp_func)
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
+    if (y_buf->strides[1] != y_buf->itemsize)
+        throw ValueError_exception("Argument 'y' must be a C-contiguous 2d array.");
+    T* y_data = (T*)y_buf->buf;
     const int n_rows = y_buf->shape[0];
     const int n_x = y_buf->shape[1];
-    if (y_buf->strides[1] != y_buf->itemsize || y_buf->strides[0] != y_buf->itemsize*n_x)
-        throw buffer_exception("y must be C-contiguous along last axis");
-    T* y_data = (T*)y_buf->buf;
 
     BufferWrapper<T> x_buf  ("x",  x,  false, std::vector<int>{n_x});
     if (x_buf->strides[0] != x_buf->itemsize)
-        throw buffer_exception("x must be C-contiguous along last axis");
+        throw ValueError_exception("Argument 'x' must be a C-contiguous 1d array");
     T* x_data = (T*)x_buf->buf;
 
     BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
-    const int n_x_interp = y_interp_buf->shape[1];
-    if (y_interp_buf->strides[1] != y_interp_buf->itemsize || 
-        y_interp_buf->strides[0] != y_interp_buf->itemsize*n_x_interp)
-        throw buffer_exception("y_interp must be C-contiguous along last axis");
+    if (y_interp_buf->strides[1] != y_interp_buf->itemsize)
+        throw ValueError_exception("Argument 'y_interp' must be a C-contiguous 2d array.");
     T* y_interp_data = (T*)y_interp_buf->buf;
+    const int n_x_interp = y_interp_buf->shape[1];
 
     BufferWrapper<T> x_interp_buf  ("x_interp",  x_interp,  false, std::vector<int>{n_x_interp});
     if (x_interp_buf->strides[0] != x_interp_buf->itemsize)
-        throw buffer_exception("x_interp must be C-contiguous along last axis");
+        throw ValueError_exception("Argument 'x_interp' must be a C-contiguous 1d array");
     T* x_interp_data = (T*)x_interp_buf->buf;
-    
+
     if constexpr (std::is_same<T, double>::value) {
+        // Strides for non-contiguous rows
+        int y_data_stride = y_buf->strides[0] / sizeof(double);
+        int y_interp_data_stride = y_interp_buf->strides[0] / sizeof(double);
+
         #pragma omp parallel
         {
-            // create one accel and spline per thread
+            // Create one accel and spline per thread
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
             #pragma omp parallel for
             for (int row = 0; row < n_rows; ++row) {
 
-                int y_row_start = row * n_x;
+                int y_row_start = row * y_data_stride;
                 int y_row_end = y_row_start + n_x;
-                int y_interp_row_start = row * n_x_interp;
+                int y_interp_row_start = row * y_interp_data_stride;
 
                 T* y_row = y_data + y_row_start;
                 T* y_interp_row = y_interp_data + y_interp_row_start;
@@ -913,14 +914,17 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
                             n_x, n_x_interp, spline, acc);
             }
             
-            // free gsl objects
+            // Free gsl objects
             gsl_spline_free(spline);
             gsl_interp_accel_free(acc);
         }
     }
     else if constexpr (std::is_same<T, float>::value) {
+        // Strides for non-contiguous rows
+        int y_data_stride = y_buf->strides[0] / sizeof(float);
+        int y_interp_data_stride = y_interp_buf->strides[0] / sizeof(float);
 
-        // transform x and x_interp to double arrays for gsl
+        // Transform x and x_interp to double arrays for gsl
         double x_dbl[n_x], x_interp_dbl[n_x_interp];
 
         std::transform(x_data, x_data + n_x, x_dbl, 
@@ -931,18 +935,18 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
 
         #pragma omp parallel
         {
-            // create one accel and spline per thread
+            // Create one accel and spline per thread
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
             #pragma omp parallel for
             for (int row = 0; row < n_rows; ++row) {
 
-                int y_row_start = row * n_x;
+                int y_row_start = row * y_data_stride;
                 int y_row_end = y_row_start + n_x;
-                int y_interp_row_start = row * n_x_interp;
+                int y_interp_row_start = row * y_interp_data_stride;
 
-                // transform y row to double array for gsl
+                // Transform y row to double array for gsl
                 double y_dbl[n_x];
 
                 std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl, 
@@ -950,12 +954,12 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
 
                 T* y_interp_row = y_interp_data + y_interp_row_start;
 
-                // don't copy y_interp to doubles as it is cast during assignment
+                // Don't copy y_interp to doubles as it is cast during assignment
                 interp_func(x_dbl, y_dbl, x_interp_dbl, y_interp_row, 
                             n_x, n_x_interp, spline, acc);
             }
 
-            // free gsl objects
+            // Free gsl objects
             gsl_spline_free(spline);
             gsl_interp_accel_free(acc);
         }
@@ -965,21 +969,23 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
 void interp1d_linear(const bp::object & x, const bp::object & y,
                      const bp::object & x_interp, bp::object & y_interp)
 {
-    // get data type
+    // Get data type
     int dtype = get_dtype(y);
 
     if (dtype == NPY_FLOAT) {
-        // gsl interpolation type and pointer to corresponding interpolation function
+        // GSL interpolation type
         const gsl_interp_type* interp_type = gsl_interp_linear;
+        // Pointer to interpolation function
         _interp_func_pointer<float> interp_func = &_linear_interp<float>;
-
+        
         _interp1d<float>(x, y, x_interp, y_interp, interp_type, interp_func);
     }
     else if (dtype == NPY_DOUBLE) {
-        // gsl interpolation type and pointer to corresponding interpolation function
+        // GSL interpolation type
         const gsl_interp_type* interp_type = gsl_interp_linear;
+        // Pointer to interpolation function
         _interp_func_pointer<double> interp_func = &_linear_interp<double>;
-
+        
         _interp1d<double>(x, y, x_interp, y_interp, interp_type, interp_func);
     }
     else {
