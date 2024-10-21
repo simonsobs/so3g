@@ -868,7 +868,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
     if (y_buf->strides[1] != y_buf->itemsize)
-        throw ValueError_exception("Argument 'y' must be a C-contiguous 2d array.");
+        throw ValueError_exception("Argument 'y' must be must be contiguous in last axis.");
     T* y_data = (T*)y_buf->buf;
     const int n_rows = y_buf->shape[0];
     const int n_x = y_buf->shape[1];
@@ -880,7 +880,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
 
     BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
     if (y_interp_buf->strides[1] != y_interp_buf->itemsize)
-        throw ValueError_exception("Argument 'y_interp' must be a C-contiguous 2d array.");
+        throw ValueError_exception("Argument 'y_interp' must be contiguous in last axis.");
     T* y_interp_data = (T*)y_interp_buf->buf;
     const int n_x_interp = y_interp_buf->shape[1];
 

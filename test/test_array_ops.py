@@ -4,7 +4,7 @@ import so3g
 import numpy as np
 
 from scipy.interpolate import interp1d
-from scipy.signal import welch
+from scipy.signal import welch, windows
 
 class TestPolyFill(unittest.TestCase):
     """Test the polynomial gap filling."""
@@ -257,7 +257,7 @@ class TestGslInterpolate(unittest.TestCase):
         so3g.interp1d_linear(t[slice_offset:], sig[:,slice_offset:], t_interp[interp_slice_offset:], so3g_sig[:,interp_slice_offset:])
 
         tolerance = 1e-4
-        np.testing.assert_allclose(scipy_sig, so3g_sig[:,interp_slice_offset:], rtol=tolerance)       
+        np.testing.assert_allclose(scipy_sig, so3g_sig[:,interp_slice_offset:], rtol=tolerance)
 
 
 if __name__ == "__main__":
