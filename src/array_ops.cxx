@@ -15,6 +15,7 @@ extern "C" {
 }
 
 #include <boost/python.hpp>
+#include <gsl/gsl_spline.h>
 
 #include <pybindings.h>
 #include "so3g_numpy.h"
@@ -211,8 +212,8 @@ int get_dtype(const bp::object & arr) {
     if (ob == NULL) throw exception();
     PyArrayObject * a = reinterpret_cast<PyArrayObject*>(ob);
     int res = PyArray_TYPE(a);
-    Py_DECREF(a);
-    return PyArray_TYPE(a);
+    Py_DECREF(ob);
+    return res;
 }
 
 // This is all from Jon's work for ACT.
@@ -822,6 +823,176 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
     }
 }
 
+template <typename T>
+using _interp_func_pointer = void (*)(const double* x, const double* y,
+                                      const double* x_interp, T* y_interp,
+                                      const int n_x, const int n_x_interp,
+                                      gsl_spline* spline, gsl_interp_accel* acc);
+
+template <typename T>
+void _linear_interp(const double* x, const double* y, const double* x_interp,
+                    T* y_interp, const int n_x, const int n_x_interp,
+                    gsl_spline* spline, gsl_interp_accel* acc)
+{
+    // Re-initialize for each row
+    gsl_spline_init(spline, x, y, n_x);
+
+    double x_step_left = x[1] - x[0];
+    double x_step_right = x[n_x - 1] - x[n_x - 2];
+
+    double x_min = x[0];
+    double x_max = x[n_x - 1];
+
+    double slope_left = (y[1] - y[0]) / x_step_left;
+    double slope_right = (y[n_x - 1] -  y[n_x - 2]) / x_step_right;
+
+    for (int si = 0; si < n_x_interp; ++si) {
+        // Points below minimum value
+        if (x_interp[si] < x_min) {
+            y_interp[si] = y[0] + slope_left * (x_interp[si] - x_min);
+        }
+        // Points above maximum value
+        else if (x_interp[si] >= x_max) {
+            y_interp[si] = y[n_x - 1] + slope_right * (x_interp[si] - x_max);
+        } 
+        else {
+            y_interp[si] = gsl_spline_eval(spline, x_interp[si], acc);
+        }
+    }
+}
+
+template <typename T>
+void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_interp,
+               bp::object & y_interp, const gsl_interp_type* interp_type,
+               _interp_func_pointer<T> interp_func)
+{
+    BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
+    if (y_buf->strides[1] != y_buf->itemsize)
+        throw ValueError_exception("Argument 'y' must be contiguous in last axis.");
+    T* y_data = (T*)y_buf->buf;
+    const int n_rows = y_buf->shape[0];
+    const int n_x = y_buf->shape[1];
+
+    BufferWrapper<T> x_buf  ("x",  x,  false, std::vector<int>{n_x});
+    if (x_buf->strides[0] != x_buf->itemsize)
+        throw ValueError_exception("Argument 'x' must be a C-contiguous 1d array");
+    T* x_data = (T*)x_buf->buf;
+
+    BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
+    if (y_interp_buf->strides[1] != y_interp_buf->itemsize)
+        throw ValueError_exception("Argument 'y_interp' must be contiguous in last axis.");
+    T* y_interp_data = (T*)y_interp_buf->buf;
+    const int n_x_interp = y_interp_buf->shape[1];
+
+    BufferWrapper<T> x_interp_buf  ("x_interp",  x_interp,  false, std::vector<int>{n_x_interp});
+    if (x_interp_buf->strides[0] != x_interp_buf->itemsize)
+        throw ValueError_exception("Argument 'x_interp' must be a C-contiguous 1d array");
+    T* x_interp_data = (T*)x_interp_buf->buf;
+
+    if constexpr (std::is_same<T, double>::value) {
+        // Strides for non-contiguous rows
+        int y_data_stride = y_buf->strides[0] / sizeof(double);
+        int y_interp_data_stride = y_interp_buf->strides[0] / sizeof(double);
+
+        #pragma omp parallel
+        {
+            // Create one accel and spline per thread
+            gsl_interp_accel* acc = gsl_interp_accel_alloc();
+            gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
+
+            #pragma omp parallel for
+            for (int row = 0; row < n_rows; ++row) {
+
+                int y_row_start = row * y_data_stride;
+                int y_row_end = y_row_start + n_x;
+                int y_interp_row_start = row * y_interp_data_stride;
+
+                T* y_row = y_data + y_row_start;
+                T* y_interp_row = y_interp_data + y_interp_row_start;
+
+                interp_func(x_data, y_row, x_interp_data, y_interp_row, 
+                            n_x, n_x_interp, spline, acc);
+            }
+            
+            // Free gsl objects
+            gsl_spline_free(spline);
+            gsl_interp_accel_free(acc);
+        }
+    }
+    else if constexpr (std::is_same<T, float>::value) {
+        // Strides for non-contiguous rows
+        int y_data_stride = y_buf->strides[0] / sizeof(float);
+        int y_interp_data_stride = y_interp_buf->strides[0] / sizeof(float);
+
+        // Transform x and x_interp to double arrays for gsl
+        double x_dbl[n_x], x_interp_dbl[n_x_interp];
+
+        std::transform(x_data, x_data + n_x, x_dbl, 
+                       [](float value) { return static_cast<double>(value); });
+
+        std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl, 
+                       [](float value) { return static_cast<double>(value); });
+
+        #pragma omp parallel
+        {
+            // Create one accel and spline per thread
+            gsl_interp_accel* acc = gsl_interp_accel_alloc();
+            gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
+
+            #pragma omp parallel for
+            for (int row = 0; row < n_rows; ++row) {
+
+                int y_row_start = row * y_data_stride;
+                int y_row_end = y_row_start + n_x;
+                int y_interp_row_start = row * y_interp_data_stride;
+
+                // Transform y row to double array for gsl
+                double y_dbl[n_x];
+
+                std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl, 
+                           [](float value) { return static_cast<double>(value); });
+
+                T* y_interp_row = y_interp_data + y_interp_row_start;
+
+                // Don't copy y_interp to doubles as it is cast during assignment
+                interp_func(x_dbl, y_dbl, x_interp_dbl, y_interp_row, 
+                            n_x, n_x_interp, spline, acc);
+            }
+
+            // Free gsl objects
+            gsl_spline_free(spline);
+            gsl_interp_accel_free(acc);
+        }
+    }
+}
+
+void interp1d_linear(const bp::object & x, const bp::object & y,
+                     const bp::object & x_interp, bp::object & y_interp)
+{
+    // Get data type
+    int dtype = get_dtype(y);
+
+    if (dtype == NPY_FLOAT) {
+        // GSL interpolation type
+        const gsl_interp_type* interp_type = gsl_interp_linear;
+        // Pointer to interpolation function
+        _interp_func_pointer<float> interp_func = &_linear_interp<float>;
+        
+        _interp1d<float>(x, y, x_interp, y_interp, interp_type, interp_func);
+    }
+    else if (dtype == NPY_DOUBLE) {
+        // GSL interpolation type
+        const gsl_interp_type* interp_type = gsl_interp_linear;
+        // Pointer to interpolation function
+        _interp_func_pointer<double> interp_func = &_linear_interp<double>;
+        
+        _interp1d<double>(x, y, x_interp, y_interp, interp_type, interp_func);
+    }
+    else {
+        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+    }
+}
+
 
 PYBINDINGS("so3g")
 {
@@ -911,4 +1082,19 @@ PYBINDINGS("so3g")
             "Args:\n"
             "  flag: flag array (int) with shape (ndet, nsamp)\n"
             "  width: the minimum number of contiguous flagged samples\n");
+    bp::def("interp1d_linear", interp1d_linear,
+            "interp1d_linear(x, y, x_interp, y_interp)"
+            "\n"
+            "Perform linear interpolation over rows of float32 or float64 array with GSL.\n"
+            "This function uses OMP to parallelize over the dets (rows) axis.\n"
+            "Vector x must be strictly increasing. Values for x_interp beyond the "
+            "domain of x will be computed based on extrapolation."
+            "\n"
+            "Args:\n"
+            "  x: independent variable (float32/float64) of data with shape (nsamp,)\n"
+            "  y: data array (float32/float64) with shape (ndet, nsamp)\n"
+            "  x_interp: independent variable (float32/float64) for interpolated data "
+            "            with shape (nsamp_interp,)\n"
+            "  y_interp: interpolated data array (float32/float64) output buffer to be modified "
+            "            with shape (ndet, nsamp_interp)\n");
 }
