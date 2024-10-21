@@ -868,7 +868,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
     if (y_buf->strides[1] != y_buf->itemsize)
-        throw ValueError_exception("Argument 'y' must be must be contiguous in last axis.");
+        throw ValueError_exception("Argument 'y' must be contiguous in last axis.");
     T* y_data = (T*)y_buf->buf;
     const int n_rows = y_buf->shape[0];
     const int n_x = y_buf->shape[1];
