@@ -260,5 +260,82 @@ class TestGslInterpolate(unittest.TestCase):
         np.testing.assert_allclose(scipy_sig, so3g_sig[:,interp_slice_offset:], rtol=tolerance)
 
 
+class TestDetrend(unittest.TestCase):
+    """
+    Test detrending.
+    """
+
+    def test_00_mean_detrending(self):
+        nsamps = 1000
+        ndets = 3
+        dtype = "float32"
+        order = "C"
+
+        x = np.linspace(0., 1., nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
+
+        signal_copy = signal.copy(order=order)
+        signal_copy -= np.mean(signal_copy, axis=-1, dtype=dtype)[..., None]
+
+        method = "mean"
+        count = 0 # not used for mean detrending
+        so3g.detrend(signal, method, count)
+
+        rtol = 0
+        atol = 1e-5
+        np.testing.assert_allclose(signal_copy, signal, rtol=rtol, atol=atol)
+
+    def test_01_median_detrending(self):
+        nsamps = 1000
+        ndets = 3
+        dtype = "float32"
+        order = "C"
+
+        x = np.linspace(0, 1, nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
+
+        signal_copy = signal.copy(order=order)
+        signal_copy -= np.median(signal_copy, axis=-1)[..., None]
+
+        method = "median"
+        count = 0 # not used for median detrending
+        so3g.detrend(signal, method, count)
+
+        rtol = 0.
+        atol = 1e-5
+        np.testing.assert_allclose(signal_copy, signal, rtol=rtol, atol=atol)
+
+    def test_02_linear_detrending(self):
+        nsamps = 1000
+        ndets = 10
+        dtype = "float32"
+        order = "C"
+        count = nsamps // 3
+
+        x = np.linspace(0., 1., nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
+
+        signal_copy = signal.copy(order=order)
+
+        # this is the sotodlib "linear" detrending algorithm copied exactly
+        count_copy = max(1, min(count, signal_copy.shape[-1] // 2))
+        slopes = signal_copy[..., -count_copy:].mean(axis=-1, dtype=dtype) - signal[
+            ..., :count_copy
+        ].mean(axis=-1, dtype=dtype)
+
+        # ignore shape != 2 case as c++ approach only supports 1D or 2D
+        for i in range(signal_copy.shape[0]):
+            signal_copy[i, :] -= slopes[i] * x
+
+        signal_copy -= np.mean(signal_copy, axis=-1)[..., None]
+
+        method = "linear"
+        so3g.detrend(signal, method, count)
+
+        rtol = 0.
+        atol = 1e-5
+        np.testing.assert_allclose(signal_copy, signal, rtol=rtol, atol=atol)
+
+
 if __name__ == "__main__":
     unittest.main()
