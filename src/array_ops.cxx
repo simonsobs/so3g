@@ -1013,7 +1013,7 @@ T _calculate_median(const T* data, const int n)
 template <typename T>
 void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
               const std::string & method, const int linear_ncount,
-              const int nthreads=1)
+              const int nthreads)
 {
     if (method == "mean") {
         #pragma omp parallel for num_threads(nthreads)
@@ -1129,7 +1129,7 @@ void _detrend_buffer(bp::object & tod, const std::string & method,
 
     // We want _detrend to accept C++ types so it can be used internally
     // for Welch psd calculations, hence the hierarchical function calls
-    _detrend<T>(tod_data, ndets, nsamps, row_stride, method, linear_ncount);
+    _detrend<T>(tod_data, ndets, nsamps, row_stride, method, linear_ncount, nthreads);
 }
 
 void detrend(bp::object & tod, const std::string & method, const int linear_ncount)
