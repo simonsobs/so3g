@@ -17,7 +17,7 @@ RUN apt update && apt install -y \
     python-is-python3 \
     libgoogle-glog-dev \
     libgflags-dev \
-    libeigen3-dev \
+    libeigen3-dev
 
 # Set the working directory
 WORKDIR /app_lib/so3g
