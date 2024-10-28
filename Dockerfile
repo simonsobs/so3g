@@ -25,7 +25,11 @@ WORKDIR /app_lib/so3g
 # Fetch and install ceres-solver
 RUN git clone --recurse-submodules https://github.com/ceres-solver/ceres-solver
 WORKDIR /app_lib/so3g/ceres-solver
-RUN mkdir build && cd build && cmake .. && make && make install
+RUN mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc) \
+    && make install
 
 # Set the working directory back to so3g
 WORKDIR /app_lib/so3g

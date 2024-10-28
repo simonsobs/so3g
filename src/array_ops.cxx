@@ -16,6 +16,7 @@ extern "C" {
 
 #include <boost/python.hpp>
 #include <gsl/gsl_spline.h>
+#include <gsl/gsl_statistics.h>
 
 #include <pybindings.h>
 #include "so3g_numpy.h"

@@ -78,7 +78,8 @@ struct CostFunction
         return true;
     }
 
-    static ceres::Problem create(const int n, const double* xx, const double* yy, double* p)
+    static ceres::Problem create(const int n, const double* xx,
+                                 const double* yy, double* p)
     {
         ceres::Problem problem;
 
@@ -123,7 +124,8 @@ struct NegLogLikelihood
         return true;
     }
 
-    static ceres::FirstOrderFunction* create(int n, const double* xx, const double* yy)
+    static ceres::FirstOrderFunction* create(int n, const double* xx,
+                                             const double* yy)
     {
         // Ceres takes ownership of pointers so no cleanup is required
         return new ceres::AutoDiffFirstOrderFunction<NegLogLikelihood<Model>,
