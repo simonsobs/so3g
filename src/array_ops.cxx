@@ -21,6 +21,7 @@ extern "C" {
 #include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"
+#include "array_ops.h"
 
 // TODO: Generalize to double precision too.
 // This implements Jon's noise model for ACT. It takes in
@@ -992,6 +993,23 @@ void interp1d_linear(const bp::object & x, const bp::object & y,
         throw TypeError_exception("Only float32 or float64 arrays are supported.");
     }
 }
+
+template <typename T>
+T _calculate_median(const T* data, const int n)
+{
+    // Copy to prevent overwriting input with gsl median
+    // Explicitly cast to double here due to gsl
+    std::vector<double> data_copy(n);
+    std::transform(data, data + n, data_copy.begin(), [](double val) {
+        return static_cast<double>(val);
+    });
+    
+    // GSL is much faster than a naive std::sort implementation
+    return gsl_stats_median(data_copy.data(), 1, n);
+}
+
+template double _calculate_median<double>(const double* arr, int size);
+template float _calculate_median<float>(const float* arr, int size);
 
 
 PYBINDINGS("so3g")

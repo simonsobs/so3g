@@ -26,6 +26,7 @@ find_package(PythonInterp 3)
 find_package(PythonLibs 3)
 find_package(FLAC)
 find_package(GSL)
+find_package(Ceres)
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -67,6 +68,7 @@ add_library(so3g SHARED
   src/so_linterp.cxx
   src/exceptions.cxx
   src/array_ops.cxx
+  src/fitting_ops.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.
@@ -87,6 +89,9 @@ target_link_libraries(so3g spt3g::core)
 # Link GSL
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g ${GSL_LIBRARIES})
+# Link Ceres
+target_include_directories(so3g PRIVATE ${CERES_INCLUDE_DIRS})
+target_link_libraries(so3g ${CERES_LIBRARIES} ${CERES_DEPENDENCIES})
 
 # You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)
