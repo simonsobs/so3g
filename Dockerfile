@@ -23,7 +23,7 @@ RUN apt update && apt install -y \
 WORKDIR /app_lib/so3g
 
 # Fetch and install ceres-solver
-RUN git clone https://ceres-solver.googlesource.com/ceres-solver
+RUN git clone --recurse-submodules https://github.com/ceres-solver/ceres-solver
 WORKDIR /app_lib/so3g/ceres-solver
 RUN mkdir build && cd build && cmake .. && make && make install
 
