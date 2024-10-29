@@ -21,7 +21,7 @@ RUN apt update && apt install -y \
     libgtest-dev \
     libabsl-dev \
     libeigen3-dev \
-    libceres-dev
+    libceres-dev=2.2.0+dfsg-4.1ubuntu2
 
 # Set the working directory
 WORKDIR /app_lib/so3g
