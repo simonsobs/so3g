@@ -174,15 +174,15 @@ void _minimize(const double* x, const double* y, double* p, const int n,
             }
             else {
                 for (int i = 0; i < Likelihood::model::nparams; ++i) {
-                    c[i] = std::numeric_limits<double>::quiet_NaN() ;
+                    c[i] = std::numeric_limits<double>::quiet_NaN();
                 }
             }
         }
     }
     else {
         for (int i = 0; i < Likelihood::model::nparams; ++i) {
-            p[i] = std::numeric_limits<double>::quiet_NaN() ;
-            c[i] = std::numeric_limits<double>::quiet_NaN() ;
+            p[i] = std::numeric_limits<double>::quiet_NaN();
+            c[i] = std::numeric_limits<double>::quiet_NaN();
         }
     }
 }
@@ -303,8 +303,47 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
     T* c_data = (T*)c_buf->buf;
     const int c_stride = c_buf->strides[0] / sizeof(T);
 
-    if constexpr (std::is_same<T, double>::value) {
-        // Get frequency bounds and log(f)
+    
+    if constexpr (std::is_same<T, float>::value) {
+        // Copy f to double
+        double f_double[nsamps];
+
+        std::transform(f_data, f_data + nsamps, f_double, 
+                       [](float value) { return static_cast<double>(value); });
+
+        // Get frequency bounds
+        auto [lowf_i, fwhite_i, fwhite_size] = 
+            _get_frequency_limits(f_double, lowf, fwhite_lower, fwhite_upper, nsamps);
+
+        // Fit in logspace
+        double log_f[nsamps];
+        for (int i = 0; i < nsamps; ++i) {
+            log_f[i] = std::log10(f_double[i]);
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < ndets; ++i) {
+            int ioff = i * row_stride;
+            int poff = i * p_stride;
+            int coff = i * c_stride;
+
+            // Copy pxx row to double
+            double pxx_det[nsamps];
+
+            std::transform(pxx_data + ioff, pxx_data + ioff + nsamps, pxx_det, 
+                       [](float value) { return static_cast<double>(value); });
+
+            // Cast to double implicitly on assignment
+            T* p_det = p_data + poff;
+            T* c_det = c_data + coff;
+
+            _fit_noise<CostFunc, Likelihood>(f_double, log_f, pxx_det, p_det,
+                                             c_det, ndets, nsamps, lowf_i, fwhite_i, 
+                                             fwhite_size, tol, niter, epsilon);
+        }
+    }
+    else if constexpr (std::is_same<T, double>::value) {
+        // Get frequency bounds
         auto [lowf_i, fwhite_i, fwhite_size] = 
             _get_frequency_limits(f_data, lowf, fwhite_lower, fwhite_upper, nsamps);
 
@@ -327,44 +366,6 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
             _fit_noise<CostFunc, Likelihood>(f_data, log_f, pxx_det, p_det, c_det,
                                              ndets, nsamps, lowf_i, fwhite_i, fwhite_size, 
                                              tol, niter, epsilon);
-        }
-    }
-    else if constexpr (std::is_same<T, float>::value) {
-        // Copy f to double
-        double f_double[nsamps];
-
-        std::transform(f_data, f_data + nsamps, f_double, 
-                       [](float value) { return static_cast<double>(value); });
-
-        // Get frequency bounds and log(f)
-        auto [lowf_i, fwhite_i, fwhite_size] = 
-            _get_frequency_limits(f_double, lowf, fwhite_lower, fwhite_upper, nsamps);
-
-        // Fit in logspace
-        double log_f[nsamps];
-        for (int i = 0; i < nsamps; ++i) {
-            log_f[i] = std::log10(f_double[i]);
-        }
-
-        #pragma omp parallel for
-        for (int i = 0; i < ndets; ++i) {
-            int ioff = i * row_stride;
-            int poff = i * p_stride;
-            int coff = i * c_stride;
-
-            // Copy pxx row to double
-            double pxx_det[nsamps];
-
-            std::transform(pxx_data + ioff, pxx_data + ioff + nsamps, pxx_det, 
-                       [](float value) { return static_cast<double>(value); });
-
-            // Cast implicitly on assignment
-            T* p_det = p_data + poff;
-            T* c_det = c_data + coff;
-
-            _fit_noise<CostFunc, Likelihood>(f_double, log_f, pxx_det, p_det,
-                                             c_det, ndets, nsamps, lowf_i, fwhite_i, 
-                                             fwhite_size, tol, niter, epsilon);
         }
     }
 }
@@ -392,15 +393,15 @@ PYBINDINGS("so3g")
      bp::def("fit_noise", fit_noise,
              "fit_noise(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon)"
              "\n"
-             "Fits noise model with white and 1/f noise to the PSD of signal. Uses a MLE "
+             "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE "
              "method that minimizes a log likelihood. OMP is used to parallelize across dets (rows)."
              "\n"
              "Args:\n"
-             "  f: frequency array (float32/64) with dimensions (nsamps,)\n"
-             "  pxx: PSD array (float32/64) with dimensions (nsamps,)\n"
-             "  p: parameter array (float32/64) with dimensions (nparams,). This is modified in place.\n"
-             "  c: uncertaintiy array (float32/64) with dimensions (nsamps,). This is modified in place.\n"
-             "  lowf: Frequency below which estimate of 1/f noise index and knee are estimated for initial "
+             "  f: frequency array (float32/64) with dimensions (nsamps,).\n"
+             "  pxx: PSD array (float32/64) with dimensions (ndets, nsamps).\n"
+             "  p: parameter array (float32/64) with dimensions (ndets, nparams). This is modified in place.\n"
+             "  c: uncertaintiy array (float32/64) with dimensions (ndets, nparams). This is modified in place.\n"
+             "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial "
              "        guess passed to least_squares fit (float64).\n"
              "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to "
              "                least_squares fit (float64).\n"
@@ -409,5 +410,5 @@ PYBINDINGS("so3g")
              "  tol: absolute tolerance for minimization (float64).\n"
              "  niter: total number of iterations to run minimization for (int).\n"
              "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse "
-             "           Hessian matrix (float64).\n");
+             "           Hessian matrix (float64). Affects minimization only.\n");
 }

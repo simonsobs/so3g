@@ -32,7 +32,7 @@ WORKDIR /app_lib/so3g/ceres-solver
 
 RUN mkdir build \
     && cd build \
-    && cmake .. \
+    && cmake .. -DBUILD_TESTING=OFF \
     && make -j$(nproc) \
     && make install
 

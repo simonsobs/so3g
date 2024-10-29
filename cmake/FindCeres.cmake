@@ -9,7 +9,7 @@
 find_path(CERES_INCLUDE_DIR NAMES ceres/ceres.h HINTS ENV CERES_DIR PATH_SUFFIXES include)
 find_library(CERES_LIBRARY NAMES ceres HINTS ENV CERES_DIR PATH_SUFFIXES lib)
 
-# Get Eigen
+# Get Dependencies
 find_package(Eigen3 REQUIRED)
 find_package(Glog REQUIRED)
 find_package(Gflags REQUIRED)

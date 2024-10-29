@@ -16,8 +16,8 @@ find_path(EIGEN_INCLUDE_DIR "Eigen/Core"
 )
 
 add_library(Eigen3::Eigen INTERFACE IMPORTED)
-    set_target_properties(Eigen3::Eigen PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${EIGEN_INCLUDE_DIR}")
+set_target_properties(Eigen3::Eigen PROPERTIES 
+    INTERFACE_INCLUDE_DIRECTORIES "${EIGEN_INCLUDE_DIR}")
 
 include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (Eigen3 DEFAULT_MSG EIGEN_INCLUDE_DIR)
