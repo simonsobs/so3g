@@ -17,21 +17,13 @@ RUN apt update && apt install -y \
     python-is-python3 \
     libgoogle-glog-dev \
     libgflags-dev \
-    libeigen3-dev
+    libmetis-dev \
+    libgtest-dev \
+    libabsl-dev \
+    libeigen3-dev \
+    libceres-dev
 
 # Set the working directory
-WORKDIR /app_lib/so3g
-
-# Fetch and install ceres-solver
-RUN git clone --recurse-submodules https://github.com/ceres-solver/ceres-solver
-WORKDIR /app_lib/so3g/ceres-solver
-RUN mkdir build \
-    && cd build \
-    && cmake .. \
-    && make -j$(nproc) \
-    && make install
-
-# Set the working directory back to so3g
 WORKDIR /app_lib/so3g
 
 # Copy the current directory contents into the container
