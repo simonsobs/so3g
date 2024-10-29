@@ -20,7 +20,7 @@ RUN apt update && apt install -y \
     libmetis-dev \
     libgtest-dev \
     libabsl-dev \
-    libeigen3-dev \
+    libeigen3-dev
 
 # Set the working directory
 WORKDIR /app_lib/so3g
