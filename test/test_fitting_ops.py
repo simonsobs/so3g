@@ -38,11 +38,11 @@ class TestFitting(unittest.TestCase):
         so3g_sigmas = np.zeros((ndets, nparams), dtype=dtype, order=order)
 
         so3g.fit_noise(f, pxx, so3g_params, so3g_sigmas, lowf, fwhite[0],
-                       fwhite[1], tol, niter, so3g_sigmas)
+                       fwhite[1], tol, niter, epsilon)
 
         # Check if fitted parameters deviate from input by more than 1-sigma
         for i in range(ndets):
-            residual = np.abs(p0 - so3g_fitout[i]) / so3g_covout[i]
+            residual = np.abs(p0 - so3g_params[i]) / so3g_sigmas[i]
             np.testing.assert_array_less(residual, 1.0)
 
 
