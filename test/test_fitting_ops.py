@@ -3,9 +3,6 @@ import unittest
 import so3g
 import numpy as np
 
-from scipy.optimize import minimize
-import numdifftools as ndt
-
 
 class TestFitting(unittest.TestCase):
     """Test fitting noise model."""
