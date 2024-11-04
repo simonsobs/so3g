@@ -20,4 +20,4 @@ include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (Gflags DEFAULT_MSG GFLAGS_LIBRARIES GFLAGS_INCLUDE_DIRS)
 
 mark_as_advanced(GFLAGS_LIBRARY_DEBUG GFLAGS_LIBRARY_RELEASE
-                    GFLAGS_LIBRARY GFLAGS_INCLUDE_DIR GFLAGS_ROOT_DIR)
+                 GFLAGS_LIBRARY GFLAGS_INCLUDE_DIR GFLAGS_ROOT_DIR)
