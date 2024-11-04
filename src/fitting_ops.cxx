@@ -11,6 +11,7 @@
 
 #include <gsl/gsl_statistics.h>
 #include <ceres/ceres.h>
+#include <glog/logging.h>
 
 #include <pybindings.h>
 #include "so3g_numpy.h"
@@ -19,9 +20,11 @@
 #include "array_ops.h"
 #include "fitting_ops.h"
 
+
 template <typename CostFunction>
 void _least_squares(const double* x, const double* y, double* p, const int n,
-                    const int nthreads=1, double* c=nullptr)
+                    const int nthreads=1, const double* lower_bounds=nullptr,
+                    const double* upper_bounds=nullptr, double* c=nullptr)
 {
     // Set up ceres problem
     ceres::Problem problem = CostFunction::create(n, x, y, p);
@@ -31,6 +34,22 @@ void _least_squares(const double* x, const double* y, double* p, const int n,
     options.logging_type = ceres::LoggingType::SILENT;
     options.minimizer_progress_to_stdout = false;
     options.num_threads = nthreads;
+    
+    // Set bounds
+    if (lower_bounds) {
+        for (int i = 0; i < CostFunction::model::nparams; ++i) {
+            if (!std::isnan(lower_bounds[i])) {
+                problem.SetParameterLowerBound(p, i, lower_bounds[i]);
+            }
+        }
+    }
+    if (upper_bounds) {
+        for (int i = 0; i < CostFunction::model::nparams; ++i) {
+            if (!std::isnan(upper_bounds[i])) {
+                problem.SetParameterUpperBound(p, i, upper_bounds[i]);
+            }
+        }
+    }
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
@@ -61,7 +80,9 @@ void _least_squares(const double* x, const double* y, double* p, const int n,
     else {
         for (int i = 0; i < CostFunction::model::nparams; ++i) {
             p[i] = std::numeric_limits<double>::quiet_NaN();
-            c[i] = std::numeric_limits<double>::quiet_NaN();
+            if (c) {
+                c[i] = std::numeric_limits<double>::quiet_NaN();
+            }
         }
     }
 }
@@ -114,22 +135,27 @@ template <typename Likelihood>
 void _compute_hessian(ceres::GradientProblem& problem, double* p,
                       double* hessian, const double epsilon=1e-5) {
 
-    double gradient[Likelihood::model::nparams];
+    double gradient_plus[Likelihood::model::nparams];
+    double gradient_minus[Likelihood::model::nparams];
     double perturbed_parameters[Likelihood::model::nparams];
-    double perturbed_gradient[Likelihood::model::nparams];
     double cost;
 
-    problem.Evaluate(p, &cost, gradient);
-
+    // Loop over each parameter
     for (int i = 0; i < Likelihood::model::nparams; ++i) {
+        // Perturb in the positive direction
         std::copy(p, p + Likelihood::model::nparams, perturbed_parameters);
         perturbed_parameters[i] += epsilon;
-        problem.Evaluate(perturbed_parameters, &cost, perturbed_gradient);
+        problem.Evaluate(perturbed_parameters, &cost, gradient_plus);
 
-        // Second derivative
+        // Perturb in the negative direction
+        std::copy(p, p + Likelihood::model::nparams, perturbed_parameters);
+        perturbed_parameters[i] -= epsilon;
+        problem.Evaluate(perturbed_parameters, &cost, gradient_minus);
+
+        // Second derivative approximation
         for (int j = 0; j < Likelihood::model::nparams; ++j) {
             hessian[i * Likelihood::model::nparams + j] = 
-                (perturbed_gradient[j] - gradient[j]) / epsilon;
+                (gradient_plus[j] - gradient_minus[j]) / (2 * epsilon);
         }
     }
 }
@@ -182,7 +208,9 @@ void _minimize(const double* x, const double* y, double* p, const int n,
     else {
         for (int i = 0; i < Likelihood::model::nparams; ++i) {
             p[i] = std::numeric_limits<double>::quiet_NaN();
-            c[i] = std::numeric_limits<double>::quiet_NaN();
+            if (c) {
+                c[i] = std::numeric_limits<double>::quiet_NaN();
+            }
         }
     }
 }
@@ -240,32 +268,48 @@ void _fit_noise(const double* f, const double* log_f, const double* pxx,
     double wnest = _calculate_median(pxx + fwhite_i[0], fwhite_size);
 
     // Fit 1/f to line in logspace
-    double pfit[2] = {1., 1.};
-    _least_squares<CostFunc>(log_f, log_pxx, pfit, lowf_i + 1, 1);
+    double pfit[2] = {1., -1.};
+    
+    // Some weak bounds (w > 0, alpha < 0)
+    double lower_bounds[2] = {0., std::numeric_limits<double>::quiet_NaN()};
+    double upper_bounds[2] = {std::numeric_limits<double>::quiet_NaN(), 0.};
 
-    // Find guess for fknee
-    int fi = 0;
-    double min_f = std::numeric_limits<double>::max();
-    for (int i = 0; i < nsamps; ++i) {
-        double model_val = CostFunc::model::eval(log_f[i], pfit);
-        double diff = std::abs(std::pow(10., model_val) - wnest);
-        if (diff <= min_f) {
-            min_f = diff;
-            fi = i;
+    _least_squares<CostFunc>(log_f, log_pxx, pfit, lowf_i + 1, 1,
+                             lower_bounds, upper_bounds);
+    
+    // Don't run minimization if least squares fit failed
+    if (std::isnan(pfit[0]) || std::isnan(pfit[1])) {
+        // Implict cast from double to T
+        for (int i = 0; i < Likelihood::model::nparams; ++i) {
+            p[i] = std::numeric_limits<double>::quiet_NaN();
+            c[i] = std::numeric_limits<double>::quiet_NaN();
         }
     }
+    else {
+        // Find guess for fknee
+        int fi = 0;
+        double min_f = std::numeric_limits<double>::max();
+        for (int i = 0; i < nsamps; ++i) {
+            double model_val = CostFunc::model::eval(log_f[i], pfit);
+            double diff = std::abs(std::pow(10., model_val) - wnest);
+            if (diff <= min_f) {
+                min_f = diff;
+                fi = i;
+            }
+        }
 
-    // Initial parameters
-    double p0[Likelihood::model::nparams] = {f[fi], wnest, -pfit[1]};
-    double c0[Likelihood::model::nparams];
+        // Initial parameters
+        double p0[Likelihood::model::nparams] = {f[fi], wnest, -pfit[1]};
+        double c0[Likelihood::model::nparams];
 
-    // Minimize
-    _minimize<Likelihood>(f, pxx, p0, nsamps, tol, niter, c0, epsilon);
+        // Minimize
+        _minimize<Likelihood>(f, pxx, p0, nsamps, tol, niter, c0, epsilon);
 
-    // Implict cast from double to T
-    for (int i = 0; i < Likelihood::model::nparams; ++i) {
-        p[i] = p0[i];
-        c[i] = c0[i];
+        // Implict cast from double to T
+        for (int i = 0; i < Likelihood::model::nparams; ++i) {
+            p[i] = p0[i];
+            c[i] = c0[i];
+        }
     }
 }
 
@@ -277,6 +321,11 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
 {
     using Likelihood = NegLogLikelihood<NoiseModel>;
     using CostFunc = CostFunction<PolynomialModel<1>>;
+    
+    // Disable google logging to prevent failed fit warnings for each detector
+    google::InitGoogleLogging("logger");
+    FLAGS_minloglevel = google::FATAL + 1;
+    FLAGS_logtostderr = false;
 
     BufferWrapper<T> pxx_buf  ("pxx",  pxx,  false, std::vector<int>{-1, -1});
     if (pxx_buf->strides[1] != pxx_buf->itemsize)
@@ -303,8 +352,33 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
     T* c_data = (T*)c_buf->buf;
     const int c_stride = c_buf->strides[0] / sizeof(T);
 
-    
-    if constexpr (std::is_same<T, float>::value) {
+    if constexpr (std::is_same<T, double>::value) {
+        // Get frequency bounds
+        auto [lowf_i, fwhite_i, fwhite_size] = 
+            _get_frequency_limits(f_data, lowf, fwhite_lower, fwhite_upper, nsamps);
+
+        // Fit in logspace
+        double log_f[nsamps];
+        for (int i = 0; i < nsamps; ++i) {
+            log_f[i] = std::log10(f_data[i]);
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < ndets; ++i) {
+            int ioff = i * row_stride;
+            int poff = i * p_stride;
+            int coff = i * c_stride;
+
+            double* pxx_det = pxx_data + ioff;
+            T* p_det = p_data + poff;
+            T* c_det = c_data + coff;
+
+            _fit_noise<CostFunc, Likelihood>(f_data, log_f, pxx_det, p_det, c_det,
+                                             ndets, nsamps, lowf_i, fwhite_i, fwhite_size, 
+                                             tol, niter, epsilon);
+        }
+    }
+    else if constexpr (std::is_same<T, float>::value) {
         // Copy f to double
         double f_double[nsamps];
 
@@ -333,39 +407,13 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
             std::transform(pxx_data + ioff, pxx_data + ioff + nsamps, pxx_det, 
                        [](float value) { return static_cast<double>(value); });
 
-            // Cast to double implicitly on assignment
+            // Cast implicitly on assignment
             T* p_det = p_data + poff;
             T* c_det = c_data + coff;
 
             _fit_noise<CostFunc, Likelihood>(f_double, log_f, pxx_det, p_det,
                                              c_det, ndets, nsamps, lowf_i, fwhite_i, 
                                              fwhite_size, tol, niter, epsilon);
-        }
-    }
-    else if constexpr (std::is_same<T, double>::value) {
-        // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] = 
-            _get_frequency_limits(f_data, lowf, fwhite_lower, fwhite_upper, nsamps);
-
-        // Fit in logspace
-        double log_f[nsamps];
-        for (int i = 0; i < nsamps; ++i) {
-            log_f[i] = std::log10(f_data[i]);
-        }
-
-        #pragma omp parallel for
-        for (int i = 0; i < ndets; ++i) {
-            int ioff = i * row_stride;
-            int poff = i * p_stride;
-            int coff = i * c_stride;
-
-            double* pxx_det = pxx_data + ioff;
-            T* p_det = p_data + poff;
-            T* c_det = c_data + coff;
-
-            _fit_noise<CostFunc, Likelihood>(f_data, log_f, pxx_det, p_det, c_det,
-                                             ndets, nsamps, lowf_i, fwhite_i, fwhite_size, 
-                                             tol, niter, epsilon);
         }
     }
 }
@@ -393,15 +441,15 @@ PYBINDINGS("so3g")
      bp::def("fit_noise", fit_noise,
              "fit_noise(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon)"
              "\n"
-             "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE "
+             "Fits noise model with white and 1/f noise to the PSD of signal. Uses a MLE "
              "method that minimizes a log likelihood. OMP is used to parallelize across dets (rows)."
              "\n"
              "Args:\n"
-             "  f: frequency array (float32/64) with dimensions (nsamps,).\n"
-             "  pxx: PSD array (float32/64) with dimensions (ndets, nsamps).\n"
-             "  p: parameter array (float32/64) with dimensions (ndets, nparams). This is modified in place.\n"
-             "  c: uncertaintiy array (float32/64) with dimensions (ndets, nparams). This is modified in place.\n"
-             "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial "
+             "  f: frequency array (float32/64) with dimensions (nsamps,)\n"
+             "  pxx: PSD array (float32/64) with dimensions (nsamps,)\n"
+             "  p: parameter array (float32/64) with dimensions (nparams,). This is modified in place.\n"
+             "  c: uncertaintiy array (float32/64) with dimensions (nsamps,). This is modified in place.\n"
+             "  lowf: Frequency below which estimate of 1/f noise index and knee are estimated for initial "
              "        guess passed to least_squares fit (float64).\n"
              "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to "
              "                least_squares fit (float64).\n"
@@ -410,5 +458,5 @@ PYBINDINGS("so3g")
              "  tol: absolute tolerance for minimization (float64).\n"
              "  niter: total number of iterations to run minimization for (int).\n"
              "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse "
-             "           Hessian matrix (float64). Affects minimization only.\n");
+             "           Hessian matrix (float64).\n");
 }

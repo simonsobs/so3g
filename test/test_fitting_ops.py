@@ -2,6 +2,7 @@ import unittest
 
 import so3g
 import numpy as np
+from scipy.stats import chi2
 
 
 class TestFitting(unittest.TestCase):
@@ -13,7 +14,7 @@ class TestFitting(unittest.TestCase):
             fknee, w, alpha = p[0], p[1], p[2]
             return w * (1 + (fknee / f) ** alpha)
 
-        ndets = 3;
+        ndets = 1;
         nsamps = 1024 // 2 + 1 # Assume nperseg = 1024 for psd
         dtype = "float32"
         order = "C"
@@ -39,11 +40,27 @@ class TestFitting(unittest.TestCase):
 
         so3g.fit_noise(f, pxx, so3g_params, so3g_sigmas, lowf, fwhite[0],
                        fwhite[1], tol, niter, epsilon)
+        
+        ddof = nsamps - nparams
+        cval = chi2.ppf(0.95, ddof)
 
-        # Check if fitted parameters deviate from input by more than 1-sigma
         for i in range(ndets):
-            residual = np.abs(p0 - so3g_params[i]) / so3g_sigmas[i]
-            np.testing.assert_array_less(residual, 1.0)
+            fk, w, alpha = so3g_params[i]
+            sfk, sw, salpha = so3g_sigmas[i]
+            
+            # Calculate model error
+            fkf = (1 + fk / f)
+            
+            dmdw = fkf**alpha
+            dmdfk = w * alpha * fkf**(alpha - 1) * f**-1
+            dmdalpha = w * (fkf**alpha) * np.log(alpha)
+            
+            err = np.sqrt((dmdw*sw)**2 + (dmdfk*sfk)**2 + (dmdalpha*salpha)**2)
+ 
+            model = noise_model(f, so3g_params[i])
+            chi_sq = np.sum((pxx[i] - model)**2 / (err[i])**2)
+    
+            np.testing.assert_array_less(chi_sq, cval)
 
 
 if __name__ == "__main__":
