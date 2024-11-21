@@ -20,6 +20,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# We are building libraries that will eventually be linked into shared
+# modules.  All code should be built with PIC.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # For this to be found, make sure the spt3g build directory can be
 # searched; i.e. -DCMAKE_PREFIX_PATH=/path/to/spt3g_software/build
 find_package(Spt3g REQUIRED)
@@ -37,7 +41,7 @@ else()
 endif()
 
 # Determine the location of site-packages.
-execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Numpy include directory?
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c 
@@ -56,7 +60,7 @@ include_directories(${NUMPY_INCLUDE_DIR})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY so3g)
 
-add_library(so3g
+add_library(so3g OBJECT
   src/test.cxx
   src/hkagg.cxx
   src/G3Ndarray.cxx
@@ -123,8 +127,10 @@ add_dependencies(so3g so3g-version)
 
 # Add the Python interface module
 Python_add_library(_libso3g MODULE WITH_SOABI src/main.cxx)
+set_target_properties(_libso3g PROPERTIES PREFIX "")
 target_link_libraries(_libso3g PUBLIC so3g)
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  #set_target_properties(_libso3g PROPERTIES LINK_FLAGS "-Wl,--no-as-needed")
   target_link_options(_libso3g PUBLIC "LINKER:--no-as-needed")
 endif()
 

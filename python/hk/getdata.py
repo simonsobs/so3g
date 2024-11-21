@@ -18,9 +18,10 @@ import glob
 import numpy as np
 import datetime as dt
 
-
-import .._libso3g as libso3g
+from .. import _libso3g as libso3g
 from spt3g import core
+
+from .translator import HKTranslator
 
 
 hk_logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ class HKArchive:
             self.field_groups = list(field_groups)
         # A translator is used to update frames, on the fly, to the
         # modern schema assumed here.
-        self.translator = libso3g.hk.HKTranslator()
+        self.translator = HKTranslator()
 
     def _get_groups(self, fields=None, start=None, end=None,
                     short_match=False):
@@ -484,7 +485,7 @@ class HKArchiveScanner:
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
-        self.translator = libso3g.hk.HKTranslator()
+        self.translator = HKTranslator()
         self.pre_proc_dir = pre_proc_dir
         self.pre_proc_mode = pre_proc_mode
 

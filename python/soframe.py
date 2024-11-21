@@ -15,8 +15,8 @@ originally defined in spt3g library.  The behavior can be disabled
 with the config variable patch_g3frame.
 """
 
-from spt3g.core import G3Frame
 from . import _libso3g as libso3g
+from spt3g.core import G3Frame
 
 orig_getitem = None
 orig_setitem = None

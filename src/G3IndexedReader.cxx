@@ -102,7 +102,7 @@ int G3IndexedReader::Tell() {
     return boost::iostreams::seek(stream_, 0, std::ios_base::cur);
 }
 
-PYBINDINGS("_libso3g") {
+PYBINDINGS("so3g") {
 	using namespace boost::python;
 
 	// Instead of EXPORT_G3MODULE since there are two constructors

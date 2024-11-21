@@ -1,10 +1,10 @@
-import .._libso3g as libso3g
-from spt3g import core
 import numpy as np
 import os
 import sys
 import csv
 import argparse
+
+from .. import _libso3g as libso3g
 
 
 _UNITS = {

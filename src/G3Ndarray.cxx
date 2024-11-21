@@ -95,10 +95,10 @@ bp::object G3Ndarray::to_array() const {
 
 G3_SPLIT_SERIALIZABLE_CODE(G3Ndarray);
 
-using namespace boost::python;
-
-PYBINDINGS("_libso3g")
+PYBINDINGS("so3g")
 {
+    using namespace boost::python;
+
     EXPORT_FRAMEOBJECT(G3Ndarray, init<>(), "G3Ndarray default constructor")
     .def(init<const bp::object&>("Construct G3Ndarray from numpy array"))
     .def("to_array", &G3Ndarray::to_array, "Get the wrapped numpy array")

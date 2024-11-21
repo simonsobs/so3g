@@ -1,10 +1,11 @@
-import so3g
-from . import quat
-from .weather import weather_factory
-
 from collections import OrderedDict
 
 import numpy as np
+
+from .. import _libso3g as libso3g
+from . import quat
+from .weather import weather_factory
+
 
 DEG = np.pi / 180.
 
@@ -231,7 +232,7 @@ class CelestialSightLine:
 
         """
         # Get a projector, in CAR.
-        p = so3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
+        p = libso3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
         # Pre-process the offsets
         collapse = (det_offsets is None)
         if collapse:

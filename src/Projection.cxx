@@ -2237,7 +2237,7 @@ template<typename T>
 inline
 int _index_count(const T &) { return T::index_count; }
 
-PYBINDINGS("_libso3g")
+PYBINDINGS("so3g")
 {
     EXPORT_PIX(Flat);
     EXPORT_PIX(Quat);
