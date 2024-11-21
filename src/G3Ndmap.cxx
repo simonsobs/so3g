@@ -27,7 +27,7 @@ using namespace boost::python;
 
 G3_SERIALIZABLE_CODE(G3Ndmap);
 
-PYBINDINGS("_libso3g")
+PYBINDINGS("so3g")
 {
     EXPORT_FRAMEOBJECT(G3Ndmap, init<>(), "G3Ndmap default constructor")
     .def(init<const G3Ndarray &, const G3WCS &>("Construct G3Nmap from a G3Ndarray and G3WCS"))

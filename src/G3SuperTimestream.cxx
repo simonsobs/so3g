@@ -1178,7 +1178,7 @@ static void translate_ValueError(g3supertimestream_exception const& e)
 }
 
 
-PYBINDINGS("_libso3g")
+PYBINDINGS("so3g")
 {
 	bp::docstring_options local_docstring_options(true, false);
 
