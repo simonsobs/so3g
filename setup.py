@@ -15,6 +15,8 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.command.clean import clean
 
+import numpy as np
+
 # Absolute path to the directory with this file
 topdir = Path(__file__).resolve().parent
 
@@ -112,8 +114,6 @@ def extract_cmake_env(varprefix):
 
 def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, version):
     cmake_args = list()
-    #cmake_args = ["-DPYTHON_EXECUTABLE=" + sys.executable]
-    #cmake_args += ["-DBOOST_PYTHON_MAX_ARITY=20"]
     cfg = "Debug" if debug else "Release"
     cmake_args += ["-DCMAKE_BUILD_TYPE=" + cfg]
     cmake_args += ["-DCMAKE_VERBOSE_MAKEFILE=ON"]
@@ -133,6 +133,11 @@ def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, versi
     cxxflags = "{} -DVERSION_INFO='{}'".format(cxxflags, version)
     if sys.platform.lower() == "darwin":
         cmake_args += ["-DCMAKE_SHARED_LINKER_FLAGS='-undefined dynamic_lookup'"]
+
+    # Add numpy includes
+    numpy_inc = np.get_include()
+    cxxflags += f" -I{numpy_inc}"
+
     env["CXXFLAGS"] = cxxflags
 
     if ccomp is not None:
@@ -228,7 +233,7 @@ class CMakeBuild(build_ext):
         Perform build_cmake before doing the 'normal' stuff
         """
         for extension in self.extensions:
-            if extension.name == "so3g.libso3g":
+            if extension.name == "so3g._libso3g":
                 # We just trigger this on one of the extensions.  build_cmake()
                 # will actually build everything.
                 self.build_cmake()
@@ -256,7 +261,7 @@ class CMakeBuild(build_ext):
 
         # Use CMake to install to the distutils build location
         install_so3g = os.path.dirname(
-            Path(self.get_ext_fullpath("so3g.libso3g")).resolve().parents[0]
+            Path(self.get_ext_fullpath("so3g._libso3g")).resolve().parents[0]
         )
 
         # Use CMake to install spt3g python code into a subdirectory of so3g, but
@@ -342,7 +347,7 @@ class CMakeBuild(build_ext):
 
 
 ext_modules = [
-    CMakeExtension("so3g.libso3g"),
+    CMakeExtension("so3g._libso3g"),
     CMakeExtension("so3g.spt3g_internal.libspt3g-core"),
     CMakeExtension("so3g.spt3g_internal.libspt3g-dfmux"),
     CMakeExtension("so3g.spt3g_internal.libspt3g-calibration"),
@@ -362,15 +367,8 @@ def readme():
 
 conf = dict()
 conf["name"] = "so3g"
-conf["description"] = "Tools for Simons Observatory work with spt3g_software"
-conf["long_description"] = readme()
-conf["long_description_content_type"] = "text/x-rst"
-conf["author"] = "Simons Observatory Collaboration"
-conf["author_email"] = "so_software@simonsobservatory.org"
-conf["license"] = "MIT"
-conf["url"] = "https://github.com/simonsobs/so3g"
 conf["version"] = get_version()
-conf["python_requires"] = ">=3.7.0"
+conf["python_requires"] = ">=3.8.0"
 conf["setup_requires"] = (["wheel", "cmake"],)
 conf["install_requires"] = [
     "numpy<2",
@@ -405,16 +403,5 @@ conf["ext_modules"] = ext_modules
 conf["scripts"] = scripts
 conf["cmdclass"] = {"build_ext": CMakeBuild, "clean": RealClean}
 conf["zip_safe"] = False
-conf["classifiers"] = [
-    "Development Status :: 5 - Production/Stable",
-    "Environment :: Console",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
-    "Operating System :: POSIX",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Topic :: Scientific/Engineering :: Astronomy",
-]
 
 setup(**conf)

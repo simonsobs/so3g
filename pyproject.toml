@@ -1,0 +1,48 @@
+[build-system]
+requires = [
+    "cmake>=3.17",
+    "setuptools>=61",
+    "setuptools_scm[toml]>=6.3",
+    "setuptools-git-versioning>=2.0,<3",
+    "wheel",
+    "numpy<2",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "so3g"
+readme = "README.rst"
+description = "Tools for Simons Observatory work with spt3g_software"
+urls = {source = "https://github.com/simonsobs/so3g"}
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+dependencies = [
+    "numpy<2",
+    "scipy",
+    "astropy",
+    "matplotlib",
+    "scipy",
+    "ephem",
+    "pytz",
+    "pyaml",
+    "sqlalchemy",
+    "pysqlite3-wheels",
+    "tqdm",
+    "qpoint",
+]
+dynamic=["version"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+
+[tool.setuptools_scm]
+
+[tool.cibuildwheel]

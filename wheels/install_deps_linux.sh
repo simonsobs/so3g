@@ -22,7 +22,7 @@ CXX=g++
 FC=gfortran
 
 CFLAGS="-O3 -fPIC -pthread"
-CXXFLAGS="-O3 -fPIC -pthread -std=c++14"
+CXXFLAGS="-O3 -fPIC -pthread -std=c++17"
 FCFLAGS="-O3 -fPIC -pthread"
 
 MAKEJ=2
