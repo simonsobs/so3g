@@ -38,10 +38,7 @@ bp::object useful_info() {
     return output;
 }
 
-
-
-
-PYBINDINGS("so3g") {
+PYBINDINGS("_libso3g") {
     bp::def("version", version);
     bp::def("useful_info", useful_info);
 }
@@ -51,7 +48,7 @@ static void* _so3g_import_array() {
     return NULL;
 }
 
-BOOST_PYTHON_MODULE(so3g) {
+BOOST_PYTHON_MODULE(_libso3g) {
     _so3g_import_array();
-    G3ModuleRegistrator::CallRegistrarsFor("so3g");
+    G3ModuleRegistrator::CallRegistrarsFor("_libso3g");
 }

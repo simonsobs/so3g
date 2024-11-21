@@ -40,7 +40,7 @@ void greet() {
 
 namespace bp = boost::python;
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     bp::def("greet", greet);
     bp::class_<TestClass>("TestClass")

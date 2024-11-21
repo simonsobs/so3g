@@ -134,7 +134,7 @@ using namespace boost::python;
          "Rebundle into interval.")
 
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     EXPORT_REBUNDLER(G3TimestreamMap,  RebundlerPrimaryMap);
 }

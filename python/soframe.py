@@ -15,8 +15,8 @@ originally defined in spt3g library.  The behavior can be disabled
 with the config variable patch_g3frame.
 """
 
-import so3g
 from spt3g.core import G3Frame
+from . import _libso3g as libso3g
 
 orig_getitem = None
 orig_setitem = None
@@ -76,8 +76,8 @@ def set_frame_hooks(config={}):
     # Always do numpy.
     import numpy as np
     # Numpy arrays in frames
-    G3Frame.setitem_converters[np.ndarray] = lambda a: so3g.G3Ndarray(a)
-    G3Frame.getitem_converters[so3g.G3Ndarray] = lambda a: a.to_array()
+    G3Frame.setitem_converters[np.ndarray] = lambda a: libso3g.G3Ndarray(a)
+    G3Frame.getitem_converters[libso3g.G3Ndarray] = lambda a: a.to_array()
 
     has_astropy = False
     use_astropy = config.get('use_astropy', 'try')
@@ -85,15 +85,15 @@ def set_frame_hooks(config={}):
     if astropy is not None:
         has_astropy = True
         G3Frame.setitem_converters[astropy.wcs.WCS] = \
-            lambda a: so3g.G3WCS(a.to_header_string())
-        G3Frame.getitem_converters[so3g.G3WCS] = \
+            lambda a: libso3g.G3WCS(a.to_header_string())
+        G3Frame.getitem_converters[libso3g.G3WCS] = \
             lambda a: astropy.wcs.WCS(a.header)
 
     use_pixell = config.get('use_pixell', 'try')
     pixell = _try_import('pixell.enmap', use_pixell)
     if pixell is not None and has_astropy:
         G3Frame.setitem_converters[pixell.enmap.ndmap] = \
-            lambda a: so3g.G3Ndmap(a, a.wcs.to_header_string())
-        G3Frame.getitem_converters[so3g.G3Ndmap] = \
+            lambda a: libso3g.G3Ndmap(a, a.wcs.to_header_string())
+        G3Frame.getitem_converters[libso3g.G3Ndmap] = \
             lambda a: pixell.enmap.ndmap(a.data.to_array(),
                                          astropy.wcs.WCS(a.wcs.header))

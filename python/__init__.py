@@ -15,13 +15,15 @@ else:
     from . import spt3g
     from spt3g import core as spt3g_core
 
-    # Our library is called libso3g.{suffix}, but will load into module
-    # namespace so3g.
-    from .load_pybindings import load_pybindings
-    load_pybindings([__path__[0] + '/libso3g'], name='so3g')
+    # Load all symbols from our compiled extension.
+    from . import _libso3g as libso3g
+    # # Our library is called libso3g.{suffix}, but will load into module
+    # # namespace so3g.
+    # from .load_pybindings import load_pybindings
+    # load_pybindings([__path__[0] + '/libso3g'], name='so3g')
 
 # Version is computed by versioneer.
-__version__ = version()
+__version__ = libso3g.version()
 
 if os.getenv('DOCS_BUILD') != '1':
     # Instance configuration.

@@ -789,7 +789,7 @@ G3_SERIALIZABLE_CODE(MapIntervalsInt);
 G3_SERIALIZABLE_CODE(MapIntervalsInt32);
 G3_SERIALIZABLE_CODE(MapIntervalsTime);
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     docstring_options local_docstring_options(true, true, false);
     EXPORT_INTERVALS(double,  IntervalsDouble);

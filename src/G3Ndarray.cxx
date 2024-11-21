@@ -97,7 +97,7 @@ G3_SPLIT_SERIALIZABLE_CODE(G3Ndarray);
 
 using namespace boost::python;
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     EXPORT_FRAMEOBJECT(G3Ndarray, init<>(), "G3Ndarray default constructor")
     .def(init<const bp::object&>("Construct G3Ndarray from numpy array"))

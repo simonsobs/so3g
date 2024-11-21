@@ -23,7 +23,7 @@ using namespace boost::python;
 
 G3_SERIALIZABLE_CODE(G3WCS);
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     EXPORT_FRAMEOBJECT(G3WCS, init<>(), "G3WCS default constructor")
     .def(init<const string &>("Construct G3Ndarray from string"))
