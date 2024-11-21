@@ -19,7 +19,7 @@ import numpy as np
 import datetime as dt
 
 
-import so3g
+import .._libso3g as libso3g
 from spt3g import core
 
 
@@ -92,7 +92,7 @@ class HKArchive:
             self.field_groups = list(field_groups)
         # A translator is used to update frames, on the fly, to the
         # modern schema assumed here.
-        self.translator = so3g.hk.HKTranslator()
+        self.translator = libso3g.hk.HKTranslator()
 
     def _get_groups(self, fields=None, start=None, end=None,
                     short_match=False):
@@ -136,7 +136,7 @@ class HKArchive:
             in any group.
 
         """
-        span = so3g.IntervalsDouble()
+        span = libso3g.IntervalsDouble()
         if start is None:
             start = span.domain[0]
         if end is None:
@@ -314,7 +314,7 @@ class HKArchive:
         timelines = {}
         for filename, file_map in sorted(files.items()):
             hk_logger.debug('get_data: reading %s' % filename)
-            reader = so3g.G3IndexedReader(filename)
+            reader = libso3g.G3IndexedReader(filename)
             for byte_offset, frame_info in sorted(file_map.items()):
                 # Seek and decode.
                 hk_logger.debug('get_data: seeking to %i for %i block extractions' %
@@ -484,7 +484,7 @@ class HKArchiveScanner:
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
-        self.translator = so3g.hk.HKTranslator()
+        self.translator = libso3g.hk.HKTranslator()
         self.pre_proc_dir = pre_proc_dir
         self.pre_proc_mode = pre_proc_mode
 
@@ -516,7 +516,7 @@ class HKArchiveScanner:
         vers = f.get('hkagg_version', 0)
         assert(vers == 2)
 
-        if f['hkagg_type'] == so3g.HKFrameType.session:
+        if f['hkagg_type'] == libso3g.HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
@@ -526,7 +526,7 @@ class HKArchiveScanner:
                               (session_id, f['start_time']), unit='HKScanner')
                 self.session_id = session_id
 
-        elif f['hkagg_type'] == so3g.HKFrameType.status:
+        elif f['hkagg_type'] == libso3g.HKFrameType.status:
             # If a provider has disappeared, flush its information into a
             # FieldGroup.
             prov_cands = [_HKProvider.from_g3(p) for p in f['providers']]
@@ -539,7 +539,7 @@ class HKArchiveScanner:
             for prov_id in to_flush:
                 self.flush([prov_id])
 
-        elif f['hkagg_type'] == so3g.HKFrameType.data:
+        elif f['hkagg_type'] == libso3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
             prov = self.providers[f['prov_id']]
             representatives = prov.blocks.keys()
@@ -614,7 +614,7 @@ class HKArchiveScanner:
         with flush_after=False.
 
         """
-        reader = so3g.G3IndexedReader(filename)
+        reader = libso3g.G3IndexedReader(filename)
         while True:
             info = {'filename': filename,
                     'byte_offset': reader.Tell()}
@@ -711,7 +711,7 @@ class _FieldGroup:
     def __init__(self, prefix, fields, start, end, index_info):
         self.prefix = prefix
         self.fields = list(fields)
-        self.cover = so3g.IntervalsDouble().add_interval(start, end)
+        self.cover = libso3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
     def __repr__(self):
         try:

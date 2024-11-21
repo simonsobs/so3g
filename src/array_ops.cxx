@@ -994,7 +994,7 @@ void interp1d_linear(const bp::object & x, const bp::object & y,
 }
 
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
     bp::def("process_cuts",  process_cuts);

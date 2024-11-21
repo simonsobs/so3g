@@ -802,7 +802,7 @@ G3_SERIALIZABLE_CODE(RangesInt32);
 
 G3_SERIALIZABLE_CODE(MapRangesInt32);
 
-PYBINDINGS("so3g")
+PYBINDINGS("_libso3g")
 {
     docstring_options local_docstring_options(true, true, false);
     EXPORT_RANGES(int32_t, RangesInt32);

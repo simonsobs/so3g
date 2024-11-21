@@ -3,16 +3,16 @@
 #include <G3IndexedReader.h>
 #include "exceptions.h"
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
 
 G3IndexedReader::G3IndexedReader(std::string filename, int n_frames_to_read) : 
     prefix_file_(false), n_frames_to_read_(n_frames_to_read),
     n_frames_read_(0)
 {
-	boost::filesystem::path fpath(filename);
+	std::filesystem::path fpath(filename);
 	if (filename.find("://") == std::string::npos &&
-	   (!boost::filesystem::exists(fpath) ||
-	    !boost::filesystem::is_regular_file(fpath)))
+	   (!std::filesystem::exists(fpath) ||
+	    !std::filesystem::is_regular_file(fpath)))
 		log_fatal("Could not find file %s", filename.c_str());
 	StartFile(filename);
 }
@@ -25,10 +25,10 @@ G3IndexedReader::G3IndexedReader(std::vector<std::string> filename, int n_frames
 		log_fatal("Empty file list provided to G3IndexedReader");
 
 	for (auto i = filename.begin(); i != filename.end(); i++){
-		boost::filesystem::path fpath(*i);
+		std::filesystem::path fpath(*i);
 		if (i->find("://") == std::string::npos &&
-		   (!boost::filesystem::exists(fpath) ||
-		    !boost::filesystem::is_regular_file(fpath)))
+		   (!std::filesystem::exists(fpath) ||
+		    !std::filesystem::is_regular_file(fpath)))
 			log_fatal("Could not find file %s", i->c_str());
 		filename_.push_back(*i);
 	}
@@ -102,11 +102,11 @@ int G3IndexedReader::Tell() {
     return boost::iostreams::seek(stream_, 0, std::ios_base::cur);
 }
 
-PYBINDINGS("so3g") {
+PYBINDINGS("_libso3g") {
 	using namespace boost::python;
 
 	// Instead of EXPORT_G3MODULE since there are two constructors
-	class_<G3IndexedReader, bases<G3Module>, boost::shared_ptr<G3IndexedReader>,
+	class_<G3IndexedReader, bases<G3Module>, std::shared_ptr<G3IndexedReader>,
 	    boost::noncopyable>("G3IndexedReader",
 	      "Read frames from disk. Takes either the path to a file to read "
 	      "or an iterable of files to be read in sequence. If "

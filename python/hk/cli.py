@@ -1,4 +1,4 @@
-import so3g
+import .._libso3g as libso3g
 from spt3g import core
 import numpy as np
 import os
@@ -246,7 +246,7 @@ def main(args=None):
         for filename in get_file_list(args):
             file_size = os.path.getsize(filename)
             clean_exit = True
-            r = so3g.G3IndexedReader(filename)
+            r = libso3g.G3IndexedReader(filename)
             while True:
                 try:
                     f = r.Process(None)
@@ -274,7 +274,7 @@ def main(args=None):
         renamer = TokenCleanser(args.strip_tokens)
 
         for filename in get_file_list(args):
-            r = so3g.G3IndexedReader(filename)
+            r = libso3g.G3IndexedReader(filename)
             while True:
                 start = r.Tell()
                 f = r.Process(None)
@@ -305,7 +305,7 @@ def main(args=None):
         renamer = TokenCleanser(args.strip_tokens)
 
         for filename in get_file_list(args):
-            r = so3g.G3IndexedReader(filename)
+            r = libso3g.G3IndexedReader(filename)
             while True:
                 f = r.Process(None)
                 if f is None or len(f) == 0:
