@@ -8,15 +8,16 @@ scan patterns can be passed to the detector data simulator.  Then you
 can add realism or whatever.
 """
 
-import so3g
+import numpy as np
+from scipy.interpolate import InterpolatedUnivariateSpline as spline1d
+
+from . import _libso3g as libso3g
 from spt3g import core
 from spt3g import coordinateutils as cu3g
 
-import numpy as np
-
-from scipy.interpolate import InterpolatedUnivariateSpline as spline1d
-#from so3g import coords
+# FIXME:  The "coords.q_euler" function does not seem to exist anywhere...
 from so3g import coords
+
 
 FT = core.G3FrameType
 
@@ -118,7 +119,7 @@ class ScanPatternGenerator:
         for i0, i1 in zip(swing_points[:-1], swing_points[1:]):
             f0 = core.G3Frame()
             f0.type = core.G3FrameType.Scan
-            benc = so3g.IrregBlockDouble()
+            benc = libso3g.IrregBlockDouble()
             benc.t = time_vec[i0:i1]
             benc.data['az'] = az_vec[i0:i1]
             benc.data['el'] = el_vec[i0:i1]

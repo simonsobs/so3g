@@ -42,23 +42,52 @@ jobs:
             arch: x86_64
             python: 39
             builder: macosx
+            deploy: 13.0
           - os: macos-13
             arch: x86_64
             python: 310
             builder: macosx
+            deploy: 13.0
           - os: macos-13
             arch: x86_64
             python: 311
             builder: macosx
+            deploy: 13.0
+          
+          # MacOS arm64
+          - os: macos-latest
+            arch: arm64
+            python: 310
+            builder: macosx
+            deploy: 14.0
+          - os: macos-latest
+            arch: arm64
+            python: 311
+            builder: macosx
+            deploy: 14.0
     env:
       CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.builder }}_${{ matrix.arch }}
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.builder }}2014
       CIBW_MANYLINUX_I686_IMAGE: ${{ matrix.builder }}2014
       CIBW_BUILD_VERBOSITY: 3
-      CIBW_ENVIRONMENT_LINUX: "CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14' BOOST_ROOT=/usr/local"
-      CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=13.0 CC=gcc-14 CXX=g++-14 CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14' BOOST_ROOT=/usr/local FLAC_ROOT=/usr/local BLAS_LIBRARIES=/usr/local/lib/libscipy_openblas.dylib"
+      CIBW_ENVIRONMENT_LINUX: >
+        CC=gcc
+        CXX=g++
+        CFLAGS='-O3 -fPIC'
+        CXXFLAGS='-O3 -fPIC -std=c++17'
+        BOOST_ROOT=/usr/local
+        BLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran'
+      CIBW_ENVIRONMENT_MACOS: >
+        MACOSX_DEPLOYMENT_TARGET=${{ matrix.deploy }}
+        CC=clang
+        CXX=clang++
+        CFLAGS='-O3 -fPIC'
+        CXXFLAGS='-O3 -fPIC -std=c++17 -stdlib=libc++'
+        BOOST_ROOT=/usr/local
+        FLAC_ROOT=/usr/local
+        BLAS_LIBRARIES='/usr/local/lib/libopenblas.dylib'
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
-      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh ${{ matrix.builder }}_${{ matrix.arch }}
+      CIBW_BEFORE_BUILD_MACOS: ./wheels/install_deps_osx.sh
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
       CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
@@ -86,4 +115,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wheels_cp${{ matrix.python }}-${{ matrix.builder }}
-          path: ./wheelhouse/so3g*cp${{ matrix.python }}-${{ matrix.builder }}*.whl
+          path: ./wheelhouse/so3g*cp${{ matrix.python }}-${{ matrix.builder }}*${{ matrix.arch }}*.whl

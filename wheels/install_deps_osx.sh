@@ -6,10 +6,6 @@
 
 set -e
 
-# Note:  we are not cross-compiling here.  This is for selecting the
-# openblas tarball to fetch.
-arch=$1
-
 # Location of this script
 pushd $(dirname $0) >/dev/null 2>&1
 scriptdir=$(pwd)
@@ -20,19 +16,24 @@ echo "Wheel script directory = ${scriptdir}"
 
 # FIXME:  would be nice to switch to clang once spt3g / cereal
 # runtime registration works.
-use_gcc=yes
-# use_gcc=no
+#use_gcc=yes
+use_gcc=no
+gcc_version=14
 
 if [ "x${use_gcc}" = "xyes" ]; then
-    CC=gcc-14
-    CXX=g++-14
+    CC=gcc-${gcc_version}
+    CXX=g++-${gcc_version}
     CFLAGS="-O3 -fPIC"
-    CXXFLAGS="-O3 -fPIC -std=c++14"
+    CXXFLAGS="-O3 -fPIC -std=c++17"
+    OMPFLAGS="-fopenmp"
 else
+    export MACOSX_DEPLOYMENT_TARGET=$(python3 -c "import sysconfig as s; print(s.get_config_vars()['MACOSX_DEPLOYMENT_TARGET'])")
+    echo "Using MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}"
     CC=clang
     CXX=clang++
     CFLAGS="-O3 -fPIC"
-    CXXFLAGS="-O3 -fPIC -std=c++11 -stdlib=libc++"
+    CXXFLAGS="-O3 -fPIC -std=c++17 -stdlib=libc++"
+    OMPFLAGS=""
 fi
 
 MAKEJ=2
@@ -46,7 +47,7 @@ brew install flac
 
 # Optionally install gcc
 if [ "x${use_gcc}" = "xyes" ]; then
-    brew install gcc@14
+    brew install gcc@${gcc_version}
 fi
 
 # Update pip
@@ -75,26 +76,36 @@ if [ ${pyver} == "3.11" ]; then
 fi
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}" "scipy_openblas32"
+CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}"
 
-# We use the scipy openblas wheel to get the openblas to use.
+# Install Openblas
 
-# First ensure that pkg-config is set to search somewhere
-if [ -z "${PKG_CONFIG_PATH}" ]; then
-    export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+openblas_version=0.3.28
+openblas_dir=OpenBLAS-${openblas_version}
+openblas_pkg=${openblas_dir}.tar.gz
+
+if [ ! -e ${openblas_pkg} ]; then
+    echo "Fetching OpenBLAS..."
+    curl -SL https://github.com/xianyi/OpenBLAS/archive/v${openblas_version}.tar.gz -o ${openblas_pkg}
 fi
 
-python3 -c "import scipy_openblas32; print(scipy_openblas32.get_pkg_config())" > ${PKG_CONFIG_PATH}/scipy-openblas.pc
+echo "Building OpenBLAS..."
 
-# To help delocate find the libraries, we copy them into /usr/local
-python3 <<EOF
-import os, scipy_openblas32, shutil
-srcdir = os.path.dirname(scipy_openblas32.__file__)
-incdir = os.path.join(srcdir, "include")
-libdir = os.path.join(srcdir, "lib")
-shutil.copytree(libdir, "/usr/local/lib", dirs_exist_ok=True)
-shutil.copytree(incdir, "/usr/local/include", dirs_exist_ok=True)
-EOF
+omp="USE_OPENMP=1"
+if [ "x${OMPFLAGS}" = "x" ]; then
+    omp="USE_OPENMP=0"
+fi
+
+rm -rf ${openblas_dir}
+tar xzf ${openblas_pkg} \
+    && pushd ${openblas_dir} >/dev/null 2>&1 \
+    && make ${omp} NO_STATIC=1 \
+    MAKE_NB_JOBS=${MAKEJ} \
+    CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 TARGET=GENERIC \
+    COMMON_OPT="${CFLAGS}" FCOMMON_OPT="${FCFLAGS}" \
+    EXTRALIB="${OMPFLAGS}" libs netlib shared \
+    && make NO_STATIC=1 DYNAMIC_ARCH=1 TARGET=GENERIC PREFIX="${PREFIX}" install \
+    && popd >/dev/null 2>&1
 
 # Install boost
 
