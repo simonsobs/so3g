@@ -373,7 +373,7 @@ conf["version"] = get_version()
 conf["python_requires"] = ">=3.7.0"
 conf["setup_requires"] = (["wheel", "cmake"],)
 conf["install_requires"] = [
-    "numpy",
+    "numpy<2",
     "astropy",
     "matplotlib",
     "scipy",
