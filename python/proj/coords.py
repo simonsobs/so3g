@@ -279,6 +279,9 @@ class FocalPlane:
     def ndet(self): return len(self.quats)
     def __getitem__(self, sel):
         return FocalPlane(quats=self.quats[sel], resps=self.resps[sel])
+    def items(self):
+        for q, resp in zip(quat.G3VectorQuat(self.quats), self.resps):
+            yield q, resp
 
 class Assembly:
     """This class groups together boresight and detector offset
