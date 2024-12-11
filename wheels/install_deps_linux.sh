@@ -126,8 +126,11 @@ echo "Building GSL..."
 rm -rf ${gsl_dir}
 tar xzf ${gsl_pkg} \
     && pushd ${gsl_dir} >/dev/null 2>&1 \
-    && CC="${CC}" CFLAGS="-O3 -fPIC" ./configure --prefix="${PREFIX}" \
-    && make -j ${MAKEJ} install \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && CC="${CC}" CFLAGS="-O3 -fPIC" ../configure --prefix="${PREFIX}" \
+    && make -j ${MAKEJ} \
+    && make install \
     && popd >/dev/null 2>&1
 
 # Astropy caching...
