@@ -110,6 +110,26 @@ tar xjf ${boost_pkg} \
     ${pyincl} cxxflags="${CXXFLAGS}" variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1
 
+# Build GSL
+
+gsl_version=2.8
+gsl_dir=gsl-${gsl_version}
+gsl_pkg=${gsl_dir}.tar.gz
+
+if [ ! -e ${gsl_pkg} ]; then
+    echo "Fetching GSL..."
+    curl -SL https://ftp.gnu.org/gnu/gsl/gsl-${gsl_version}.tar.gz -o ${gsl_pkg}
+fi
+
+echo "Building GSL..."
+
+rm -rf ${gsl_dir}
+tar xzf ${gsl_pkg} \
+    && pushd ${gsl_dir} >/dev/null 2>&1 \
+    && CC="${CC}" CFLAGS="-O3 -fPIC" ./configure --prefix="${PREFIX}" \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1
+
 # Astropy caching...
 
 echo "Attempting to trigger astropy IERS download..."
