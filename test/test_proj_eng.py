@@ -35,7 +35,7 @@ def get_scan():
 def get_basics(clipped=True):
     t, az, el = get_scan()
     csl = proj.CelestialSightLine.az_el(t, az, el, weather='vacuum', site='so')
-    fp = proj.FocalPlane.from_xieta(['a', 'b'], [0., .1*DEG], [0, .1*DEG])
+    fp = proj.FocalPlane.from_xieta([0., .1*DEG], [0, .1*DEG])
     asm = proj.Assembly.attach(csl, fp)
 
     # And a map ... of where?
@@ -73,8 +73,7 @@ class TestProjEng(unittest.TestCase):
                      det_weights=np.array([0., 0.], dtype='float32'))[0]
         assert(np.all(m==0))
 
-        # Raise if pointing invalid.
-        asm.dets[1,2] = np.nan
+        asm.fplane.quats[1,2] = np.nan
         with self.assertRaises(ValueError):
            p.to_map(sig, asm, comps='T')
         with self.assertRaises(ValueError):

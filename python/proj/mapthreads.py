@@ -19,8 +19,8 @@ def get_num_threads(n_threads=None):
         return so3g.useful_info()['omp_num_threads']
     return n_threads
 
-def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
-                       active_tiles=None, n_threads=None, offs_rep=None,
+def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
+                       active_tiles=None, n_threads=None, fplane_rep=None,
                        plot_prefix=None):
     """Assign samples to threads according to the dominant scan
     direction.
@@ -37,7 +37,7 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
 
     Arguments:
       sight (CelestialSightLine): The boresight pointing.
-      offs (array of quaternions): The detector pointing.
+      fplane (FocalPlane): The detector pointing
       shape (tuple): The map shape.
       wcs (wcs): The map WCS.
       tile_shape (tuple): The tile shape, if this should be done using
@@ -46,9 +46,9 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
         will be computed along the way.
       n_threads (int): The number of threads to target (defaults to
         OMP_NUM_THREADS).
-      offs_rep (array of quaternions): A representative set of
+      fplane_rep (FocalPlane): A representative set of
         detectors, for determining scan direction (if not present then
-        offs is used for this).
+        fplane is used for this).
       plot_prefix (str): If present, pylab will be imported and some
         plots saved with this name as prefix.
 
@@ -67,8 +67,8 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
                                       if _m is not None]
 
     n_threads = get_num_threads(n_threads)
-    if offs_rep is None:
-        offs_rep = offs
+    if fplane_rep is None:
+        fplane_rep = fplane
 
     if tile_shape is None:
         # Let's pretend it is, though; this simplifies logic below and
@@ -77,7 +77,7 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
         active_tiles = [0]
 
     # The full assembly, for later.
-    asm_full = so3g.proj.Assembly.attach(sight, offs)
+    asm_full = so3g.proj.Assembly.attach(sight, fplane)
 
     # Get a Projectionist -- note it can be used with full or
     # representative assembly.
@@ -93,10 +93,10 @@ def get_threads_domdir(sight, offs, shape, wcs, tile_shape=None,
     # For the scan direction map, use the "representative" subset
     # detectors, with polarization direction aligned parallel to
     # elevation.
-    xi, eta, gamma = so3g.proj.quat.decompose_xieta(offs_rep)
-    offs_xl = np.array(so3g.proj.quat.rotation_xieta(xi, eta, gamma*0 + 90*so3g.proj.DEG))
-    asm_rep = so3g.proj.Assembly.attach(sight, offs_xl)
-    sig = np.ones((len(offs_xl), len(asm_rep.Q)), dtype='float32')
+    xi, eta, gamma = so3g.proj.quat.decompose_xieta(fplane_rep.quats)
+    fplane_xl = so3g.proj.FocalPlane.from_xieta(xi, eta, gamma*0+90*so3g.proj.DEG)
+    asm_rep = so3g.proj.Assembly.attach(sight, fplane_xl)
+    sig = np.ones((fplane_xl.ndet, len(asm_rep.Q)), dtype='float32')
     scan_maps = pmat.to_map(sig, asm_rep, comps='TQU')
 
     # Compute the scan angle, based on Q and U weights.  This assumes
