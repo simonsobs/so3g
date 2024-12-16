@@ -1,0 +1,23 @@
+# - Find glog
+#
+# GLOG_FOUND
+# GLOG_INCLUDE_DIRS
+# GLOG_LIBRARIES
+# GLOG_LIBRARY_DIRS
+
+if (GLOG_INCLUDE_DIR)
+# Already in cache, be silent
+set (GLOG_FIND_QUIETLY TRUE)
+endif (GLOG_INCLUDE_DIR)
+
+find_path(GLOG_INCLUDE_DIR glog/logging.h HINTS ENV GLOG_DIR PATH_SUFFIXES include)
+find_library(GLOG_LIBRARY NAME glog HINTS ENV GLOG_DIR PATH_SUFFIXES lib)
+
+set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
+set(GLOG_LIBRARIES ${GLOG_LIBRARY})
+
+include (FindPackageHandleStandardArgs)
+find_package_handle_standard_args (Glog DEFAULT_MSG GLOG_LIBRARY GLOG_INCLUDE_DIR)
+
+mark_as_advanced(GLOG_LIBRARY_DEBUG GLOG_LIBRARY_RELEASE
+                 GLOG_LIBRARY GLOG_INCLUDE_DIR GLOG_ROOT_DIR)
