@@ -1,6 +1,6 @@
 astropy
 matplotlib
-numpy<2
+numpy
 scipy
 ephem
 pytz
