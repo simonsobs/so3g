@@ -287,6 +287,8 @@ class CMakeBuild(build_ext):
         )
         raw_incl = out.split()[0]
         py_incl = re.sub("-I", "", raw_incl)
+        # Get the numpy include path from numpy
+        np_incl = np.get_include()
         dlist3g = [
             f"-DPython_EXECUTABLE={py_exe}",
             f"-DPython_INCLUDE_DIRS={py_incl}",
@@ -295,6 +297,7 @@ class CMakeBuild(build_ext):
             f"-DPython_LIBRARY_DIRS=''",
             f"-DPython_VERSION_MAJOR={py_maj}",
             f"-DPython_VERSION_MINOR={py_min}",
+            f"-DPython_NumPy_INCLUDE_DIRS={np_incl}",
             f"-DBoost_PYTHON_TYPE=python{py_maj}{py_min}",
         ]
         if "BOOST_ROOT" in os.environ:
