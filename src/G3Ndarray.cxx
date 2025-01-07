@@ -67,7 +67,7 @@ template <class A> void G3Ndarray::save(A &ar, unsigned v) const // v is the ver
     // Copy over data into contiguous structure. It seems like the easiest way
     // to do this is to make a whole new numpy array
     PyArrayObject *contig = (PyArrayObject*) PyArray_NewCopy(data, NPY_CORDER);
-    ar & make_nvp("data", binary_data((char*)PyArray_DATA(contig), size*PyArray_DESCR(contig)->elsize));
+    ar & make_nvp("data", binary_data((char*)PyArray_DATA(contig), size*PyArray_ITEMSIZE(contig)));
     Py_DECREF((PyObject*)contig);
 }
 
@@ -86,7 +86,7 @@ template <class A> void G3Ndarray::load(A &ar, unsigned v) {
     // Make a new PyArrayObject with these properties
     Py_XDECREF(data);
     data = (PyArrayObject*) PyArray_SimpleNew(ndim, &shape[0], type_num);
-    ar & make_nvp("data", binary_data((char*)PyArray_DATA(data), size*PyArray_DESCR(data)->elsize));
+    ar & make_nvp("data", binary_data((char*)PyArray_DATA(data), size*PyArray_ITEMSIZE(data)));
 }
 
 bp::object G3Ndarray::to_array() const {

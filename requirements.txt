@@ -6,7 +6,7 @@ ephem
 pytz
 pyaml
 sqlalchemy
-pysqlite3-wheels
+pysqlite3
 tqdm
 cmake
 qpoint

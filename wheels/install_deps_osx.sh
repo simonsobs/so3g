@@ -41,7 +41,6 @@ MAKEJ=2
 PREFIX=/usr/local
 
 # Install library dependencies with homebrew
-brew install netcdf
 brew install sqlite3
 brew install flac
 

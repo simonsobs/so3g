@@ -13,7 +13,7 @@ echo "Wheel script directory = ${scriptdir}"
 
 # Install library dependencies
 yum update -y
-yum install -y flac-devel bzip2-devel zlib-devel sqlite-devel netcdf-devel
+yum install -y flac-devel bzip2-devel zlib-devel sqlite-devel
 
 # Build options
 

@@ -2,12 +2,13 @@
 requires = [
     "cmake>=3.17",
     "setuptools>=61",
-    "setuptools_scm[toml]>=6.3",
-    "setuptools-git-versioning>=2.0,<3",
     "wheel",
     "numpy",
 ]
 build-backend = "setuptools.build_meta"
+
+#    "setuptools_scm[toml]>=6.3",
+#    "setuptools-git-versioning>=2.0,<3",
 
 [project]
 name = "so3g"
@@ -26,7 +27,6 @@ dependencies = [
     "pytz",
     "pyaml",
     "sqlalchemy",
-    "pysqlite3-wheels",
     "tqdm",
     "qpoint",
 ]
@@ -42,7 +42,3 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-
-[tool.setuptools_scm]
-
-[tool.cibuildwheel]
