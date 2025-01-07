@@ -12,7 +12,7 @@ RUN apt update && apt install -y \
     build-essential \
     automake \
     gfortran \
-    libopenblas-dev \
+    libopenblas-openmp-dev \
     libbz2-dev \
     python-is-python3
 

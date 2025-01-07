@@ -1,5 +1,4 @@
-
-name:  Test Binary Wheels
+name: Test Wheel Build
 
 on: workflow_dispatch
 
@@ -53,7 +52,7 @@ jobs:
             python: 311
             builder: macosx
             deploy: 13.0
-          
+
           # MacOS arm64
           - os: macos-latest
             arch: arm64

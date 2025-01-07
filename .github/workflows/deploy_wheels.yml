@@ -1,6 +1,6 @@
 # Deploy tagged releases.
 
-name:  Deploy Release
+name: Deploy Release Wheels
 
 on:
   push:
@@ -61,7 +61,7 @@ jobs:
             python: 311
             builder: macosx
             deploy: 13.0
-          
+
           # MacOS arm64
           - os: macos-latest
             arch: arm64
