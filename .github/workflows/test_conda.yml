@@ -77,17 +77,18 @@ jobs:
           source ~/conda/etc/profile.d/conda.sh \
             && conda create --yes -n test python==${{ matrix.python }} \
             && conda activate test \
-            && conda install --yes --file conda_dev_requirements.txt
+            && conda install --yes --file conda_dev_requirements.txt \
+            && pip install -r test-requirements.txt
 
       - name: Install
         run: |
           source ~/conda/etc/profile.d/conda.sh \
             && conda activate test \
-            && python3 -m pip install -vv .
+            && python3 -m pip install .
 
       - name: Run Tests
         run: |
           source ~/conda/etc/profile.d/conda.sh \
             && conda activate test \
             && export OMP_NUM_THREADS=2 \
-            && python3 -m unittest discover -s ./test
+            && pytest ./test

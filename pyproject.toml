@@ -1,14 +1,16 @@
 [build-system]
 requires = [
     "cmake>=3.17",
-    "setuptools>=61",
+    "setuptools",
     "wheel",
     "numpy",
+    # Astropy depends on numpy 1.x with python-3.9.  Place
+    # a build-time dependency here so that we build with a
+    # compatible version of numpy.  Remove this after dropping
+    # python-3.9 support.
+    "astropy",
 ]
 build-backend = "setuptools.build_meta"
-
-#    "setuptools_scm[toml]>=6.3",
-#    "setuptools-git-versioning>=2.0,<3",
 
 [project]
 name = "so3g"
@@ -41,4 +43,9 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
 ]
