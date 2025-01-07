@@ -274,8 +274,28 @@ class CMakeBuild(build_ext):
         # Fake install directory passed to spt3g cmake.
         install_spt3g_fake = os.path.join(temp_build, "spt3g_install")
 
+        # The cmake python discovery can be fragile.  Here we override all the
+        # artifacts explicitly.
+        py_exe = sys.executable
+        py_maj = sys.version_info[0]
+        py_min = sys.version_info[1]
+        # The includes vary slightly between builds and versions, so we call out
+        # to the python-config script for this.
+        out = sp.check_output(
+            ["python3-config", "--includes"],
+            universal_newlines=True,
+        )
+        raw_incl = out.split()[0]
+        py_incl = re.sub("-I", "", raw_incl)
         dlist3g = [
-            f"-DPython_EXECUTABLE={sys.executable}",
+            f"-DPython_EXECUTABLE={py_exe}",
+            f"-DPython_INCLUDE_DIRS={py_incl}",
+            f"-DPython_LIBRARIES=''",
+            f"-DPython_RUNTIME_LIBRARY_DIRS=''",
+            f"-DPython_LIBRARY_DIRS=''",
+            f"-DPython_VERSION_MAJOR={py_maj}",
+            f"-DPython_VERSION_MINOR={py_min}",
+            f"-DBoost_PYTHON_TYPE=python{py_maj}{py_min}",
         ]
         if "BOOST_ROOT" in os.environ:
             dlist3g.append(f"-DBOOST_ROOT={os.environ['BOOST_ROOT']}")
