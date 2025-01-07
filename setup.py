@@ -274,7 +274,9 @@ class CMakeBuild(build_ext):
         # Fake install directory passed to spt3g cmake.
         install_spt3g_fake = os.path.join(temp_build, "spt3g_install")
 
-        dlist3g = list()
+        dlist3g = [
+            f"-DPython_EXECUTABLE={sys.executable}",
+        ]
         if "BOOST_ROOT" in os.environ:
             dlist3g.append(f"-DBOOST_ROOT={os.environ['BOOST_ROOT']}")
         if "FLAC_ROOT" in os.environ:
