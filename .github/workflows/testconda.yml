@@ -1,0 +1,95 @@
+# In general, we try to run on:
+# - The oldest supported python
+# - The latest stable python that is the common default on most systems and conda
+# - (During transitions) The newly released bleeding edge python
+
+name:  Run Tests with Conda
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests on ${{ matrix.arch }} with Conda Python-${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.9"
+            arch: Linux-x86_64
+          - os: ubuntu-latest
+            python: "3.11"
+            arch: Linux-x86_64
+          # - os: ubuntu-latest
+          #   python: "3.13"
+          #   arch: Linux-x86_64
+          # - os: macos-latest
+          #   python: "3.10"
+          #   arch: MacOSX-x86_64
+          # - os: macos-latest
+          #   python: "3.13"
+          #   arch: MacOSX-x86_64
+          # - os: macos-latest
+          #   python: "3.10"
+          #   arch: MacOSX-arm64
+          # - os: macos-latest
+          #   python: "3.13"
+          #   arch: MacOSX-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Conda Base
+        run: |
+          sudo rm -rf /usr/share/miniconda \
+            && sudo rm -rf /usr/local/miniconda \
+            && curl -SL -o miniforge.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-${{ matrix.arch }}.sh \
+            && bash miniforge.sh -b -f -p ~/conda \
+            && source ~/conda/etc/profile.d/conda.sh \
+            && conda activate base \
+            && conda update -n base --yes conda
+
+      - name: Check Conda Config
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda activate base \
+            && conda info \
+            && conda list \
+            && conda config --show-sources \
+            && conda config --show
+
+      - name: Install Dependencies
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda create --yes -n test python==${{ matrix.python }} \
+            && conda activate test \
+            && conda install --yes --file requirements.txt \
+              compilers libopenblas=*=*openmp* libblas=*=*openblas openblas=*=*openmp* \
+              boost gsl libflac
+
+      - name: Install
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda activate test \
+            && python3 -m pip install -vv .
+
+      - name: Run Tests
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda activate test \
+            && export OMP_NUM_THREADS=2 \
+            && python3 -m unittest discover -s ./test
