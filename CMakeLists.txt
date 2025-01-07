@@ -41,12 +41,12 @@ else()
 endif()
 
 # Determine the location of site-packages.
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${Python_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Numpy include directory?
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c 
+execute_process(COMMAND ${Python_EXECUTABLE} -c
   "import numpy; print(numpy.get_include())"
-  OUTPUT_VARIABLE NUMPY_INCLUDE_DIR 
+  OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
@@ -88,8 +88,8 @@ target_link_libraries(so3g PUBLIC spt3g::core)
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g PUBLIC ${GSL_LIBRARIES})
 
-# Link to BLAS.  You probably want to select openblas, so pass 
-# -DBLA_VENDOR=OpenBLAS 
+# Link to BLAS.  You probably want to select openblas, so pass
+# -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)
 if(BLAS_FOUND)
   message("-- BLAS found: ${BLAS_LIBRARIES}")

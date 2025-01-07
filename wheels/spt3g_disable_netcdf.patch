@@ -1,0 +1,15 @@
+diff -urN spt3g_software_orig/dfmux/CMakeLists.txt spt3g_software/dfmux/CMakeLists.txt
+--- spt3g_software_orig/dfmux/CMakeLists.txt	2025-01-06 11:29:16.606854658 -0800
++++ spt3g_software/dfmux/CMakeLists.txt	2025-01-07 10:15:20.506190895 -0800
+@@ -1,5 +1,9 @@
+-find_package(NetCDF MODULE)
+-find_package(HDF5)
++if(NOT DISABLE_NETCDF)
++    find_package(NetCDF MODULE)
++endif()
++if(NOT DISABLE_HDF5)
++    find_package(HDF5)
++endif()
+ if (NetCDF_FOUND AND HDF5_FOUND)
+ 	set(DFMUX_LIB_EXTRA_SRC src/NetCDFDump.cxx)
+ else()

@@ -77,9 +77,7 @@ jobs:
           source ~/conda/etc/profile.d/conda.sh \
             && conda create --yes -n test python==${{ matrix.python }} \
             && conda activate test \
-            && conda install --yes --file requirements.txt \
-              compilers libopenblas=*=*openmp* libblas=*=*openblas openblas=*=*openmp* \
-              boost gsl libflac
+            && conda install --yes --file conda_dev_requirements.txt
 
       - name: Install
         run: |
