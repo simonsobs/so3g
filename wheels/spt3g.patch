@@ -1,6 +1,6 @@
-diff -urN spt3g_software_orig/cmake/Spt3gBoostPython.cmake spt3g_software/cmake/Spt3gBoostPython.cmake
+diff -urN spt3g_software_orig/cmake/Spt3gBoostPython.cmake spt3g_software_export/cmake/Spt3gBoostPython.cmake
 --- spt3g_software_orig/cmake/Spt3gBoostPython.cmake	2024-08-22 10:25:14.077183587 -0700
-+++ spt3g_software/cmake/Spt3gBoostPython.cmake	2024-08-22 10:27:10.956608507 -0700
++++ spt3g_software_export/cmake/Spt3gBoostPython.cmake	2024-12-11 12:24:37.355444860 -0800
 @@ -1,7 +1,7 @@
  # Locate Python
  
@@ -10,9 +10,9 @@ diff -urN spt3g_software_orig/cmake/Spt3gBoostPython.cmake spt3g_software/cmake/
  else()
  	find_package(PythonInterp)
  	find_package(PythonLibs ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-diff -urN spt3g_software_orig/CMakeLists.txt spt3g_software/CMakeLists.txt
+diff -urN spt3g_software_orig/CMakeLists.txt spt3g_software_export/CMakeLists.txt
 --- spt3g_software_orig/CMakeLists.txt	2024-08-22 10:24:59.301256298 -0700
-+++ spt3g_software/CMakeLists.txt	2024-08-23 12:33:59.073140890 -0700
++++ spt3g_software_export/CMakeLists.txt	2024-12-11 12:24:37.364444816 -0800
 @@ -42,7 +42,7 @@
  
  # Raise errors on every warning by default
@@ -22,9 +22,9 @@ diff -urN spt3g_software_orig/CMakeLists.txt spt3g_software/CMakeLists.txt
  
  # Interface library for flags and library dependencies
  add_library(spt3g INTERFACE)
-diff -urN spt3g_software_orig/core/CMakeLists.txt spt3g_software/core/CMakeLists.txt
+diff -urN spt3g_software_orig/core/CMakeLists.txt spt3g_software_export/core/CMakeLists.txt
 --- spt3g_software_orig/core/CMakeLists.txt	2024-08-06 11:34:45.598647939 -0700
-+++ spt3g_software/core/CMakeLists.txt	2024-08-22 10:29:17.655985088 -0700
++++ spt3g_software_export/core/CMakeLists.txt	2024-12-11 12:24:37.364444816 -0800
 @@ -105,8 +105,8 @@
  add_spt3g_test(quaternions)
  add_spt3g_test(timesample)
@@ -39,12 +39,30 @@ diff -urN spt3g_software_orig/core/CMakeLists.txt spt3g_software/core/CMakeLists
 +#                         ${CMAKE_CURRENT_SOURCE_DIR}/tests/G3TimestreamTest.cxx
 +#                         ${CMAKE_CURRENT_SOURCE_DIR}/tests/G3TimestreamMapTest.cxx
 +#                       USE_PROJECTS core)
-diff -urN spt3g_software_orig/examples/CMakeLists.txt spt3g_software/examples/CMakeLists.txt
+diff -urN spt3g_software_orig/core/src/dataio.cxx spt3g_software_export/core/src/dataio.cxx
+--- spt3g_software_orig/core/src/dataio.cxx	2024-08-06 11:34:45.606647906 -0700
++++ spt3g_software_export/core/src/dataio.cxx	2024-12-11 12:24:45.732404214 -0800
+@@ -146,8 +146,14 @@
+ 		stream.push(fs);
+ 	} else {
+ 		// Simple file case
++		const char * bufcheck = getenv("SO3G_FILESYSTEM_BUFFER");
++		// Use 20MB default
++		size_t so3g_buffer_size = 20971520;
++		if (bufcheck != nullptr) {
++			so3g_buffer_size = (size_t)atol(bufcheck);
++		}
+ 		stream.push(boost::iostreams::file_source(path,
+-		    std::ios::binary));
++		    std::ios::binary), so3g_buffer_size);
+ 	}
+ 
+ 	return fd;
+diff -urN spt3g_software_orig/examples/CMakeLists.txt spt3g_software_export/examples/CMakeLists.txt
 --- spt3g_software_orig/examples/CMakeLists.txt	2024-08-06 11:34:45.610647890 -0700
-+++ spt3g_software/examples/CMakeLists.txt	2024-08-22 10:56:07.300059646 -0700
++++ spt3g_software_export/examples/CMakeLists.txt	2024-12-11 12:24:37.365444811 -0800
 @@ -1,2 +1,2 @@
 -add_executable(cppexample cppexample.cxx) 
 -target_link_libraries(cppexample core)
 +#add_executable(cppexample cppexample.cxx) 
 +#target_link_libraries(cppexample core)
-Binary files spt3g_software_orig/.git/index and spt3g_software/.git/index differ
