@@ -35,19 +35,19 @@ jobs:
             python: "3.11"
             arch: Linux-x86_64
           - os: ubuntu-latest
-            python: "3.13"
+            python: "3.12"
             arch: Linux-x86_64
           - os: macos-latest
             python: "3.10"
             arch: MacOSX-x86_64
           - os: macos-latest
-            python: "3.13"
+            python: "3.12"
             arch: MacOSX-x86_64
           - os: macos-latest
             python: "3.10"
             arch: MacOSX-arm64
           - os: macos-latest
-            python: "3.13"
+            python: "3.12"
             arch: MacOSX-arm64
     steps:
       - name: Checkout
