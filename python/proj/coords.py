@@ -242,7 +242,7 @@ class CelestialSightLine:
         redict = isinstance(det_offsets, dict)
         if redict:
             keys, det_offsets = zip(*det_offsets.items())
-            if isinstance(det_offsets[0], quat.quat):
+            if isinstance(det_offsets[0], quat.Quat):
                 # Individual quat doesn't array() properly...
                 det_offsets = np.array(quat.G3VectorQuat(det_offsets))
             else:
@@ -335,7 +335,7 @@ class Assembly:
         else:
             self.dets = det_offsets
         # Make sure it's a numpy array.  This is dumb.
-        if isinstance(self.dets[0], quat.quat):
+        if isinstance(self.dets[0], quat.Quat):
             self.dets = quat.G3VectorQuat(self.dets)
         self.dets = np.array(self.dets)
         return self

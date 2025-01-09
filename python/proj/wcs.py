@@ -721,7 +721,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         self._q_fp_to_celestial = None
         self.active_tiles = None
         self.proj_name = None
-        self.q_celestial_to_native = quat.quat(1,0,0,0)
+        self.q_celestial_to_native = quat.Quat(1,0,0,0)
         self.interpol = 'nearest'
         self.tiling = None
 
