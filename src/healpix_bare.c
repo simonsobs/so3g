@@ -65,7 +65,7 @@ static t_hpc loc2hpc (tloc loc)
   double jm = (1.0-tp)*tmp; /* decreasing edge line index */
   if (jp>1.) jp = 1.; /* for points too close to the boundary */
   if (jm>1.) jm = 1.;
-  return (loc.z >= 0) ? (t_hpc){1.-jm, 1.-jp, ntt}
+  return (loc.z >= 0) ? (t_hpc){1.-jm, 1.-jp, (int32_t)ntt}
                       : (t_hpc){jp, jm, ntt+8};
   }
 
