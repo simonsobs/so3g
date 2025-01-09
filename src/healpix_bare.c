@@ -66,7 +66,7 @@ static t_hpc loc2hpc (tloc loc)
   if (jp>1.) jp = 1.; /* for points too close to the boundary */
   if (jm>1.) jm = 1.;
   return (loc.z >= 0) ? (t_hpc){1.-jm, 1.-jp, (int32_t)ntt}
-                      : (t_hpc){jp, jm, ntt+8};
+                      : (t_hpc){jp, jm, (int32_t)ntt+8};
   }
 
 static tloc hpc2loc (t_hpc hpc)
@@ -173,7 +173,7 @@ static int64_t hpd2nest (int64_t nside, t_hpd hpd)
 static t_hpd nest2hpd (int64_t nside, int64_t pix)
   {
   int64_t npface_=nside*nside, p2=pix&(npface_-1);
-  return (t_hpd){compress_bits(p2), compress_bits(p2>>1), pix/npface_};
+  return (t_hpd){compress_bits(p2), compress_bits(p2>>1), (int32_t)(pix/npface_)};
   }
 
 static int64_t hpd2ring (int64_t nside_, t_hpd hpd)
@@ -215,7 +215,7 @@ static t_hpd ring2hpd (int64_t nside_, int64_t pix)
     int64_t irt = iring - (jrll[face]*nside_) + 1;
     int64_t ipt = 2*iphi- jpll[face]*iring -1;
     if (ipt>=2*nside_) ipt-=8*nside_;
-    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, face};
+    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, (int32_t)face};
     }
   else if (pix<(npix_-ncap_)) /* Equatorial region */
     {
@@ -231,7 +231,7 @@ static t_hpd ring2hpd (int64_t nside_, int64_t pix)
     int64_t irt = iring - (jrll[face]*nside_) + 1;
     int64_t ipt = 2*iphi- jpll[face]*nside_ - kshift -1;
     if (ipt>=2*nside_) ipt-=8*nside_;
-    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, face};
+    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, (int32_t)face};
     }
   else /* South Polar cap */
     {
@@ -242,7 +242,7 @@ static t_hpd ring2hpd (int64_t nside_, int64_t pix)
     int64_t irt = 4*nside_ - iring - (jrll[face]*nside_) + 1;
     int64_t ipt = 2*iphi- jpll[face]*iring -1;
     if (ipt>=2*nside_) ipt-=8*nside_;
-    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, face};
+    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, (int32_t)face};
     }
   }
 

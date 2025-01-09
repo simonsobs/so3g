@@ -9,9 +9,9 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
+#   pull_request:
+#     branches:
+#       - master
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   test:
-    name: Tests on ${{ matrix.arch }} with Conda Python-${{ matrix.python }}
+    name: Python-${{ matrix.python }} on ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
