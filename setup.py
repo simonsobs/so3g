@@ -345,8 +345,7 @@ ext_modules = [
 ]
 
 # Install the python scripts from spt3g
-scripts = glob.glob(os.path.join(spt3g_src_dir, "*", "bin", "*"), root_dir=topdir)
-scripts = [x.removeprefix(f"{topdir}/") for x in scripts]
+scripts = glob.glob(os.path.join(spt3g_src_dir, "*", "bin", "*"))
 
 conf = dict()
 conf["name"] = "so3g"
