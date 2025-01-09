@@ -55,7 +55,7 @@ pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*
 numpy_ver="2.0.1"
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}"
+CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/../requirements.txt" "numpy<${numpy_ver}"
 
 # Install Openblas
 

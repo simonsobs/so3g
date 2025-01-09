@@ -107,7 +107,7 @@ jobs:
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
       CIBW_BEFORE_TEST: export OMP_NUM_THREADS=2
-      CIBW_TEST_REQUIRES: pytest
+      CIBW_TEST_REQUIRES: pytest pixell
       CIBW_TEST_COMMAND: >
         python -c 'import so3g.smurf.reader; from spt3g import core' &&
         python -m pytest {package}/test
