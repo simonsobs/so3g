@@ -12,7 +12,6 @@ from pathlib import Path
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-from distutils.command.clean import clean
 
 import numpy as np
 
@@ -43,7 +42,6 @@ def get_spt3g_version():
 upstream_spt3g_version = get_spt3g_version()
 
 # The name of the spt3g source and package dirs
-spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g_internal")
 spt3g_src_dir = os.path.join(topdir, "spt3g_software")
 
 
@@ -66,8 +64,6 @@ def get_version():
 
 
 def get_spt3g():
-    # if os.path.isdir(spt3g_pkg_dir):
-    #     return
     # We use git to get the repo, since spt3g uses git to get its version
     # information.
     if not os.path.isdir(spt3g_src_dir):
@@ -184,36 +180,6 @@ def build_so3g(src_dir, build_dir, install_dir, cmake_extra, debug):
 get_spt3g()
 
 
-class RealClean(clean):
-    """Really clean up.
-
-    Delete all temporary build directories when running `python setup.py clean`.
-    """
-
-    def run(self):
-        super().run()
-        clean_files = [
-            "./build",
-            "./dist",
-            "./__pycache__",
-            "./*.egg-info",
-            spt3g_pkg_dir,
-            spt3g_src_dir,
-            "./include/_version.h",
-        ]
-        for cf in clean_files:
-            if not os.path.exists(cf):
-                continue
-            # Make paths absolute and relative to this path
-            apaths = glob.glob(os.path.abspath(cf))
-            for path in apaths:
-                if os.path.isdir(path):
-                    shutil.rmtree(path)
-                elif os.path.isfile(path):
-                    os.remove(path)
-        return
-
-
 class CMakeExtension(Extension):
     """
     This overrides the built-in extension class and essentially does nothing,
@@ -295,6 +261,8 @@ class CMakeBuild(build_ext):
             f"-DPython_LIBRARY_DIRS=''",
             f"-DPython_VERSION_MAJOR={py_maj}",
             f"-DPython_VERSION_MINOR={py_min}",
+            "-DDISABLE_NETCDF=ON",
+            "-DDISABLE_HDF5=ON",
         ]
         if "BOOST_ROOT" in os.environ:
             dlist3g.append(f"-DBOOST_ROOT={os.environ['BOOST_ROOT']}")
@@ -345,7 +313,8 @@ ext_modules = [
 ]
 
 # Install the python scripts from spt3g
-scripts = glob.glob(os.path.join(spt3g_src_dir, "*", "bin", "*"))
+raw_scripts = glob.glob(os.path.join(spt3g_src_dir, "*", "bin", "*"))
+scripts = [x.removeprefix(f"{topdir}/") for x in raw_scripts]
 
 conf = dict()
 conf["name"] = "so3g"
@@ -368,7 +337,7 @@ for sub in ["hk", "proj", "smurf"]:
 
 conf["ext_modules"] = ext_modules
 conf["scripts"] = scripts
-conf["cmdclass"] = {"build_ext": CMakeBuild, "clean": RealClean}
+conf["cmdclass"] = {"build_ext": CMakeBuild,}
 conf["zip_safe"] = False
 
 setup(**conf)
