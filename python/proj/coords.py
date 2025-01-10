@@ -228,7 +228,7 @@ class CelestialSightLine:
         # Pre-process the offsets
         collapse = (fplane is None)
         if collapse:
-            fplane = FocalPlane()
+            fplane = FocalPlane.boresight()
             if output is not None:
                 output = output[None]
         output = p.coords(self.Q, fplane.quats, output)
@@ -261,6 +261,10 @@ class FocalPlane:
         # FIXME: old sotodlib compat - remove later
         self._dets   = list(dets) if dets is not None else []
         self._detmap = {name:i for i,name in enumerate(self._dets)}
+    @classmethod
+    def boresight(cls):
+        quats = np.array([[1,0,0,0]],np.float64)
+        return cls(quats=quats)
     @classmethod
     def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False):
         # The underlying code wants polangle gamma and the T and P
@@ -357,7 +361,7 @@ class Assembly:
         """
         self = cls(collapse=True)
         self.Q = sight_line.Q
-        self.fplane = FocalPlane()
+        self.fplane = FocalPlane.boresight()
         return self
     # FIXME: old sotodlib compat - remove later
     @property
