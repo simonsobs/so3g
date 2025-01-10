@@ -243,13 +243,14 @@ class FocalPlane:
     This used to be a subclass of OrderedDict, but this was hard to
     generalize to per-detector polarization efficiency.
     """
-    def __init__(self, quats=None, resps=None):
-        if quats is None: quats = np.array([[1.0,0.0,0.0,0.0]])
+    # FIXME: old sotodlib compat - remove dets argument later
+    def __init__(self, quats=None, resps=None, dets=None):
         # Building them this way ensures that
         # quats will be an quat coeff array-2 and resps will be a numpy
         # array with the right shape, so we don't need to check
         # for this when we use FocalPlane later
-        self.quats = np.array(quat.G3VectorQuat(quats))
+        if quats is None: self.quats = np.zeros((0,4),np.float64)
+        else:             self.quats = np.array(quat.G3VectorQuat(quats))
         self.resps = np.ones((len(self.quats),2),np.float32)
         if resps is not None:
             self.resps[:] = resps
@@ -257,12 +258,17 @@ class FocalPlane:
             raise ValueError("nan/inf values in detector quaternions")
         if np.any(~np.isfinite(self.resps)):
             raise ValueError("nan/inf values in detector responses")
+        # FIXME: old sotodlib compat - remove later
+        self._dets   = list(dets) if dets is not None else []
+        self._detmap = {name:i for i,name in enumerate(self._dets)}
     @classmethod
     def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False):
         # The underlying code wants polangle gamma and the T and P
         # response, but we support speifying these as the T, Q and U
         # response too. Writing it like this handles both cases, and
         # as a bonus(?) any combination of them
+        # FIXME: old sotodlib compat - remove later
+        xi, eta, gamma, T, P, Q, U, hwp, dets = cls._xieta_compat(xi,eta,gamma,T,P,Q,U,hwp)
         gamma = gamma + np.arctan2(U,Q)/2
         P     = P * (Q**2+U**2)**0.5
         if hwp: gamma = -gamma
@@ -272,16 +278,43 @@ class FocalPlane:
         resps = np.ones((len(quats),2))
         resps[:,0] = T
         resps[:,1] = P
-        return cls(quats, resps=resps)
+        # FIXME: old sotodlib compat - remove dets argument later
+        return cls(quats, resps=resps, dets=dets)
     def __repr__(self):
         return "FocalPlane(quats=%s,resps=%s)" % (repr(self.quats), repr(self.resps))
     @property
     def ndet(self): return len(self.quats)
+    def __len__(self): return self.ndet
     def __getitem__(self, sel):
+        # FIXME: old sotodlib compat - remove later
+        if isinstance(sel, str): return quat.G3VectorQuat(self.quats)[self._dets.index(sel)]
         return FocalPlane(quats=self.quats[sel], resps=self.resps[sel])
     def items(self):
         for q, resp in zip(quat.G3VectorQuat(self.quats), self.resps):
             yield q, resp
+    # FIXME: old sotodlib compat - remove later
+    @classmethod
+    def _xieta_compat(cls, xi, eta, gamma, T, P, Q, U, hwp):
+        # Accept the alternative format (names,xi,eta,gamma)
+        if isinstance(xi[0], str):
+            return eta, gamma, T, 1, 1, 1, 0, False, xi
+        else:
+            return xi, eta, gamma, T, P, Q, U, hwp, None
+    # FIXME: old sotodlib compat - remove later
+    def __setitem__(self, name, q):
+        # Make coords/pmat.py _get_asm work in old sotodlib. It
+        # expects to be able to build up a focalplane by assigning
+        # quats one at a time
+        q = np.array(quat.G3VectorQuat([q]))
+        if name in self._detmap:
+            i = self._detmap[i]
+            self.quats[i] = q[0]
+        else:
+            self._dets.append(name)
+            self._detmap[name] = len(self._dets)-1
+            # This is inefficient, but it's temporary
+            self.quats = np.concatenate([self.quats,q])
+            self.resps = np.concatenate([self.resps,np.ones((1,2),np.float32)])
 
 class Assembly:
     """This class groups together boresight and detector offset
@@ -326,3 +359,6 @@ class Assembly:
         self.Q = sight_line.Q
         self.fplane = FocalPlane()
         return self
+    # FIXME: old sotodlib compat - remove later
+    @property
+    def dets(self): return self.fplane
