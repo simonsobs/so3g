@@ -256,9 +256,6 @@ class CMakeBuild(build_ext):
         dlist3g = [
             f"-DPython_EXECUTABLE={py_exe}",
             f"-DPython_INCLUDE_DIRS={py_incl}",
-            f"-DPython_LIBRARIES=''",
-            f"-DPython_RUNTIME_LIBRARY_DIRS=''",
-            f"-DPython_LIBRARY_DIRS=''",
             f"-DPython_VERSION_MAJOR={py_maj}",
             f"-DPython_VERSION_MINOR={py_min}",
             "-DDISABLE_NETCDF=ON",
