@@ -894,21 +894,25 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
         int y_data_stride = y_buf->strides[0] / sizeof(double);
         int y_interp_data_stride = y_interp_buf->strides[0] / sizeof(double);
 
-        #pragma omp parallel for
-        for (int row = 0; row < n_rows; ++row) {
+        #pragma omp parallel
+        {
             // Create one accel and spline per thread
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
-            int y_row_start = row * y_data_stride;
-            int y_row_end = y_row_start + n_x;
-            int y_interp_row_start = row * y_interp_data_stride;
+            #pragma omp for
+            for (int row = 0; row < n_rows; ++row) {
 
-            T* y_row = y_data + y_row_start;
-            T* y_interp_row = y_interp_data + y_interp_row_start;
+                int y_row_start = row * y_data_stride;
+                int y_row_end = y_row_start + n_x;
+                int y_interp_row_start = row * y_interp_data_stride;
 
-            interp_func(x_data, y_row, x_interp_data, y_interp_row, 
-                        n_x, n_x_interp, spline, acc);
+                T* y_row = y_data + y_row_start;
+                T* y_interp_row = y_interp_data + y_interp_row_start;
+
+                interp_func(x_data, y_row, x_interp_data, y_interp_row,
+                            n_x, n_x_interp, spline, acc);
+            }
 
             // Free gsl objects
             gsl_spline_free(spline);
@@ -926,30 +930,34 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
         std::transform(x_data, x_data + n_x, x_dbl, 
                        [](float value) { return static_cast<double>(value); });
 
-        std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl, 
+        std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl,
                        [](float value) { return static_cast<double>(value); });
 
-        #pragma omp parallel for
-        for (int row = 0; row < n_rows; ++row) {
+        #pragma omp parallel
+        {
             // Create one accel and spline per thread
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
-            int y_row_start = row * y_data_stride;
-            int y_row_end = y_row_start + n_x;
-            int y_interp_row_start = row * y_interp_data_stride;
+            #pragma omp for
+            for (int row = 0; row < n_rows; ++row) {
 
-            // Transform y row to double array for gsl
-            double y_dbl[n_x];
+                int y_row_start = row * y_data_stride;
+                int y_row_end = y_row_start + n_x;
+                int y_interp_row_start = row * y_interp_data_stride;
 
-            std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl, 
-                       [](float value) { return static_cast<double>(value); });
+                // Transform y row to double array for gsl
+                double y_dbl[n_x];
 
-            T* y_interp_row = y_interp_data + y_interp_row_start;
+                std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl,
+                           [](float value) { return static_cast<double>(value); });
 
-            // Don't copy y_interp to doubles as it is cast during assignment
-            interp_func(x_dbl, y_dbl, x_interp_dbl, y_interp_row, 
-                        n_x, n_x_interp, spline, acc);
+                T* y_interp_row = y_interp_data + y_interp_row_start;
+
+                // Don't copy y_interp to doubles as it is cast during assignment
+                interp_func(x_dbl, y_dbl, x_interp_dbl, y_interp_row,
+                            n_x, n_x_interp, spline, acc);
+            }
 
             // Free gsl objects
             gsl_spline_free(spline);
