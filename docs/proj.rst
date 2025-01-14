@@ -174,7 +174,7 @@ As expected, these coordinates are close to the ones computed before,
 for the boresight::
 
   >>> print(ra / DEG, dec / DEG)
-  [13.06731917] [-53.12633433]
+  [14.73387143] [-53.1250149]
 
 But the more expedient way to get pointing for multiple detectors is
 to call :func:`coords() <CelestialSightLine.coords>` with the
@@ -184,11 +184,6 @@ FocalPlane object as first argument::
   [array([[ 0.25715457, -0.92720643,  0.9999161 ,  0.01295328]]),
    array([[ 0.24261138, -0.92726871,  0.86536489,  0.5011423 ]]),
    array([[ 0.22806774, -0.92722945,  0.50890634,  0.86082189]])]
-
-  OrderedDict([('a', array([[ 0.22806774, -0.92722945, -0.9999468 ,
-  0.01031487]])), ('b', array([[ 0.24261138, -0.92726871, -0.86536489,
-  -0.5011423 ]])), ('c', array([[ 0.25715457, -0.92720643, -0.48874018,
-  -0.87242939]]))])
 
 To be clear, ``coords()`` now returns a dictionary whose keys are the
 detector names.  Each value is an array with shape (n_time,4), and at
@@ -256,17 +251,17 @@ from the pixels in pmap, which are the coordinates of the centers of
 the pixels::
 
   >>> [x/DEG for x in pix_ra]
-  [array([13.04], dtype=float32), array([13.88], dtype=float32), array([14.72], dtype=float32)]
+  [array([14.740001], dtype=float32), array([13.900001], dtype=float32), array([13.059999], dtype=float32)]
   >>> [x/DEG for x in pix_dec]
-  [array([-53.100002], dtype=float32), array([-53.100002], dtype=float32), array([-53.100002], dtype=float32)]
+  [array([-53.12], dtype=float32), array([-53.12], dtype=float32), array([-53.12], dtype=float32)]
 
 If you are not getting what you expect, you can grab the pixel indices
 inferred by the projector -- perhaps your pointing is taking you off
 the map (in which case the pixel indices would return value -1)::
 
   >>> p.get_pixels(asm)
-  [array([[ 45, 148]], dtype=int32), array([[ 45, 106]], dtype=int32),
-  array([[45, 64]], dtype=int32)]
+  [array([[44, 63]], dtype=int32), array([[ 44, 105]], dtype=int32),
+  array([[ 44, 147]], dtype=int32)]
 
 Let's project signal into an intensity map using
 :func:`Projectionist.to_map`::
@@ -281,9 +276,9 @@ Inspecting the map, we see our signal values occupy the three non-zero
 pixels:
 
   >>> map_out.nonzero()
-  (array([0, 0, 0]), array([45, 45, 45]), array([ 64, 106, 148]))
+  (array([0, 0, 0]), array([44, 44, 44]), array([ 63, 105, 147]))
   >>> map_out[map_out!=0]
-  array([100.,  10.,   1.])
+  array([  1.,  10., 100.])
 
 
 If we run this projection again, but pass in this map as a starting
@@ -292,7 +287,7 @@ point, the signal will be added to the map:
   >>> p.to_map(signal, asm, output=map_out, comps='T')
   array([[[0., 0., 0., ..., 0.]]])
   >>> map_out[map_out!=0]
-  array([200.,  20.,   2.])
+  array([  2.,  20., 200.])
 
 If we instead want to treat the signal as coming from
 polarization-sensitive detectors, we can request components
@@ -305,8 +300,8 @@ according to the projected detector angle on the sky::
 
   >>> map_pol.shape
   (3, 100, 200)
-  >>> map_pol[:,45,106]
-  array([10.        ,  4.97712803,  8.673419  ])
+  >>> map_pol[:,44,105]
+  array([10.,  4.97712803, 8.673419])
 
 For the most basic map-making, the other useful operation is the
 :func:`Projectionist.to_weights` method.  This is used to compute
@@ -330,7 +325,7 @@ the upper diagonal has been filled in, for efficiency reasons...::
 
   >>> weight_out.shape
   (3, 3, 100, 200)
-  >>> weight_out[...,45,106]
+  >>> weight_out[...,44,105]
   array([[1.        , 0.49771279, 0.86734194],
          [0.        , 0.24771802, 0.43168718],
          [0.        , 0.        , 0.75228202]])
@@ -393,7 +388,7 @@ Inspecting::
 
   >>> threads
   RangesMatrix(4,3,1)
-  >>> map_pol2[:,45,106]
+  >>> map_pol2[:,44,105]
   array([10.        ,  4.97712898,  8.67341805])
 
 The same ``threads`` result can be passed to ``p.to_weights``.
