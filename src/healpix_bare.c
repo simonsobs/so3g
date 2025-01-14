@@ -263,7 +263,7 @@ int64_t ring2nest(int64_t nside, int64_t ipring)
 static t_hpd loc2hpd (int64_t nside_, tloc loc)
   {
   t_hpc tmp = loc2hpc(loc);
-  return (t_hpd){(tmp.x*nside_), (tmp.y*nside_), tmp.f};
+  return (t_hpd){((int64_t)(tmp.x*nside_)), ((int64_t)(tmp.y*nside_)), tmp.f};
   }
 
 static tloc hpd2loc (int64_t nside_, t_hpd hpd)
