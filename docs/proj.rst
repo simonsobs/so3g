@@ -110,26 +110,63 @@ Pointing for many detectors
 Create a :class:`FocalPlane` object, with some detector positions and
 orientations::
 
-  names = ['a', 'b', 'c']
-  x = np.array([-0.5, 0., 0.5]) * DEG
-  y = np.zeros(3)
+  xi  = np.array([-0.5, 0.0, 0.5]) * DEG
+  eta = np.zeros(3)
   gamma = np.array([0,30,60]) * DEG
-  fp = so3g.proj.FocalPlane.from_xieta(names, x, y, gamma)
+  fp  = so3g.proj.FocalPlane.from_xieta(xi, eta, gamma)
 
 This particular function, :func:`from_xieta()
 <FocalPlane.from_xieta>`, will apply the SO standard coordinate
-definitions and store a rotation quaternion for each detector.
-FocalPlane is just a thinly wrapped OrderedDict, where the detector
-name is the key and the value is the rotation quaternion::
+definitions and stores quaternion coefficients (``.quats``) and
+responsivities (``.resps``) for each detectors. These are numpy
+arrays with shape ``[ndet,4]`` and ``[ndet,2]`` respectively.
+``fp.quats[0]`` gives the 4 quaternion coefficients for the
+first detector, while ``fp.resps[0]`` gives its total intensity
+and polarization responsivity.::
 
-  >>> fp['c']
-  spt3g.core.quat(0.866017,0.00377878,-0.00218168,0.499995)
+  >>> fp.quats[2]
+  array([  0.86601716,  0.00377878, -0.00218168,  0.49999524])
+  >>> fp.resps[2]
+  array([1., 1.], dtype=float32)
+
+As you can see, the default responsivity is 1 for both total
+intensty and polarization. Note that ``.quats`` contains
+quaternion *coefficients*, not quaternion *objects*. To do
+quaternion math, you need to convert them to actual quaternion
+objects, e.g. ``q = spt3g.core.quat(*fp.quats[0])``, or convert
+them all at once with ``qs = spt3g.core.G3VectorQuat(fp.quats)```.
+
+To represent detectors with responsivity different from 1,
+use the ``T`` and ``P`` arguments to :func:`from_xieta()`
+to set the total intensity and polarization responsivity
+respectively. These can be either single numbers or
+array-likes with lengths ``ndet``.::
+
+  xi  = np.array([-0.5, 0.0, 0.5]) * DEG
+  eta = np.zeros(3)
+  gamma = np.array([0,30,60]) * DEG
+  T   = np.array([1.0, 0.9, 1.1])
+  P   = np.array([0.5, 0.6, 0.05])
+  fp2 = so3g.proj.FocalPlane.from_xieta(xi, eta, gamma, T=T, P=P)
+
+Together, gamma, T and P specify the full responsivity of a
+detector to the T, Q and U Stokes parameters in focal plane
+coordinates. But as an alternative, it's also possible to
+specify these directly. The example above is equivalent to::
+
+  xi  = np.array([-0.5, 0.0, 0.5]) * DEG
+  eta = np.zeros(3)
+  gamma = np.array([0,30,60]) * DEG
+  T   = np.array([1.0, 0.9])
+  Q   = np.array([0.5, 0.3, -0.025])
+  U   = np.array([0.0, 0.51961524, 0.04330127])
+  fp2 = so3g.proj.FocalPlane.from_xieta(xi, eta, T=T, Q=Q, U=U)
 
 At this point you could get the celestial coordinates for any one of
 those detectors::
 
-  # Get vector of quaternion pointings for detector 'a'
-  q_total = csl.Q * fp['a']
+  # Get vector of quaternion pointings for detector 0
+  q_total = csl.Q * spt3g.core.quat(*fp.quats[0])
   # Decompose q_total into lon, lat, roll angles
   ra, dec, gamma = so3g.proj.quat.decompose_lonlat(q_total)
 
@@ -144,6 +181,10 @@ to call :func:`coords() <CelestialSightLine.coords>` with the
 FocalPlane object as first argument::
 
   >>> csl.coords(fp)
+  [array([[ 0.25715457, -0.92720643,  0.9999161 ,  0.01295328]]),
+   array([[ 0.24261138, -0.92726871,  0.86536489,  0.5011423 ]]),
+   array([[ 0.22806774, -0.92722945,  0.50890634,  0.86082189]])]
+
   OrderedDict([('a', array([[ 0.22806774, -0.92722945, -0.9999468 ,
   0.01031487]])), ('b', array([[ 0.24261138, -0.92726871, -0.86536489,
   -0.5011423 ]])), ('c', array([[ 0.25715457, -0.92720643, -0.48874018,

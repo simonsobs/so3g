@@ -242,7 +242,10 @@ class FocalPlane:
 
     Members:
      quats: Array of float64 with shape [ndet,4] representing the
-      pointing quaternions for each detector
+      pointing quaternions for each detector. Since these are just
+      plain coefficients, they will need to be converted to quaternion
+      objects if you want to do quaternion math with them, e.g.
+      G3VectorQuat(focal_plane.quats).
      resps: Array of float64 with shape [ndet,2] representing the
       total intensity and polarization responsivity of each detector
      ndet: The number of detectors (read-only)
