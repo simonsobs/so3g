@@ -125,55 +125,28 @@ inline bool isNone(const bp::object &pyo)
 
 // Arbitrary detector response support
 // -----------------------------------
-// Useful to support detectors with polarization response < 1. Also occasionally
-// useful with detectors with 0 total intensity response. Currently the detector
-// response is only encoded indirectly through the detector angle on the sky, part
-// of the per-detector quaternion. Hard to cram the rest of the response into this,
-// so must be handled with a new argument.
+// It's useful to support detectors with polarization response < 1. It's also
+// sometimes useful with detectors with 0 total intensity response. This is
+// implemented as follows.
 //
-// spin_proj_factors: cos(2psi),sin(2psi) → detector on-sky TQU response
-//  psi is here the projected detector angle, which is computed by Pointer::GetCoords
-//  It makes sense for this to deal with angles since it's the result of a quaternion
-//  pointing calculation.
+// At the top level, the functions where the responsivity is relevant, like
+// from_map, to_map etc. take a bp::object reponse argument, representing
+// the [ndet,2] detector responsivities.
 //
-// Probably best to leave GetCoords alone, and instead augment spin_proj_factors with
-// T and P support. For example:
+// This is then converted into a BufferWrapper<FSIGNAL>, before each detector's
+// responsivity is extracted using get_response(BufferWrapper<FSIGNAL> & buf, int i_det),
+// which returns a Response { FSIGNAL T, P; } struct.
 //
-// void spin_proj_factors<SpinTQU>(const double * coords, const double * response, FSIGNAL * projfacs) {
-//     const double c = coords[2];
-//     const double s = coords[3];
-//     projfacs[0] = response[0];
-//     projfacs[1] = response[1]*(c*c - s*s);
-//     projfacs[2] = response[1]*(2*c*s);
-// }
+// Finally, this Response struct is passed to spin_proj_factors, e.g.
 //
-// None of the arguments to to_map and its relatives are a natural place to put response.
-// It could be shoehorned into pofs by making it length 6, but the first four components
-// would hold quaternion coefficients making it unnatural to have the last 2 be responses.
-// It's probably better to modify these functions to take an additional response argument,
-// e.g.
-//
-// template<typename C, typename P, typename S>
-//     bp::object ProjectionEngine<C,P,S>::to_map(
-//     bp::object map, bp::object pbore, bp::object pofs, bp::object det_response,
-//     bp::object signal, bp::object det_weights, bp::object thread_intervals)
-//
-// where these would then be extracted using
-//
-//  auto _det_response = BufferWrapper<FSIGNAL>("det_response", det_response, false, vector<int>{n_det,2});
-//
-// Could make it optional, but easier to handle this on the python side.
-//
-// List of functions needing modification:
-// * ProjectionEngine<C,P,S>::pointing_matrix
-// * ProjectionEngine<C,P,S>::from_map
-// * ProjectionEngine<C,P,S>::to_map
-// * ProjectionEngine<C,P,S>::to_weight_map
-// * to_map_single_thread
-// * to_weight_map_single_thread
-//
-// * python/wcs.py/Projectionist
-// * python/mapthreads.py/get_threads_domdir
+//  void spin_proj_factors<SpinTQU>(const double* coords, const Response & response, FSIGNAL *projfacs)
+//  {
+//       const double c = coords[2];
+//       const double s = coords[3];
+//       projfacs[0] = response.T;
+//       projfacs[1] = response.P*(c*c - s*s);
+//       projfacs[2] = response.P*(2*c*s);
+//  }
 
 // State the template<CoordSys> options
 class ProjQuat;
