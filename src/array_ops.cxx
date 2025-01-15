@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <algorithm>
 extern "C" {
     #include <cblas.h>
     // Additional prototypes for Fortran LAPACK routines.
@@ -634,6 +635,64 @@ void block_moment(const bp::object & tod, const bp::object & out, int bsize, int
     _block_moment(tod_data, output, bsize, moment, central, ndet, nsamp, shift);
 }
 
+template <typename T>
+void _minmax(T* data, T* output, int mode, int start, int stop)
+{
+    T val;
+    if(mode == 0){ // get the min
+        val = *(std::min_element(data+start, data+stop));
+    }
+    else if(mode == 1){ // get the max
+        val = *(std::max_element(data+start, data+stop));
+    }
+    else{ // get the peak to peak
+        auto min = std::min_element(data+start, data+stop);
+        auto max = std::max_element(data+start, data+stop);
+        val = *max - *min;
+    }
+    for(int si = start; si < stop; si++) {
+        output[si] = val;
+    }
+
+}
+
+template <typename T>
+void _block_minmax(T* tod_data, T* output, int bsize, int mode, int ndet, int nsamp, int shift)
+{
+    int nblock = ((nsamp - shift)/bsize) + 1;
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        // do the the pre-shift portion
+        if(shift > 0){
+            _minmax(tod_data, output, mode, ioff, ioff+shift);
+        }
+
+        for(int bi = 0; bi < nblock; bi++) {
+            int start =  (bi * bsize) + shift;
+            int stop = min(start + bsize, nsamp);
+            _minmax(tod_data, output, mode, ioff+start, ioff+stop);
+        }
+    }
+}
+
+template <typename T>
+void block_minmax(const bp::object & tod, const bp::object & out, int bsize, int mode, int shift)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    T* output = (T*)out_buf->buf;
+    _block_minmax(tod_data, output, bsize, mode, ndet, nsamp, shift);
+}
+
 
 void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
 {
@@ -819,6 +878,53 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
             else {
                 det_out[si] = 0;
             }
+        }
+    }
+}
+
+template <typename T>
+void subtract_jump_heights(const bp::object & tod, const bp::object & out, const bp::object & heights, const bp::object & jumps) {
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    T* output = (T*)out_buf->buf;
+    BufferWrapper<T> h_buf  ("heights",  heights,  false, std::vector<int>{ndet, nsamp});
+    if (h_buf->strides[1] != h_buf->itemsize || h_buf->strides[0] != h_buf->itemsize*nsamp)
+        throw buffer_exception("heights must be C-contiguous along last axis");
+    T* jump_heights = (T*)h_buf->buf;
+    auto ranges = extract_ranges<int32_t>(jumps);
+
+    #pragma omp parallel for
+    for(int di = 0; di < ranges.size(); di++) {
+        int start = 0;
+        int stop = 0;
+        T min_h;
+        T max_h;
+        T height;
+        T to_sub = 0;
+        for (auto const &r: ranges[di].segments) {
+            start = di*nsamp + r.first;
+            for(int j = stop; j < start && to_sub != 0; j++) {
+                output[j] = tod_data[j] - to_sub;
+            }
+            stop = di*nsamp + r.second;
+            min_h = *(std::min_element(jump_heights+start, jump_heights+stop));
+            max_h = *(std::max_element(jump_heights+start, jump_heights+stop));
+            // Decide whether this is a negative or positive jump.
+            height = (abs(min_h) > abs(max_h)) ? min_h : max_h;
+            to_sub = to_sub + height;
+            for(int j = start; j < stop && to_sub != 0; j++) {
+                output[j] = tod_data[j] - to_sub;
+            }
+        }
+        for(int j = stop; j < di*nsamp + nsamp && to_sub != 0; j++) {
+            output[j] = tod_data[j] - to_sub;
         }
     }
 }
@@ -1028,6 +1134,7 @@ PYBINDINGS("so3g")
             "Args:\n"
             "  tod: data array (float32) with shape (ndet, nsamp)\n"
             "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "       can be the same as tod\n"
             "  bsize: number of samples in each block\n"
             "  moment: moment to compute, should be >= 1\n"
             "  central: whether to compute the central moment in each block\n"
@@ -1038,6 +1145,24 @@ PYBINDINGS("so3g")
             "Compute the nth moment in blocks on a float32 array.\n"
             "\n"
             "See details in docstring for block_moment.\n");
+    bp::def("block_minmax", block_minmax<float>,
+            "block_minmax(tod, out, bsize, mode, shift)\n"
+            "\n"
+            "Compute the minimum, maximum, or peak to peak in blocks on a float32 array.\n"
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "       can be the same as tod\n"
+            "  bsize: number of samples in each block\n"
+            "  mode: if 0 compute the block minimum, if 1 the maximum, anything else will compute the peak to peak\n"
+            "  shift: sample to start block at, used in each row\n");
+    bp::def("block_minmax64", block_minmax<double>,
+            "block_minmax64(tod, out, bsize, mode, shift)\n"
+            "\n"
+            "Compute the minimum, maximum, or peak to peak in blocks on a float64 array.\n"
+            "\n"
+            "See details in docstring for block_minmax.\n");
     bp::def("matched_jumps", matched_jumps<float>,
             "matched_jumps(tod, out, min_size, bsize)\n"
             "\n"
@@ -1074,6 +1199,28 @@ PYBINDINGS("so3g")
             "Output will be 0 where jumps are not found and the assumed jump height where jumps are found.\n"
             "\n"
             "See details in docstring for find_quantized_jumps.\n");
+    bp::def("subtract_jump_heights", subtract_jump_heights<float>,
+            "subtract_jump_heights(tod, out, heights, jumps)"
+            "\n"
+            "For each detector, compute the cumulative effect of the jumps identified by the array 'heights' and the RangesMatrix 'jumps'."
+            "For each range in 'jumps', the values from 'heights' are checked and the size of the jump is either the largest positive"
+            "or the largest negative number (whichever has the largest absolute value)."
+            "The 'output' value is the difference of 'tod' and the accumulated jump vector."
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "       can be the same as tod\n"
+            "  heights: the height of the jump at each samples\n"
+            "           should be an array (float32) with shape (ndet, nsamp)\n"
+            "  jumps: RangesMatrix with the jump locations and shape (ndet, nsamp).\n");
+    bp::def("subtract_jump_heights64", subtract_jump_heights<double>,
+            "subtract_jump_heights64(tod, out, heights, jumps)"
+            "\n"
+            "Subtract fit jump heights from known jump locatations in a float64 array."
+            "If multiple samples in a jump have different heights, the largest height is used.\n"
+            "\n"
+            "See details in docstring for subtract_jump_heights.\n");
     bp::def("clean_flag", clean_flag,
             "clean_flag(flag, width)"
             "\n"
