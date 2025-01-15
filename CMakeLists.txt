@@ -84,6 +84,9 @@ target_compile_definitions(so3g PUBLIC BOOST_NO_AUTO_PTR)
 # Link to the core spt3g library
 target_link_libraries(so3g PUBLIC spt3g::core)
 
+# Link to boost
+target_link_libraries(so3g PUBLIC ${Boost_LIBRARIES})
+
 # Link to GSL
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g PUBLIC ${GSL_LIBRARIES})

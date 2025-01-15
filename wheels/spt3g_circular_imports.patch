@@ -1,6 +1,6 @@
 diff -urN spt3g_software_orig/calibration/python/bolopropertiesutils.py spt3g_software/calibration/python/bolopropertiesutils.py
---- spt3g_software_orig/calibration/python/bolopropertiesutils.py	2025-01-14 10:32:41.826260187 -0800
-+++ spt3g_software/calibration/python/bolopropertiesutils.py	2025-01-14 11:43:36.854417570 -0800
+--- spt3g_software_orig/calibration/python/bolopropertiesutils.py	2025-01-14 23:48:46.997901524 -0800
++++ spt3g_software/calibration/python/bolopropertiesutils.py	2025-01-14 23:49:10.239796804 -0800
 @@ -1,4 +1,4 @@
 -from . import BolometerProperties
 +from .._libcalibration import BolometerProperties
@@ -8,8 +8,8 @@ diff -urN spt3g_software_orig/calibration/python/bolopropertiesutils.py spt3g_so
  import numpy as np
  import re
 diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_software/calibration/python/build_cal_frames.py
---- spt3g_software_orig/calibration/python/build_cal_frames.py	2025-01-14 10:32:41.826260187 -0800
-+++ spt3g_software/calibration/python/build_cal_frames.py	2025-01-14 11:45:07.789974677 -0800
+--- spt3g_software_orig/calibration/python/build_cal_frames.py	2025-01-14 23:48:46.998901519 -0800
++++ spt3g_software/calibration/python/build_cal_frames.py	2025-01-14 23:49:10.240796800 -0800
 @@ -1,6 +1,10 @@
  from .. import core
 -from . import BolometerProperties, BolometerPropertiesMap
@@ -71,8 +71,8 @@ diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_softw
                  p['tiltAngle'] = self.props['tiltAngle']
  
 diff -urN spt3g_software_orig/core/python/dataextensions.py spt3g_software/core/python/dataextensions.py
---- spt3g_software_orig/core/python/dataextensions.py	2025-01-14 11:36:38.827453514 -0800
-+++ spt3g_software/core/python/dataextensions.py	2025-01-14 11:37:56.795073781 -0800
+--- spt3g_software_orig/core/python/dataextensions.py	2025-01-14 23:48:46.998901519 -0800
++++ spt3g_software/core/python/dataextensions.py	2025-01-14 23:49:10.240796800 -0800
 @@ -1,4 +1,4 @@
 -from . import G3Bool, G3Int, G3Double, G3String
 +from .._libcore import G3Bool, G3Int, G3Double, G3String
@@ -80,8 +80,8 @@ diff -urN spt3g_software_orig/core/python/dataextensions.py spt3g_software/core/
  __all__ = []
  
 diff -urN spt3g_software_orig/core/python/docparser.py spt3g_software/core/python/docparser.py
---- spt3g_software_orig/core/python/docparser.py	2025-01-14 11:36:42.777434277 -0800
-+++ spt3g_software/core/python/docparser.py	2025-01-14 11:38:11.775000823 -0800
+--- spt3g_software_orig/core/python/docparser.py	2025-01-14 23:48:46.998901519 -0800
++++ spt3g_software/core/python/docparser.py	2025-01-14 23:49:10.240796800 -0800
 @@ -1,5 +1,5 @@
  import sys, inspect, re, textwrap
 -from . import G3Module, G3FrameObject
@@ -90,8 +90,8 @@ diff -urN spt3g_software_orig/core/python/docparser.py spt3g_software/core/pytho
  def format_doc(x, simple=False):
      """
 diff -urN spt3g_software_orig/core/python/fileio.py spt3g_software/core/python/fileio.py
---- spt3g_software_orig/core/python/fileio.py	2025-01-14 11:37:07.987311496 -0800
-+++ spt3g_software/core/python/fileio.py	2025-01-14 11:38:08.584016364 -0800
+--- spt3g_software_orig/core/python/fileio.py	2025-01-14 23:48:46.999901515 -0800
++++ spt3g_software/core/python/fileio.py	2025-01-14 23:49:10.241796795 -0800
 @@ -1,4 +1,4 @@
 -from .. import core
 +from .._libcore import G3Reader, G3Frame, G3FrameType, G3Writer, G3MultiFileWriter
@@ -125,8 +125,8 @@ diff -urN spt3g_software_orig/core/python/fileio.py spt3g_software/core/python/f
 +G3MultiFileWriter.__enter__ = writer_enter
 +G3MultiFileWriter.__exit__ = writer_exit
 diff -urN spt3g_software_orig/core/python/frameextensions.py spt3g_software/core/python/frameextensions.py
---- spt3g_software_orig/core/python/frameextensions.py	2025-01-14 10:32:41.839260128 -0800
-+++ spt3g_software/core/python/frameextensions.py	2025-01-14 11:38:23.472943849 -0800
+--- spt3g_software_orig/core/python/frameextensions.py	2025-01-14 23:48:46.999901515 -0800
++++ spt3g_software/core/python/frameextensions.py	2025-01-14 23:49:10.241796795 -0800
 @@ -1,4 +1,4 @@
 -from . import G3Frame, G3FrameType
 +from .._libcore import G3Frame, G3FrameType
@@ -134,8 +134,8 @@ diff -urN spt3g_software_orig/core/python/frameextensions.py spt3g_software/core
  @staticmethod
  def str_to_frame_types(types):
 diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/python/g3decorators.py
---- spt3g_software_orig/core/python/g3decorators.py	2025-01-14 10:32:41.839260128 -0800
-+++ spt3g_software/core/python/g3decorators.py	2025-01-14 11:38:32.569899543 -0800
+--- spt3g_software_orig/core/python/g3decorators.py	2025-01-14 23:48:46.999901515 -0800
++++ spt3g_software/core/python/g3decorators.py	2025-01-14 23:49:10.241796795 -0800
 @@ -1,4 +1,4 @@
 -from . import G3FrameType
 +from .._libcore import G3FrameType
@@ -170,8 +170,8 @@ diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/py
                  self.kwargs = kwargs
  
 diff -urN spt3g_software_orig/core/python/g3logging.py spt3g_software/core/python/g3logging.py
---- spt3g_software_orig/core/python/g3logging.py	2025-01-14 10:32:41.839260128 -0800
-+++ spt3g_software/core/python/g3logging.py	2025-01-14 11:38:40.184862455 -0800
+--- spt3g_software_orig/core/python/g3logging.py	2025-01-14 23:48:47.000901510 -0800
++++ spt3g_software/core/python/g3logging.py	2025-01-14 23:49:10.241796795 -0800
 @@ -1,4 +1,4 @@
 -from . import G3Logger, G3LogLevel
 +from .._libcore import G3Logger, G3LogLevel
@@ -203,15 +203,24 @@ diff -urN spt3g_software_orig/core/python/g3logging.py spt3g_software/core/pytho
      '''
  
 diff -urN spt3g_software_orig/core/python/modconstruct.py spt3g_software/core/python/modconstruct.py
---- spt3g_software_orig/core/python/modconstruct.py	2025-01-14 10:32:41.839260128 -0800
-+++ spt3g_software/core/python/modconstruct.py	2025-01-14 11:38:50.265813356 -0800
-@@ -1,4 +1,4 @@
+--- spt3g_software_orig/core/python/modconstruct.py	2025-01-14 23:48:47.000901510 -0800
++++ spt3g_software/core/python/modconstruct.py	2025-01-14 23:50:06.884541584 -0800
+@@ -1,4 +1,13 @@
 -from . import G3Module, G3Pipeline, G3PipelineInfo, G3Frame, G3FrameType, G3Time, G3ModuleConfig, log_fatal
-+from .._libcore import G3Module, G3Pipeline, G3PipelineInfo, G3Frame, G3FrameType, G3Time, G3ModuleConfig, log_fatal
++from .._libcore import (
++    G3Module,
++    G3Pipeline,
++    G3PipelineInfo,
++    G3Frame,
++    G3FrameType,
++    G3Time,
++    G3ModuleConfig,
++)
++from .g3logging import log_fatal
  try:
      from . import multiprocess
      multiproc_avail = True
-@@ -240,7 +240,7 @@
+@@ -240,7 +249,7 @@
      name = self.nameprefix + name
  
      # Record module configuration for root objects
@@ -221,8 +230,8 @@ diff -urN spt3g_software_orig/core/python/modconstruct.py spt3g_software/core/py
          modconfig.instancename = name
          modconfig.modname = '%s.%s' % (callable.__module__, callable_name)
 diff -urN spt3g_software_orig/core/python/multiprocess.py spt3g_software/core/python/multiprocess.py
---- spt3g_software_orig/core/python/multiprocess.py	2025-01-14 10:32:41.839260128 -0800
-+++ spt3g_software/core/python/multiprocess.py	2025-01-14 11:38:59.724767286 -0800
+--- spt3g_software_orig/core/python/multiprocess.py	2025-01-14 23:48:47.009901470 -0800
++++ spt3g_software/core/python/multiprocess.py	2025-01-14 23:49:10.242796791 -0800
 @@ -1,7 +1,7 @@
  from multiprocessing import get_context
  import socket, pickle, errno, struct, time
@@ -251,8 +260,8 @@ diff -urN spt3g_software_orig/core/python/multiprocess.py spt3g_software/core/py
                  return
  
 diff -urN spt3g_software_orig/core/python/quatextensions.py spt3g_software/core/python/quatextensions.py
---- spt3g_software_orig/core/python/quatextensions.py	2025-01-14 10:32:41.840260123 -0800
-+++ spt3g_software/core/python/quatextensions.py	2025-01-14 11:39:08.809723038 -0800
+--- spt3g_software_orig/core/python/quatextensions.py	2025-01-14 23:48:47.009901470 -0800
++++ spt3g_software/core/python/quatextensions.py	2025-01-14 23:49:10.242796791 -0800
 @@ -1,5 +1,5 @@
  import numpy as np
 -from . import Quat, G3VectorQuat, G3TimestreamQuat
@@ -261,8 +270,8 @@ diff -urN spt3g_software_orig/core/python/quatextensions.py spt3g_software/core/
  __all__ = []
  
 diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software/core/python/timestreamextensions.py
---- spt3g_software_orig/core/python/timestreamextensions.py	2025-01-14 10:32:41.840260123 -0800
-+++ spt3g_software/core/python/timestreamextensions.py	2025-01-14 11:41:19.302087499 -0800
+--- spt3g_software_orig/core/python/timestreamextensions.py	2025-01-14 23:48:47.009901470 -0800
++++ spt3g_software/core/python/timestreamextensions.py	2025-01-14 23:49:10.243796786 -0800
 @@ -1,7 +1,22 @@
  import numpy
 -from . import G3Timestream, DoubleVector, G3VectorDouble, G3TimestreamMap, G3VectorTime, G3Time, IntVector, G3VectorInt, \
@@ -290,8 +299,8 @@ diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software
  __all__ = ['concatenate_timestreams']
  
 diff -urN spt3g_software_orig/core/python/util.py spt3g_software/core/python/util.py
---- spt3g_software_orig/core/python/util.py	2025-01-14 10:32:41.840260123 -0800
-+++ spt3g_software/core/python/util.py	2025-01-14 11:43:07.509560491 -0800
+--- spt3g_software_orig/core/python/util.py	2025-01-14 23:48:47.010901465 -0800
++++ spt3g_software/core/python/util.py	2025-01-14 23:49:10.243796786 -0800
 @@ -1,4 +1,6 @@
 -from . import indexmod, pipesegment, G3FrameType, log_fatal, G3Reader, G3NetworkSender
 +from .._libcore import G3FrameType, G3Reader, G3NetworkSender
@@ -319,8 +328,8 @@ diff -urN spt3g_software_orig/core/python/util.py spt3g_software/core/python/uti
  del indexmod
  del pipesegment
 diff -urN spt3g_software_orig/dfmux/python/DataQualityTools.py spt3g_software/dfmux/python/DataQualityTools.py
---- spt3g_software_orig/dfmux/python/DataQualityTools.py	2025-01-14 10:32:41.844260105 -0800
-+++ spt3g_software/dfmux/python/DataQualityTools.py	2025-01-14 11:46:01.732711952 -0800
+--- spt3g_software_orig/dfmux/python/DataQualityTools.py	2025-01-14 23:48:47.010901465 -0800
++++ spt3g_software/dfmux/python/DataQualityTools.py	2025-01-14 23:49:10.243796786 -0800
 @@ -1,5 +1,5 @@
  from .. import core
 -from . import DfMuxMetaSample
@@ -338,8 +347,8 @@ diff -urN spt3g_software_orig/dfmux/python/DataQualityTools.py spt3g_software/df
              return
          new_time = frame['EventHeader']
 diff -urN spt3g_software_orig/dfmux/python/HardwareMapTools.py spt3g_software/dfmux/python/HardwareMapTools.py
---- spt3g_software_orig/dfmux/python/HardwareMapTools.py	2025-01-14 10:32:41.844260105 -0800
-+++ spt3g_software/dfmux/python/HardwareMapTools.py	2025-01-14 11:46:08.289680020 -0800
+--- spt3g_software_orig/dfmux/python/HardwareMapTools.py	2025-01-14 23:48:47.010901465 -0800
++++ spt3g_software/dfmux/python/HardwareMapTools.py	2025-01-14 23:49:10.243796786 -0800
 @@ -1,5 +1,5 @@
  from .. import core
 -from . import DfMuxWiringMap, DfMuxChannelMapping
@@ -375,8 +384,8 @@ diff -urN spt3g_software_orig/dfmux/python/HardwareMapTools.py spt3g_software/df
      '''
  
 diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/python/Housekeeping.py
---- spt3g_software_orig/dfmux/python/Housekeeping.py	2025-01-14 10:32:41.912259795 -0800
-+++ spt3g_software/dfmux/python/Housekeeping.py	2025-01-14 11:46:16.370640668 -0800
+--- spt3g_software_orig/dfmux/python/Housekeeping.py	2025-01-14 23:48:47.010901465 -0800
++++ spt3g_software/dfmux/python/Housekeeping.py	2025-01-14 23:49:10.243796786 -0800
 @@ -1,5 +1,5 @@
  from .. import core
 -from . import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
@@ -394,8 +403,8 @@ diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/
  
      @classmethod
 diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/dfmux/python/LegacyHousekeeping.py
---- spt3g_software_orig/dfmux/python/LegacyHousekeeping.py	2025-01-14 10:32:41.844260105 -0800
-+++ spt3g_software/dfmux/python/LegacyHousekeeping.py	2025-01-14 11:46:45.891496895 -0800
+--- spt3g_software_orig/dfmux/python/LegacyHousekeeping.py	2025-01-14 23:48:47.011901461 -0800
++++ spt3g_software/dfmux/python/LegacyHousekeeping.py	2025-01-14 23:49:10.243796786 -0800
 @@ -1,5 +1,11 @@
  from .. import core
 -from . import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo
@@ -428,8 +437,8 @@ diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/
  
      @classmethod
 diff -urN spt3g_software_orig/gcp/python/ARCExtractor.py spt3g_software/gcp/python/ARCExtractor.py
---- spt3g_software_orig/gcp/python/ARCExtractor.py	2025-01-14 10:32:41.847260091 -0800
-+++ spt3g_software/gcp/python/ARCExtractor.py	2025-01-14 11:47:33.772263689 -0800
+--- spt3g_software_orig/gcp/python/ARCExtractor.py	2025-01-14 23:48:47.011901461 -0800
++++ spt3g_software/gcp/python/ARCExtractor.py	2025-01-14 23:49:10.244796782 -0800
 @@ -1,7 +1,14 @@
  import numpy as np
  import copy
@@ -538,8 +547,8 @@ diff -urN spt3g_software_orig/gcp/python/ARCExtractor.py spt3g_software/gcp/pyth
  
      if f.type != core.G3FrameType.GcpSlow:
 diff -urN spt3g_software_orig/gcp/python/ARCFile.py spt3g_software/gcp/python/ARCFile.py
---- spt3g_software_orig/gcp/python/ARCFile.py	2025-01-14 10:32:41.847260091 -0800
-+++ spt3g_software/gcp/python/ARCFile.py	2025-01-14 11:47:45.229207889 -0800
+--- spt3g_software_orig/gcp/python/ARCFile.py	2025-01-14 23:48:47.011901461 -0800
++++ spt3g_software/gcp/python/ARCFile.py	2025-01-14 23:49:10.244796782 -0800
 @@ -1,4 +1,4 @@
 -from . import ARCFileReader, ARCExtract
 +from .._libgcp import ARCFileReader, ARCExtract
@@ -547,8 +556,8 @@ diff -urN spt3g_software_orig/gcp/python/ARCFile.py spt3g_software/gcp/python/AR
  class ARCFile(object):
      '''Iterable class for ARC files, as created by GCP. Loop through frames by doing something like:
 diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/InfluxDB.py
---- spt3g_software_orig/gcp/python/InfluxDB.py	2025-01-14 10:32:41.848260087 -0800
-+++ spt3g_software/gcp/python/InfluxDB.py	2025-01-14 11:48:00.501133509 -0800
+--- spt3g_software_orig/gcp/python/InfluxDB.py	2025-01-14 23:48:47.012901456 -0800
++++ spt3g_software/gcp/python/InfluxDB.py	2025-01-14 23:49:10.244796782 -0800
 @@ -3,7 +3,7 @@
  import datetime as dt
  from .. import core
@@ -559,8 +568,8 @@ diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/I
  def build_field_list(fr):
      """
 diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps/python/coordsysmodules.py
---- spt3g_software_orig/maps/python/coordsysmodules.py	2025-01-14 10:32:41.850260078 -0800
-+++ spt3g_software/maps/python/coordsysmodules.py	2025-01-14 11:52:10.591915477 -0800
+--- spt3g_software_orig/maps/python/coordsysmodules.py	2025-01-14 23:48:47.012901456 -0800
++++ spt3g_software/maps/python/coordsysmodules.py	2025-01-14 23:49:10.244796782 -0800
 @@ -1,9 +1,11 @@
  from .. import core
  from ..core import G3TimestreamQuat
@@ -578,8 +587,8 @@ diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps
  __all__ = [
      "FillCoordTransRotations",
 diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/fitsio.py
---- spt3g_software_orig/maps/python/fitsio.py	2025-01-14 10:32:41.871259982 -0800
-+++ spt3g_software/maps/python/fitsio.py	2025-01-14 11:51:10.434208472 -0800
+--- spt3g_software_orig/maps/python/fitsio.py	2025-01-14 23:48:47.012901456 -0800
++++ spt3g_software/maps/python/fitsio.py	2025-01-14 23:49:10.244796782 -0800
 @@ -1,6 +1,13 @@
  from .. import core
 -from . import HealpixSkyMap, FlatSkyMap, G3SkyMapWeights
@@ -597,8 +606,8 @@ diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/f
  import numpy as np
  import os
 diff -urN spt3g_software_orig/maps/python/map_modules.py spt3g_software/maps/python/map_modules.py
---- spt3g_software_orig/maps/python/map_modules.py	2025-01-14 11:37:07.987311496 -0800
-+++ spt3g_software/maps/python/map_modules.py	2025-01-14 11:37:25.926224126 -0800
+--- spt3g_software_orig/maps/python/map_modules.py	2025-01-14 23:48:47.012901456 -0800
++++ spt3g_software/maps/python/map_modules.py	2025-01-14 23:49:10.244796782 -0800
 @@ -1,4 +1,18 @@
 -from .. import core, maps
 +from .. import core
@@ -854,8 +863,8 @@ diff -urN spt3g_software_orig/maps/python/map_modules.py spt3g_software/maps/pyt
                  raise TypeError("Mask must be a G3SkyMapMask, G3SkyMap, or numpy array")
  
 diff -urN spt3g_software_orig/maps/python/skymapaddons.py spt3g_software/maps/python/skymapaddons.py
---- spt3g_software_orig/maps/python/skymapaddons.py	2025-01-14 10:32:41.871259982 -0800
-+++ spt3g_software/maps/python/skymapaddons.py	2025-01-14 11:48:48.166901358 -0800
+--- spt3g_software_orig/maps/python/skymapaddons.py	2025-01-14 23:48:47.012901456 -0800
++++ spt3g_software/maps/python/skymapaddons.py	2025-01-14 23:49:10.244796782 -0800
 @@ -1,6 +1,6 @@
  import numpy
  import warnings
