@@ -22,6 +22,64 @@ so3g
 
 Glue functions and new classes for SO work in the spt3g paradigm.
 
+Installation from Binary Packages
+===================================
+
+If you are just "using" `so3g` and not actively modifying the source, simply install the binary wheels from PyPI::
+
+    pip install so3g
+
+Building from Source
+======================
+
+When developing the `so3g` code, you will need to build from source.  There are two methods documented here:  (1) using a conda environment to provide python and all compiled dependencies and (2) using a virtualenv for python and OS packages for compiled dependencies.  In both cases, the compiled dependencies include:
+
+- A C++ compiler supporting the c++17 standard
+
+- BLAS / LAPACK
+
+- Boost (at least version 1.87 for numpy-2 compatibility)
+
+- GSL
+
+- libFLAC
+
+Building with Conda Tools
+----------------------------
+
+This method is the most reliable, since we will be using a self-consistent set of dependencies and the same compilers that were used to build those.  First, ensure that you have a conda base environment that uses the conda-forge channels.  The easiest way to get this is to use the "mini-forge" installer (https://github.com/conda-forge/miniforge).
+
+Once you have the conda "base" environment installed, create a new environment for Simons Observatory work.  We force the python version to 3.12, since the default (3.13) is still missing some of our dependencies::
+
+    conda create -n simons python==3.12 # <- Only do this once
+    conda activate simons
+
+Now install all of our dependencies (except for spt3g)::
+
+    conda install --file conda_dev_requirements.txt
+
+Bundled SPT3G
+~~~~~~~~~~~~~~~~~
+
+If you are just testing a quick change, you can use `pip` to install so3g.  This will download a copy of spt3g and bundle it into the the installed package.  The downside is that **every time** you run pip, it will re-build all of spt3g and so3g under the hood with cmake::
+
+    pip install -vv .
+
+Separate SPT3G
+~~~~~~~~~~~~~~~~~
+
+If you are going to be developing so3g and repeatedly building it, you probably want to install spt3g once.
+
+
+
+Building with OS Packages
+----------------------------
+
+Another option is to use a virtualenv for python packages and use the compilers and libraries from your OS to provide so3g dependencies.
+
+
+
+
 Environment Setup
 =================
 
@@ -51,7 +109,7 @@ environment.  First, verify some info about your installation::
   python3 --version
   which conda
 
-Your python version should be at least 3.7.0.  Does the location of python3
+Your python version should be at least 3.9.0.  Does the location of python3
 match the location of the conda command (are they in the same bin
 directory)?  If so, then you are ready.  If you do not have conda installed
 but would like to use it, you might consider installing the "miniforge"
@@ -69,7 +127,7 @@ messing up the root environment::
 Now install as many dependencies as possible from conda packages.  These
 are listed in a text file in the top of this git repo::
 
-  conda install --file conda_deps.txt
+  conda install --file conda_dev_requirements.txt
 
 Using a Virtualenv
 ------------------
@@ -313,7 +371,7 @@ one::
 
 
 Testing
-=======
+========
 
 The unit tests are not installed with the so3g package, so in order to run
 them you must have a git checkout of so3g (even if you installed so3g from

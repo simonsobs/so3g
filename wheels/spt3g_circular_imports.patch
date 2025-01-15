@@ -1,0 +1,866 @@
+diff -urN spt3g_software_orig/calibration/python/bolopropertiesutils.py spt3g_software/calibration/python/bolopropertiesutils.py
+--- spt3g_software_orig/calibration/python/bolopropertiesutils.py	2025-01-14 10:32:41.826260187 -0800
++++ spt3g_software/calibration/python/bolopropertiesutils.py	2025-01-14 11:43:36.854417570 -0800
+@@ -1,4 +1,4 @@
+-from . import BolometerProperties
++from .._libcalibration import BolometerProperties
+ from .. import core
+ import numpy as np
+ import re
+diff -urN spt3g_software_orig/calibration/python/build_cal_frames.py spt3g_software/calibration/python/build_cal_frames.py
+--- spt3g_software_orig/calibration/python/build_cal_frames.py	2025-01-14 10:32:41.826260187 -0800
++++ spt3g_software/calibration/python/build_cal_frames.py	2025-01-14 11:45:07.789974677 -0800
+@@ -1,6 +1,10 @@
+ from .. import core
+-from . import BolometerProperties, BolometerPropertiesMap
+-from . import PointingProperties, PointingPropertiesMap
++from .._libcalibration import (
++    BolometerProperties,
++    BolometerPropertiesMap,
++    PointingProperties,
++    PointingPropertiesMap,
++)
+ import numpy, os, re
+ 
+ '''
+@@ -24,13 +28,13 @@
+     - Band Calibration (Key: 'BoloBands')
+     - Physical Name Data (Key: 'PhysicalBoloIDs')
+     '''
+-    
++
+     def __init__(self, drop_original_frames=True, fiducial_detectors=[],
+                  bpm_name='NominalBolometerProperties', use_bpm_pointing=False):
+         '''
+         If drop_original_frames is True, will drop all input Calibration frames.
+ 
+-        If fiducial_detectors is set, will use the average of the position[s] of 
++        If fiducial_detectors is set, will use the average of the position[s] of
+         whatever detector[s] are specified to center each set of relative offsets
+         encountered (NB: this recentering is done in a Cartesian way). If it is
+         *not* specified, five detectors near the middle of the focal plane present
+@@ -107,7 +111,7 @@
+                     p.wafer_id = self.props[bolo]['wafer_id']
+                 if 'pixel_type' in self.props[bolo]:
+                     p.pixel_type = self.props[bolo]['pixel_type']
+-                
++
+                 boloprops[bolo] = p
+ 
+             cframe = core.G3Frame(core.G3FrameType.Calibration)
+@@ -301,7 +305,7 @@
+     Expects to be passed frames from:
+     - Az tilt fit parameters (Keys: 'tiltAngle', 'tiltHA', 'tiltLat', 'tiltMag')
+     '''
+-    
++
+     def __init__(self, drop_original_frames=True):
+         '''
+         If drop_original_frames is True, will drop all input Calibration frames.
+@@ -322,10 +326,10 @@
+ 
+             if 'tiltHA' in self.props:
+                 p['tiltHA'] = self.props['tiltHA']
+-            
++
+             if 'tiltMag' in self.props:
+                 p['tiltMag'] = self.props['tiltMag']
+-            
++
+             if 'tiltAngle' in self.props:
+                 p['tiltAngle'] = self.props['tiltAngle']
+ 
+diff -urN spt3g_software_orig/core/python/dataextensions.py spt3g_software/core/python/dataextensions.py
+--- spt3g_software_orig/core/python/dataextensions.py	2025-01-14 11:36:38.827453514 -0800
++++ spt3g_software/core/python/dataextensions.py	2025-01-14 11:37:56.795073781 -0800
+@@ -1,4 +1,4 @@
+-from . import G3Bool, G3Int, G3Double, G3String
++from .._libcore import G3Bool, G3Int, G3Double, G3String
+ 
+ __all__ = []
+ 
+diff -urN spt3g_software_orig/core/python/docparser.py spt3g_software/core/python/docparser.py
+--- spt3g_software_orig/core/python/docparser.py	2025-01-14 11:36:42.777434277 -0800
++++ spt3g_software/core/python/docparser.py	2025-01-14 11:38:11.775000823 -0800
+@@ -1,5 +1,5 @@
+ import sys, inspect, re, textwrap
+-from . import G3Module, G3FrameObject
++from .._libcore import G3Module, G3FrameObject
+ 
+ def format_doc(x, simple=False):
+     """
+diff -urN spt3g_software_orig/core/python/fileio.py spt3g_software/core/python/fileio.py
+--- spt3g_software_orig/core/python/fileio.py	2025-01-14 11:37:07.987311496 -0800
++++ spt3g_software/core/python/fileio.py	2025-01-14 11:38:08.584016364 -0800
+@@ -1,4 +1,4 @@
+-from .. import core
++from .._libcore import G3Reader, G3Frame, G3FrameType, G3Writer, G3MultiFileWriter
+ 
+ __all__ = ["G3File"]
+ 
+@@ -16,7 +16,7 @@
+     """
+ 
+     def __init__(self, path):
+-        self.reader = core.G3Reader(path)
++        self.reader = G3Reader(path)
+ 
+     def __iter__(self):
+         return self
+@@ -49,11 +49,11 @@
+ 
+ 
+ def writer_exit(self, *args, **kwargs):
+-    fr = core.G3Frame(core.G3FrameType.EndProcessing)
++    fr = G3Frame(G3FrameType.EndProcessing)
+     self(fr)
+ 
+ 
+-core.G3Writer.__enter__ = writer_enter
+-core.G3Writer.__exit__ = writer_exit
+-core.G3MultiFileWriter.__enter__ = writer_enter
+-core.G3MultiFileWriter.__exit__ = writer_exit
++G3Writer.__enter__ = writer_enter
++G3Writer.__exit__ = writer_exit
++G3MultiFileWriter.__enter__ = writer_enter
++G3MultiFileWriter.__exit__ = writer_exit
+diff -urN spt3g_software_orig/core/python/frameextensions.py spt3g_software/core/python/frameextensions.py
+--- spt3g_software_orig/core/python/frameextensions.py	2025-01-14 10:32:41.839260128 -0800
++++ spt3g_software/core/python/frameextensions.py	2025-01-14 11:38:23.472943849 -0800
+@@ -1,4 +1,4 @@
+-from . import G3Frame, G3FrameType
++from .._libcore import G3Frame, G3FrameType
+ 
+ @staticmethod
+ def str_to_frame_types(types):
+diff -urN spt3g_software_orig/core/python/g3decorators.py spt3g_software/core/python/g3decorators.py
+--- spt3g_software_orig/core/python/g3decorators.py	2025-01-14 10:32:41.839260128 -0800
++++ spt3g_software/core/python/g3decorators.py	2025-01-14 11:38:32.569899543 -0800
+@@ -1,4 +1,4 @@
+-from . import G3FrameType
++from .._libcore import G3FrameType
+ from copy import copy
+ import inspect
+ import textwrap
+@@ -27,7 +27,7 @@
+     This is a decorator for use with G3Modules written as functions.  It enables
+     a function to use cached values from other types of frames in the processing
+     of a frame.
+-    
++
+     To make that confusing sentence clearer with an example, in a lot of cases
+     we want to have a module that works on Scan frames, but have access to the
+     BolometerProperties.  This decorator allows you to specify the information
+@@ -47,7 +47,7 @@
+     Key specifies the name of the argument that we pass the infromation to in
+     the decorated function.  If the decorated function is called with Key as an
+     argument it will overwrite the value specified in the decorator.
+-       
++
+     Value specifies the default path to look for the cached data.  It will
+     search all of the frames that do not have the frame type 'type' for a key
+     with that value.  This can be overridden when calling the decorated
+@@ -74,7 +74,7 @@
+             doc_append += '    %s = "%s"\n' % ( k, v )
+ 
+         class WrappedFunc:
+-            def __init__(self, *args, **kwargs): 
++            def __init__(self, *args, **kwargs):
+                 self.args = args
+                 self.kwargs = kwargs
+ 
+diff -urN spt3g_software_orig/core/python/g3logging.py spt3g_software/core/python/g3logging.py
+--- spt3g_software_orig/core/python/g3logging.py	2025-01-14 10:32:41.839260128 -0800
++++ spt3g_software/core/python/g3logging.py	2025-01-14 11:38:40.184862455 -0800
+@@ -1,4 +1,4 @@
+-from . import G3Logger, G3LogLevel
++from .._libcore import G3Logger, G3LogLevel
+ import traceback
+ from functools import reduce
+ 
+@@ -27,12 +27,12 @@
+ def log_fatal(*args, **kwargs):
+     '''
+     Behaves like print but with logging behavior as described in logging.rst
+-    
++
+     The only kwarg that it recognizes is "unit", for setting the logging unit.
+     '''
+     message = reduce(lambda a,b: '%s %s' % ( str(a), str(b)), args)
+     unit = kwargs.get('unit')
+-    unit = unit if unit != None else 'Python'    
++    unit = unit if unit != None else 'Python'
+     tb = traceback.extract_stack(limit=2)[0]
+     G3Logger.global_logger.log(G3LogLevel.LOG_FATAL, unit, tb[0], tb[1],
+         tb[2], message)
+@@ -42,7 +42,7 @@
+     '''
+     Set log level to the requested level. If unit is not None, set the
+     log level for the given logging unit only.
+-    
++
+     Example: core.set_log_level(core.G3LogLevel.LOG_DEBUG, 'GCPMuxDataDecoder')
+     '''
+ 
+diff -urN spt3g_software_orig/core/python/modconstruct.py spt3g_software/core/python/modconstruct.py
+--- spt3g_software_orig/core/python/modconstruct.py	2025-01-14 10:32:41.839260128 -0800
++++ spt3g_software/core/python/modconstruct.py	2025-01-14 11:38:50.265813356 -0800
+@@ -1,4 +1,4 @@
+-from . import G3Module, G3Pipeline, G3PipelineInfo, G3Frame, G3FrameType, G3Time, G3ModuleConfig, log_fatal
++from .._libcore import G3Module, G3Pipeline, G3PipelineInfo, G3Frame, G3FrameType, G3Time, G3ModuleConfig, log_fatal
+ try:
+     from . import multiprocess
+     multiproc_avail = True
+@@ -240,7 +240,7 @@
+     name = self.nameprefix + name
+ 
+     # Record module configuration for root objects
+-    if self.nameprefix == '': 
++    if self.nameprefix == '':
+         modconfig = G3ModuleConfig()
+         modconfig.instancename = name
+         modconfig.modname = '%s.%s' % (callable.__module__, callable_name)
+diff -urN spt3g_software_orig/core/python/multiprocess.py spt3g_software/core/python/multiprocess.py
+--- spt3g_software_orig/core/python/multiprocess.py	2025-01-14 10:32:41.839260128 -0800
++++ spt3g_software/core/python/multiprocess.py	2025-01-14 11:38:59.724767286 -0800
+@@ -1,7 +1,7 @@
+ from multiprocessing import get_context
+ import socket, pickle, errno, struct, time
+ 
+-from . import G3FrameType, G3Frame
++from .._libcore import G3FrameType, G3Frame
+ 
+ # Require fork to avoid pickling errors
+ ctx = get_context("fork")
+@@ -84,7 +84,7 @@
+                     while bytestoread > len(inbuf):
+                         inbuf += self.queue[0].recv(bytestoread - len(inbuf))
+                     self.queue[0].setblocking(False)
+-                                
++
+                     allout += pickle.loads(inbuf)
+                     self.callsqueued -= 1
+                     icount = 0 # Forward progress! Try again quick
+@@ -128,7 +128,7 @@
+             outbuf = pickle.dumps(out)
+             outbuf = struct.pack('i', len(outbuf)) + outbuf
+             self.queue[1].send(outbuf)
+-                
++
+             if frame.type == G3FrameType.EndProcessing:
+                 return
+ 
+diff -urN spt3g_software_orig/core/python/quatextensions.py spt3g_software/core/python/quatextensions.py
+--- spt3g_software_orig/core/python/quatextensions.py	2025-01-14 10:32:41.840260123 -0800
++++ spt3g_software/core/python/quatextensions.py	2025-01-14 11:39:08.809723038 -0800
+@@ -1,5 +1,5 @@
+ import numpy as np
+-from . import Quat, G3VectorQuat, G3TimestreamQuat
++from .._libcore import Quat, G3VectorQuat, G3TimestreamQuat
+ 
+ __all__ = []
+ 
+diff -urN spt3g_software_orig/core/python/timestreamextensions.py spt3g_software/core/python/timestreamextensions.py
+--- spt3g_software_orig/core/python/timestreamextensions.py	2025-01-14 10:32:41.840260123 -0800
++++ spt3g_software/core/python/timestreamextensions.py	2025-01-14 11:41:19.302087499 -0800
+@@ -1,7 +1,22 @@
+ import numpy
+-from . import G3Timestream, DoubleVector, G3VectorDouble, G3TimestreamMap, G3VectorTime, G3Time, IntVector, G3VectorInt, \
+-    G3VectorComplexDouble, ComplexDoubleVector, BoolVector, G3VectorBool
+-from . import G3Units, log_fatal, log_warn, usefulfunc, G3FrameObject
++from .._libcore import (
++    G3Timestream,
++    DoubleVector,
++    G3VectorDouble,
++    G3TimestreamMap,
++    G3VectorTime,
++    G3Time,
++    IntVector,
++    G3VectorInt,
++    G3VectorComplexDouble,
++    ComplexDoubleVector,
++    BoolVector,
++    G3VectorBool,
++    G3Units,
++    G3FrameObject,
++)
++from .g3logging import log_fatal, log_warn
++from .funcconstruct import usefulfunc
+ 
+ __all__ = ['concatenate_timestreams']
+ 
+diff -urN spt3g_software_orig/core/python/util.py spt3g_software/core/python/util.py
+--- spt3g_software_orig/core/python/util.py	2025-01-14 10:32:41.840260123 -0800
++++ spt3g_software/core/python/util.py	2025-01-14 11:43:07.509560491 -0800
+@@ -1,4 +1,6 @@
+-from . import indexmod, pipesegment, G3FrameType, log_fatal, G3Reader, G3NetworkSender
++from .._libcore import G3FrameType, G3Reader, G3NetworkSender
++from .g3logging import log_fatal
++from .modconstruct import indexmod, pipesegment
+ 
+ @indexmod
+ def Delete(frame, keys=[], type=None):
+@@ -65,7 +67,7 @@
+ 
+     The frame data is stored in the variable names "frame".
+ 
+-    If debug_start_func is not None, only starts a debug session when 
++    If debug_start_func is not None, only starts a debug session when
+             debug_start_func(frame) == True
+         '''
+     if type is None or frame.type == type:
+@@ -181,7 +183,7 @@
+             else:
+                 self.metacache.append(frame)
+             return []
+-                    
++
+ 
+ del indexmod
+ del pipesegment
+diff -urN spt3g_software_orig/dfmux/python/DataQualityTools.py spt3g_software/dfmux/python/DataQualityTools.py
+--- spt3g_software_orig/dfmux/python/DataQualityTools.py	2025-01-14 10:32:41.844260105 -0800
++++ spt3g_software/dfmux/python/DataQualityTools.py	2025-01-14 11:46:01.732711952 -0800
+@@ -1,5 +1,5 @@
+ from .. import core
+-from . import DfMuxMetaSample
++from .._libdfmux import DfMuxMetaSample
+ import numpy as np
+ 
+ def get_empty_timepoint(sample_time):
+@@ -15,7 +15,7 @@
+ 
+     def __call__(self, frame):
+         if frame.type != core.G3FrameType.Timepoint:
+-            return            
++            return
+         if 'EventHeader' not in frame:
+             return
+         new_time = frame['EventHeader']
+diff -urN spt3g_software_orig/dfmux/python/HardwareMapTools.py spt3g_software/dfmux/python/HardwareMapTools.py
+--- spt3g_software_orig/dfmux/python/HardwareMapTools.py	2025-01-14 10:32:41.844260105 -0800
++++ spt3g_software/dfmux/python/HardwareMapTools.py	2025-01-14 11:46:08.289680020 -0800
+@@ -1,5 +1,5 @@
+ from .. import core
+-from . import DfMuxWiringMap, DfMuxChannelMapping
++from .._libdfmux import DfMuxWiringMap, DfMuxChannelMapping
+ import struct, socket
+ 
+ '''
+@@ -29,7 +29,7 @@
+     '''
+     Insert a wiring map derived from a pydfmux hardware map into the data
+     stream ahead of what would otherwise be the first frame.
+-   
++
+     Optionally filter for detectors described by the mask in <pathstring>
+     (see pydfmux documentation for hwm.channel_maps_from_pstring()) and
+     detectors in one of the states identified by the state argument.
+@@ -40,7 +40,7 @@
+         from pydfmux.core import dfmux as pydfmux
+         self.hwmf = core.G3Frame(core.G3FrameType.Wiring)
+         hwm = DfMuxWiringMap()
+-        
++
+         if pathstring:
+             chan_map_query = pydfmux_hwm.channel_maps_from_pstring(pathstring)
+         else:
+@@ -114,7 +114,7 @@
+     '''
+     Insert a calibration frame following any wiring frame containing a
+     BolometerPropertiesMap named "NominalBolometerProperties" that has
+-    the properties of each bolometer as defined by the given pydfmux 
++    the properties of each bolometer as defined by the given pydfmux
+     hardware map.
+     '''
+ 
+diff -urN spt3g_software_orig/dfmux/python/Housekeeping.py spt3g_software/dfmux/python/Housekeeping.py
+--- spt3g_software_orig/dfmux/python/Housekeeping.py	2025-01-14 10:32:41.912259795 -0800
++++ spt3g_software/dfmux/python/Housekeeping.py	2025-01-14 11:46:16.370640668 -0800
+@@ -1,5 +1,5 @@
+ from .. import core
+-from . import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
++from .._libdfmux import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo, DfMuxWiringMap, DfMuxChannelMapping
+ 
+ from .TuberClient import TuberClient
+ import socket, struct, time
+@@ -345,7 +345,7 @@
+                     modhk.channels[k+1] = chanhk
+                 mezzhk.modules[m+1] = modhk
+             boardhk.mezz[n+1] = mezzhk
+-    
++
+         return boardhk
+ 
+     @classmethod
+diff -urN spt3g_software_orig/dfmux/python/LegacyHousekeeping.py spt3g_software/dfmux/python/LegacyHousekeeping.py
+--- spt3g_software_orig/dfmux/python/LegacyHousekeeping.py	2025-01-14 10:32:41.844260105 -0800
++++ spt3g_software/dfmux/python/LegacyHousekeeping.py	2025-01-14 11:46:45.891496895 -0800
+@@ -1,5 +1,11 @@
+ from .. import core
+-from . import DfMuxHousekeepingMap, HkBoardInfo, HkMezzanineInfo, HkModuleInfo, HkChannelInfo
++from .._libdfmux import (
++    DfMuxHousekeepingMap,
++    HkBoardInfo,
++    HkMezzanineInfo,
++    HkModuleInfo,
++    HkChannelInfo,
++)
+ from .TuberClient import TuberClient
+ import socket, struct, time
+ 
+@@ -11,7 +17,7 @@
+     any housekeeping frame that goes by containing the data as of the arrival
+     of the housekeeping frame. Use in conjunction with a
+     dfmux.PeriodicHousekeepingCollector to get data at fixed intervals.
+-   
++
+     If collecting real-time data, you may want to set subprocess=True when
+     adding this module.
+     '''
+@@ -123,7 +129,7 @@
+                     modhk.channels[chan] = chanhk
+                 mezzhk.modules[mod] = modhk
+             boardhk.mezz[mezz] = mezzhk
+-    
++
+         return boardhk
+ 
+     @classmethod
+diff -urN spt3g_software_orig/gcp/python/ARCExtractor.py spt3g_software/gcp/python/ARCExtractor.py
+--- spt3g_software_orig/gcp/python/ARCExtractor.py	2025-01-14 10:32:41.847260091 -0800
++++ spt3g_software/gcp/python/ARCExtractor.py	2025-01-14 11:47:33.772263689 -0800
+@@ -1,7 +1,14 @@
+ import numpy as np
+ import copy
+ from .. import core
+-from . import ACUStatus, ACUState, TrackerStatus, TrackerState, TrackerPointing, CalFile
++from .._libgcp import (
++    ACUStatus,
++    ACUState,
++    TrackerStatus,
++    TrackerState,
++    TrackerPointing,
++    CalFile,
++)
+ 
+ @core.usefulfunc
+ def UnitValue(caldict_entry):
+@@ -10,15 +17,15 @@
+     if 'UnitValue' in caldict_entry:
+         return caldict_entry['UnitValue']
+ 
+-    try: 
++    try:
+         uname = caldict_entry['UnitName']
+         if uname and uname != 'None':
+             try:
+                 if '/' in uname:
+                     unames = list(filter(None,uname.split('/')))
+-                    uvalue1 = getattr(core.G3Units, 
++                    uvalue1 = getattr(core.G3Units,
+                                       list(filter(None,unames[0].split(' ')))[0])
+-                    uvalue2 = getattr(core.G3Units, 
++                    uvalue2 = getattr(core.G3Units,
+                                       list(filter(None,unames[1].split(' ')))[0])
+                     uvalue = uvalue1 / uvalue2
+                 else:
+@@ -220,7 +227,7 @@
+     # XXX units for rates seem to be wrong. I think this is in encoder counts
+     t.az_rate = np.asarray(board['actual_rates'][0], dtype = float)
+     t.el_rate = np.asarray(board['actual_rates'][1], dtype = float)
+-    
++
+     # Expected values
+     t.az_command = np.asarray(board['expected'][0])
+     t.el_command = np.asarray(board['expected'][1])
+@@ -239,7 +246,7 @@
+     t.in_control = core.BoolVector(board['inControl'][0])
+     t.in_control_int = core.IntVector(board['inControl'][0])
+     t.scan_flag = core.BoolVector(board['scan_flag'][0])
+-    
++
+     t.lst = np.asarray(board['lst'][0], dtype=float)
+ 
+     t.source_acquired = np.asarray(board['off_source'][0])
+@@ -275,7 +282,7 @@
+ 
+     t.encoder_off_x = np.asarray([board['encoder_off'][0]], dtype=np.double)
+     t.encoder_off_y = np.asarray([board['encoder_off'][1]], dtype=np.double)
+-    
++
+     t.low_limit_az = np.asarray([board['az_limits'][0]], dtype=np.double)
+     t.high_limit_az = np.asarray([board['az_limits'][1]], dtype=np.double)
+     t.low_limit_el = np.asarray([board['el_limits'][0]], dtype=np.double)
+@@ -309,7 +316,7 @@
+     t.linsens_avg_l2 = np.asarray(board['linear_sensor_avg'][1])
+     t.linsens_avg_r1 = np.asarray(board['linear_sensor_avg'][2])
+     t.linsens_avg_r2 = np.asarray(board['linear_sensor_avg'][3])
+-    
++
+     t.telescope_temp = np.asarray([f['array']['weather']['airTemperature'].value])
+     t.telescope_pressure = np.asarray([f['array']['weather']['pressure'].value])
+ 
+@@ -443,7 +450,7 @@
+         bencherr[key].stop = stop
+ 
+     info_items = ['benchFocus', 'benchDeadBand', 'benchAcquiredThreshold',
+-                  'benchPrimaryState', 'benchSecondaryState', 
++                  'benchPrimaryState', 'benchSecondaryState',
+                   'benchFault', 'timeLocked']
+     bench_info = core.G3TimestreamMap()
+     for i, key in enumerate(info_items):
+@@ -458,7 +465,7 @@
+     f['BenchErrors'] = bencherr
+     f['BenchInfo'] = bench_info
+     f['BenchSampleTime'] = board['benchSampleTime'][0]
+-    
++
+ @core.indexmod
+ def UnpackCryoData(f):
+     '''
+@@ -545,7 +552,7 @@
+ 
+ @core.indexmod
+ def UnpackPTData(f):
+-    '''Extracts pulse tube status information to PTStatus key 
++    '''Extracts pulse tube status information to PTStatus key
+     in frame'''
+ 
+     if f.type != core.G3FrameType.GcpSlow:
+@@ -614,7 +621,7 @@
+ 
+ @core.indexmod
+ def UnpackWeatherData(f):
+-    '''Extracts weather status information to Weather key 
++    '''Extracts weather status information to Weather key
+     in frame'''
+ 
+     if f.type != core.G3FrameType.GcpSlow:
+diff -urN spt3g_software_orig/gcp/python/ARCFile.py spt3g_software/gcp/python/ARCFile.py
+--- spt3g_software_orig/gcp/python/ARCFile.py	2025-01-14 10:32:41.847260091 -0800
++++ spt3g_software/gcp/python/ARCFile.py	2025-01-14 11:47:45.229207889 -0800
+@@ -1,4 +1,4 @@
+-from . import ARCFileReader, ARCExtract
++from .._libgcp import ARCFileReader, ARCExtract
+ 
+ class ARCFile(object):
+     '''Iterable class for ARC files, as created by GCP. Loop through frames by doing something like:
+diff -urN spt3g_software_orig/gcp/python/InfluxDB.py spt3g_software/gcp/python/InfluxDB.py
+--- spt3g_software_orig/gcp/python/InfluxDB.py	2025-01-14 10:32:41.848260087 -0800
++++ spt3g_software/gcp/python/InfluxDB.py	2025-01-14 11:48:00.501133509 -0800
+@@ -3,7 +3,7 @@
+ import datetime as dt
+ from .. import core
+ from ..core import G3Units as U
+-from . import ARCExtractor
++from .._libgcp import ARCExtractor
+ 
+ def build_field_list(fr):
+     """
+diff -urN spt3g_software_orig/maps/python/coordsysmodules.py spt3g_software/maps/python/coordsysmodules.py
+--- spt3g_software_orig/maps/python/coordsysmodules.py	2025-01-14 10:32:41.850260078 -0800
++++ spt3g_software/maps/python/coordsysmodules.py	2025-01-14 11:52:10.591915477 -0800
+@@ -1,9 +1,11 @@
+ from .. import core
+ from ..core import G3TimestreamQuat
+-from . import MapCoordReference
+-from . import get_origin_rotator_timestream, get_boresight_rotator_timestream
+-from . import get_fk5_j2000_to_gal_quat
+-
++from .._libmaps import (
++    MapCoordReference,
++    get_origin_rotator_timestream,
++    get_boresight_rotator_timestream,
++    get_fk5_j2000_to_gal_quat,
++)
+ 
+ __all__ = [
+     "FillCoordTransRotations",
+diff -urN spt3g_software_orig/maps/python/fitsio.py spt3g_software/maps/python/fitsio.py
+--- spt3g_software_orig/maps/python/fitsio.py	2025-01-14 10:32:41.871259982 -0800
++++ spt3g_software/maps/python/fitsio.py	2025-01-14 11:51:10.434208472 -0800
+@@ -1,6 +1,13 @@
+ from .. import core
+-from . import HealpixSkyMap, FlatSkyMap, G3SkyMapWeights
+-from . import MapPolType, MapPolConv, MapCoordReference, MapProjection
++from .._libmaps import (
++    HealpixSkyMap,
++    FlatSkyMap,
++    G3SkyMapWeights,
++    MapPolType,
++    MapPolConv,
++    MapCoordReference,
++    MapProjection,
++)
+ 
+ import numpy as np
+ import os
+diff -urN spt3g_software_orig/maps/python/map_modules.py spt3g_software/maps/python/map_modules.py
+--- spt3g_software_orig/maps/python/map_modules.py	2025-01-14 11:37:07.987311496 -0800
++++ spt3g_software/maps/python/map_modules.py	2025-01-14 11:37:25.926224126 -0800
+@@ -1,4 +1,18 @@
+-from .. import core, maps
++from .. import core
++from . import (
++    remove_weights,
++    remove_weights_t,
++    apply_weights,
++    apply_weights_t,
++    MapPolConv,
++    FlatSkyMap,
++    flatten_pol,
++    MapPolType,
++    G3SkyMapWeights,
++    G3SkyMap,
++    reproj_map,
++    G3SkyMapMask,
++)
+ import numpy as np
+ 
+ __all__ = [
+@@ -57,10 +71,10 @@
+         wmap = frame["Wpol"]
+         qmap = frame.pop("Q")
+         umap = frame.pop("U")
+-        maps.remove_weights(tmap, qmap, umap, wmap, zero_nans=zero_nans)
++        remove_weights(tmap, qmap, umap, wmap, zero_nans=zero_nans)
+     else:
+         wmap = frame["Wunpol"]
+-        maps.remove_weights_t(tmap, wmap, zero_nans=zero_nans)
++        remove_weights_t(tmap, wmap, zero_nans=zero_nans)
+ 
+     frame["T"] = tmap
+     if "Wpol" in frame:
+@@ -89,10 +103,10 @@
+         wmap = frame["Wpol"]
+         qmap = frame.pop("Q")
+         umap = frame.pop("U")
+-        maps.apply_weights(tmap, qmap, umap, wmap)
++        apply_weights(tmap, qmap, umap, wmap)
+     else:
+         wmap = frame["Wunpol"]
+-        maps.apply_weights_t(tmap, wmap)
++        apply_weights_t(tmap, wmap)
+ 
+     frame["T"] = tmap
+     if "Wpol" in frame:
+@@ -103,7 +117,7 @@
+ 
+ 
+ @core.indexmod
+-def SetPolConv(frame, pol_conv=maps.MapPolConv.IAU):
++def SetPolConv(frame, pol_conv=MapPolConv.IAU):
+     """
+     Set or change the polarization convention of the input polarized map frame.
+     If switching between IAU and COSMO conventions, flip the sign of the U map
+@@ -114,7 +128,7 @@
+         # only polarized frames
+         return frame
+ 
+-    if pol_conv == maps.MapPolConv.none or pol_conv is None:
++    if pol_conv == MapPolConv.none or pol_conv is None:
+         raise ValueError("Polarized maps must have pol_conv set to IAU or COSMO")
+ 
+     tmap = frame.pop("T")
+@@ -169,7 +183,7 @@
+     if "Q" not in frame or "U" not in frame:
+         return
+ 
+-    if any(not isinstance(frame[k], maps.FlatSkyMap) for k in "QU"):
++    if any(not isinstance(frame[k], FlatSkyMap) for k in "QU"):
+         return
+ 
+     ValidateMaps(frame, ignore_missing_weights=True)
+@@ -177,13 +191,13 @@
+ 
+     if "Wpol" in frame:
+         wmap = frame.pop("Wpol")
+-        maps.flatten_pol(qmap, umap, wmap, invert=invert)
++        flatten_pol(qmap, umap, wmap, invert=invert)
+         frame["Wpol"] = wmap
+     else:
+-        maps.flatten_pol(qmap, umap, invert=invert)
++        flatten_pol(qmap, umap, invert=invert)
+ 
+     tmap.flat_pol = not invert
+-    
++
+     frame["T"] = tmap
+     frame["Q"] = qmap
+     frame["U"] = umap
+@@ -192,7 +206,7 @@
+ 
+ 
+ @core.indexmod
+-def MakeMapsPolarized(frame, pol_conv=maps.MapPolConv.IAU):
++def MakeMapsPolarized(frame, pol_conv=MapPolConv.IAU):
+     """
+     Converts individual unpolarized maps to polarized versions of the same map,
+     with the given polarization convention
+@@ -208,16 +222,16 @@
+     del frame["Wunpol"]
+ 
+     qmap = frame["T"].clone(False)
+-    qmap.pol_type = maps.MapPolType.Q
++    qmap.pol_type = MapPolType.Q
+     qmap.pol_conv = pol_conv
+     frame["Q"] = qmap
+     umap = frame["T"].clone(False)
+-    umap.pol_type = maps.MapPolType.U
++    umap.pol_type = MapPolType.U
+     umap.pol_conv = pol_conv
+     frame["U"] = umap
+     mask = wgt.to_mask().to_map()
+ 
+-    wgt_out = maps.G3SkyMapWeights()
++    wgt_out = G3SkyMapWeights()
+     wgt_out.TT = wgt
+     wgt_out.TQ = wgt.clone(False)
+     wgt_out.TU = wgt.clone(False)
+@@ -226,7 +240,7 @@
+     wgt_out.UU = mask.clone(True)
+ 
+     for k in wgt_out.keys():
+-        wgt_out[k].pol_type = getattr(maps.MapPolType, k)
++        wgt_out[k].pol_type = getattr(MapPolType, k)
+ 
+     frame["Wpol"] = wgt_out
+ 
+@@ -242,12 +256,12 @@
+         return
+ 
+     tmap = frame.pop("T")
+-    tmap.pol_conv = maps.MapPolConv.none
++    tmap.pol_conv = MapPolConv.none
+     frame["T"] = tmap
+ 
+     wgt = frame.pop("Wpol").TT
+-    wgt.pol_conv = maps.MapPolConv.none
+-    wgt_out = maps.G3SkyMapWeights()
++    wgt.pol_conv = MapPolConv.none
++    wgt_out = G3SkyMapWeights()
+     wgt_out.TT = wgt
+     frame["Wunpol"] = wgt_out
+ 
+@@ -298,19 +312,19 @@
+             )
+ 
+         if k in ["Wpol", "Wunpol"]:
+-            if frame[k].TT.pol_type == maps.MapPolType.TT:
++            if frame[k].TT.pol_type == MapPolType.TT:
+                 continue
+             # set weights polarization properties
+             w = frame.pop(k)
+             for wk in w.keys():
+-                w[wk].pol_type = getattr(maps.MapPolType, wk)
++                w[wk].pol_type = getattr(MapPolType, wk)
+                 if k == "Wpol":
+                     w[wk].pol_conv = frame["U"].pol_conv
+             frame[k] = w
+ 
+         if k in "TQU":
+             if k == "U":
+-                if isinstance(frame[k], maps.FlatSkyMap) and (
++                if isinstance(frame[k], FlatSkyMap) and (
+                     frame[k].flat_pol != frame["Q"].flat_pol
+                 ):
+                     core.log_fatal(
+@@ -357,7 +371,7 @@
+                     "Map frame %s: %s and U maps have different pol_conv" % (map_id, k),
+                     unit="ValidateMaps",
+                 )
+-            if isinstance(frame[k].QQ, maps.FlatSkyMap):
++            if isinstance(frame[k].QQ, FlatSkyMap):
+                 if frame[k].flat_pol != frame["Q"].flat_pol:
+                     core.log_fatal(
+                         "Map frame %s: %s and U maps have different flat_pol" % (map_id, k),
+@@ -447,17 +461,17 @@
+         polarized = map_stub.polarized
+ 
+         T = map_stub.clone(False)
+-        T.pol_type = maps.MapPolType.T
++        T.pol_type = MapPolType.T
+         self.map_frame["T"] = T
+         if polarized:
+             Q = map_stub.clone(False)
+-            Q.pol_type = maps.MapPolType.Q
++            Q.pol_type = MapPolType.Q
+             self.map_frame["Q"] = Q
+             U = map_stub.clone(False)
+-            U.pol_type = maps.MapPolType.U
++            U.pol_type = MapPolType.U
+             self.map_frame["U"] = U
+         if weighted:
+-            W = maps.G3SkyMapWeights(map_stub)
++            W = G3SkyMapWeights(map_stub)
+             self.map_frame["Wpol" if polarized else "Wunpol"] = W
+ 
+     def __call__(self, frame):
+@@ -492,12 +506,12 @@
+ 
+         if isinstance(maps_in, list):
+             for m in maps_in:
+-                if isinstance(m, maps.G3SkyMap):
++                if isinstance(m, G3SkyMap):
+                     k = str(m.pol_type)
+                     if k not in "TQU":
+                         raise ValueError("Input map has invalid pol_type %s" % k)
+                     self.map_frame[k] = m
+-                elif isinstance(m, maps.G3SkyMapWeights):
++                elif isinstance(m, G3SkyMapWeights):
+                     self.map_frame["Wpol" if m.polarized else "Wunpol"] = m
+                 else:
+                     raise TypeError("maps_in must be G3SkyMap or G3SkyMapWeights")
+@@ -923,14 +937,14 @@
+ 
+             if key in "TQUH":
+                 mnew = self.stub.clone(False)
+-                maps.reproj_map(
++                reproj_map(
+                     m, mnew, rebin=self.rebin, interp=self.interp, mask=self.mask
+                 )
+ 
+             elif key in ["Wpol", "Wunpol"]:
+-                mnew = maps.G3SkyMapWeights(self.stub)
++                mnew = G3SkyMapWeights(self.stub)
+                 for wkey in mnew.keys():
+-                    maps.reproj_map(
++                    reproj_map(
+                         m[wkey],
+                         mnew[wkey],
+                         rebin=self.rebin,
+@@ -957,10 +971,10 @@
+         if mask is None:
+             return
+         if self._mask is None and self.partial:
+-            if isinstance(mask, maps.G3SkyMapMask):
++            if isinstance(mask, G3SkyMapMask):
+                 self._mask = mask
+-            elif isinstance(mask, maps.G3SkyMap):
+-                self._mask = maps.G3SkyMapMask(
++            elif isinstance(mask, G3SkyMap):
++                self._mask = G3SkyMapMask(
+                     mask, use_data=True, zero_nans=True, zero_infs=True
+                 )
+             elif isinstance(mask, np.ndarray):
+@@ -978,7 +992,7 @@
+                 )
+                 mask_copy[bad] = 0
+                 tmp[:] = mask_copy
+-                self._mask = maps.G3SkyMapMask(tmp, use_data=True)
++                self._mask = G3SkyMapMask(tmp, use_data=True)
+             else:
+                 raise TypeError("Mask must be a G3SkyMapMask, G3SkyMap, or numpy array")
+ 
+diff -urN spt3g_software_orig/maps/python/skymapaddons.py spt3g_software/maps/python/skymapaddons.py
+--- spt3g_software_orig/maps/python/skymapaddons.py	2025-01-14 10:32:41.871259982 -0800
++++ spt3g_software/maps/python/skymapaddons.py	2025-01-14 11:48:48.166901358 -0800
+@@ -1,6 +1,6 @@
+ import numpy
+ import warnings
+-from . import G3SkyMapWeights, G3SkyMap, FlatSkyMap, G3SkyMapMask
++from .._libmaps import G3SkyMapWeights, G3SkyMap, FlatSkyMap, G3SkyMapMask
+ 
+ # This file adds extra functionality to the python interface to G3SkyMap and
+ # G3SkyMapWeights. This is done in ways that exploit a large fraction of

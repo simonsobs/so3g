@@ -1,0 +1,51 @@
+diff -urN spt3g_software_orig/calibration/CMakeLists.txt spt3g_software/calibration/CMakeLists.txt
+--- spt3g_software_orig/calibration/CMakeLists.txt	2025-01-14 08:30:26.736781581 -0800
++++ spt3g_software/calibration/CMakeLists.txt	2025-01-14 09:42:28.714000945 -0800
+@@ -1,4 +1,4 @@
+-add_spt3g_library(calibration SHARED
++add_spt3g_library(calibration STATIC
+ 	src/BoloProperties.cxx src/PointingProperties.cxx
+ )
+ target_link_libraries(calibration PUBLIC core)
+diff -urN spt3g_software_orig/core/CMakeLists.txt spt3g_software/core/CMakeLists.txt
+--- spt3g_software_orig/core/CMakeLists.txt	2025-01-14 08:30:26.738781571 -0800
++++ spt3g_software/core/CMakeLists.txt	2025-01-14 09:42:37.038959548 -0800
+@@ -5,7 +5,7 @@
+ 	set(CORE_EXTRA_SRCS "")
+ endif(APPLE)
+ 
+-add_spt3g_library(core SHARED
++add_spt3g_library(core STATIC
+ 	src/G3EventBuilder.cxx src/G3Frame.cxx src/G3TimeStamp.cxx
+ 	src/G3Pipeline.cxx src/G3Writer.cxx src/G3Reader.cxx
+ 	src/G3InfiniteSource.cxx src/G3Logging.cxx src/G3PrintfLogger.cxx
+diff -urN spt3g_software_orig/dfmux/CMakeLists.txt spt3g_software/dfmux/CMakeLists.txt
+--- spt3g_software_orig/dfmux/CMakeLists.txt	2025-01-14 08:30:26.829781120 -0800
++++ spt3g_software/dfmux/CMakeLists.txt	2025-01-14 09:42:48.909900519 -0800
+@@ -10,7 +10,7 @@
+ 	set(DFMUX_LIB_EXTRA_SRC "")
+ endif()
+ 
+-add_spt3g_library(dfmux SHARED
++add_spt3g_library(dfmux STATIC
+ 	src/DfMuxBuilder.cxx src/DfMuxCollector.cxx src/DfMuxSample.cxx
+ 	src/LegacyDfMuxCollector.cxx src/HardwareMap.cxx src/DfMuxCollator.cxx
+ 	src/Housekeeping.cxx
+diff -urN spt3g_software_orig/gcp/CMakeLists.txt spt3g_software/gcp/CMakeLists.txt
+--- spt3g_software_orig/gcp/CMakeLists.txt	2025-01-14 08:30:26.756781482 -0800
++++ spt3g_software/gcp/CMakeLists.txt	2025-01-14 09:43:01.127839764 -0800
+@@ -1,4 +1,4 @@
+-add_spt3g_library(gcp SHARED
++add_spt3g_library(gcp STATIC
+ 	src/ARCFileReader.cxx
+ 	src/ACUStatus.cxx src/TrackerStatus.cxx src/TrackerPointing.cxx
+ 	src/GCPMuxDataDecoder.cxx src/GCPLogger.cxx
+diff -urN spt3g_software_orig/maps/CMakeLists.txt spt3g_software/maps/CMakeLists.txt
+--- spt3g_software_orig/maps/CMakeLists.txt	2025-01-14 08:30:26.758781472 -0800
++++ spt3g_software/maps/CMakeLists.txt	2025-01-14 09:43:16.164764990 -0800
+@@ -1,4 +1,4 @@
+-add_spt3g_library(maps SHARED
++add_spt3g_library(maps STATIC
+   src/chealpix.c
+   src/G3SkyMap.cxx
+   src/G3SkyMapMask.cxx
