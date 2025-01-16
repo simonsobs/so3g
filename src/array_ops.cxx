@@ -1263,6 +1263,7 @@ PYBINDINGS("so3g")
             "       The data is modified in place.\n"
             "  method: how to detrend data.  Options are 'mean', 'median', and 'linear'. Linear calculates "
             "          and subtracts the slope from either end of each row as determined from 'linear_ncount'.\n"
-            "  linear_ncount: Number (int) of samples to use, on each end, when measuring mean level for 'linear'"
-            "                 detrend. Values larger than 1 suppress the influence of white noise.\n");
+            "  linear_ncount: Number (int) of samples to use on each end, when measuring mean level for 'linear'"
+            "                 detrend. Must be a positive integer or -1.  If -1, nsamps / 2 will be used. Values "
+            "                 larger than 1 suppress the influence of white noise.\n");
 }
