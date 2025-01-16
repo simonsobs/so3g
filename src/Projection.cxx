@@ -596,6 +596,11 @@ public:
         npix_per_tile = npix / ntiles;
         check_nside(nside); // check validity
         check_nside(nside_tile);
+        if (nside_tile > nside) {
+            std::ostringstream err;
+            err << "Invalid nside_tile " << nside_tile << " > nside " << nside;
+            throw ValueError_exception(err.str());
+        }
     }
   ~Pixelizor_Healpix() {};
 

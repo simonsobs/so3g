@@ -766,7 +766,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         """
         if self.nside_tile == 'auto':
             ## Estimate fsky
-            nside_tile0 = 4  # ntile = 192, for estimating fsky
+            nside_tile0 = min(4, self.nside)  # ntile = 192, for estimating fsky
             self.nside_tile = nside_tile0
             nActive = len(self.get_active_tiles(assembly)['active_tiles'])
             fsky = nActive / (12 * nside_tile0**2)
@@ -774,7 +774,7 @@ class ProjectionistHealpix(_ProjectionistBase):
                 nThreads = so3g.useful_info()['omp_num_threads']
             # nside_tile is smallest power of 2 satisfying nTile >= nActivePerThread * nthread / fsky
             self.nside_tile = int(2**np.ceil(0.5 * np.log2(nActivePerThread * nThreads / (12 * fsky))))
-            # print('Setting nside_tile =', self.nside_tile)
+            self.nside_tile = min(self.nside_tile, self.nside)
         return self.nside_tile
 
     def get_active_tiles(self, assembly, assign=False):
