@@ -231,7 +231,7 @@ class CelestialSightLine:
             fplane = FocalPlane.boresight()
             if output is not None:
                 output = output[None]
-        output = p.coords(self.Q, fplane.quats), output)
+        output = p.coords(self.Q, fplane.quats, output)
         if collapse:
             output = output[0]
         return output
