@@ -85,9 +85,9 @@ quaternions into rotation angles::
   >>> csl.Q
   spt3g.core.G3VectorQuat([(-0.0384748,0.941783,0.114177,0.313891)])
 
-  >>> csl.coords()   
+  >>> csl.coords()
   array([[ 0.24261138, -0.92726871, -0.99999913, -0.00131952]])
-  
+
 The :func:`coords() <CelestialSightLine.coords>` returns an array with
 shape (n_time, 4); each 4-tuple contains values ``(lon, lat,
 cos(gamma), sin(gamma))``.  The ``lon`` and ``lat`` are the celestial
@@ -117,12 +117,12 @@ orientations::
 
 This particular function, :func:`from_xieta()
 <FocalPlane.from_xieta>`, will apply the SO standard coordinate
-definitions and stores quaternion coefficients (``.quats``) and
-responsivities (``.resps``) for each detectors. These are numpy
-arrays with shape ``[ndet,4]`` and ``[ndet,2]`` respectively.
-``fp.quats[0]`` gives the 4 quaternion coefficients for the
-first detector, while ``fp.resps[0]`` gives its total intensity
-and polarization responsivity.::
+definitions and stores quaternions (``.quats``) and
+responsivities (``.resps``) for each detector. These are a
+``G3VectorQuat``  wth length ``ndet`` and a numpy array
+with shape ``[ndet,2]`` respectively. ``fp.quats[0]`` gives
+the quaternion for the first detector, while ``fp.resps[0]``
+gives its total intensity and polarization responsivity.::
 
   >>> fp.quats[2]
   array([  0.86601716,  0.00377878, -0.00218168,  0.49999524])
@@ -133,7 +133,7 @@ As you can see, the default responsivity is 1 for both total
 intensty and polarization. Note that ``.quats`` contains
 quaternion *coefficients*, not quaternion *objects*. To do
 quaternion math, you need to convert them to actual quaternion
-objects, e.g. ``q = spt3g.core.quat(*fp.quats[0])``, or convert
+objects, e.g. ``q = fp.quats[0]``, or convert
 them all at once with ``qs = spt3g.core.G3VectorQuat(fp.quats)```.
 
 To represent detectors with responsivity different from 1,
@@ -166,7 +166,7 @@ At this point you could get the celestial coordinates for any one of
 those detectors::
 
   # Get vector of quaternion pointings for detector 0
-  q_total = csl.Q * spt3g.core.quat(*fp.quats[0])
+  q_total = csl.Q * fp.quats[0]
   # Decompose q_total into lon, lat, roll angles
   ra, dec, gamma = so3g.proj.quat.decompose_lonlat(q_total)
 
@@ -185,9 +185,8 @@ FocalPlane object as first argument::
    array([[ 0.24261138, -0.92726871,  0.86536489,  0.5011423 ]]),
    array([[ 0.22806774, -0.92722945,  0.50890634,  0.86082189]])]
 
-To be clear, ``coords()`` now returns a dictionary whose keys are the
-detector names.  Each value is an array with shape (n_time,4), and at
-each time step the 4 elements of the array are: ``(lon, lat,
+So ``coords()`` returns a list of numpy arrays with shape (n_time,4),
+and at each time step the 4 elements of the array are: ``(lon, lat,
 cos(gamma), sin(gamma))``.
 
 

@@ -73,7 +73,9 @@ class TestProjEng(unittest.TestCase):
                      det_weights=np.array([0., 0.], dtype='float32'))[0]
         assert(np.all(m==0))
 
-        asm.fplane.quats[1,2] = np.nan
+        # Can't assign to quat fields, so do
+        # it this way instead
+        asm.fplane.quats[1] = asm.fplane.quats[1]*np.nan
         with self.assertRaises(ValueError):
            p.to_map(sig, asm, comps='T')
         with self.assertRaises(ValueError):

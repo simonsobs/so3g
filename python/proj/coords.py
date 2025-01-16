@@ -219,9 +219,9 @@ class CelestialSightLine:
             buffer protocol.
 
         Returns:
-          If fplane is not None, then the result will be
+          If fplane is None, then the result will be
           [n_samp,{lon,lat,cos2psi,sin2psi}]. Otherwise it will
-          be [n_det,n_Samp,{lon,lat,cos2psi,sin2psi}]
+          be [n_det,n_samp,{lon,lat,cos2psi,sin2psi}]
         """
         # Get a projector, in CAR.
         p = so3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
@@ -231,7 +231,7 @@ class CelestialSightLine:
             fplane = FocalPlane.boresight()
             if output is not None:
                 output = output[None]
-        output = p.coords(self.Q, fplane.quats, output)
+        output = p.coords(self.Q, fplane.coeffs(), output)
         if collapse:
             output = output[0]
         return output
@@ -241,11 +241,9 @@ class FocalPlane:
     polarization responses in the focal plane.
 
     Members:
-     quats: Array of float64 with shape [ndet,4] representing the
-      pointing quaternions for each detector. Since these are just
-      plain coefficients, they will need to be converted to quaternion
-      objects if you want to do quaternion math with them, e.g.
-      G3VectorQuat(focal_plane.quats).
+     quats: G3VectorQuat representing the pointing quaternions for
+      each detector. Can be turned into a numpy array of coefficients
+      with np.array(). Or call .coeffs() to get them directly.
      resps: Array of float64 with shape [ndet,2] representing the
       total intensity and polarization responsivity of each detector
      ndet: The number of detectors (read-only)
@@ -274,8 +272,10 @@ class FocalPlane:
         # quats will be an quat coeff array-2 and resps will be a numpy
         # array with the right shape, so we don't need to check
         # for this when we use FocalPlane later
-        if quats is None: self.quats = np.zeros((0,4),np.float64)
-        else:             self.quats = np.array(quat.G3VectorQuat(quats))
+        if quats is None: quats = []
+        # Asarray needed because G3VectorQuat doesn't handle list of lists,
+        # which we want to be able to accept
+        self.quats = quat.G3VectorQuat(np.asarray(quats))
         self.resps = np.ones((len(self.quats),2),np.float32)
         if resps is not None:
             self.resps[:] = resps
@@ -286,15 +286,22 @@ class FocalPlane:
         # FIXME: old sotodlib compat - remove later
         self._dets   = list(dets) if dets is not None else []
         self._detmap = {name:i for i,name in enumerate(self._dets)}
+    def coeffs(self):
+        """Return an [ndet,4] numpy array representing the quaternion
+        coefficients of ``.quats``. Useful for passing the detector
+        pointing to C++ code"""
+        return np.array(self.quats, dtype=np.float64)
     @classmethod
     def boresight(cls):
         """Construct a FocalPlane representing a single detector with a
         responsivity of one pointing along the telescope boresight"""
-        quats = np.array([[1,0,0,0]],np.float64)
-        return cls(quats=quats)
+        return cls(quats=[[1,0,0,0]])
+    # FIXME: old sotodlib compat - expand to actual argument list later
     @classmethod
-    def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False):
-        """Construct a FocalPlane from focal plane coordinates (xi,eta).
+    def from_xieta(cls, *args, **kwargs):
+        """
+        def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False):
+        Construct a FocalPlane from focal plane coordinates (xi,eta).
 
         These are Cartesian projection plane coordinates. When looking
         at the sky along the telescope boresight, xi is parallel to
@@ -346,7 +353,7 @@ class FocalPlane:
         # response too. Writing it like this handles both cases, and
         # as a bonus(?) any combination of them
         # FIXME: old sotodlib compat - remove later
-        xi, eta, gamma, T, P, Q, U, hwp, dets = cls._xieta_compat(xi,eta,gamma,T,P,Q,U,hwp)
+        xi, eta, gamma, T, P, Q, U, hwp, dets = cls._xieta_compat(*args, **kwargs)
         gamma = gamma + np.arctan2(U,Q)/2
         P     = P * (Q**2+U**2)**0.5
         if hwp: gamma = -gamma
@@ -359,22 +366,25 @@ class FocalPlane:
         # FIXME: old sotodlib compat - remove dets argument later
         return cls(quats, resps=resps, dets=dets)
     def __repr__(self):
-        return "FocalPlane(quats=%s,resps=%s)" % (repr(self.quats), repr(self.resps))
+        return "FocalPlane(quats=%s,resps=%s)" % (repr(self.coeffs()), repr(self.resps))
     @property
     def ndet(self): return len(self.quats)
     def __len__(self): return self.ndet
     def __getitem__(self, sel):
         """Slice the FocalPlane with slice sel, resulting in a new
-        FocalPlane with a subset of the detectors. Only 1d slice supported,
-        not integers or multidimensional slices. Example: ``focal_plane[10:20]``
-        would make a sub-FocalPlane with detector indices 10,11,...,19.
+        FocalPlane with a subset of the detectors. Only a 1d slice
+        or boolean mask is supported, not integers or multidimensional
+        slices. Example: ``focal_plane[10:20]`` would make a
+        sub-FocalPlane with detector indices 10,11,...,19.
 
         Deprecated: Temporarily also supports that sel is a detector name,
         in which case an  ``spt3g.core.quat`` is returned for that detector.
         This is provided for backwards compatibility."""
         # FIXME: old sotodlib compat - remove later
-        if isinstance(sel, str): return quat.G3VectorQuat(self.quats)[self._dets.index(sel)]
-        return FocalPlane(quats=self.quats[sel], resps=self.resps[sel])
+        if isinstance(sel, str): return self.quats[self._dets.index(sel)]
+        # We go via .coeffs() here to get around G3VectorQuat's lack
+        # of boolean mask support
+        return FocalPlane(quats=self.coeffs()[sel], resps=self.resps[sel])
     def items(self):
         """Iterate over detector quaternions and responsivities. Yields
         ``(spt3g.core.quat, array([Tresp,Presp]))`` pairs. Unlke the raw
@@ -382,30 +392,31 @@ class FocalPlane:
         length 4,  ``spt3g.core.quat`` are proper quaternon objects that
         support quaternion math.
         """
-        for q, resp in zip(quat.G3VectorQuat(self.quats), self.resps):
+        for q, resp in zip(self.quats, self.resps):
             yield q, resp
     # FIXME: old sotodlib compat - remove later
-    @classmethod
-    def _xieta_compat(cls, xi, eta, gamma, T, P, Q, U, hwp):
+    @staticmethod
+    def _xieta_compat(*args, **kwargs):
         # Accept the alternative format (names,xi,eta,gamma)
-        if isinstance(xi[0], str):
-            return eta, gamma, T, 1, 1, 1, 0, False, xi
+        def helper(xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False, dets=None):
+            return xi, eta, gamma, T, P, Q, U, hwp, dets
+        if isinstance(args[0][0], str):
+            return helper(*args[1:], dets=args[0], **kwargs)
         else:
-            return xi, eta, gamma, T, P, Q, U, hwp, None
+            return helper(*args, **kwargs)
     # FIXME: old sotodlib compat - remove later
     def __setitem__(self, name, q):
         # Make coords/pmat.py _get_asm work in old sotodlib. It
         # expects to be able to build up a focalplane by assigning
         # quats one at a time
-        q = np.array(quat.G3VectorQuat([q]))
         if name in self._detmap:
             i = self._detmap[i]
-            self.quats[i] = q[0]
+            self.quats[i] = q
         else:
             self._dets.append(name)
             self._detmap[name] = len(self._dets)-1
+            self.quats.append(q)
             # This is inefficient, but it's temporary
-            self.quats = np.concatenate([self.quats,q])
             self.resps = np.concatenate([self.resps,np.ones((1,2),np.float32)])
 
 class Assembly:
