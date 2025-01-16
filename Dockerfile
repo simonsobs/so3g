@@ -2,7 +2,7 @@
 # A containerized so3g installation.
 
 # Build on spt3g base image
-FROM simonsobs/spt3g:0.3-289-g4bd3275
+FROM simonsobs/spt3g:0.4-55-g682414d
 
 # Set locale
 ENV LANG C.UTF-8
@@ -12,7 +12,7 @@ RUN apt update && apt install -y \
     build-essential \
     automake \
     gfortran \
-    libopenblas-dev \
+    libopenblas-openmp-dev \
     libbz2-dev \
     python-is-python3
 

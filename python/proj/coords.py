@@ -1,10 +1,11 @@
-import so3g
-from . import quat
-from .weather import weather_factory
-
 from collections import OrderedDict
 
 import numpy as np
+
+from .. import _libso3g as libso3g
+from . import quat
+from .weather import weather_factory
+
 
 DEG = np.pi / 180.
 
@@ -231,7 +232,7 @@ class CelestialSightLine:
 
         """
         # Get a projector, in CAR.
-        p = so3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
+        p = libso3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
         # Pre-process the offsets
         collapse = (det_offsets is None)
         if collapse:
@@ -241,7 +242,7 @@ class CelestialSightLine:
         redict = isinstance(det_offsets, dict)
         if redict:
             keys, det_offsets = zip(*det_offsets.items())
-            if isinstance(det_offsets[0], quat.quat):
+            if isinstance(det_offsets[0], quat.Quat):
                 # Individual quat doesn't array() properly...
                 det_offsets = np.array(quat.G3VectorQuat(det_offsets))
             else:
@@ -334,7 +335,7 @@ class Assembly:
         else:
             self.dets = det_offsets
         # Make sure it's a numpy array.  This is dumb.
-        if isinstance(self.dets[0], quat.quat):
+        if isinstance(self.dets[0], quat.Quat):
             self.dets = quat.G3VectorQuat(self.dets)
         self.dets = np.array(self.dets)
         return self

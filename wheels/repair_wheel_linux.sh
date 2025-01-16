@@ -10,9 +10,8 @@ set -e
 dest_dir=$1
 wheel=$2
 
-spt3g_build=$(ls -d /project/build/lib.linux*/so3g/spt3g_internal)
-so3g_build=$(ls -d /project/build/lib.linux*/so3g)
+spt3g_install=$(ls -d /project/build/temp.linux*/spt3g_install)
 
-export LD_LIBRARY_PATH=${spt3g_build}:${so3g_build}:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH="/usr/local/lib":"/usr/local/lib64":"${spt3g_install}/lib":"${spt3g_install}/lib64":${LD_LIBRARY_PATH}
 
 auditwheel repair -w ${dest_dir} ${wheel}

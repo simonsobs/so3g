@@ -1,6 +1,3 @@
-import so3g
-from spt3g import core
-
 from . import quat
 from . import util
 from . import mapthreads

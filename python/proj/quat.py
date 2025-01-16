@@ -1,10 +1,12 @@
 import numpy as np
 
-try:
-    from spt3g.core import quat, G3VectorQuat
-except ImportError:
-    # Pre-Oct 2019 versions.
-    from spt3g.coordinateutils import quat, G3VectorQuat
+from spt3g.core import Quat, G3VectorQuat
+
+# try:
+#     from spt3g.core import quat, G3VectorQuat
+# except ImportError:
+#     # Pre-Oct 2019 versions.
+#     from spt3g.coordinateutils import quat, G3VectorQuat
 
 """We are using the spt3g quaternion containers,
 i.e. cu3g.G3VectorQuat and cu3g.quat.  One way these are nice is that
@@ -33,7 +35,7 @@ def euler(axis, angle):
     
     Returns
     -------
-    quat or G3VectorQuat, depending on ndim(angle).
+    Quat or G3VectorQuat, depending on ndim(angle).
     """
     # Either angle or axis or both can be vectors.
     angle = np.asarray(angle)
@@ -43,7 +45,7 @@ def euler(axis, angle):
     q[..., 0] = c
     q[..., axis+1] = s
     if len(shape) == 1:
-        return quat(*q)
+        return Quat(*q)
     return G3VectorQuat(q)
 
 
@@ -97,7 +99,7 @@ def decompose_iso(q):
     
     Parameters
     ----------
-    q : quat or G3VectorQuat
+    q : Quat or G3VectorQuat
         The quaternion(s) to be decomposed.
     
     Returns
@@ -106,7 +108,7 @@ def decompose_iso(q):
         The rotation angles, in radians.
     """
 
-    if isinstance(q, quat):
+    if isinstance(q, Quat):
         a,b,c,d = q.a, q.b, q.c, q.d
     else:
         a,b,c,d = np.transpose(q)

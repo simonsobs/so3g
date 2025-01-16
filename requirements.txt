@@ -1,12 +1,11 @@
 astropy
 matplotlib
-numpy<2
+numpy
 scipy
 ephem
 pytz
 pyaml
 sqlalchemy
-pysqlite3-wheels
 tqdm
 cmake
 qpoint

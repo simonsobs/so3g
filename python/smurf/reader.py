@@ -1,11 +1,11 @@
-import so3g
-from spt3g import core
 import numpy as np
 import pickle
-import datetime, time
-import sys, os
 import warnings
 import argparse
+
+from .. import _libso3g as libso3g
+from spt3g import core
+
 
 def g3_to_array(g3file, verbose=False):
     """
