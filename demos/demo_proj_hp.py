@@ -191,13 +191,6 @@ def simulate_detectors(ndets, rmax, seed=0):
     eta = rr * np.sin(phi)
     return xi, eta, gamma
 
-def make_fp(xi, eta, gamma):
-    fp = so3g.proj.quat.rotation_xieta(xi, eta, gamma)
-    so3g_fp = so3g.proj.FocalPlane()
-    for i, q in enumerate(fp):
-        so3g_fp[f'a{i}'] = q
-    return so3g_fp
-
 def extract_coord(sight, fp, isignal=0, groupsize=100):
     coord_out = []
     for ii in range(0, len(fp), groupsize):
@@ -208,14 +201,14 @@ def extract_coord(sight, fp, isignal=0, groupsize=100):
 
 def make_signal(ndets, rmax, sight, isignal, seed=0):
     xi, eta, gamma = simulate_detectors(ndets, rmax, seed)
-    fp = so3g.proj.quat.rotation_xieta(xi, eta, gamma)
+    fp = so3g.proj.FocalPlane.from_xieta(xi, eta, gamma)
     signal = extract_coord(sight, fp, isignal)
     return signal
 
 def make_tod(time, az, el, ndets, rmax, isignal, seed=0):
     sight = so3g.proj.CelestialSightLine.naive_az_el(time, az, el)
     signal = make_signal(ndets, rmax, sight, isignal, seed)
-    so3g_fp = make_fp(*simulate_detectors(ndets, rmax, seed))
+    so3g_fp = so3g.proj.FocalPlane.from_xieta(*simulate_detectors(ndets, rmax, seed))
     asm = so3g.proj.Assembly.attach(sight, so3g_fp)
     return signal, asm
 

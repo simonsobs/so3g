@@ -183,7 +183,7 @@ class _ProjectionistBase:
         """
         projeng = self.get_ProjEng('TQU')
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        return projeng.pixels(q_native, assembly.fplane.coeffs(), None)
+        return projeng.pixels(q_native, assembly.fplane.quats, None)
 
     def get_pointing_matrix(self, assembly):
         """Get the pointing matrix information, which is to say both the pixel
@@ -199,7 +199,7 @@ class _ProjectionistBase:
         """
         projeng = self.get_ProjEng('TQU')
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        return projeng.pointing_matrix(q_native, assembly.fplane.coeffs(), assembly.fplane.resps, None, None)
+        return projeng.pointing_matrix(q_native, assembly.fplane.quats, assembly.fplane.resps, None, None)
 
     def get_coords(self, assembly, use_native=False, output=None):
         """Get the spherical coordinates for the provided pointing Assembly.
@@ -225,7 +225,7 @@ class _ProjectionistBase:
             q_native = self._cache_q_fp_to_native(assembly.Q)
         else:
             q_native = assembly.Q
-        return projeng.coords(q_native, assembly.fplane.coeffs(), output)
+        return projeng.coords(q_native, assembly.fplane.quats, output)
 
     def get_planar(self, assembly, output=None):
         """Get projection plane coordinates for all detectors at all times.
@@ -240,7 +240,7 @@ class _ProjectionistBase:
         """
         q_native = self._cache_q_fp_to_native(assembly.Q)
         projeng = self.get_ProjEng('TQU')
-        return projeng.coords(q_native, assembly.fplane.coeffs(), output)
+        return projeng.coords(q_native, assembly.fplane.quats, output)
 
     def zeros(self, super_shape):
         """Return a map, filled with zeros, with shape (super_shape,) +
@@ -272,7 +272,7 @@ class _ProjectionistBase:
             comps = self._guess_comps(self._get_map_shape(output))
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        map_out = projeng.to_map(output, q_native, assembly.fplane.coeffs(),
+        map_out = projeng.to_map(output, q_native, assembly.fplane.quats,
             assembly.fplane.resps, signal, det_weights, threads)
         return map_out
 
@@ -298,7 +298,7 @@ class _ProjectionistBase:
             comps = self._guess_comps(shape[1:])
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        map_out = projeng.to_weight_map(output, q_native, assembly.fplane.coeffs(),
+        map_out = projeng.to_weight_map(output, q_native, assembly.fplane.quats,
             assembly.fplane.resps, det_weights, threads)
         return map_out
 
@@ -318,7 +318,7 @@ class _ProjectionistBase:
             comps = self._guess_comps(self._get_map_shape(src_map))
         projeng = self.get_ProjEng(comps)
         q_native = self._cache_q_fp_to_native(assembly.Q)
-        signal_out = projeng.from_map(src_map, q_native, assembly.fplane.coeffs(),
+        signal_out = projeng.from_map(src_map, q_native, assembly.fplane.quats,
             assembly.fplane.resps, signal)
         return signal_out
 
@@ -362,7 +362,7 @@ class _ProjectionistBase:
         if method == 'simple':
             projeng = self.get_ProjEng('T')
             q_native = self._cache_q_fp_to_native(assembly.Q)
-            omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.coeffs(), None, n_threads)
+            omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.quats, None, n_threads)
             return wrap_ivals(omp_ivals)
 
         elif method == 'domdir':
@@ -402,7 +402,7 @@ class _ProjectionistBase:
         projeng = self.get_ProjEng('T')
         q_native = self._cache_q_fp_to_native(assembly.Q)
         n_threads = mapthreads.get_num_threads(n_threads)
-        omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.coeffs(), tmap, n_threads)
+        omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.quats, tmap, n_threads)
         return wrap_ivals(omp_ivals)
 
     def get_active_tiles(self, assembly, assign=False):
@@ -441,7 +441,7 @@ class _ProjectionistBase:
         projeng = self.get_ProjEng('T')
         q_native = self._cache_q_fp_to_native(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
-        hits = np.array(projeng.tile_hits(q_native, assembly.fplane.coeffs()))
+        hits = np.array(projeng.tile_hits(q_native, assembly.fplane.quats))
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
@@ -460,7 +460,7 @@ class _ProjectionistBase:
             #     print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
 
             # Now paint them into Ranges.
-            R = projeng.tile_ranges(q_native, assembly.fplane.coeffs(), group_tiles)
+            R = projeng.tile_ranges(q_native, assembly.fplane.quats, group_tiles)
             R = wrap_ivals(R)
             return {
                 'active_tiles': list(tiles),
@@ -795,7 +795,7 @@ class ProjectionistHealpix(_ProjectionistBase):
             q_native = self._cache_q_fp_to_native(assembly.Q)
         else:
             q_native = assembly.Q
-        return projeng.coords(q_native, assembly.fplane.coeffs(), output)
+        return projeng.coords(q_native, assembly.fplane.quats, output)
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
         """De-project from a map, returning a Signal-like object.

@@ -125,22 +125,16 @@ the quaternion for the first detector, while ``fp.resps[0]``
 gives its total intensity and polarization responsivity.::
 
   >>> fp.quats[2]
-  array([  0.86601716,  0.00377878, -0.00218168,  0.49999524])
+  spt3g.core.quat(0.866017,0.00377878,-0.00218168,0.499995)
   >>> fp.resps[2]
   array([1., 1.], dtype=float32)
 
 As you can see, the default responsivity is 1 for both total
-intensty and polarization. Note that ``.quats`` contains
-quaternion *coefficients*, not quaternion *objects*. To do
-quaternion math, you need to convert them to actual quaternion
-objects, e.g. ``q = fp.quats[0]``, or convert
-them all at once with ``qs = spt3g.core.G3VectorQuat(fp.quats)```.
-
-To represent detectors with responsivity different from 1,
-use the ``T`` and ``P`` arguments to :func:`from_xieta()`
-to set the total intensity and polarization responsivity
-respectively. These can be either single numbers or
-array-likes with lengths ``ndet``.::
+intensty and polarization. To represent detectors with
+responsivity different from 1, use the ``T`` and ``P``
+arguments to :func:`from_xieta()` to set the total intensity
+and polarization responsivity respectively. These can be
+either single numbers or array-likes with lengths ``ndet``.::
 
   xi  = np.array([-0.5, 0.0, 0.5]) * DEG
   eta = np.zeros(3)
@@ -157,7 +151,7 @@ specify these directly. The example above is equivalent to::
   xi  = np.array([-0.5, 0.0, 0.5]) * DEG
   eta = np.zeros(3)
   gamma = np.array([0,30,60]) * DEG
-  T   = np.array([1.0, 0.9])
+  T   = np.array([1.0, 0.9, 1.1])
   Q   = np.array([0.5, 0.3, -0.025])
   U   = np.array([0.0, 0.51961524, 0.04330127])
   fp2 = so3g.proj.FocalPlane.from_xieta(xi, eta, T=T, Q=Q, U=U)
