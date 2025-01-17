@@ -47,6 +47,7 @@ dx, dy = dr * np.cos(polphi), dr * np.sin(polphi)
 pe = test_utils.get_proj(system, 'TQU', pxz, tiled=args.tiled)
 ptg = test_utils.get_boresight_quat(system, x, y)
 ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
+resp= np.ones((n_det,2), np.float32)
 
 sig = np.ones((1,n_det,n_t), 'float32') * .5
 
@@ -119,7 +120,7 @@ if 1:
     print('Get spin projection factors, too.',
           end='\n ... ')
     with Timer() as T:
-        pix2, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
+        pix2, spin_proj = pe.pointing_matrix(ptg, ofs, resp, None, None)
 
     del pix, pix_list, pix3, pix2, spin_proj
 
@@ -139,30 +140,30 @@ if 1:
     else:
         map1 += np.array([1,0,0])[:,None,None]
     with Timer() as T:
-        sig1 = pe.from_map(map1, ptg, ofs, None)
+        sig1 = pe.from_map(map1, ptg, ofs, resp, None)
 
 if 1:
     print('Project TOD-to-map (TQU)', end='\n ... ')
     map0 = pe.zeros(3)
     sig_list = [x for x in sig[0]]
     with Timer() as T:
-        map1 = pe.to_map(map0,ptg,ofs,sig_list,None,None)
+        map1 = pe.to_map(map0,ptg,ofs,resp,sig_list,None,None)
 
 if 1:
     print('TOD-to-map again but with None for input map', end='\n ... ')
     with Timer() as T:
-        map1 = pe.to_map(None,ptg,ofs,sig_list,None,None)
+        map1 = pe.to_map(None,ptg,ofs,resp,sig_list,None,None)
 
 if 1:
     print('Project TOD-to-weights (TQU)', end='\n ... ')
     map0 = pe.zeros((3, 3))
     with Timer() as T:
-        map2 = pe.to_weight_map(map0,ptg,ofs,None,None)
+        map2 = pe.to_weight_map(map0,ptg,ofs,resp,None,None)
 
 if 1:
     print('TOD-to-weights again but with None for input map', end='\n ... ')
     with Timer() as T:
-        map2 = pe.to_weight_map(None,ptg,ofs,None,None)
+        map2 = pe.to_weight_map(None,ptg,ofs,resp,None,None)
 
 print('Compute thread assignments (OMP prep)... ', end='\n ... ')
 with Timer():
@@ -171,12 +172,12 @@ with Timer():
 if 1:
     print('TOD-to-map with OMP (%s): ' % n_omp, end='\n ... ')
     with Timer() as T:
-        map1o = pe.to_map(None,ptg,ofs,sig_list,None,threads)
+        map1o = pe.to_map(None,ptg,ofs,resp,sig_list,None,threads)
 
 if 1:
     print('TOD-to-weights with OMP (%s): ' % n_omp, end='\n ... ')
     with Timer() as T:
-        map2o = pe.to_weight_map(None,ptg,ofs,None,threads)
+        map2o = pe.to_weight_map(None,ptg,ofs,resp,None,threads)
 
     print('Checking that OMP and non-OMP forward calcs agree: ', end='\n ... ')
     assert map_delta(map1, map1o) == 0
@@ -187,7 +188,7 @@ if 1:
 if 1:
     print('Cache pointing matrix.', end='\n ...')
     with Timer() as T:
-        pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, None, None)
+        pix_idx, spin_proj = pe.pointing_matrix(ptg, ofs, resp, None, None)
     pp = test_utils.get_proj_precomp(args.tiled)
 
     print('Map-to-TOD using precomputed pointing matrix',
@@ -212,7 +213,7 @@ if 1:
 
     print('Checking that it agrees with on-the-fly',
           end='\n ...')
-    sig1f = pe.from_map(map1, ptg, ofs, None)
+    sig1f = pe.from_map(map1, ptg, ofs, resp, None)
     thresh = map1[0].std() * 1e-6
     assert max([np.abs(a - b).max() for a, b in zip(sig1f, sig1p)]) < thresh
     print('yes')
