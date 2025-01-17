@@ -195,12 +195,10 @@ class TestProjAstrometry(unittest.TestCase):
 
     def test_focalplane(self):
         # Focal plane
-        names = ['a', 'b', 'c']
         xi  = np.array([1., 0., 0.]) * DEG
         eta = np.array([0., 0., 1.]) * DEG
         gamma = np.array([45, 0, -45]) * DEG
-        fp = so3g.proj.FocalPlane.from_xieta(names, xi, eta, gamma)
-        print(fp)
+        fp = so3g.proj.FocalPlane.from_xieta(xi, eta, gamma)
 
         # Make a CelestialSightLine with some known equatorial pointing.
         r = so3g.proj.quat.rotation_lonlat(35*DEG, 80*DEG, 15*DEG)
@@ -213,13 +211,14 @@ class TestProjAstrometry(unittest.TestCase):
         coords = csl.coords(fp)
 
         # Compare to a more direct computation, done here.
-        for k, roffset in fp.items():
-            print('Check detector %s:' % k)
+        for i, (roffset, resp) in enumerate(fp.items()):
+            print('Check detector %d:' % i)
             r1 = r * roffset
+            print("AAA", type(r1), r1)
             lon0, lat0, gamma0 = so3g.proj.quat.decompose_lonlat(r1)
             print('  - inline computation: ',
                   lon0 / DEG, lat0 / DEG, gamma0 / DEG)
-            lon1, lat1, cosg, sing = coords[k][0]
+            lon1, lat1, cosg, sing = coords[i][0]
             gamma1 = np.arctan2(sing, cosg)
             print('  - proj computation: ',
                   lon1 / DEG, lat1 / DEG, gamma1 / DEG)

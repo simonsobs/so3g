@@ -82,7 +82,7 @@ polphi[1::2] = polphi[0::2] + np.pi/2
 
 ptg = test_utils.get_boresight_quat(system, x*np.pi/180, y*np.pi/180)
 ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
-
+resp= np.ones((n_det,2),np.float32)
 
 #
 # Projection tests.
@@ -91,7 +91,7 @@ ofs = test_utils.get_offsets_quat(system, dx, dy, polphi)
 pe = test_utils.get_proj(system, 'TQU')(pxz)
 
 # Project the map into time-domain.
-sig0 = pe.from_map(beam, ptg, ofs, None)
+sig0 = pe.from_map(beam, ptg, ofs, resp, None)
 sig0 = np.array(sig0)
 
 # Add some noise...
@@ -118,10 +118,10 @@ else:
 # Then back to map.
 print('Create timestream...', end='\n ... ')
 with Timer():
-    map1 = pe.to_map(None, ptg, ofs, sig1, det_weights, None)
+    map1 = pe.to_map(None, ptg, ofs, resp, sig1, det_weights, None)
 
 # Get the weight map (matrix).
-wmap1 = pe.to_weight_map(None, ptg, ofs, det_weights, None)
+wmap1 = pe.to_weight_map(None, ptg, ofs, resp, det_weights, None)
 wmap1[1,0] = wmap1[0,1]  # fill in unpopulated entries...
 wmap1[2,0] = wmap1[0,2]
 wmap1[2,1] = wmap1[1,2]
@@ -151,6 +151,8 @@ if not args.no_plots:
 
 sigd = (sig1[0::2,:] - sig1[1::2,:]) / 2
 ofsd = (ofs[::2,...])
+respd= resp[::2]
+
 if not args.uniform_weights:
     det_weights = det_weights[::2]
 
@@ -160,12 +162,12 @@ pe = test_utils.get_proj(system, 'QU')(pxz)
 # Bin the map again...
 print('to map...', end='\n ... ')
 with Timer():
-    map1d = pe.to_map(None, ptg, ofsd, sigd, det_weights, None)
+    map1d = pe.to_map(None, ptg, ofsd, respd, sigd, det_weights, None)
 
 # Bin the weights again...
 print('to weight map...', end='\n ... ')
 with Timer():
-    wmap1d = pe.to_weight_map(None, ptg, ofsd, det_weights, None)
+    wmap1d = pe.to_weight_map(None, ptg, ofsd, respd, det_weights, None)
 
 wmap1d[1,0] = wmap1d[0,1] # fill in unpopulated entries again...
 

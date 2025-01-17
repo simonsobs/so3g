@@ -23,7 +23,7 @@ def get_scan():
 def get_basics():
     t, az, el = get_scan()
     csl = proj.CelestialSightLine.az_el(t, az, el, weather='vacuum', site='so')
-    fp = proj.FocalPlane.from_xieta(['a', 'b'], [0., .1*DEG], [0, .1*DEG])
+    fp = proj.FocalPlane.from_xieta([0., .1*DEG], [0, .1*DEG])
     asm = proj.Assembly.attach(csl, fp)
     return ((t, az, el), asm)
 
@@ -32,7 +32,7 @@ class TestProjEngHP(unittest.TestCase):
     """Test ProjectionistHealpix
        Based on TestProjEng
     """
-    
+
     def test_00_basic(self):
         scan, asm = get_basics()
         nside = 128
@@ -51,8 +51,9 @@ class TestProjEngHP(unittest.TestCase):
                      det_weights=np.array([0., 0.], dtype='float32'))[0]
         assert(np.all(m==0))
 
-        # Raise if pointing invalid.
-        asm.dets[1,2] = np.nan
+        # Can't assign to quat fields, so do
+        # it this way instead
+        asm.fplane.quats[1] = asm.fplane.quats[1]*np.nan
         with self.assertRaises(ValueError):
            p.to_map(sig, asm, comps='T')
         with self.assertRaises(ValueError):
@@ -74,7 +75,7 @@ class TestProjEngHP(unittest.TestCase):
                 assert(np.any(w2))
             # Identify active subtiles?
             print(p.active_tiles)
-        
+
     def test_20_threads(self):
         for (tiled, interpol, method) in itertools.product(
                 [False, True],
@@ -88,7 +89,7 @@ class TestProjEngHP(unittest.TestCase):
                 nside_tile = 8
             else:
                 nside_tile = None
-                
+
             p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile, interpol=interpol)
             sig = np.ones((2, len(scan[0])), 'float32')
             n_threads = 3

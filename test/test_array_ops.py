@@ -6,6 +6,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.signal import welch, windows
 
+
 class TestPolyFill(unittest.TestCase):
     """Test the polynomial gap filling."""
 
@@ -48,24 +49,24 @@ class TestPolyFill(unittest.TestCase):
 class TestBufferWrapper(unittest.TestCase):
     def test_00(self):
         for array_shape, pattern in [
-                ((2, 4), (2, 4)),
-                ((2, 4), (-1, -1)),
-                ((2, 4), (-2,)),
-                ((2, 4), (-1, -1, -2,)),
-                ((2, 4), (-2, -1, -1)),
-                ((2, 4), (-1, -2, -1)),
+            ((2, 4), (2, 4)),
+            ((2, 4), (-1, -1)),
+            ((2, 4), (-2,)),
+            ((2, 4), ( -1, -1, -2,)),
+            ((2, 4), (-2, -1, -1)),
+            ((2, 4), (-1, -2, -1)),
         ]:
             a = np.zeros(array_shape)
             so3g.test_buffer_wrapper(a, list(pattern))
 
         for array_shape, pattern in [
-                ((2, 4), (-2, -2)),
-                ((2, 4), (2,)),
-                ((2, 4), (4,)),
-                ((2, 4), (2, 3)),
-                ((2, 4), (2, 4, -1)),
-                ((2, 4), (2, -1, -1)),
-                ((2, 4), (-1, -1, -1, -2)),
+            ((2, 4), (-2, -2)),
+            ((2, 4), (2,)),
+            ((2, 4), (4,)),
+            ((2, 4), (2, 3)),
+            ((2, 4), (2, 4, -1)),
+            ((2, 4), (2, -1, -1)),
+            ((2, 4), (-1, -1, -1, -2)),
         ]:
             a = np.zeros(array_shape)
             with self.assertRaises(RuntimeError):
@@ -98,18 +99,69 @@ class TestJumps(unittest.TestCase):
         a = np.zeros((1, 100), dtype="float32", order="C")
         a[0, 50:] += 1
         b = np.zeros((1, 100), dtype="int32", order="C")
-        min_size = np.ones(1, dtype="float32", order="C")*.5
+        min_size = np.ones(1, dtype="float32", order="C") * 0.5
         so3g.matched_jumps(a, b, min_size, 10)
         flagged = np.where(b)[1]
         np.testing.assert_array_equal(flagged, np.arange(46, 53))
 
-    def test_02_scale_jump(self):
+    def test_02_quantized_jump(self):
         a = np.zeros((1, 100), dtype="float32", order="C")
         a[0, 50:] += 1
         b = np.zeros((1, 100), dtype="float32", order="C")
         so3g.find_quantized_jumps(a, b, np.zeros(1, "float32", "C"), 10, 0.5)
         flagged = np.where(b)[1]
         np.testing.assert_array_equal(flagged, np.arange(50, 60))
+
+    def test_03_subtract_height(self):
+        a = np.zeros((1, 100), dtype="float32", order="C")
+        orig = a.copy()
+        a[0, 25:] += 1
+        a[0, 75:] -= 1
+        h = np.zeros((1, 100), dtype="float32", order="C")
+        h[0, 25] = 1
+        h[0, 75] = -1
+        j = so3g.proj.RangesMatrix.from_mask(h != 0)
+        so3g.subtract_jump_heights(a, a, h, j)
+        np.testing.assert_allclose(a, orig)
+
+
+class TestBlockReduce(unittest.TestCase):
+    """
+    Test block reduction functions.
+    """
+
+    def test_00_mean(self):
+        a = np.ascontiguousarray(np.arange(0, 100, dtype="float32")).reshape((1, -1))
+        b = a.copy()
+        so3g.block_moment(a, b, 10, 1, 0, 0)
+        c = a.copy()
+        for i in range(10):
+            start = i * 10
+            stop = start + 10
+            c[0, start:stop] = np.mean(a[0, start:stop])
+        np.testing.assert_allclose(b, c)
+
+    def test_01_var(self):
+        a = np.ascontiguousarray(np.arange(0, 100, dtype="float32")).reshape((1, -1))
+        b = a.copy()
+        so3g.block_moment(a, b, 10, 2, 1, 0)
+        c = a.copy()
+        for i in range(10):
+            start = i * 10
+            stop = start + 10
+            c[0, start:stop] = np.var(a[0, start:stop])
+        np.testing.assert_allclose(b, c)
+
+    def test_02_ptp(self):
+        a = np.ascontiguousarray(np.arange(0, 100, dtype="float32")).reshape((1, -1))
+        b = a.copy()
+        so3g.block_minmax(a, b, 10, 2, 0)
+        c = a.copy()
+        for i in range(10):
+            start = i * 10
+            stop = start + 10
+            c[0, start:stop] = np.ptp(a[0, start:stop])
+        np.testing.assert_allclose(b, c)
 
 
 class TestGslInterpolate(unittest.TestCase):
@@ -131,11 +183,15 @@ class TestGslInterpolate(unittest.TestCase):
         order = "C"
 
         t = np.linspace(t_start, t_end, t_size, dtype=dtype)
-        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype, order=order)
+        sig = np.array(
+            [(i + 1) * np.sin(2 * np.pi * 0.01 * t + i) for i in range(ndet)],
+            dtype=dtype,
+            order=order,
+        )
 
         t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
 
-        f_template = interp1d(t, sig, fill_value='extrapolate')
+        f_template = interp1d(t, sig, fill_value="extrapolate")
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype, order=order)
@@ -158,11 +214,15 @@ class TestGslInterpolate(unittest.TestCase):
         order = "C"
 
         t = np.linspace(t_start, t_end, t_size, dtype=dtype)
-        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype, order=order)
+        sig = np.array(
+            [(i + 1) * np.sin(2 * np.pi * 0.01 * t + i) for i in range(ndet)],
+            dtype=dtype,
+            order=order,
+        )
 
         t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
 
-        f_template = interp1d(t, sig, fill_value='extrapolate')
+        f_template = interp1d(t, sig, fill_value="extrapolate")
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros([ndet, t_interp_size], dtype=dtype, order=order)
@@ -172,12 +232,12 @@ class TestGslInterpolate(unittest.TestCase):
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
 
     def test_02_linear_extrapolation(self):
-        t_start = 0.
-        t_end = 999.
+        t_start = 0.0
+        t_end = 999.0
         t_size = 500
 
         t_interp_start = -10.0
-        t_interp_end = 1009.
+        t_interp_end = 1009.0
         t_interp_size = 2000
 
         ndet = 3
@@ -185,11 +245,15 @@ class TestGslInterpolate(unittest.TestCase):
         order = "C"
 
         t = np.linspace(t_start, t_end, t_size, dtype=dtype)
-        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)], dtype=dtype, order=order)
+        sig = np.array(
+            [(i + 1) * np.sin(2 * np.pi * 0.01 * t + i) for i in range(ndet)],
+            dtype=dtype,
+            order=order,
+        )
 
         t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
 
-        f_template = interp1d(t, sig, fill_value='extrapolate')
+        f_template = interp1d(t, sig, fill_value="extrapolate")
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
@@ -199,12 +263,12 @@ class TestGslInterpolate(unittest.TestCase):
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
 
     def test_03_uneven_spacing(self):
-        t_start = 0.
-        t_end = 999.
+        t_start = 0.0
+        t_end = 999.0
         t_size = 500
 
-        t_interp_start = 0.
-        t_interp_end = 999.
+        t_interp_start = 0.0
+        t_interp_end = 999.0
         t_interp_size = 2000
 
         ndet = 3
@@ -214,14 +278,25 @@ class TestGslInterpolate(unittest.TestCase):
         # Generate uneven spaced time samples with power law
         t_pow = 1.3
 
-        t = np.linspace(t_start**(1/t_pow), t_end**(1/t_pow), t_size, dtype=dtype)
+        t = np.linspace(
+            t_start ** (1 / t_pow), t_end ** (1 / t_pow), t_size, dtype=dtype
+        )
         t = t**t_pow
-        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)], dtype=dtype, order=order)
+        sig = np.array(
+            [(i + 1) * np.sin(2 * np.pi * 0.01 * t + i) for i in range(ndet)],
+            dtype=dtype,
+            order=order,
+        )
 
-        t_interp = np.linspace(t_interp_start**(1/t_pow), t_interp_end**(1/t_pow), t_interp_size, dtype=dtype)
+        t_interp = np.linspace(
+            t_interp_start ** (1 / t_pow),
+            t_interp_end ** (1 / t_pow),
+            t_interp_size,
+            dtype=dtype,
+        )
         t_interp = t_interp**t_pow
 
-        f_template = interp1d(t, sig, fill_value='extrapolate')
+        f_template = interp1d(t, sig, fill_value="extrapolate")
         scipy_sig = f_template(t_interp)
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
@@ -229,35 +304,125 @@ class TestGslInterpolate(unittest.TestCase):
 
         tolerance = 1e-4
         np.testing.assert_allclose(scipy_sig, so3g_sig, rtol=tolerance)
-    
+
     def test_04_array_slicing(self):
         t_start = 0
         t_end = 999
         t_size = 500
-        slice_offset = 100 # Sample index to start input arrays at
-        
+        slice_offset = 100  # Sample index to start input arrays at
+
         t_interp_start = 0
         t_interp_end = 999
         t_interp_size = 2000
-        interp_slice_offset = 1000 # Sample index to start interpolated arrays at
+        interp_slice_offset = 1000  # Sample index to start interpolated arrays at
 
         ndet = 3
         dtype = "float32"
         order = "C"
 
         t = np.linspace(t_start, t_end, t_size, dtype=dtype)
-        sig = np.array([(i + 1) * np.sin(2*np.pi*0.01*t + i) for i in range(ndet)],dtype=dtype, order=order)
+        sig = np.array(
+            [(i + 1) * np.sin(2 * np.pi * 0.01 * t + i) for i in range(ndet)],
+            dtype=dtype,
+            order=order,
+        )
 
         t_interp = np.linspace(t_interp_start, t_interp_end, t_interp_size, dtype=dtype)
 
-        f_template = interp1d(t[slice_offset:], sig[:,slice_offset:], fill_value='extrapolate')
+        f_template = interp1d(
+            t[slice_offset:], sig[:, slice_offset:], fill_value="extrapolate"
+        )
         scipy_sig = f_template(t_interp[interp_slice_offset:])
 
         so3g_sig = np.zeros((ndet, t_interp_size), dtype=dtype, order=order)
-        so3g.interp1d_linear(t[slice_offset:], sig[:,slice_offset:], t_interp[interp_slice_offset:], so3g_sig[:,interp_slice_offset:])
+        so3g.interp1d_linear(
+            t[slice_offset:],
+            sig[:, slice_offset:],
+            t_interp[interp_slice_offset:],
+            so3g_sig[:, interp_slice_offset:],
+        )
 
         tolerance = 1e-4
-        np.testing.assert_allclose(scipy_sig, so3g_sig[:,interp_slice_offset:], rtol=tolerance)
+        np.testing.assert_allclose(
+            scipy_sig, so3g_sig[:, interp_slice_offset:], rtol=tolerance
+        )
+
+
+class TestDetrend(unittest.TestCase):
+    """
+    Test detrending.
+    """
+
+    def test_00_mean_detrending(self):
+        nsamps = 1000
+        ndets = 3
+        dtype = "float32"
+        order = "C"
+
+        x = np.linspace(0., 1., nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
+
+        signal_copy = signal.copy(order=order)
+        signal_copy -= np.mean(signal_copy, axis=-1, dtype=dtype)[..., None]
+
+        method = "mean"
+        count = 0 # not used for mean detrending
+        so3g.detrend(signal, method, count)
+
+        rtol = 0
+        atol = 1e-5
+        np.testing.assert_allclose(signal_copy, signal, rtol=rtol, atol=atol)
+
+    def test_01_median_detrending(self):
+        nsamps = 1000
+        ndets = 3
+        dtype = "float32"
+        order = "C"
+
+        x = np.linspace(0, 1, nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
+
+        signal_copy = signal.copy(order=order)
+        signal_copy -= np.median(signal_copy, axis=-1)[..., None]
+
+        method = "median"
+        count = 0 # not used for median detrending
+        so3g.detrend(signal, method, count)
+
+        rtol = 0.
+        atol = 1e-5
+        np.testing.assert_allclose(signal_copy, signal, rtol=rtol, atol=atol)
+
+    def test_02_linear_detrending(self):
+        nsamps = 1000
+        ndets = 10
+        dtype = "float32"
+        order = "C"
+        count = nsamps // 3
+
+        x = np.linspace(0., 1., nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
+
+        signal_copy = signal.copy(order=order)
+
+        # this is the sotodlib "linear" detrending algorithm copied exactly
+        count_copy = max(1, min(count, signal_copy.shape[-1] // 2))
+        slopes = signal_copy[..., -count_copy:].mean(axis=-1, dtype=dtype) - signal[
+            ..., :count_copy
+        ].mean(axis=-1, dtype=dtype)
+
+        # ignore shape != 2 case as c++ approach only supports 1D or 2D
+        for i in range(signal_copy.shape[0]):
+            signal_copy[i, :] -= slopes[i] * x
+
+        signal_copy -= np.mean(signal_copy, axis=-1)[..., None]
+
+        method = "linear"
+        so3g.detrend(signal, method, count)
+
+        rtol = 0.
+        atol = 1e-5
+        np.testing.assert_allclose(signal_copy, signal, rtol=rtol, atol=atol)
 
 
 if __name__ == "__main__":

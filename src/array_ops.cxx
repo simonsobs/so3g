@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <algorithm>
 extern "C" {
     #include <cblas.h>
     // Additional prototypes for Fortran LAPACK routines.
@@ -15,6 +16,8 @@ extern "C" {
 }
 
 #include <boost/python.hpp>
+#include <omp.h>
+
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_statistics.h>
 
@@ -636,6 +639,64 @@ void block_moment(const bp::object & tod, const bp::object & out, int bsize, int
     _block_moment(tod_data, output, bsize, moment, central, ndet, nsamp, shift);
 }
 
+template <typename T>
+void _minmax(T* data, T* output, int mode, int start, int stop)
+{
+    T val;
+    if(mode == 0){ // get the min
+        val = *(std::min_element(data+start, data+stop));
+    }
+    else if(mode == 1){ // get the max
+        val = *(std::max_element(data+start, data+stop));
+    }
+    else{ // get the peak to peak
+        auto min = std::min_element(data+start, data+stop);
+        auto max = std::max_element(data+start, data+stop);
+        val = *max - *min;
+    }
+    for(int si = start; si < stop; si++) {
+        output[si] = val;
+    }
+
+}
+
+template <typename T>
+void _block_minmax(T* tod_data, T* output, int bsize, int mode, int ndet, int nsamp, int shift)
+{
+    int nblock = ((nsamp - shift)/bsize) + 1;
+    #pragma omp parallel for
+    for(int di = 0; di < ndet; di++)
+    {
+        int ioff = di*nsamp;
+        // do the the pre-shift portion
+        if(shift > 0){
+            _minmax(tod_data, output, mode, ioff, ioff+shift);
+        }
+
+        for(int bi = 0; bi < nblock; bi++) {
+            int start =  (bi * bsize) + shift;
+            int stop = min(start + bsize, nsamp);
+            _minmax(tod_data, output, mode, ioff+start, ioff+stop);
+        }
+    }
+}
+
+template <typename T>
+void block_minmax(const bp::object & tod, const bp::object & out, int bsize, int mode, int shift)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    T* tod_data = (T*)tod_buf->buf;
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    T* output = (T*)out_buf->buf;
+    _block_minmax(tod_data, output, bsize, mode, ndet, nsamp, shift);
+}
+
 
 void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
 {
@@ -826,6 +887,53 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
 }
 
 template <typename T>
+void subtract_jump_heights(const bp::object & tod, const bp::object & out, const bp::object & heights, const bp::object & jumps) {
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    int ndet = tod_buf->shape[0];
+    int nsamp = tod_buf->shape[1];
+    if (tod_buf->strides[1] != tod_buf->itemsize || tod_buf->strides[0] != tod_buf->itemsize*nsamp)
+        throw buffer_exception("tod must be C-contiguous along last axis");
+    T* tod_data = (T*)tod_buf->buf;
+    BufferWrapper<T> out_buf  ("out",  out,  false, std::vector<int>{ndet, nsamp});
+    if (out_buf->strides[1] != out_buf->itemsize || out_buf->strides[0] != out_buf->itemsize*nsamp)
+        throw buffer_exception("out must be C-contiguous along last axis");
+    T* output = (T*)out_buf->buf;
+    BufferWrapper<T> h_buf  ("heights",  heights,  false, std::vector<int>{ndet, nsamp});
+    if (h_buf->strides[1] != h_buf->itemsize || h_buf->strides[0] != h_buf->itemsize*nsamp)
+        throw buffer_exception("heights must be C-contiguous along last axis");
+    T* jump_heights = (T*)h_buf->buf;
+    auto ranges = extract_ranges<int32_t>(jumps);
+
+    #pragma omp parallel for
+    for(int di = 0; di < ranges.size(); di++) {
+        int start = 0;
+        int stop = 0;
+        T min_h;
+        T max_h;
+        T height;
+        T to_sub = 0;
+        for (auto const &r: ranges[di].segments) {
+            start = di*nsamp + r.first;
+            for(int j = stop; j < start && to_sub != 0; j++) {
+                output[j] = tod_data[j] - to_sub;
+            }
+            stop = di*nsamp + r.second;
+            min_h = *(std::min_element(jump_heights+start, jump_heights+stop));
+            max_h = *(std::max_element(jump_heights+start, jump_heights+stop));
+            // Decide whether this is a negative or positive jump.
+            height = (abs(min_h) > abs(max_h)) ? min_h : max_h;
+            to_sub = to_sub + height;
+            for(int j = start; j < stop && to_sub != 0; j++) {
+                output[j] = tod_data[j] - to_sub;
+            }
+        }
+        for(int j = stop; j < di*nsamp + nsamp && to_sub != 0; j++) {
+            output[j] = tod_data[j] - to_sub;
+        }
+    }
+}
+
+template <typename T>
 using _interp_func_pointer = void (*)(const double* x, const double* y,
                                       const double* x_interp, T* y_interp,
                                       const int n_x, const int n_x_interp,
@@ -902,7 +1010,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
-            #pragma omp parallel for
+            #pragma omp for
             for (int row = 0; row < n_rows; ++row) {
 
                 int y_row_start = row * y_data_stride;
@@ -912,10 +1020,10 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
                 T* y_row = y_data + y_row_start;
                 T* y_interp_row = y_interp_data + y_interp_row_start;
 
-                interp_func(x_data, y_row, x_interp_data, y_interp_row, 
+                interp_func(x_data, y_row, x_interp_data, y_interp_row,
                             n_x, n_x_interp, spline, acc);
             }
-            
+
             // Free gsl objects
             gsl_spline_free(spline);
             gsl_interp_accel_free(acc);
@@ -932,7 +1040,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
         std::transform(x_data, x_data + n_x, x_dbl, 
                        [](float value) { return static_cast<double>(value); });
 
-        std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl, 
+        std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl,
                        [](float value) { return static_cast<double>(value); });
 
         #pragma omp parallel
@@ -941,7 +1049,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
             gsl_interp_accel* acc = gsl_interp_accel_alloc();
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
-            #pragma omp parallel for
+            #pragma omp for
             for (int row = 0; row < n_rows; ++row) {
 
                 int y_row_start = row * y_data_stride;
@@ -951,13 +1059,13 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
                 // Transform y row to double array for gsl
                 double y_dbl[n_x];
 
-                std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl, 
+                std::transform(y_data + y_row_start, y_data + y_row_end, y_dbl,
                            [](float value) { return static_cast<double>(value); });
 
                 T* y_interp_row = y_interp_data + y_interp_row_start;
 
                 // Don't copy y_interp to doubles as it is cast during assignment
-                interp_func(x_dbl, y_dbl, x_interp_dbl, y_interp_row, 
+                interp_func(x_dbl, y_dbl, x_interp_dbl, y_interp_row,
                             n_x, n_x_interp, spline, acc);
             }
 
@@ -979,7 +1087,7 @@ void interp1d_linear(const bp::object & x, const bp::object & y,
         const gsl_interp_type* interp_type = gsl_interp_linear;
         // Pointer to interpolation function
         _interp_func_pointer<float> interp_func = &_linear_interp<float>;
-        
+
         _interp1d<float>(x, y, x_interp, y_interp, interp_type, interp_func);
     }
     else if (dtype == NPY_DOUBLE) {
@@ -987,7 +1095,7 @@ void interp1d_linear(const bp::object & x, const bp::object & y,
         const gsl_interp_type* interp_type = gsl_interp_linear;
         // Pointer to interpolation function
         _interp_func_pointer<double> interp_func = &_linear_interp<double>;
-        
+
         _interp1d<double>(x, y, x_interp, y_interp, interp_type, interp_func);
     }
     else {
@@ -1004,7 +1112,7 @@ T _calculate_median(const T* data, const int n)
     std::transform(data, data + n, data_copy.begin(), [](double val) {
         return static_cast<double>(val);
     });
-    
+
     // GSL is much faster than a naive std::sort implementation
     return gsl_stats_median(data_copy.data(), 1, n);
 }
@@ -1012,6 +1120,143 @@ T _calculate_median(const T* data, const int n)
 template double _calculate_median<double>(const double* arr, int size);
 template float _calculate_median<float>(const float* arr, int size);
 
+template <typename T>
+void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
+              const std::string & method, const int linear_ncount,
+              const int nthreads)
+{
+    if (method == "mean") {
+        #pragma omp parallel for num_threads(nthreads)
+        for (int i = 0; i < ndets; ++i) {
+            int ioff = i * row_stride;
+
+            T* data_row = data + ioff;
+
+            // This is significantly faster than gsl_stats_mean
+            T det_mean = 0.;
+            for (int si = 0; si < nsamps; ++si) {
+                det_mean += data_row[si];
+            }
+
+            det_mean /= nsamps;
+
+            for (int si = 0; si < nsamps; ++si) {
+                data_row[si] -= det_mean;
+            }
+        }
+    }
+    else if (method == "median") {
+        #pragma omp parallel for num_threads(nthreads)
+        for (int i = 0; i < ndets; ++i) {
+            int ioff = i * row_stride;
+
+            T* data_row = data + ioff;
+
+            T det_median = _calculate_median(data_row, nsamps);
+
+            for (int si = 0; si < nsamps; ++si) {
+                data_row[si] -= det_median;
+            }
+        }
+    }
+    else if (method == "linear") {
+        // Default ncount
+        int ncount = linear_ncount;
+        if (ncount == -1) {
+            ncount = nsamps / 2;
+        }
+
+        T x[nsamps];
+        T step = 1.0 / (nsamps - 1);
+
+        // Equivalent to np.linspace(0.,1.,nsamp)
+        for (int si = 0; si < nsamps; ++si) {
+            x[si] = si * step;
+        }
+
+        ncount = std::max(1, std::min(ncount, nsamps / 2));
+
+        int last_offset = nsamps - ncount;
+
+        #pragma omp parallel for num_threads(nthreads)
+        for (int i = 0; i < ndets; ++i) {
+            int ioff = i * row_stride;
+
+            T* data_row = data + ioff;
+
+            // Mean of first and last ncount samples
+            T det_mean_first = 0.;
+            T det_mean_last = 0.;
+
+            for (int si = 0; si < ncount; ++si) {
+                det_mean_last += data_row[si + last_offset];
+                det_mean_first += data_row[si];
+            }
+
+            T slope = (det_mean_last - det_mean_first) / ncount;
+
+            T det_mean = 0.;
+            for (int si = 0; si < nsamps; ++si) {
+                data_row[si] -= slope * x[si];
+                det_mean += data_row[si];
+            }
+
+            det_mean /= nsamps;
+            for (int si = 0; si < nsamps; ++si) {
+                data_row[si] -= det_mean;
+            }
+        }
+    }
+    else {
+        throw ValueError_exception("Unupported detrend method. Supported methods "
+                                   "are 'mean', 'median', and 'linear'");
+    }
+}
+
+template <typename T>
+void _detrend_buffer(bp::object & tod, const std::string & method,
+                     const int linear_ncount)
+{
+    BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
+    if (tod_buf->strides[1] != tod_buf->itemsize)
+        throw ValueError_exception("Argument 'tod' must be contiguous in last axis.");
+    T* tod_data = (T*)tod_buf->buf;
+    const int ndets = tod_buf->shape[0];
+    const int nsamps = tod_buf->shape[1];
+
+    int row_stride = tod_buf->strides[0] / sizeof(T);
+
+    // _detrend may be called from within a parallel loop internally, so manage
+    // parallelization explicitly
+    int nthreads = 1;
+     #pragma omp parallel
+    {
+        #ifdef _OPENMP
+        if (omp_get_thread_num() == 0)
+            nthreads = omp_get_num_threads();
+        #endif
+    }
+
+    // We want _detrend to accept C++ types so it can be used internally
+    // for Welch psd calculations, hence the hierarchical function calls
+    _detrend<T>(tod_data, ndets, nsamps, row_stride, method, linear_ncount, nthreads);
+}
+
+void detrend(bp::object & tod, const std::string & method, const int linear_ncount)
+{
+    // Get data type
+    int dtype = get_dtype(tod);
+
+    if (dtype == NPY_FLOAT) {
+        _detrend_buffer<float>(tod, method, linear_ncount);
+    }
+    else if (dtype == NPY_DOUBLE) {
+        _detrend_buffer<double>(tod, method, linear_ncount);
+    }
+    else {
+        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+    }
+}
 
 PYBINDINGS("so3g")
 {
@@ -1047,6 +1292,7 @@ PYBINDINGS("so3g")
             "Args:\n"
             "  tod: data array (float32) with shape (ndet, nsamp)\n"
             "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "       can be the same as tod\n"
             "  bsize: number of samples in each block\n"
             "  moment: moment to compute, should be >= 1\n"
             "  central: whether to compute the central moment in each block\n"
@@ -1057,6 +1303,24 @@ PYBINDINGS("so3g")
             "Compute the nth moment in blocks on a float32 array.\n"
             "\n"
             "See details in docstring for block_moment.\n");
+    bp::def("block_minmax", block_minmax<float>,
+            "block_minmax(tod, out, bsize, mode, shift)\n"
+            "\n"
+            "Compute the minimum, maximum, or peak to peak in blocks on a float32 array.\n"
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "       can be the same as tod\n"
+            "  bsize: number of samples in each block\n"
+            "  mode: if 0 compute the block minimum, if 1 the maximum, anything else will compute the peak to peak\n"
+            "  shift: sample to start block at, used in each row\n");
+    bp::def("block_minmax64", block_minmax<double>,
+            "block_minmax64(tod, out, bsize, mode, shift)\n"
+            "\n"
+            "Compute the minimum, maximum, or peak to peak in blocks on a float64 array.\n"
+            "\n"
+            "See details in docstring for block_minmax.\n");
     bp::def("matched_jumps", matched_jumps<float>,
             "matched_jumps(tod, out, min_size, bsize)\n"
             "\n"
@@ -1093,6 +1357,28 @@ PYBINDINGS("so3g")
             "Output will be 0 where jumps are not found and the assumed jump height where jumps are found.\n"
             "\n"
             "See details in docstring for find_quantized_jumps.\n");
+    bp::def("subtract_jump_heights", subtract_jump_heights<float>,
+            "subtract_jump_heights(tod, out, heights, jumps)"
+            "\n"
+            "For each detector, compute the cumulative effect of the jumps identified by the array 'heights' and the RangesMatrix 'jumps'."
+            "For each range in 'jumps', the values from 'heights' are checked and the size of the jump is either the largest positive"
+            "or the largest negative number (whichever has the largest absolute value)."
+            "The 'output' value is the difference of 'tod' and the accumulated jump vector."
+            "\n"
+            "Args:\n"
+            "  tod: data array (float32) with shape (ndet, nsamp)\n"
+            "  out: output array (float32) with shape (ndet, nsamp)\n"
+            "       can be the same as tod\n"
+            "  heights: the height of the jump at each samples\n"
+            "           should be an array (float32) with shape (ndet, nsamp)\n"
+            "  jumps: RangesMatrix with the jump locations and shape (ndet, nsamp).\n");
+    bp::def("subtract_jump_heights64", subtract_jump_heights<double>,
+            "subtract_jump_heights64(tod, out, heights, jumps)"
+            "\n"
+            "Subtract fit jump heights from known jump locatations in a float64 array."
+            "If multiple samples in a jump have different heights, the largest height is used.\n"
+            "\n"
+            "See details in docstring for subtract_jump_heights.\n");
     bp::def("clean_flag", clean_flag,
             "clean_flag(flag, width)"
             "\n"
@@ -1116,4 +1402,18 @@ PYBINDINGS("so3g")
             "            with shape (nsamp_interp,)\n"
             "  y_interp: interpolated data array (float32/float64) output buffer to be modified "
             "            with shape (ndet, nsamp_interp)\n");
+    bp::def("detrend", detrend,
+            "detrend(tod, method, ncount)"
+            "\n"
+            "Detrend each row of an array (float32/float64). This function uses OMP to parallelize "
+            "over the dets (rows) axis."
+            "\n"
+            "Args:\n"
+            "  tod: input array (float32/float64) buffer with shape (ndet, nsamp) that is to be detrended. "
+            "       The data is modified in place.\n"
+            "  method: how to detrend data.  Options are 'mean', 'median', and 'linear'. Linear calculates "
+            "          and subtracts the slope from either end of each row as determined from 'linear_ncount'.\n"
+            "  linear_ncount: Number (int) of samples to use on each end, when measuring mean level for 'linear'"
+            "                 detrend. Must be a positive integer or -1.  If -1, nsamps / 2 will be used. Values "
+            "                 larger than 1 suppress the influence of white noise.\n");
 }
