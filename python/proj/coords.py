@@ -240,11 +240,11 @@ class FocalPlane:
     """This class represents the detector positions and intensity and
     polarization responses in the focal plane.
 
-    Members:
+    Attributes:
      quats: G3VectorQuat representing the pointing quaternions for
       each detector. Can be turned into a numpy array of coefficients
       with np.array(). Or call .coeffs() to get them directly.
-     resps: Array of float64 with shape [ndet,2] representing the
+     resps: Array of float32 with shape [ndet,2] representing the
       total intensity and polarization responsivity of each detector
      ndet: The number of detectors (read-only)
 
@@ -300,8 +300,12 @@ class FocalPlane:
     @classmethod
     def from_xieta(cls, *args, **kwargs):
         """
-        def from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False):
+        ``from_xieta(cls, xi, eta, gamma=0, T=1, P=1, Q=1, U=0, hwp=False)``
         Construct a FocalPlane from focal plane coordinates (xi,eta).
+
+        For backwards compatibility, the signature
+        ``from_xieta(names, xi, eta, gamma=0)`` is also supported; but
+        this will be removed in the future.
 
         These are Cartesian projection plane coordinates. When looking
         at the sky along the telescope boresight, xi is parallel to
