@@ -6,6 +6,7 @@
 name:  Run Tests with Conda
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
