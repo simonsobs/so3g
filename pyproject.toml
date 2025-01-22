@@ -24,7 +24,6 @@ dependencies = [
     "scipy",
     "astropy",
     "matplotlib",
-    "scipy",
     "ephem",
     "pytz",
     "pyaml",

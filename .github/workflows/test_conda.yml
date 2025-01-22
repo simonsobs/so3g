@@ -75,7 +75,7 @@ jobs:
       - name: Install Dependencies
         run: |
           source ~/conda/etc/profile.d/conda.sh \
-            && conda create --yes -n test python==${{ matrix.python }} \
+            && conda create --yes -n test python=${{ matrix.python }} \
             && conda activate test \
             && conda install --yes --file conda_dev_requirements.txt \
             && pip install -r test-requirements.txt

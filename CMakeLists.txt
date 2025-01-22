@@ -81,11 +81,9 @@ add_library(so3g OBJECT
 # Disable boost python auto_ptr warnings
 target_compile_definitions(so3g PUBLIC BOOST_NO_AUTO_PTR)
 
-# Link to the core spt3g library
+# Link to the core spt3g library.  This brings in boost dependencies
+# as well.
 target_link_libraries(so3g PUBLIC spt3g::core)
-
-# Link to boost
-target_link_libraries(so3g PUBLIC ${Boost_LIBRARIES})
 
 # Link to GSL
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
