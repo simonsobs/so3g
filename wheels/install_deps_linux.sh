@@ -13,7 +13,7 @@ echo "Wheel script directory = ${scriptdir}"
 
 # Install library dependencies
 yum update -y
-yum install -y flac-devel bzip2-devel zlib-devel sqlite-devel netcdf-devel
+yum install -y bzip2-devel zlib-devel sqlite-devel
 
 # Build options
 
@@ -29,37 +29,25 @@ MAKEJ=2
 
 PREFIX=/usr/local
 
+# Link lib64 directory to lib
+echo "Symlink /usr/local/lib64 to /usr/local/lib"
+rm -rf /usr/local/lib64
+ln -s /usr/local/lib /usr/local/lib64
+
 # Update pip
-pip install --upgrade pip
+python3 -m pip install --upgrade pip
 
 # Install a couple of base packages that are always required
-pip install -v cmake wheel setuptools
+python3 -m pip install -v cmake wheel setuptools
 
-# In order to maximize ABI compatibility with numpy, build with the newest numpy
-# version containing the oldest ABI version compatible with the python we are using.
 pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
-if [ ${pyver} == "3.7" ]; then
-    numpy_ver="1.20"
-fi
-if [ ${pyver} == "3.8" ]; then
-    numpy_ver="1.20"
-fi
-if [ ${pyver} == "3.9" ]; then
-    numpy_ver="1.20"
-fi
-if [ ${pyver} == "3.10" ]; then
-    numpy_ver="1.22"
-fi
-if [ ${pyver} == "3.11" ]; then
-    numpy_ver="1.24"
-fi
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}"
+CC="${CC}" CFLAGS="${CFLAGS}" python3 -m pip install -v -r "${scriptdir}/../requirements.txt"
 
 # Install Openblas
 
-openblas_version=0.3.28
+openblas_version=0.3.29
 openblas_dir=OpenBLAS-${openblas_version}
 openblas_pkg=${openblas_dir}.tar.gz
 
@@ -83,14 +71,14 @@ tar xzf ${openblas_pkg} \
 
 # Install boost
 
-boost_version=1_86_0
+boost_version=1_87_0
 boost_dir=boost_${boost_version}
 boost_pkg=${boost_dir}.tar.bz2
 
 echo "Fetching boost..."
 
 if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://archives.boost.io/release/1.86.0/source/${boost_pkg}" -o "${boost_pkg}"
+    curl -SL "https://archives.boost.io/release/1.87.0/source/${boost_pkg}" -o "${boost_pkg}"
 fi
 
 echo "Building boost..."
@@ -102,12 +90,52 @@ tar xjf ${boost_pkg} \
     && pushd ${boost_dir} \
     && echo "using gcc : : ${CXX} ;" > tools/build/user-config.jam \
     && echo "option jobs : ${MAKEJ} ;" >> tools/build/user-config.jam \
-    && BOOST_BUILD_USER_CONFIG=tools/build/user-config.jam \
+    && BOOST_BUILD_PATH=tools/build \
     ./bootstrap.sh \
     --with-python=python3 \
     --prefix=${PREFIX} \
     && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
     ${pyincl} cxxflags="${CXXFLAGS}" variant=release threading=multi link=shared runtime-link=shared install \
+    && popd >/dev/null 2>&1
+
+# Install libFLAC
+
+flac_version=1.5.0
+flac_dir=flac-${flac_version}
+flac_pkg=${flac_dir}.tar.gz
+
+echo "Fetching libFLAC..."
+
+if [ ! -e ${flac_pkg} ]; then
+    curl -SL "https://github.com/xiph/flac/archive/refs/tags/${flac_version}.tar.gz" -o "${flac_pkg}"
+fi
+
+echo "Building libFLAC..."
+
+rm -rf ${flac_dir}
+tar xzf ${flac_pkg} \
+    && pushd ${flac_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_C_FLAGS="${CFLAGS}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DBUILD_DOCS=OFF \
+    -DWITH_OGG=OFF \
+    -DBUILD_CXXLIBS=OFF \
+    -DBUILD_PROGRAMS=OFF \
+    -DBUILD_UTILS=OFF \
+    -DBUILD_TESTING=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_SHARED_LIBS=ON \
+    -DINSTALL_MANPAGES=OFF \
+    -DENABLE_MULTITHREADING=ON \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    .. \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1 \
     && popd >/dev/null 2>&1
 
 # Build GSL

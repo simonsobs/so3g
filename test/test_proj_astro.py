@@ -237,7 +237,7 @@ def get_pyephem_radec(az, el, t, site, weather=None):
     esite.long = site.lon * DEG
     if weather is not None:
         weather.apply(esite)
-    d = datetime.datetime.utcfromtimestamp(t)
+    d = datetime.datetime.fromtimestamp(t, tz=datetime.timezone.utc)
     Xt = d.year, d.month, d.day, d.hour, d.minute, d.second+d.microsecond*1e-6
     esite.date = ephem.date(Xt)
     return esite.radec_of(az, el)

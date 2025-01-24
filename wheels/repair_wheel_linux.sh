@@ -10,9 +10,13 @@ set -e
 dest_dir=$1
 wheel=$2
 
-spt3g_build=$(ls -d /project/build/lib.linux*/so3g/spt3g_internal)
-so3g_build=$(ls -d /project/build/lib.linux*/so3g)
+# Location of this script
+pushd $(dirname $0) >/dev/null 2>&1
+scriptdir=$(pwd)
+popd >/dev/null 2>&1
 
-export LD_LIBRARY_PATH=${spt3g_build}:${so3g_build}:${LD_LIBRARY_PATH}
+# On Linux, we need to add this to LD_LIBRARY_PATH
+spt3g_install=$(ls -d ${scriptdir}/../build/lib.*/so3g/spt3g_internal)
+export LD_LIBRARY_PATH="/usr/local/lib":"${spt3g_install}":${LD_LIBRARY_PATH}
 
 auditwheel repair -w ${dest_dir} ${wheel}

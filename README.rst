@@ -22,294 +22,122 @@ so3g
 
 Glue functions and new classes for SO work in the spt3g paradigm.
 
-Environment Setup
-=================
+Installation from Binary Packages
+===================================
 
-Before installing SO software, make sure you know what python
-environment you will be using:
+If you are just "using" `so3g` and not actively modifying the source, simply install the binary wheels from PyPI::
 
-- Are you working on Linux or MacOS?
+    pip install so3g
 
-- Are you using a "python3" executable provided by your OS or one
-  provided by another source (Anaconda, conda-forge / miniforge,
-  homebrew, macports, etc)?
+Building from Source
+======================
 
-- Are you going to be actively developing so3g or just installing
-  and using it?
+When developing the `so3g` code, you will need to build from source.  There are two methods documented here:  (1) using a conda environment to provide python and all compiled dependencies and (2) using a virtualenv for python and OS packages for compiled dependencies.  In both cases, the compiled dependencies include:
 
-After you have determined the answers to these questions, you can
-set up your working environment.
+- A C++ compiler supporting the c++17 standard
 
-Using Conda
------------
+- BLAS / LAPACK
 
-If you already have a conda installation (a.k.a. conda "base" or "root"
-environment) that is recent, then you can use that to create an
-environment.  First, verify some info about your installation::
+- Boost (at least version 1.87 for numpy-2 compatibility)
 
-  which python3
-  python3 --version
-  which conda
+- GSL
 
-Your python version should be at least 3.7.0.  Does the location of python3
-match the location of the conda command (are they in the same bin
-directory)?  If so, then you are ready.  If you do not have conda installed
-but would like to use it, you might consider installing the "miniforge"
-root environment (https://github.com/conda-forge/miniforge) which is
-configured to get packages from the conda-forge channel.  Conda-forge provides
-a large number of software packages built from high quality recipes.
+- libFLAC
 
-The next step is to create a dedicated conda environment for your SO work.
-This allows us to create and delete these environments as needed without
-messing up the root environment::
-
-  conda create -n simons # <- Only do this once
-  conda activate simons
-
-Now install as many dependencies as possible from conda packages.  These
-are listed in a text file in the top of this git repo::
-
-  conda install --file conda_deps.txt
-
-Using a Virtualenv
-------------------
-
-If you are using a python3 provided by your OS or somewhere else, you
-can work inside a "virtualenv".  This is like a sandbox where you can
-install packages for working on one project and you can always just
-wipe the directory and start over if something gets messed up.  In general,
-you should never pip install packages directly to your OS or package
-manager location (e.g. pip installing as root on linux, or pip installing
-directly to /usr/local with homebrew).  Doing so will create problems
-for the future on your system.  We will create a virtualenv in our home
-directory::
-
-  python3 -m venv ${HOME}/simons # <- Just do this once
-  source ${HOME}/simons/bin/activate
-
-Now install some basic packages and then all of our requirements::
-
-  python3 -m pip install --upgrade pip setuptools wheel
-  python3 -m pip install -r requirements.txt
-
-Other Python Packages
-----------------------
-
-If you will be using the pointing code in so3g, install pixell and qpoint
-with pip (regardless of whether you are using a conda env or virtualenv)::
-
-  pip install pixell
-  pip install qpoint
-
-
-Installing Pre-Built Wheels
-===========================
-
-If you are just *using* so3g (not modifying or developing it), then you can
-install the latest release of the package with::
-
-  pip install so3g
-
-This command should be used regardless of whether you are working in a
-conda env or a virtualenv.
-
-Now any time you activate your virtualenv / conda env, you can use so3g.
-
-
-Building From Source
-====================
-
-If you will be developing so3g or want more control over the build, then
-you should build from source.  You will need to install boost, FLAC, a BLAS/LAPACK
-library, and the spt3g_software package.  For this discussion, we will assume that you
-have git checkouts of spt3g_software and so3g in::
-
-  ${HOME}/git/spt3g_software
-  ${HOME}/git/so3g
-
-And that you will be installing both spt3g_software and so3g into::
-
-  ${HOME}/so3g
-
-Adjust the instructions below if your situation is different.  We also need to be
-able to load this install prefix into our shell environment.  There are several
-ways of doing that.  The first is to edit your bash shell resource file and add
-a shell function like this::
-
-  load_so3g () {
-    # Load the appropriate python environment (edit this!)
-    source "${HOME}/simons/bin/activate"
-
-    # Location of our installed spt3g / so3g
-    dir="${HOME}/so3g"
-
-    # Prepend our executable search path
-    export PATH="${dir}/bin:${PATH}"
-
-    # Get the python major / minor version
-    pyver=$(python3 --version 2>&1 | awk '{print $2}' \
-      | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
-
-    # Put our python module into our search path
-    export PYTHONPATH="${dir}/lib/python${pyver}/site-packages"
-
-    # Prepend our executable path and shared library search path.
-    # These lines are for linux:
-    if [ -z ${LD_LIBRARY_PATH} ]; then
-      export LD_LIBRARY_PATH="${dir}/lib"
-    else
-      export LD_LIBRARY_PATH="${dir}/lib:${LD_LIBRARY_PATH}"
-    fi
-    # These lines are for MacOS:
-    #if [ -z DYLD_LIBRARY_PATH ]; then
-    #    export DYLD_LIBRARY_PATH="${dir}/lib"
-    #else
-    #    export DYLD_LIBRARY_PATH="${dir}/lib:${DYLD_LIBRARY_PATH}"
-    #fi
-  }
-
-From a new shell, you can now run "load_so3g" to load your python stack
-and put your install prefix into your environment.  If you use environment
-modules, see the README and example in the `modules/`_ directory.
-
-.. _modules/: ./modules
-
-Special Note on Conda
----------------------
-
-If you are building spt3g / so3g from source, it is **highly** recommended
-that you install dependencies from OS packages, use the python3 from your OS or
-package manager, and use a virtualenv as described in the first section.
-If you use a conda-provided python, then you have two choices:
-
-1.  Build boost from source using that python (so that boost-python works
-    correctly).
-
-2.  Install the conda package for boost (and other dependencies) and use
-    conda provided compilers to build spt3g / so3g.
-
-Both of these choices are beyond the scope of this README.  Below we assume
-that you are using a virtualenv created with the system (or homebrew / macports)
-python3.
-
-Prerequisites on Linux
-----------------------
-
-The easiest approach in this case is to use your OS package manager.  For
-example::
-
-  apt install \
-  libboost-all-dev \
-  libopenblas-openmp-dev \
-  libflac-dev
-
-Make sure your python virtualenv is activated.  Next, download
-and install spt3g_software
-(https://github.com/CMB-S4/spt3g_software).  Check the major / minor version
-of your python (e.g. 3.7, 3.8 or 3.9).  We use that information to install
-spt3g into the correct site-packages directory.  Below we assume an install
-prefix of "${HOME}/so3g" and that we are using python3.9::
-
-  cd ${HOME}/git/spt3g_software
-  mkdir -p build
-  cd build
-  cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_COMPILER="gcc" \
-    -DCMAKE_CXX_COMPILER="g++" \
-    -DCMAKE_C_FLAGS="-O3 -g -fPIC" \
-    -DCMAKE_CXX_FLAGS="-O3 -g -fPIC -std=c++11" \
-    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-    -DPython_EXECUTABLE:FILEPATH=$(which python3) \
-    -DPYTHON_MODULE_DIR="${HOME}/so3g/lib/python3.9/site-packages" \
-    -DCMAKE_INSTALL_PREFIX="${HOME}/so3g" \
-    ..
-  make -j 2 install
-
-Prerequisites on MacOS
-----------------------
-
-The so3g / spt3g_software does not seem to run on MacOS when built with the
-clang++ compiler (unit tests fail with a cereal error).  Instead, we will use
-homebrew to install our dependencies and the latest gcc compiler tools::
-
-  brew install \
-  flac \
-  bzip2 \
-  netcdf \
-  sqlite3 \
-  boost-python3 \
-  gcc
-
-Next, download and install spt3g_software.  Ensure that your virtualenv is
-activated.  Check the major / minor version of your python (e.g. 3.7, 3.8
-or 3.9).  We use that information to install spt3g into our virtualenv or
-conda environment.  Below we assume that our environment is in our home
-directory in a folder called "simons" and that we are using python3.9.
-We further assume that the homebrew gcc version is called "gcc-11".
-Also, this assumes that homebrew is installing things to /usr/local::
-
-  cd ${HOME}/git/spt3g_software
-  mkdir -p build
-  cd build
-  cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_COMPILER="gcc-11" \
-    -DCMAKE_CXX_COMPILER="g++-11" \
-    -DCMAKE_C_FLAGS="-O3 -g -fPIC" \
-    -DCMAKE_CXX_FLAGS="-O3 -g -fPIC -std=c++11" \
-    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-    -DBOOST_ROOT="/usr/local" \
-    -DPython_EXECUTABLE:FILEPATH=$(which python3) \
-    -DPYTHON_MODULE_DIR="${HOME}/so3g/lib/python3.9/site-packages" \
-    -DCMAKE_INSTALL_PREFIX="${HOME}/so3g" \
-    ..
-  make -j 2 install
-
-Compilation and Installation
+Building with Conda Tools
 ----------------------------
 
-To compile and install the so3g package (assuming our same install
-prefix of $HOME/so3g), we need to point it to the spt3g build directory
-that we used previously.  For example::
+This method is the most reliable, since we will be using a self-consistent set of dependencies and the same compilers that were used to build those.  First, ensure that you have a conda base environment that uses the conda-forge channels.  The easiest way to get this is to use the "mini-forge" installer (https://github.com/conda-forge/miniforge).
 
-  cd ${HOME}/git/so3g
-  mkdir -p build
-  cd build
-  cmake \
-    -DCMAKE_PREFIX_PATH=${HOME}/git/spt3g_software/build \
-    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
-    -DPYTHON_INSTALL_DEST="${HOME}/so3g" \
-    -DCMAKE_INSTALL_PREFIX="${HOME}/so3g" \
-    ..
-  make -j 2 install
+Once you have the conda "base" environment installed, create a new environment for Simons Observatory work.  We force the python version to 3.12, since the default (3.13) is still missing some of our dependencies::
 
-The definition of `CMAKE_PREFIX_PATH` must point to the build
-directory for `spt3g`, because cmake output there will be used to
-generate best compilation and/or linking instructions for Boost and
-other dependencies of spt3g/so3g.
+    conda create -n simons python==3.12 # <- Only do this once
+    conda activate simons
 
-Now you can run your "load_so3g" (or similar) command whenever you want
-to load your python stack and also the so3g install prefix.
+Now install all of our dependencies (except for spt3g)::
+
+    conda install --file conda_dev_requirements.txt
+
+Next, choose how to install spt3g.
+
+Bundled SPT3G
+~~~~~~~~~~~~~~~~~
+
+If you are just testing a quick change, you can use `pip` to install so3g.  This will download a copy of spt3g and bundle it into the the installed package.  The downside is that **every time** you run pip, it will re-build all of spt3g and so3g under the hood with cmake::
+
+    pip install -vv .
+
+Separate SPT3G
+~~~~~~~~~~~~~~~~~
+
+If you are going to be developing so3g and repeatedly building it, you probably want to install spt3g once.  See the `instructions from that package <https://github.com/CMB-S4/spt3g_software>`_ to download and install.  When building, you can install into your conda environment like this::
+
+    cd spt3g_software
+    mkdir -p build
+    cd build
+    cmake \
+        -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
+        -DCMAKE_C_COMPILER=${CC} \
+        -DCMAKE_CXX_COMPILER=${CXX} \
+        -DPython_ROOT_DIR=${CONDA_PREFIX} \
+        ..
+    make -j 4 install
+    # Copy the python package into place
+    cp -r ./spt3g ${CONDA_PREFIX}/lib/python3.12/site-packages/
+
+When building `so3g` against a stand-alone version of `spt3g`, you need to use cmake directly::
+
+    cd so3g
+    mkdir -p build
+    cd build
+    cmake \
+        -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
+        -DCMAKE_C_COMPILER=${CC} \
+        -DCMAKE_CXX_COMPILER=${CXX} \
+        -DPython_ROOT_DIR=${CONDA_PREFIX} \
+        -DBLAS_LIBRARIES='-L${CONDA_PREFIX}/lib -lopenblas -fopenmp' \
+        ..
+    make -j 4 install
 
 
-Local configuration through local.cmake
----------------------------------------
+Building with OS Packages
+----------------------------
 
-Optional, site-specific parameters may be set in the file local.cmake.
-Lines declaring set(VARIABLE, value) should have the same effect as
-passing -DVARIABLE=value to the cmake invocation.
+Another option is to use a virtualenv for python packages and use the compilers and
+libraries from your OS to provide so3g dependencies. Install dependencies, for example::
 
-To change the destination directory for the installation, add lines
-like this one::
+    apt install \
+        libboost-all-dev \
+        libopenblas-openmp-dev \
+        libflac-dev \
+        libgsl-dev \
+        libnetcdf-dev
 
-  set(CMAKE_INSTALL_PREFIX $ENV{HOME}/.local/)
-  set(PYTHON_INSTALL_DEST $ENV{HOME}/.local/lib/python3.7/site-packages/)
+Then activate your virtualenv. Next you should install to someplace in your library
+search path. Note that the commands below will not work unless you change the install
+prefix to a user-writable directory (or make install with sudo). You should decide where
+you want to install and make sure that the location is in your PATH and
+LD_LIBRARY_PATH::
 
-To point cmake to the spt3g build directory, add a line like this
-one::
+    cd spt3g_software
+    mkdir -p build
+    cd build
+    cmake \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        ..
+    make -j 4 install
+    #
 
-  set(CMAKE_PREFIX_PATH $ENV{HOME}/code/spt3g_software/build)
+And similarly for so3g::
+
+    cd so3g
+    mkdir -p build
+    cd build
+    cmake \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DBLAS_LIBRARIES='-lopenblas -fopenmp' \
+        ..
+    make -j 4 install
 
 
 Testing
