@@ -814,6 +814,12 @@ bool G3SuperTimestream::Extract(
 	return true;
 }
 
+/* Options()
+
+   Note that enable=[0,1] is not overriding -- it's instead more of a
+   shorthand for the default values of data_algo and times_algo.
+*/
+
 int G3SuperTimestream::Options(
 	int enable, int flac_level, int bz2_workFactor,
 	int data_algo, int times_algo)
@@ -1219,7 +1225,9 @@ PYBINDINGS("so3g")
 		     (bp::arg("enable")=-1,
 		      bp::arg("flac_level")=-1, bp::arg("bz2_workFactor")=-1,
 		      bp::arg("data_algo")=-1, bp::arg("times_algo")=-1),
-		     "Set compression options.")
+		     "Set compression options.  To disable compression, pass enable=0.  To "
+		     "enable default compression options, pass enable=1.  Otherwise, pass "
+		     "specific values for data_algo and times_algo (see enums in C++ layer).")
 		;
 	register_pointer_conversions<G3SuperTimestream>();
 
