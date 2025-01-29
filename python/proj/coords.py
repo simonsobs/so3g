@@ -256,18 +256,23 @@ class FocalPlane:
         """Construct a FocalPlane from detector quaternions and responsivities.
 
         Arguments:
-         quats: Detector quaternions. Either:
-           * An array-like of floats with shape [ndet,4]
-           * An array-like of so3g.proj.quat.quat with shape [ndet]
-           * An so3g.proj.quat.G3VectorQuat
-           * None, which results in an empty focalplane with no detectors
-         resps: Detector responsivities. Either:
-           * An array-like of floats with shape [ndet,2], where the first and
-             second number in the last axis are the total intensity and
-             polarization response respectively
-           * None, which results in a T and P response of 1 for all detectors.
-         dets: Deprecated argument temporarily present for backwards
-           compatibility."""
+         quats:
+           Detector quaternions. Either:
+             * An array-like of floats with shape [ndet,4]
+             * An array-like of so3g.proj.quat.quat with shape [ndet]
+             * An so3g.proj.quat.G3VectorQuat
+             * None, which results in an empty focalplane with no detectors
+         resps:
+           Detector responsivities. Either:
+             * An array-like of floats with shape [ndet,2], where the first and
+               second number in the last axis are the total intensity and
+               polarization response respectively
+             * None, which results in a T and P response of 1 for all detectors.
+         dets:
+           Deprecated argument temporarily present for backwards
+           compatibility.
+
+        """
         # Building them this way ensures that
         # quats will be an quat coeff array-2 and resps will be a numpy
         # array with the right shape, so we don't need to check
@@ -327,26 +332,31 @@ class FocalPlane:
 
         So there are two ways to specify the polarization angle and
         responsivity:
+
           1. gamma and P
           2. Q and U
 
-        Examples, assuming ndet = 2
-         * ``from_xieta(xi, eta, gamma=[0,pi/4])``
-           Constructs a FocalPlane with T and P responsivity of 1
-           and polarization angles of 0 and 45 degrees, representing
-           a Q-sensitive and U-sensitive detector.
-         * ``from_xieta(xi, eta, gamma=[0,pi/4], P=0.5)``
-           Like the above, but with a polarization responsivity of
-           just 0.5.
-         * ``from_xieta(xi, eta, gamma=[0,pi/4], T=[1,0.9], P=[0.5,0.6])``
-           Like above, but with a detector-dependent intensity and
-           polarization responsivity. There is no restriction that
-           T > P. For the pseudo-detector timestreams one gets after
-           HWP demodulation, one would have T=0 for the cos-modulated
-           and sin-modulated timestreams, for example.
-         * ``from_xieta(xi, eta, Q=[1,0], U=[0,1])``
-           Construct the FocalPlane with explicit Q and U responsivity.
-           This example is equivalent to example 1.
+        Examples, assuming ndet = 2:
+
+          ``from_xieta(xi, eta, gamma=[0,pi/4])``
+            Constructs a FocalPlane with T and P responsivity of 1
+            and polarization angles of 0 and 45 degrees, representing
+            a Q-sensitive and U-sensitive detector.
+
+          ``from_xieta(xi, eta, gamma=[0,pi/4], P=0.5)``
+            Like the above, but with a polarization responsivity of
+            just 0.5.
+
+          ``from_xieta(xi, eta, gamma=[0,pi/4], T=[1,0.9], P=[0.5,0.6])``
+            Like above, but with a detector-dependent intensity and
+            polarization responsivity. There is no restriction that
+            T > P. For the pseudo-detector timestreams one gets after
+            HWP demodulation, one would have T=0 for the cos-modulated
+            and sin-modulated timestreams, for example.
+
+          ``from_xieta(xi, eta, Q=[1,0], U=[0,1])``
+            Construct the FocalPlane with explicit Q and U responsivity.
+            This example is equivalent to example 1.
 
         Usually one would either use gamma,P or Q,U. If they are
         combined, then ``gamma_total = gamma + arctan2(U,Q)/2`` and
