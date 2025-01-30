@@ -100,3 +100,15 @@ class TestG3IndexedReader(unittest.TestCase):
 
         # Now that we've seeked, our next frame should be Wiring
         assert r.Process(None)[0].type == core.G3FrameType.Wiring
+
+        # Confirm exception is raised if seek at eof.
+        r = so3g.G3IndexedReader(self._file)
+        while len(r.Process(None)):
+            pass
+        pos = r.Tell()
+        # Ok to seek to EOF if at EOF.
+        r.Seek(pos)
+
+        # No back seeking once there, though.
+        with self.assertRaises(RuntimeError):
+            r.Seek(0)

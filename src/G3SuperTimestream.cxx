@@ -539,6 +539,8 @@ struct flac_helper {
 	int bytes_remaining;
 	char *src;
 	char *dest;
+	int start;
+	int count;
 };
 
 FLAC__StreamDecoderReadStatus read_callback(
@@ -564,9 +566,19 @@ FLAC__StreamDecoderWriteStatus write_callback_int(
 {
 	auto fh = (struct flac_helper *)client_data;
 	int n = frame->header.blocksize;
-	for (int i=0; i<n; i++)
-		((T*)fh->dest)[i] = buffer[0][i];
-	fh->dest += n * sizeof(T);
+	int drop = fh->start;
+	if (drop >= n) {
+		fh->start -= n;
+	} else {
+		n -= drop;
+		fh->start = 0;
+		if (n > fh->count)
+			n = fh->count;
+		for (int i=0; i<n; i++)
+			((T*)fh->dest)[i] = buffer[0][i+drop];
+		fh->dest += n * sizeof(T);
+		fh->count -= n;
+	}
 	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
@@ -589,13 +601,10 @@ static void flac_decoder_error_cb(const FLAC__StreamDecoder *decoder,
 }
 
 template <typename T>
-void expand_branch(struct flac_helper *fh, int n_bytes, int nsamps,
-	char *temp)
+void expand_branch(struct flac_helper *fh, int n_bytes, char *temp)
 {
 	bool own_temp = (temp == nullptr);
-	unsigned int temp_size = nsamps * sizeof(T);
-	if (own_temp)
-		temp = new char[temp_size];
+	unsigned int temp_size = n_bytes;
 
 	int err = BZ2_bzBuffToBuffDecompress(
 		temp, &temp_size, fh->src, n_bytes,
@@ -603,11 +612,8 @@ void expand_branch(struct flac_helper *fh, int n_bytes, int nsamps,
 	if (err != BZ_OK)
 		throw g3supertimestream_exception(get_bz2_error_string(err));
 	// Add it in ...
-	for (int i=0; i<nsamps; i++)
-		((T*)fh->dest)[i] += ((T*)temp)[i];
-
-	if (own_temp)
-		delete temp;
+	for (int i=0; i<fh->count; i++)
+		((T*)fh->dest)[i] += ((T*)temp)[i + fh->start];
 }
 
 template <typename T>
@@ -638,8 +644,68 @@ bool G3SuperTimestream::Decode()
 	array = (PyArrayObject*)
 		PyArray_ZEROS(desc.ndim, desc.shape, desc.type_num, 0);
 
+	Extract(bp::object(bp::handle<>(bp::borrowed(reinterpret_cast<PyObject*>(array)))),
+		bp::object(), bp::object(), 0, desc.shape[1]);
+
+	// Destroy the flac bundle.
+	delete ablob->buf;
+	delete ablob;
+	ablob = nullptr;
+
+	return true;
+}
+
+bool G3SuperTimestream::Extract(
+	bp::object dest, bp::object dest_indices, bp::object src_indices,
+	int start, int stop)
+{
+	int n_det_ex = desc.shape[0];
+
+	PyArrayObject *_dest = (PyArrayObject*)dest.ptr();
+
+        auto _src_indices = BufferWrapper<int64_t>("src_indices", src_indices, true,
+                                                   vector<int>{-1});
+        if (_src_indices->obj != NULL)
+            n_det_ex = _src_indices->shape[0];
+
+        auto _dest_indices = BufferWrapper<int64_t>("dest_indices", dest_indices, true,
+                                                   vector<int>{n_det_ex});
+
+	// Sample index.
+	if (start < 0 || start > desc.shape[1])
+		throw g3supertimestream_exception(
+                        "sample start index out of bounds");
+	if (stop < 0)
+		stop = desc.shape[1];
+	if (stop < start || stop > desc.shape[1])
+		throw g3supertimestream_exception(
+                        "sample stop index out of bounds");
+
+	int copy_count = stop - start;
+
+	if (!PyArray_Check(_dest))
+		throw g3supertimestream_exception(
+			"Destination array must be ndarray.");
+	if (PyArray_TYPE(_dest) != desc.type_num)
+		throw g3supertimestream_exception(
+			"Destination array not of correct type.");
+	if ((PyArray_NDIM(_dest) != 2) ||
+	    (PyArray_SHAPE(_dest)[0] < n_det_ex) ||
+	    (PyArray_SHAPE(_dest)[1] != copy_count))
+		throw g3supertimestream_exception(
+			"Destination array does not have correct shape.");
+	if (PyArray_STRIDE(_dest, 1) != PyArray_ITEMSIZE(_dest))
+		throw g3supertimestream_exception(
+			"Destination array should be strictly packed on last dimension.");
+
+	// Insist array is not already decompressed.
+	if (ablob == nullptr)
+		throw g3supertimestream_exception(
+			"These data are already fully decoded; use .data.");
+
+	// Decompress or copy into a buffer.
 	FLAC__StreamDecoderWriteCallback this_write_callback;
-	void (*expand_func)(struct flac_helper *, int, int, char*) = nullptr;
+	void (*expand_func)(struct flac_helper *, int, char*) = nullptr;
 	void (*broadcast_func)(struct flac_helper *, int) = nullptr;
 	int elsize = 0;
 
@@ -666,26 +732,44 @@ bool G3SuperTimestream::Decode()
 	{
 
 	// Each OMP thread needs its own workspace, FLAC decoder, and helper structure
-	char temp[PyArray_SHAPE(array)[1] * elsize + 1];
+	char temp[desc.shape[1] * elsize + 1];
 	FLAC__StreamDecoder *decoder = nullptr;
 	struct flac_helper helper;
 
 #pragma omp for
-	for (int i=0; i<desc.shape[0]; i++) {
-		char* this_data = (char*)PyArray_DATA(array) + PyArray_STRIDES(array)[0]*i;
+	for (int i=0; i<n_det_ex; i++) {
+		// Source vector index
+		int src_i = i;
+		if (_src_indices.test()) {
+			src_i = *_src_indices.ptr_1d(i);
+			if (src_i < 0 || src_i >= desc.shape[0])
+				continue;
+		}
+
+		// Dest vector index
+		int dest_i = i;
+		if (_dest_indices.test()) {
+			dest_i = *_dest_indices.ptr_1d(i);
+			if (dest_i < 0 || dest_i >= PyArray_SHAPE(_dest)[0])
+				continue;
+		}
+
+		char* this_data = (char*)PyArray_DATA(_dest) + PyArray_STRIDES(_dest)[0]*dest_i;
 
 		// Cue up this detector's data and read the algo code.
-		helper.src = ablob->buf + ablob->offsets[i];
+		helper.src = ablob->buf + ablob->offsets[src_i];
 		int8_t algo = *(helper.src++);
 
 		if (algo == ALGO_NONE) {
-			memcpy(this_data, helper.src, PyArray_SHAPE(array)[1] * elsize);
+			memcpy(this_data, helper.src + start * elsize, copy_count * elsize);
 		}
 		if (algo & ALGO_DO_FLAC) {
 			if (decoder == nullptr)
 				decoder = FLAC__stream_decoder_new();
 			helper.bytes_remaining = _read_size(&helper);
 			helper.dest = this_data;
+			helper.start = start;
+			helper.count = copy_count;
 
 			FLAC__stream_decoder_init_stream(
 				decoder, read_callback, NULL, NULL, NULL, NULL,
@@ -699,38 +783,33 @@ bool G3SuperTimestream::Decode()
 		if (algo & ALGO_DO_BZ) {
 			helper.bytes_remaining = _read_size(&helper);
 			helper.dest = this_data;
-			expand_func(&helper,
-				    helper.bytes_remaining,
-				    PyArray_SHAPE(array)[1], (char*)temp);
+			helper.start = start;
+			helper.count = copy_count;
+			expand_func(&helper, desc.shape[1] * elsize, (char*)temp);
 		}
 
 		// Single flat offset?
 		if (algo & ALGO_DO_CONST) {
 			helper.dest = this_data;
-			broadcast_func(&helper, PyArray_SHAPE(array)[1]);
+			broadcast_func(&helper, copy_count);
 		}
 
 		// Now convert for precision.
 		if (desc.type_num == NPY_FLOAT32) {
 			auto src = (int32_t*)this_data;
 			auto dest = (float*)this_data;
-			for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
-				dest[j] = (float)src[j] * quanta[i];
+			for (int j=0; j<PyArray_SHAPE(_dest)[1]; j++)
+				dest[j] = (float)src[j] * quanta[src_i];
 		} else if (desc.type_num == NPY_FLOAT64) {
 			auto src = (int64_t*)this_data;
 			auto dest = (double*)this_data;
-			for (int j=0; j<PyArray_SHAPE(array)[1]; j++)
-				dest[j] = src[j] * quanta[i];
+			for (int j=0; j<PyArray_SHAPE(_dest)[1]; j++)
+				dest[j] = src[j] * quanta[src_i];
 		}
 	}
 	if (decoder != nullptr)
 		FLAC__stream_decoder_delete(decoder);
 	} // omp parallel
-
-	// Destroy the flac bundle.
-	delete ablob->buf;
-	delete ablob;
-	ablob = nullptr;
 
 	return true;
 }
@@ -1127,6 +1206,11 @@ PYBINDINGS("so3g")
 		.add_property("dtype", &safe_get_dtype, "Numpy dtype of enclosed array.")
 		.def("encode", &G3SuperTimestream::Encode, "Compress.")
 		.def("decode", &G3SuperTimestream::Decode, "Decompress.")
+		.def("extract", &G3SuperTimestream::Extract,
+		     (bp::arg("dest"), bp::arg("dest_indices")=bp::object(),
+		      bp::arg("src_indices")=bp::object(),
+		      bp::arg("start")=0, bp::arg("stop")=-1),
+		     "Decompress data subset into an array.")
 		.def("calibrate", &G3SuperTimestream::Calibrate,
 		     "calibrate(cal_factors)\n\n"
                      "Apply per-channel scale factors.  Note this puts you in float mode\n"

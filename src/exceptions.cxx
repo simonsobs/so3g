@@ -26,10 +26,7 @@ static void translate_ValueError(so3g_exception const& e)
 namespace bp = boost::python;
 PYBINDINGS("so3g")
 {
-    bp::register_exception_translator<buffer_exception>    (&translate_TypeError);
-    bp::register_exception_translator<dtype_exception>     (&translate_ValueError);
-    bp::register_exception_translator<shape_exception>     (&translate_RuntimeError);
-    bp::register_exception_translator<agreement_exception> (&translate_RuntimeError);
-    bp::register_exception_translator<tiling_exception>    (&translate_RuntimeError);
-    bp::register_exception_translator<general_agreement_exception> (&translate_ValueError);
+    bp::register_exception_translator<RuntimeError_exception> (&translate_RuntimeError);
+    bp::register_exception_translator<TypeError_exception> (&translate_TypeError);
+    bp::register_exception_translator<ValueError_exception> (&translate_ValueError);
 }

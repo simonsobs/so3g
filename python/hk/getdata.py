@@ -13,6 +13,7 @@ import pytz
 import yaml
 import logging
 import pickle
+import glob
 
 import numpy as np
 import datetime as dt
@@ -755,7 +756,7 @@ def to_timestamp(some_time, str_format=None):
 
 def load_range(start, stop, fields=None, alias=None, 
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
-               daq_node=None, strict=True):
+               folder_patterns=None, strict=True):
     """Args:
 
       start: Earliest time to search for data (see note on time
@@ -772,12 +773,15 @@ def load_range(start, stop, fields=None, alias=None,
         files to speed up loading
       pre_proc_mode: Permissions (passed to os.chmod) to be used on
         dirs and pkl files in the pre_proc_dir. No chmod if None.
-      daq_node:  String of type of HK book (Ex: satp1, lat, site) to load
-        if daq_node name not in data_dir. If None, daq_node name in
-        data_dir, or loading .g3 files.
+      folder_patterns:  List of patterns to search for in folders. If
+        None, default pattern is ['{folder}', 'hk_{folder}_*']. If not
+        None, usage for .g3 folder: ['{folder}'], and example usage
+        for HK books: ['hk_{folder}_lat'] where {folder} will be replaced
+        with the first 5 digits of the unix timestamp when looping through
+        files.
       strict: If False, log and skip missing fields rather than
         raising a KeyError.
-                
+
     Returns:
 
       Dictionary with structure::
@@ -787,7 +791,7 @@ def load_range(start, stop, fields=None, alias=None,
         }
 
       It will be masked to only have data between start and stop.
-        
+
     Notes:
 
       The "start" and "stop" argument accept a variety of formats,
@@ -807,9 +811,11 @@ def load_range(start, stop, fields=None, alias=None,
             'HAN 1', 'HAN 2',
         ]
 
+        folder_patterns = ['hk_{folder}_satp3']
+
         start = dt.datetime(2020,2,19,18,48)
         stop = dt.datetime(2020,2,22)
-        data = load_range(start, stop, fields=fields, alias=alias)
+        data = load_range(start, stop, fields=fields, alias=alias, folder_patterns=folder_patterns)
 
         plt.figure()
         for name in alias:
@@ -839,40 +845,36 @@ def load_range(start, stop, fields=None, alias=None,
         data_dir = os.environ['OCS_DATA_DIR']
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
-
+    
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
     hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
 
-    node_options = ['satp1', 'satp2', 'satp3', 'lat', 'site']
-    for i in node_options:
-        if i in data_dir:
-            node = i
-    
+
+    if folder_patterns is None:
+        folder_patterns = ['{folder}', 'hk_{folder}_*']
     for folder in range( int(start_ctime/1e5), int(stop_ctime/1e5)+1):
-        if daq_node is None:
-            if node in data_dir:
-                book_path = 'hk_'+str(folder)+'_'+node
-                base = data_dir+'/'+str(book_path)
-            else:
-                hk_logger.debug(f'No daq node info provided in {data_dir}, and'
-                                'daq_node arg is None; going to assume data_dir'
-                                'points to .g3 files')
-                # assumes .g3 files but should be more explicit
-                base = data_dir+'/'+str(folder)
-        else:
-            book_path = 'hk_'+str(folder)+'_'+daq_node
-            base = data_dir+'/'+str(book_path)
-        
-        if not os.path.exists(base):
-            hk_logger.debug('{} does not exist, skipping'.format(base))
+        bases = []
+        for pattern in folder_patterns:
+            extended_pattern = pattern.format(folder=folder)
+
+            base = glob.glob(os.path.join(data_dir, extended_pattern))
+            bases.extend(base)
+
+        if len(bases) > 1:
+            bases.sort
+            base = bases[0]
+            hk_logger.warn(f"Multiple base folders were found for {folder}. The first one, alphabetically, is selected: {base}")
+        elif len(bases) == 1:
+            base = bases[0]
+        elif len(bases) == 0:
+            hk_logger.debug(f"No base folder found for {folder}, skipping")
             continue
-    
+
         for file in sorted(os.listdir(base)):
-            for i in file.split('.'):
-                if i == '.yaml':
-                    continue
+            if file.endswith('.yaml'):
+                continue
             try:
                 t = int(file[:-3])
             except:
@@ -881,7 +883,7 @@ def load_range(start, stop, fields=None, alias=None,
             if t >= start_ctime-3600 and t <=stop_ctime+3600:
                 hk_logger.debug('Processing {}'.format(base+'/'+file))
                 hksc.process_file_with_cache( base+'/'+file)
-    
+
     
     cat = hksc.finalize()
     start_ctime = to_timestamp(start)

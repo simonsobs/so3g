@@ -22,6 +22,8 @@ using namespace std;
 #include "exceptions.h"
 #include "so_linterp.h"
 
+#include <stdio.h>
+#include "healpix_bare.c"
 
 // TRIG_TABLE_SIZE
 //
@@ -84,6 +86,67 @@ inline bool isNone(const bp::object &pyo)
 //   quite easily; the most obvious candidate being spin-1, to carry
 //   information such as in-plane pointing displacements.
 
+// Bilinear mapmaking (and interpolated mapmaking in general)
+//
+// Originally only nearest-neighbor mapmaking was supported. Here,
+// a sample takes the value of the nearest pixel, regardless of where
+// inside this pixel it hits. This means each sample only needs to
+// care about a single pixel, which is computed by Pixelizor's GetPixel.
+// This simple relationship makes it elatively easy to avoid
+// clobbering when using threads in the tod2map operation, as one could
+// assign responsibility for different areas of pixels to different threads,
+// and translate this directly into sample ranges for those threads.
+//
+// In interpolated mapmaking like bilinear mapmaking, the value of a sample
+// is given by some linear combination of several of the nearest pixels.
+// For bilinear mapmaking, these are the four pixels above/below and left/right
+// of the sample, which are each weighted based on how close each pixel is to
+// the sample. The pixels and corresponding weights are calculated using
+// Pixelizor's GetPixels function, which in turn uses the Pixelizor's Interpol
+// template argument to determine which type of interpolation should be used
+// (including the "no interpolation" nearest neighbor case).
+//
+// However, since each sample now hits multiple pixels, it is more difficult
+// build a set of sample ranges that touch disjoint sets of pixels and so can
+// be iterated over in parallel without locking in the tod2map operation.
+// There will always be some samples that hit the edge of each thread's pixel
+// groups, resulting in it affecting multiple threads' pixels. We handle this
+// by generalizing the sample ranges from ranges = vector<vector<RangesInt32>>, which
+// is [nthread][ndet][nrange] in shape, to ranges = vector<vector<vector<RangesInt32>>>
+// which is [nbunch][nthread][ndet][nrange], and where we iterate over the
+// outermost "bunch" level in series, and then in parallel over the next level.
+// This general framework should work for all parallelization schemes, but what
+// we've implemented so far is a simple case where all pixels that unambiguously
+// fall inside a single threads' pixel domain are done as before, and then thew few samples
+// that fall in multiple domains are done by a single thread in the end. This
+// means that ranges[0] has shape [nthread][ndet][nrange] while ranges[1] has
+// shape [1][ndet][nrange]. More complicated schemes could be used, but this
+// seems to work well enough.
+
+// Arbitrary detector response support
+// -----------------------------------
+// It's useful to support detectors with polarization response < 1. It's also
+// sometimes useful with detectors with 0 total intensity response. This is
+// implemented as follows.
+//
+// At the top level, the functions where the responsivity is relevant, like
+// from_map, to_map etc. take a bp::object reponse argument, representing
+// the [ndet,2] detector responsivities.
+//
+// This is then converted into a BufferWrapper<FSIGNAL>, before each detector's
+// responsivity is extracted using get_response(BufferWrapper<FSIGNAL> & buf, int i_det),
+// which returns a Response { FSIGNAL T, P; } struct.
+//
+// Finally, this Response struct is passed to spin_proj_factors, e.g.
+//
+//  void spin_proj_factors<SpinTQU>(const double* coords, const Response & response, FSIGNAL *projfacs)
+//  {
+//       const double c = coords[2];
+//       const double s = coords[3];
+//       projfacs[0] = response.T;
+//       projfacs[1] = response.P*(c*c - s*s);
+//       projfacs[2] = response.P*(2*c*s);
+//  }
 
 // State the template<CoordSys> options
 class ProjQuat;
@@ -97,6 +160,10 @@ class ProjZEA;
 // State the template<TilingSys> options
 class Tiled;
 class NonTiled;
+
+// State the pointing matrix interpolation options
+struct NearestNeighbor { static const int interp_count = 1; };
+struct Bilinear        { static const int interp_count = 4; };
 
 // Helper template for SpinSys...
 template <int N>
@@ -140,6 +207,20 @@ bool Pointer<CoordSys>::TestInputs(
                                      vector<int>{-1, 4});
     n_time = _pborebuf->shape[0];
     n_det = _pdetbuf->shape[0];
+
+    // Check the detectors for NaNs.
+    for (int i=0; i<n_det; i++) {
+        for (int ic = 0; ic < 4; ++ic) {
+            const char *x = (char*)_pdetbuf->buf
+                + _pdetbuf->strides[0] * i
+                + _pdetbuf->strides[1] * ic;
+            if (std::isnan(*(double*)x)) {
+                std::ostringstream err;
+                err << "Pointing offset error: nan found at index " << i << ".";
+                throw ValueError_exception(err.str());
+            }
+        }
+    }
     return true;
 }
 
@@ -383,13 +464,304 @@ void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
 
 //! Pixelizors
 //
-template <typename TilingSys>
-class Pixelizor2_Flat;
 
-template <>
-class Pixelizor2_Flat<NonTiled> {
+const int NSIDE_MAX=8192; // int32 should work up to nside8192
+template <typename TilingSys>
+class Pixelizor_Healpix;
+
+// Pixelizor_Healpix<NonTiled>
+//
+// Make [npix] full-sky maps in HEALPIX NEST or RING ordering
+// int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
+
+template<>
+class Pixelizor_Healpix<NonTiled> {
+public:
+    static const int index_count = 1;
+    static const int interp_count = 1;
+    Pixelizor_Healpix(int nside, bool nest=true){
+        this->nside = nside;
+        this->nest = nest;
+        npix = nside2npix(nside);
+        check_nside(nside);
+    };
+    Pixelizor_Healpix() {};
+    Pixelizor_Healpix(bp::object args) {
+        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+        // args[0]: int nside
+        nside = bp::extract<int>(args_tuple[0])();
+        // args[1]: bool isnest
+        nest = bp::extract<bool>(args_tuple[1])();
+        npix = nside2npix(nside);
+        check_nside(nside);
+    }
+    ~Pixelizor_Healpix() {};
+
+    bp::object zeros(vector<int> shape) {
+        shape.push_back(npix);
+        int ndim = 0;
+        npy_intp dims[32];
+        for (auto d: shape)
+            dims[ndim++] = d;
+
+        int dtype = NPY_FLOAT64;
+        PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
+        return bp::object(bp::handle<>(v));
+    }
+
+    inline
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixel_index[0] = ix;
+    }
+    inline
+    int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixinds[0][0] = ix;
+        pixweights[0] = 1;
+        return 1;
+    }
+
+    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        if (need_map) {
+            // The map is mandatory, and the leading axis must match the
+            // component count.  Then the one healpix pixel axis.
+            mapbuf = BufferWrapper<double>("map", map, false,
+                                           vector<int>{comp_count,npix});
+        } else if (need_weight_map) {
+            // The map is mandatory, and the two leading axes must match
+            // the component count.  Then the one healpix pixel axis.
+            mapbuf = BufferWrapper<double>("map", map, false,
+                                           vector<int>{comp_count,comp_count,npix});
+        }
+        return true;
+    }
+    double *pix(int imap, const int pixel_index[]) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*pixel_index[0]);
+    }
+    double *wpix(int imap, int jmap, const int pixel_index[]) {
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*jmap +
+                         mapbuf->strides[2]*pixel_index[0]);
+    }
+    int stripe(const int pixel_index[], int thread_count) {
+        return pixel_index[0] * thread_count / npix;
+    }
+    int tile_count() {
+        return -1;
+    }
+    void check_nside(int nside){
+        bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check nside is a power of 2
+        if (! isok){
+          std::ostringstream err;
+          err << "Invalid nside " << nside;
+          throw ValueError_exception(err.str());
+        }
+    }
+
+    int nside;
+    int npix;
+    BufferWrapper<double> mapbuf;
+    bool nest;
+};
+
+// Pixelizor_Healpix<Tiled>
+//
+// Make a len(nTile) list of [npix/nTile] partial-sky maps in HEALPIX NEST ordering
+// inactive tiles will contain None
+// int32 for pixel indexes will work up to NSIDE=8192. Assuming int is int32
+
+template<>
+class Pixelizor_Healpix<Tiled> {
 public:
     static const int index_count = 2;
+    static const int interp_count = 1;
+    Pixelizor_Healpix(int nside){
+        this->nside = nside;
+        this->nest = true; // we only tile maps in nest
+        populate = vector<bool>(1, true);
+        check_nside(nside);
+    };
+    Pixelizor_Healpix() {};
+    Pixelizor_Healpix(bp::object args) {
+        // args[0]: int nside
+        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+        nside = bp::extract<int>(args_tuple[0])();
+        // args[1]: bool nestin: MUST BE true ; check that
+        bool nestin = bp::extract<bool>(args_tuple[1])(); // "nest" argument, not used for tiled maps
+        if (! nestin){
+            std::ostringstream err;
+            err << "RING not supported for tiled maps";
+            throw ValueError_exception(err.str());
+        }
+        // args[2] int nside_tile; nside defining the tiling
+        int nside_tile = bp::extract<int>(args_tuple[2])();
+        ntiles = nside2npix(nside_tile);
+        if (bp::len(args) >= 4) {
+            // args[3] list(int) of indexes for active tiles
+            bp::object active_tiles = bp::extract<bp::object>(args_tuple[3])();
+            if (! isNone(active_tiles)){
+                populate = vector<bool>(ntiles, false);
+                 for (int i=0; i < bp::len(active_tiles); i++) {
+                     int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
+                     if (idx >= 0 && idx < ntiles)
+                         populate[idx] = true;
+                 }
+            }
+        }
+        int npix = nside2npix(nside);
+        npix_per_tile = npix / ntiles;
+        check_nside(nside); // check validity
+        check_nside(nside_tile);
+        if (nside_tile > nside) {
+            std::ostringstream err;
+            err << "Invalid nside_tile " << nside_tile << " > nside " << nside;
+            throw ValueError_exception(err.str());
+        }
+    }
+  ~Pixelizor_Healpix() {};
+
+    bp::object zeros(vector<int> shape) {
+        int dtype = NPY_FLOAT64;
+        int ndim = 0;
+        npy_intp dims[32];
+        for (auto d: shape)
+            dims[ndim++] = d;
+        ndim += 1;
+        if (populate.size() == 0)
+            throw RuntimeError_exception("Cannot create blank tiled map unless "
+                                  "user has specified what tiles to populate.");
+
+        bp::list maps_out;
+        auto pop_iter = populate.begin();
+        for (int itile = 0; itile < ntiles; itile++){
+            bool pop_this = (pop_iter != populate.end()) && *(pop_iter++);
+            if (pop_this) {
+                dims[ndim-1] = npix_per_tile;
+                PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
+                maps_out.append(bp::handle<>(v));
+            } else
+                maps_out.append(bp::object());
+        }
+        return maps_out;
+    }
+
+    inline
+    void GetPixel(int i_det, int i_time, const double *coords, int *pixel_index) {
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = ang2nest(nside, ang);
+        //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixel_index[0] = ix / npix_per_tile;
+        pixel_index[1] = ix % npix_per_tile;
+    }
+    inline
+    int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]){
+        double phi = coords[0]; // lon, -2pi->2pi
+        double theta = M_PI/2 - coords[1]; // colat, 0->pi
+        t_ang ang = (t_ang) {theta, phi};
+        int ix = ang2nest(nside, ang);
+        //int ix = (nest) ? ang2nest(nside, ang) : ang2ring(nside, ang);
+        pixinds[0][0] = ix / npix_per_tile;
+        pixinds[0][1] = ix % npix_per_tile;
+        pixweights[0] = 1;
+        return 1;
+    }
+
+    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        vector<int> map_shape_req;
+        if (need_map) {
+            // The map is mandatory, and the leading axis must match the
+            // component count, second axis the npix_per_tile.
+            map_shape_req = {comp_count,npix_per_tile};
+        } else if (need_weight_map) {
+            // The map is mandatory, and the two leading axes must match
+            // the component count.
+            map_shape_req = {comp_count,comp_count,npix_per_tile};
+        }
+        if (map_shape_req.size() == 0)
+            return true;
+        mapbufs.clear();
+        for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
+            if (isNone(map[i_tile])) {
+                if (populate[i_tile])
+                    throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
+                mapbufs.push_back(BufferWrapper<double>());
+            } else {
+                // You should be checking that the shape is as expected.
+                mapbufs.push_back(
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
+            }
+        }
+
+        return true;
+    }
+
+    double *pix(int imap, const int pixel_index[]) {
+        const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*pixel_index[1]);
+    }
+    double *wpix(int imap, int jmap, const int pixel_index[]) {
+        // Expensive shared_ptr copy?
+        const BufferWrapper<double> &mapbuf = mapbufs[pixel_index[0]];
+        if (mapbuf->buf == nullptr)
+            throw tiling_exception(pixel_index[0],
+                                   "Attempted pointing operation on non-instantiated tile.");
+        return (double*)((char*)mapbuf->buf +
+                         mapbuf->strides[0]*imap +
+                         mapbuf->strides[1]*jmap +
+                         mapbuf->strides[2]*pixel_index[1]);
+    }
+
+    int stripe(const int pixel_index[], int thread_count) {
+        int ipix = pixel_index[0] * npix_per_tile + pixel_index[1];
+        int npix = npix_per_tile * ntiles;
+        return ipix * thread_count / npix;
+    }
+    int tile_count() {
+        return ntiles;
+    }
+
+    void check_nside(int nside){
+        bool isok = (nside > 0) & (nside < NSIDE_MAX) & (nside & (nside-1)) == 0; // check power of 2
+        if (! isok){
+            std::ostringstream err;
+            err << "Invalid nside " << nside;
+            throw ValueError_exception(err.str());
+        }
+    }
+
+    int nside;
+    int ntiles;
+    int npix_per_tile;
+    vector<bool> populate;
+    vector<BufferWrapper<double>> mapbufs;
+    bool nest;
+};
+
+template <typename TilingSys, typename Interpol = NearestNeighbor>
+class Pixelizor2_Flat;
+
+template <typename Interpol>
+class Pixelizor2_Flat<NonTiled, Interpol> {
+public:
+    static const int index_count = 2;
+    static const int interp_count = Interpol::interp_count;
     Pixelizor2_Flat(int ny, int nx,
                     double dy=1., double dx=1.,
                     double iy0=0., double ix0=0.) {
@@ -444,18 +816,20 @@ public:
         pixel_index[0] = int(iy);
         pixel_index[1] = int(ix);
     }
+    inline
+    int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]);
 
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
-            // component count.  It can have 1+ other dimensions.
+            // component count.  And then 2 celestial axes.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,-1,-3});
+                                           vector<int>{comp_count,-1,-1});
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
-            // the component count.  It can have 1+ other dimensions.
+            // the component count.  And then 2 celestial axes.
             mapbuf = BufferWrapper<double>("map", map, false,
-                                           vector<int>{comp_count,comp_count,-1,-3});
+                                           vector<int>{comp_count,comp_count,-1,-1});
         }
         return true;
     }
@@ -487,10 +861,56 @@ public:
     BufferWrapper<double> mapbuf;
 };
 
-template <>
-class Pixelizor2_Flat<Tiled> {
+// Take care of the parts that depend on the interpolation order.
+// First NearestNeighbor interpolation
+
+template<>
+inline int Pixelizor2_Flat<NonTiled, NearestNeighbor>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
+    // For nearest neighbor this basically reduces to GetPixel
+    double x = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
+    double y = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
+    if (x < 0 || x >= naxis[1]) return 0;
+    if (y < 0 || y >= naxis[0]) return 0;
+    // SKN: On my laptop int(y)-int(y<0) takes 0.63 ns vs. 0.84 ns for int(floor(y)).
+    // Both are very fast, so maybe it's better to go for the latter, since it's clearer.
+    // For comparison the plain cast was 0.45 ns.
+    pixinds[0][0] = int(y)-int(y<0);
+    pixinds[0][1] = int(x)-int(x<0);
+    pixweights[0] = 1;
+    return 1;
+}
+
+// Then Bilinear interpolation
+
+template<>
+inline int Pixelizor2_Flat<NonTiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
+    // For bilinear mapmaking we need to visit the four bounding pixels
+    double x  = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
+    double y  = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
+    int    x1 = int(x)-int(x<0);
+    int    y1 = int(y)-int(y<0);
+    double wx[2] = {x-x1, 1-(x-x1)};
+    double wy[2] = {y-y1, 1-(y-y1)};
+    // Loop through the our cases
+    int iout = 0;
+    for(int iy = y1; iy < y1+2; iy++) {
+        if(iy < 0 || iy >= naxis[0]) continue;
+        for(int ix = x1; ix < x1+2; ix++) {
+            if(ix < 0 || ix >= naxis[1]) continue;
+            pixinds[iout][0] = iy;
+            pixinds[iout][1] = ix;
+            pixweights[iout] = wy[iy-y1]*wx[ix-x1];
+            iout++;
+        }
+    }
+    return iout;
+}
+
+template <typename Interpol>
+class Pixelizor2_Flat<Tiled, Interpol> {
 public:
     static const int index_count = 3;
+    static const int interp_count = Interpol::interp_count;
     Pixelizor2_Flat() {};
     Pixelizor2_Flat(int ny, int nx, double dy, double dx,
                     double iy0, double ix0, int tiley, int tilex) {
@@ -584,17 +1004,19 @@ public:
         pixel_index[1] = int(iy) - sub_y * tile_shape[0];
         pixel_index[2] = int(ix) - sub_x * tile_shape[1];
     }
+    inline
+    int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]);
 
     bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
         vector<int> map_shape_req;
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
-            // component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,-1,-3};
+            // component count.  And then 2 celestial axes.
+            map_shape_req = {comp_count,-1,-1};
         } else if (need_weight_map) {
             // The map is mandatory, and the two leading axes must match
-            // the component count.  It can have 1+ other dimensions.
-            map_shape_req = {comp_count,comp_count,-1,-3};
+            // the component count.  And then 2 celestial axes.
+            map_shape_req = {comp_count,comp_count,-1,-1};
         }
         if (map_shape_req.size() == 0)
             return true;
@@ -652,36 +1074,93 @@ public:
     vector<BufferWrapper<double>> mapbufs;
 };
 
+// Take care of the parts that depend on the interpolation order.
+// First NearestNeighbor interpolation
+template<>
+inline int Pixelizor2_Flat<Tiled, NearestNeighbor>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
+    int ix = int(coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5);
+    if (ix < 0 || ix >= parent_pix.naxis[1]) return 0;
+    int iy = int(coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] - 1 + 0.5);
+    if (iy < 0 || iy >= parent_pix.naxis[0]) return 0;
+    // Get the tile and tile offsets
+    int sub_y = iy / tile_shape[0];
+    int sub_x = ix / tile_shape[1];
+    pixinds[0][0] = sub_y * ((parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1]) + sub_x;
+    pixinds[0][1] = iy - sub_y * tile_shape[0];
+    pixinds[0][2] = ix - sub_x * tile_shape[1];
+    pixweights[0] = 1;
+    return 1;
+}
+
+// Then Bilinear interpolation
+template<>
+inline int Pixelizor2_Flat<Tiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
+    // For bilinear mapmaking we need to visit the four bounding pixels
+    double x  = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5;
+    double y  = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] - 1 + 0.5;
+    int    x1 = int(x);
+    int    y1 = int(y);
+    double wx[2] = {x-x1, 1-(x-x1)};
+    double wy[2] = {y-y1, 1-(y-y1)};
+    // Loop through the our cases
+    int iout = 0;
+    for(int iy = y1; iy < y1+2; iy++) {
+        if(iy < 0 || iy >= parent_pix.naxis[0]) continue;
+        int sub_y = iy / tile_shape[0];
+        for(int ix = x1; ix < x1+2; ix++) {
+            if(ix < 0 || ix >= parent_pix.naxis[1]) continue;
+            int sub_x = ix / tile_shape[1];
+            pixinds[iout][0] = sub_y * ((parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1]) + sub_x;
+            pixinds[iout][1] = iy - sub_y * tile_shape[0];
+            pixinds[iout][2] = ix - sub_x * tile_shape[1];
+            pixweights[iout] = wy[iy-y1]*wx[ix-x1];
+            iout++;
+        }
+    }
+    return iout;
+}
+
+// This struct is used for representing the total intensity and polarization
+// response of a single detector. Originally this was just a length-2 array,
+// but those can't easily be returned from functions. If I could ensure
+// the buffer had stride-1 in the last dimension, then one could simply pass
+// in the address to the first element for a detector, BufferWrapper doesn't make
+// that straightforward, so I think this approach is best.
+struct Response { FSIGNAL T, P; };
+Response get_response(BufferWrapper<FSIGNAL> & buf, int i_det) {
+    Response r = {*buf.ptr_2d(i_det,0), *buf.ptr_2d(i_det,1)};
+    return r;
+}
 
 template <typename SpinSys>
 static inline
-void spin_proj_factors(const double* coords, FSIGNAL *projfacs);
+void spin_proj_factors(const double* coords, const Response & response, FSIGNAL *projfacs);
 
 template <>
-inline void spin_proj_factors<SpinT>(const double* coords, FSIGNAL *projfacs)
+inline void spin_proj_factors<SpinT>(const double* coords, const Response & response, FSIGNAL *projfacs)
 {
-    projfacs[0] = 1.;
+    projfacs[0] = response.T;
 }
 
 template <>
 inline
-void spin_proj_factors<SpinQU>(const double* coords, FSIGNAL *projfacs)
+void spin_proj_factors<SpinQU>(const double* coords, const Response & response, FSIGNAL *projfacs)
 {
     const double c = coords[2];
     const double s = coords[3];
-    projfacs[0] = c*c - s*s;
-    projfacs[1] = 2*c*s;
+    projfacs[0] = response.P*(c*c - s*s);
+    projfacs[1] = response.P*(2*c*s);
 }
 
 template <>
 inline
-void spin_proj_factors<SpinTQU>(const double* coords, FSIGNAL *projfacs)
+void spin_proj_factors<SpinTQU>(const double* coords, const Response & response, FSIGNAL *projfacs)
 {
      const double c = coords[2];
      const double s = coords[3];
-     projfacs[0] = 1.;
-     projfacs[1] = c*c - s*s;
-     projfacs[2] = 2*c*s;
+     projfacs[0] = response.T;
+     projfacs[1] = response.P*(c*c - s*s);
+     projfacs[2] = response.P*(2*c*s);
 }
 
 
@@ -860,9 +1339,13 @@ bp::object ProjectionEngine<C,P,S>::pixels(
     return pixel_buf_man.ret_val;
 }
 
+// NB: This function assumes nearest neigbor. It doesn't look like
+// it can be generalized with its current interface, since it returns
+// an [ndet,ntime,{y,x,...}] array which can't handle multiple pixels per
+// sample
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::pointing_matrix(
-    bp::object pbore, bp::object pofs, bp::object pixel, bp::object proj)
+    bp::object pbore, bp::object pofs, bp::object response, bp::object pixel, bp::object proj)
 {
     auto _none = bp::object();
 
@@ -875,9 +1358,10 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
 
     auto pixel_buf_man = SignalSpace<int32_t>(
         pixel, "pixel", NPY_INT32, n_det, n_time, P::index_count);
-
     auto proj_buf_man = SignalSpace<FSIGNAL>(
         proj, "proj", FSIGNAL_NPY_TYPE, n_det, n_time, S::comp_count);
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
 #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
@@ -887,12 +1371,13 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
         FSIGNAL* const proj_buf = proj_buf_man.data_ptr[i_det];
         const int step = pixel_buf_man.steps[0];
         int pixel_offset[P::index_count] = {-1};
+        Response resp = get_response(_response, i_det);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             FSIGNAL pf[S::comp_count];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
             _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-            spin_proj_factors<S>(coords, pf);
+            spin_proj_factors<S>(coords, resp, pf);
 
             for (int i_dim = 0; i_dim < P::index_count; i_dim++)
                 pix_buf[i_time * pixel_buf_man.steps[0] +
@@ -922,70 +1407,92 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
     if (from_map)
         _pixelizor.TestInputs(map, true, false, S::comp_count);
 
-    vector<vector<RangesInt32>> ranges;
+    // Default value of the number of domains to set up is one per available
+    // thread
+    if (n_domain <= 0) {
+        n_domain = 1;
+        #ifdef _OPENMP
+        n_domain = omp_get_max_threads();
+        #endif
+    }
 
-#pragma omp parallel
-    {
-        if (n_domain <= 0) {
-            n_domain = 1;
-            #ifdef _OPENMP
-            n_domain = omp_get_num_threads();
-            #endif
-        }
-#pragma omp single
-        {
-            for (int i=0; i<n_domain; i++) {
-                vector<RangesInt32> v(n_det);
-                for (auto &_v: v)
-                    _v.count = n_time;
-                ranges.push_back(v);
+    // ranges is [nbunch,ndomain,ndet][nrange]
+    // we loop in series over bunches, then in parallel over
+    // the domains in each bunch. This could be set up multiple
+    // ways. Here, we use 2 bunches. The first has nthread domains,
+    // and takes care of the samples that unambiguously hit a domain.
+    // The second bunch contains just one pseudo-domain for all the samples
+    // that straddle a domain edge. These will be done in series.
+    vector<vector<vector<RangesInt32>>> ranges(2);
+    auto & par_ranges = ranges[0];
+    auto & ser_ranges = ranges[1];
+    auto empty_range = vector<RangesInt32>(n_det, RangesInt32(n_time));
+    for (int i=0; i<n_domain; i++)
+        par_ranges.push_back(empty_range);
+    ser_ranges.push_back(empty_range);
+
+    // Find the domain for each det-sample and build ranges of consecutive
+    // samples with the same domain
+    #pragma omp parallel for
+    for (int i_det = 0; i_det < n_det; ++i_det) {
+        double dofs[4];
+        pointer.InitPerDet(i_det, dofs);
+        int last_domain = -1;
+        int domain_start = 0;
+        int pixinds[P::interp_count][P::index_count] = {-1};
+        FSIGNAL pixweights[P::interp_count];
+        for (int i_time = 0; i_time < n_time; ++i_time) {
+            double coords[4];
+            pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
+            // Get all the pixels this sample hits
+            int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
+            // Assign a domain to this sample. If all pixels in this sample hit the same domain,
+            // then this will be assigned to samp_domain. If the domain is ambiguous, then it will
+            // be set to n_domain.
+            int samp_domain = -1;
+            for(int i_point = 0; i_point < n_point; ++i_point) {
+                int point_domain = from_map ? _pixelizor.pix(0, pixinds[i_point])[0] : _pixelizor.stripe(pixinds[i_point], n_domain);
+                if(i_point > 0 && point_domain != samp_domain) {
+                    // This is a mixed-domain sample. Put it in the serial catagory
+                    samp_domain = n_domain;
+                    break;
+                }
+                samp_domain = point_domain;
+            }
+            // Did the domain status change?
+            if (samp_domain != last_domain) {
+                // Avoid triggering on the first sample, before we have established any domain
+                if (last_domain >= 0) {
+                    // Assign to either a parallel domain or the serial misc category
+                    auto & target_ranges = last_domain < n_domain ? par_ranges[last_domain] : ser_ranges[0];
+                    target_ranges[i_det].append_interval_no_check(domain_start, i_time);
+                }
+                domain_start = i_time;
+                last_domain  = samp_domain;
             }
         }
-
-#pragma omp for
-        for (int i_det = 0; i_det < n_det; ++i_det) {
-            double dofs[4];
-            pointer.InitPerDet(i_det, dofs);
-            int last_slice = -1;
-            int slice_start = 0;
-            int pixel_offset[P::index_count] = {-1};
-            for (int i_time = 0; i_time < n_time; ++i_time) {
-                double coords[4];
-                pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-
-                int this_slice = -1;
-                if (from_map) {
-                    if (pixel_offset[0] >= 0)
-                        this_slice = *_pixelizor.pix(0, pixel_offset);
-                } else {
-                    this_slice = _pixelizor.stripe(pixel_offset, n_domain);
-                }
-                if (this_slice != last_slice) {
-                    if (last_slice >= 0)
-                        ranges[last_slice][i_det].append_interval_no_check(
-                            slice_start, i_time);
-                    slice_start = i_time;
-                    last_slice = this_slice;
-                }
-            }
-            if (last_slice >= 0)
-                ranges[last_slice][i_det].append_interval_no_check(
-                    slice_start, n_time);
+        // Close the last interval
+        if (last_domain >= 0) {
+            auto & target_ranges = last_domain < n_domain ? par_ranges[last_domain] : ser_ranges[0];
+            target_ranges[i_det].append_interval_no_check(domain_start, n_time);
         }
     }
 
     // Convert super vector to a list and return
-    auto ivals_out = bp::list();
-    for (int j=0; j<ranges.size(); j++) {
-        auto ivals = bp::list();
-        for (int i_det=0; i_det<n_det; i_det++) {
-            auto iv = ranges[j][i_det];
-            ivals.append(bp::object(iv));
+    auto ivals = bp::list();
+    for (int i=0; i<ranges.size(); i++) {
+        auto bunches = bp::list();
+        for (int j=0; j<ranges[i].size(); j++) {
+            auto domains = bp::list();
+            for (int i_det=0; i_det<n_det; i_det++) {
+                auto iv = ranges[i][j][i_det];
+                domains.append(bp::object(iv));
+            }
+            bunches.append(bp::extract<bp::object>(domains)());
         }
-        ivals_out.append(bp::extract<bp::object>(ivals)());
+        ivals.append(bp::extract<bp::object>(bunches)());
     }
-    return bp::extract<bp::object>(ivals_out);
+    return bp::extract<bp::object>(ivals);
 }
 
 template<typename C, typename P, typename S>
@@ -1001,7 +1508,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw general_exception("No tiles in this pixelization.");
+        throw RuntimeError_exception("No tiles in this pixelization.");
 
     vector<int> hits(n_tile);
     vector<vector<int>> temp;
@@ -1022,7 +1529,8 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
         for (int i_det = 0; i_det < n_det; ++i_det) {
             double dofs[4];
             pointer.InitPerDet(i_det, dofs);
-            int pixel_offset[P::index_count] = {-1};
+            int pixinds[P::interp_count][P::index_count] = {-1};
+            FSIGNAL pixweights[P::interp_count];
             int thread = 0;
             #ifdef _OPENMP
             thread = omp_get_thread_num();
@@ -1030,9 +1538,9 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
             for (int i_time = 0; i_time < n_time; ++i_time) {
                 double coords[4];
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-                if (pixel_offset[0] >= 0)
-                    temp[thread][pixel_offset[0]]++;
+                int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
+                for(int i_point = 0; i_point < n_point; ++i_point)
+                    temp[thread][pixinds[i_point][0]]++;
             }
         }
 #pragma omp single
@@ -1063,7 +1571,8 @@ bp::object ProjectionEngine<C,P,S>::tile_ranges(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw general_exception("No tiles in this pixelization.");
+        throw RuntimeError_exception("No tiles in this pixelization.");
+    int n_domain = bp::len(tile_lists);
 
     // Make a vector that maps tile into thread.
     vector<int> thread_idx(n_tile, -1);
@@ -1075,59 +1584,79 @@ bp::object ProjectionEngine<C,P,S>::tile_ranges(
        }
     }
 
-    // Make a bunch of Ranges, index them with [thread, det].  Note
-    // thread isn't the OMP thread index, below, but the thread_index
-    // determined from tile_lists.  It's safe to populate these
-    // structures in parallel provided that only one thread touches
-    // each Ranges object, which is the case since each OMP thread
-    // below specializes in certain detectors.
-    vector<vector<RangesInt32>> ranges;
-    for (int i=0; i<bp::len(tile_lists); i++) {
-        vector<RangesInt32> v(n_det);
-        for (auto &_v: v)
-            _v.count = n_time;
-        ranges.push_back(v);
-    }
+    // ranges is [nbunch,ndomain,ndet][nrange]
+    // we loop in series over bunches, then in parallel over
+    // the domains in each bunch. This could be set up multiple
+    // ways. Here, we use 2 bunches. The first has nthread domains,
+    // and takes care of the samples that unambiguously hit a domain.
+    // The second bunch contains just one pseudo-domain for all the samples
+    // that straddle a domain edge. These will be done in series.
+    vector<vector<vector<RangesInt32>>> ranges(2);
+    auto & par_ranges = ranges[0];
+    auto & ser_ranges = ranges[1];
+    auto empty_range = vector<RangesInt32>(n_det, RangesInt32(n_time));
+    for (int i=0; i<n_domain; i++)
+        par_ranges.push_back(empty_range);
+    ser_ranges.push_back(empty_range);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
-        int last_slice = -1;
-        int slice_start = 0;
-        int pixel_offset[P::index_count] = {-1};
+        int last_domain = -1;
+        int domain_start = 0;
+        int pixinds[P::interp_count][P::index_count] = {-1};
+        FSIGNAL pixweights[P::interp_count];
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-            _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-
-            int this_slice = -1;
-            if (pixel_offset[0] >= 0)
-                this_slice = thread_idx[pixel_offset[0]];
-            if (this_slice != last_slice) {
-                if (last_slice >= 0)
-                    ranges[last_slice][i_det].append_interval_no_check(
-                        slice_start, i_time);
-                slice_start = i_time;
-                last_slice = this_slice;
+            // set samp_domain from thread_idx if all points for this sample agree, otherwise
+            // set it to n_domain
+            int samp_domain = -1;
+            int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
+            for(int i_point = 0; i_point < n_point; ++i_point) {
+                int point_domain = thread_idx[pixinds[i_point][0]];
+                if(i_point > 0 && point_domain != samp_domain) {
+                    // This is a mixed-domain sample. Put it in the serial catagory
+                    samp_domain = n_domain;
+                    break;
+                }
+                samp_domain = point_domain;
+            }
+            // Did the domain status change?
+            if (samp_domain != last_domain) {
+                // Avoid triggering on the first sample, before we have established any domain
+                if (last_domain >= 0) {
+                    // Assign to either a parallel domain or the serial misc category
+                    auto & target_ranges = last_domain < n_domain ? par_ranges[last_domain] : ser_ranges[0];
+                    target_ranges[i_det].append_interval_no_check(domain_start, i_time);
+                }
+                domain_start = i_time;
+                last_domain  = samp_domain;
             }
         }
-        if (last_slice >= 0)
-            ranges[last_slice][i_det].append_interval_no_check(
-                slice_start, n_time);
+        // Close the last interval
+        if (last_domain >= 0) {
+            auto & target_ranges = last_domain < n_domain ? par_ranges[last_domain] : ser_ranges[0];
+            target_ranges[i_det].append_interval_no_check(domain_start, n_time);
+        }
     }
 
-    // Convert vector<vector<Ranges>> to a list and return it.
-    auto ivals_out = bp::list();
-    for (int j=0; j<ranges.size(); j++) {
-        auto ivals = bp::list();
-        for (int i_det=0; i_det<n_det; i_det++) {
-            auto iv = ranges[j][i_det];
-            ivals.append(bp::object(iv));
+    // Convert super vector to a list and return
+    auto ivals = bp::list();
+    for (int i=0; i<ranges.size(); i++) {
+        auto bunches = bp::list();
+        for (int j=0; j<ranges[i].size(); j++) {
+            auto domains = bp::list();
+            for (int i_det=0; i_det<n_det; i_det++) {
+                auto iv = ranges[i][j][i_det];
+                domains.append(bp::object(iv));
+            }
+            bunches.append(bp::extract<bp::object>(domains)());
         }
-        ivals_out.append(bp::extract<bp::object>(ivals)());
+        ivals.append(bp::extract<bp::object>(bunches)());
     }
-    return bp::extract<bp::object>(ivals_out);
+    return bp::extract<bp::object>(ivals);
 }
 
 template<typename C, typename P, typename S>
@@ -1153,7 +1682,7 @@ bp::object ProjectionEngine<C,P,S>::zeros(bp::object shape)
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::from_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object response, bp::object signal)
 {
     auto _none = bp::object();
 
@@ -1169,59 +1698,68 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     // Get pointers to the signal and (optional) per-det weights.
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
     #pragma omp parallel for
     for (int i_det = 0; i_det < n_det; ++i_det) {
         double dofs[4];
         pointer.InitPerDet(i_det, dofs);
-        int pixel_offset[P::index_count] = {-1};
+        int pixinds[P::interp_count][P::index_count] = {-1};
+        FSIGNAL pixweights[P::interp_count];
         FSIGNAL pf[S::comp_count];
+        Response resp = get_response(_response, i_det);
         for (int i_time = 0; i_time < n_time; ++i_time) {
             double coords[4];
             pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-            _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-            if (pixel_offset[0] < 0) continue;
-            spin_proj_factors<S>(coords, pf);
-            FSIGNAL *sig = (_signalspace.data_ptr[i_det] +
-                            _signalspace.steps[0]*i_time);
-            for (int imap=0; imap<S::comp_count; ++imap)
-                *sig += *_pixelizor.pix(imap, pixel_offset) * pf[imap];
+            spin_proj_factors<S>(coords, resp, pf);
+            FSIGNAL *sig = (_signalspace.data_ptr[i_det] + _signalspace.steps[0]*i_time);
+            int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
+            for(int i_point = 0; i_point < n_point; ++i_point)
+                for (int imap=0; imap<S::comp_count; ++imap)
+                    *sig += *_pixelizor.pix(imap, pixinds[i_point]) * pf[imap] * pixweights[i_point];
         }
     }
 
     return _signalspace.ret_val;
 }
 
-
 template<typename C, typename P, typename S>
 static
 void to_map_single_thread(Pointer<C> &pointer,
+                          BufferWrapper<FSIGNAL> & _response,
                           P &_pixelizor,
-                          vector<RangesInt32> ivals,
+                          const vector<RangesInt32> & ivals,
                           BufferWrapper<FSIGNAL> &_det_weights,
                           SignalSpace<FSIGNAL> *_signalspace)
 {
     int n_det = pointer.DetCount();
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
+        if (_det_weights->obj != NULL){
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
                                  _det_weights->strides[0]*i_det);
+            if (det_wt == 0.) continue;
+        }
         double dofs[4];
         double coords[4];
-        int pixel_offset[P::index_count] = {-1};
         FSIGNAL pf[S::comp_count];
         pointer.InitPerDet(i_det, dofs);
+        Response resp = get_response(_response, i_det);
+        // Pointing matrix interpolation stuff
+        int pixinds[P::interp_count][P::index_count] = {-1};
+        FSIGNAL pixweights[P::interp_count] = {0};
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-                if (pixel_offset[0] < 0) continue;
-                const FSIGNAL sig = *(_signalspace->data_ptr[i_det] +
-                                      _signalspace->steps[0]*i_time);
-                spin_proj_factors<S>(coords, pf);
-                for (int imap=0; imap<S::comp_count; ++imap)
-                    *_pixelizor.pix(imap, pixel_offset) += sig * pf[imap] * det_wt;
+                spin_proj_factors<S>(coords, resp, pf);
+                const FSIGNAL sig = _signalspace->data_ptr[i_det][_signalspace->steps[0]*i_time];
+                // In interpolated mapmaking like bilinear mampamking, each sample hits multipe
+                // pixels, each with its own weight.
+                int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
+                for(int i_point = 0; i_point < n_point; ++i_point)
+                    for (int i_map=0; i_map<S::comp_count; ++i_map)
+                        *_pixelizor.pix(i_map, pixinds[i_point]) += sig * pf[i_map] * pixweights[i_point] * det_wt;
             }
         }
     }
@@ -1230,6 +1768,7 @@ void to_map_single_thread(Pointer<C> &pointer,
 template<typename C, typename P, typename S>
 static
 void to_weight_map_single_thread(Pointer<C> &pointer,
+                                 BufferWrapper<FSIGNAL> & _response,
                                  P &_pixelizor,
                                  vector<RangesInt32> ivals,
                                  BufferWrapper<FSIGNAL> &_det_weights)
@@ -1237,30 +1776,40 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
     int n_det = pointer.DetCount();
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
+        if (_det_weights->obj != NULL){
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf +
                                  _det_weights->strides[0]*i_det);
+            if (det_wt == 0.) continue;
+        }
         double dofs[4];
         double coords[4];
-        int pixel_offset[P::index_count] = {-1};
         FSIGNAL pf[S::comp_count];
         pointer.InitPerDet(i_det, dofs);
+        Response resp = get_response(_response, i_det);
+        int pixinds[P::interp_count][P::index_count] = {-1};
+        FSIGNAL pixweights[P::interp_count] = {0};
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                 pointer.GetCoords(i_det, i_time, (double*)dofs, (double*)coords);
-                _pixelizor.GetPixel(i_det, i_time, (double*)coords, pixel_offset);
-                if (pixel_offset[0] < 0) continue;
-                spin_proj_factors<S>(coords, pf);
-                for (int imap=0; imap<S::comp_count; ++imap)
-                    for (int jmap=imap; jmap<S::comp_count; ++jmap)
-                        *_pixelizor.wpix(imap, jmap, pixel_offset) += pf[imap] * pf[jmap] * det_wt;
+                spin_proj_factors<S>(coords, resp, pf);
+
+                int n_point = _pixelizor.GetPixels(i_det, i_time, coords, pixinds, pixweights);
+                // Is this enough? Do we need a double loop over i_point?
+                // The weight map is supposed to be the diagonal of P'WP
+                // P_pi W_ii P_ip = P_pi**2 * W_ii. So we just need to square the pixweight.
+                // The i_point,j_point stuff would be off-diagonal elements which are outside the
+                // scope of this function
+                for(int i_point = 0; i_point < n_point; ++i_point)
+                    for (int imap=0; imap<S::comp_count; ++imap)
+                        for (int jmap=imap; jmap<S::comp_count; ++jmap)
+                            *_pixelizor.wpix(imap, jmap, pixinds[i_point]) += pf[imap] * pf[jmap] * pixweights[i_point] * pixweights[i_point] * det_wt;
             }
         }
     }
 }
 
 static
-vector<vector<RangesInt32>> derive_ranges(
+vector<vector<vector<RangesInt32>>> derive_ranges(
     bp::object thread_intervals, int n_det, int n_time,
     std::string arg_name)
 {
@@ -1273,36 +1822,54 @@ vector<vector<RangesInt32>> derive_ranges(
     // - List of Ranges: This will be promoted to a single thread.
     // - List containing N lists of Ranges: N threads, with each list
     //   used by corresponding thread.
+    // - List containing M lists of N[M] lists of Ranges: M bunches
+    //   which will be looped over in serial, each containing N[M]
+    //   threads-lists that will be done in parallel.
+    vector<vector<vector<RangesInt32>>> ivals;
 
-    vector<vector<RangesInt32>> ivals;
     if (isNone(thread_intervals)) {
+        // It's None. Generate a single bunch with a single-thread covering all samples
         auto r = RangesInt32(n_time).add_interval(0, n_time);
-        vector<RangesInt32> v(n_det, r);
+        vector<vector<RangesInt32>> v(1, vector<RangesInt32>(n_det, r));
         ivals.push_back(v);
-    } else {
-        // Don't convert to a list... just use indexing.
-        if (bp::extract<RangesInt32>(thread_intervals[0]).check()) {
-            ivals.push_back(extract_ranges<int32_t>(thread_intervals));
-        } else {
-            // Assumed it is list of lists of ranges.
-            for (int i=0; i<bp::len(thread_intervals); i++)
-                ivals.push_back(extract_ranges<int32_t>(thread_intervals[i]));
+    } else if(bp::extract<RangesInt32>(thread_intervals[0]).check()) {
+        // It's a RangesMatrix (ndet,nranges). Promote to single thread, single bunch
+        ivals.push_back(vector<vector<RangesInt32>>(1, extract_ranges<int32_t>(thread_intervals)));
+    } else if(bp::extract<RangesInt32>(thread_intervals[0][0]).check()) {
+        // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to single bunch
+        vector<vector<RangesInt32>> bunch;
+        for (int i=0; i<bp::len(thread_intervals); i++)
+            bunch.push_back(extract_ranges<int32_t>(thread_intervals[i]));
+        ivals.push_back(bunch);
+    } else if(bp::extract<RangesInt32>(thread_intervals[0][0][0]).check()) {
+        // It's a full multi-bunch (nbunch,nthread,ndet,nranges) thing.
+        for (int i=0; i<bp::len(thread_intervals); i++) {
+            vector<vector<RangesInt32>> bunch;
+            for (int j=0; j<bp::len(thread_intervals[i]); j++)
+                bunch.push_back(extract_ranges<int32_t>(thread_intervals[i][j]));
+            ivals.push_back(bunch);
         }
-        // Check that these all have the right shape.
-        for (auto const &ival: ivals) {
-            if (ival.size() != n_det) {
+    } else {
+        // This should not happen
+        assert(false);
+    }
+    // Check that these all have the right shape. Maybe consider a standard
+    // for loop instead of foreach to give more useful error messages using
+    // the index
+    for(auto const & bunch: ivals)
+    for(auto const & ival: bunch) {
+        if (ival.size() != n_det) {
+            std::ostringstream err;
+            err << "Expected RangesMatrix with n_det=" << n_det
+                << " but encountered n_det=" << ival.size();
+            throw shape_exception(arg_name, err.str());
+        }
+        for (auto const &ri: ival) {
+            if (ri.count != n_time) {
                 std::ostringstream err;
-                err << "Expected RangesMatrix with n_det=" << n_det
-                    << " but encountered n_det=" << ival.size();
+                err << "Expected RangesMatrix with n_time=" << n_time
+                    << " but encountered n_time=" << ri.count;
                 throw shape_exception(arg_name, err.str());
-            }
-            for (auto const &ri: ival) {
-                if (ri.count != n_time) {
-                    std::ostringstream err;
-                    err << "Expected RangesMatrix with n_time=" << n_time
-                        << " but encountered n_time=" << ri.count;
-                    throw shape_exception(arg_name, err.str());
-                }
             }
         }
     }
@@ -1311,8 +1878,8 @@ vector<vector<RangesInt32>> derive_ranges(
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object signal, bp::object det_weights,
-    bp::object thread_intervals)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object response,
+    bp::object signal, bp::object det_weights, bp::object thread_intervals)
 {
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
@@ -1332,44 +1899,31 @@ bp::object ProjectionEngine<C,P,S>::to_map(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
-    // For multi-threading, the principle here is that all threads
-    // loop over all detectors, but the sample ranges encoded in ivals
-    // are disjoint.
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
+    // For multi-threading, the principle here is that we loop serially
+    // over bunches, and then inside each block all threads loop over
+    // all detectors in parallel, but the sample ranges are pixel-disjoint.
+    auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
 
-    if (ivals.size() <= 1) {
-        // This block may also be used if OMP is disabled.
-        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
-            to_map_single_thread<C,P,S>(
-                pointer, _pixelizor, ivals[i_thread],_det_weights, &_signalspace);
-    } else {
-#pragma omp parallel
-        {
-            // This loop construction handles the (sub-optimal) case
-            // that the number of ivals is not equal to the number of
-            // OMP threads.
-            int num_threads = 1;
-            int thread_num = 0;
-            #ifdef _OPENMP
-            num_threads = omp_get_num_threads();
-            thread_num = omp_get_thread_num();
-            #endif
-            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % num_threads == thread_num)
-                    to_map_single_thread<C,P,S>(
-                        pointer, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
-            }
-        }
+    // First loop over serial bunches
+    for(int i_bunch = 0; i_bunch < bunches.size(); i_bunch++) {
+        const auto & ivals = bunches[i_bunch];
+        // Then loop over parallel bunches. This works even if omp is not enabled,
+        // or if ivals.size() == 1
+        #pragma omp parallel for
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+            to_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
     }
     return map;
 }
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::to_weight_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object det_weights,
-    bp::object thread_intervals)
+    bp::object map, bp::object pbore, bp::object pofs, bp::object response,
+    bp::object det_weights, bp::object thread_intervals)
 {
     auto _none = bp::object();
 
@@ -1389,47 +1943,36 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
     // Get pointer to (optional) per-det weights.
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+    auto _response = BufferWrapper<FSIGNAL>(
+         "response", response, false, vector<int>{n_det,2});
 
-    // For multi-threading, the principle here is that all threads
-    // loop over all detectors, but the sample ranges encoded in ivals
-    // are disjoint.
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
+    // For multi-threading, the principle here is that we loop serially
+    // over bunches, and then inside each block all threads loop over
+    // all detectors in parallel, but the sample ranges are pixel-disjoint.
+    auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
 
-    if (ivals.size() <= 1) {
-        // This block may also be used if OMP is disabled.
-        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
-            to_weight_map_single_thread<C,P,S>(
-                pointer, _pixelizor, ivals[i_thread], _det_weights);
-    } else {
-#pragma omp parallel
-        {
-            // This loop construction handles the (sub-optimal) case
-            // that the number of ivals is not equal to the number of
-            // OMP threads.
-            int num_threads = 1;
-            int thread_num = 0;
-            #ifdef _OPENMP
-            num_threads = omp_get_num_threads();
-            thread_num = omp_get_thread_num();
-            #endif
-            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % num_threads == thread_num)
-                    to_weight_map_single_thread<C,P,S>(
-                        pointer, _pixelizor, ivals[i_thread], _det_weights);
-            }
-        }
+    // First loop over serial bunches
+    for(int i_bunch = 0; i_bunch < bunches.size(); i_bunch++) {
+        const auto & ivals = bunches[i_bunch];
+        // Then loop over parallel bunches. This works even if omp is not enabled,
+        // or if ivals.size() == 1
+        #pragma omp parallel for
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+            to_weight_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights);
     }
     return map;
 }
-
 
 // ProjEng_Precomp
 //
 // The ProjEng_Precomp may be used for very fast projection
 // operations, provided you have precomputed pixel index and spin
 // projection factors for every sample.  This is agnostic of
-// coordinate system, and so not crazily templated.
+// coordinate system, and so not crazily templated. It is
+// hard-coded to nearest neighbor interpolation though
+// (though one could emulate interpolation by calling it repeatedly
+// with different pixel indices and weights).
 //
 
 template<typename TilingSys>
@@ -1511,9 +2054,10 @@ void precomp_to_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
 
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
+        if (_det_weights->obj != NULL){
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
-
+            if (det_wt == 0.) continue;
+        }
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                 const int *pixel_offset = pixel_buf_man.data_ptr[i_det] +
@@ -1545,9 +2089,10 @@ void precomp_to_weight_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
     assert(spin_proj_man.steps[1] == 1); // assumed below
     for (int i_det = 0; i_det < n_det; ++i_det) {
         FSIGNAL det_wt = 1.;
-        if (_det_weights->obj != NULL)
+        if (_det_weights->obj != NULL){
             det_wt = *(FSIGNAL*)((char*)_det_weights->buf + _det_weights->strides[0]*i_det);
-
+            if (det_wt == 0.) continue;
+        }
         for (auto const &rng: ivals[i_det].segments) {
             for (int i_time = rng.first; i_time < rng.second; ++i_time) {
                 const int *pixel_offset = pixel_buf_man.data_ptr[i_det] +
@@ -1599,34 +2144,18 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
         throw shape_exception("pixel_index",
                               "Fast dimension of pixel indices must be close-packed.");
 
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
-                               "thread_intervals");
+    auto bunches = derive_ranges(thread_intervals, n_det, n_time, "thread_intervals");
 
-    if (ivals.size() <= 1) {
-        // This block may also be used if OMP is disabled.
-        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
+    // First loop over serial bunches
+    for(int i_bunch = 0; i_bunch < bunches.size(); i_bunch++) {
+        const auto & ivals = bunches[i_bunch];
+        // Then loop over parallel bunches. This works even if omp is not enabled,
+        // or if ivals.size() == 1
+        #pragma omp parallel for
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
             precomp_to_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
-                ivals[i_thread],_det_weights, &_signalspace);
-    } else {
-#pragma omp parallel
-        {
-            // This loop construction handles the (sub-optimal) case
-            // that the number of ivals is not equal to the number of
-            // OMP threads.
-            int num_threads = 1;
-            int thread_num = 0;
-            #ifdef _OPENMP
-            num_threads = omp_get_num_threads();
-            thread_num = omp_get_thread_num();
-            #endif
-            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % num_threads == thread_num)
-                    precomp_to_map_single_thread<TilingSys>(
-                        pixelizor, pixel_buf_man, spin_proj_man,
-                        ivals[i_thread], _det_weights, &_signalspace);
-            }
-        }
+                ivals[i_thread], _det_weights, &_signalspace);
     }
     return map;
 }
@@ -1652,7 +2181,7 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
     // Unlike the on-the-fly class, we aren't able to make the map
     // here, because there's no initialized pixelizor.
     auto pixelizor = Pixelizor2_Flat<TilingSys>();
-    pixelizor.TestInputs(map, true, false, n_spin);
+    pixelizor.TestInputs(map, false, true, n_spin);
 
     BufferWrapper<FSIGNAL> _det_weights("det_weights", det_weights, true,
                                         vector<int>{n_det});
@@ -1662,34 +2191,18 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
         throw shape_exception("pixel_index",
                               "Fast dimension of pixel indices must be close-packed.");
 
-    auto ivals = derive_ranges(thread_intervals, n_det, n_time,
-                               "thread_intervals");
+    auto bunches = derive_ranges(thread_intervals, n_det, n_time, "thread_intervals");
 
-    if (ivals.size() <= 1) {
-        // This block may also be used if OMP is disabled.
-        for (int i_thread=0; i_thread < ivals.size(); i_thread++)
+    // First loop over serial bunches
+    for(int i_bunch = 0; i_bunch < bunches.size(); i_bunch++) {
+        const auto & ivals = bunches[i_bunch];
+        // Then loop over parallel bunches. This works even if omp is not enabled,
+        // or if ivals.size() == 1
+        #pragma omp parallel for
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
             precomp_to_weight_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
-                ivals[i_thread],_det_weights);
-    } else {
-#pragma omp parallel
-        {
-            // This loop construction handles the (sub-optimal) case
-            // that the number of ivals is not equal to the number of
-            // OMP threads.
-            int num_threads = 1;
-            int thread_num = 0;
-            #ifdef _OPENMP
-            num_threads = omp_get_num_threads();
-            thread_num = omp_get_thread_num();
-            #endif
-            for (int i_thread=0; i_thread < ivals.size(); i_thread++) {
-                if (i_thread % num_threads == thread_num)
-                    precomp_to_weight_map_single_thread<TilingSys>(
-                        pixelizor, pixel_buf_man, spin_proj_man,
-                        ivals[i_thread], _det_weights);
-            }
-        }
+                ivals[i_thread], _det_weights);
     }
     return map;
 }
@@ -1698,10 +2211,20 @@ typedef ProjEng_Precomp<NonTiled> ProjEng_Precomp_NonTiled;
 typedef ProjEng_Precomp<Tiled> ProjEng_Precomp_Tiled;
 
 #define PROJENG(PIX, SPIN, TILING) ProjEng_##PIX##_##SPIN##_##TILING
+#define PROJENG_INTERP(PIX, SPIN, TILING, INTERP) ProjEng_##PIX##_##SPIN##_##TILING##_##INTERP
 
-#define TYPEDEF_TILING(PIX, SPIN, TILING)                               \
+#define TYPEDEF_TILING(PIX, SPIN, TILING) \
     typedef ProjectionEngine<Proj ## PIX,Pixelizor2_Flat<TILING>,Spin##SPIN> \
-        PROJENG(PIX, SPIN, TILING);
+        PROJENG(PIX, SPIN, TILING); \
+    typedef ProjectionEngine<Proj ## PIX,Pixelizor2_Flat<TILING,Bilinear>,Spin##SPIN> \
+        PROJENG_INTERP(PIX, SPIN, TILING, Bilinear);
+
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> ProjEng_HP_T_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> ProjEng_HP_QU_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> ProjEng_HP_TQU_NonTiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> ProjEng_HP_T_Tiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> ProjEng_HP_QU_Tiled;
+typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> ProjEng_HP_TQU_Tiled;
 
 #define TYPEDEF_SPIN(PIX, SPIN)                 \
     TYPEDEF_TILING(PIX, SPIN, Tiled)            \
@@ -1740,7 +2263,8 @@ TYPEDEF_PIX(ZEA)
 
 
 #define EXPORT_TILING(PIX, SPIN, TILING)        \
-    EXPORT_ENGINE(PROJENG(PIX, SPIN, TILING))
+    EXPORT_ENGINE(PROJENG(PIX, SPIN, TILING)) \
+    EXPORT_ENGINE(PROJENG_INTERP(PIX, SPIN, TILING, Bilinear))
 
 #define EXPORT_SPIN(PIX, SPIN)                                          \
     EXPORT_TILING(PIX, SPIN, Tiled)                                     \
@@ -1776,4 +2300,12 @@ PYBINDINGS("so3g")
 
     EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
     EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
+
+    EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_T_Tiled);
+    EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
+    EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
+
 }

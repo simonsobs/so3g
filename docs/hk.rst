@@ -437,7 +437,7 @@ The tool can run the following analyses:
 See more details below.  Please note that when presenting provider and
 field names, the program strips out tokens ``observatory`` and
 ``feeds``, by default (for example, ``observatory.DRptc1.feeds.ptc_status``
-becomes ``DRptc1.ptc_status``).  Pass ``--strip-tokens=""` to instead
+becomes ``DRptc1.ptc_status``).  Pass ``--strip-tokens=""`` to instead
 show the full provider / feed names.
 
 .. argparse::

@@ -5,20 +5,8 @@ from so3g import proj
 
 import numpy as np
 
-# Don't require pixell for testing
-try:
-    from pixell import enmap
-    pixell_found = True
-except ModuleNotFoundError:
-    pixell_found = False
-
-requires_pixell = unittest.skipIf(pixell_found is False, "pixell not found")
-
 DEG = np.pi/180
 
-
-# Making these testing-support functions available in the library
-# would be great.
 
 def get_scan():
     dt = np.arange(0., 600, .1)
@@ -32,41 +20,31 @@ def get_scan():
     return times, az*DEG, el*DEG
 
 
-def get_basics(clipped=True):
+def get_basics():
     t, az, el = get_scan()
     csl = proj.CelestialSightLine.az_el(t, az, el, weather='vacuum', site='so')
     fp = proj.FocalPlane.from_xieta([0., .1*DEG], [0, .1*DEG])
     asm = proj.Assembly.attach(csl, fp)
-
-    # And a map ... of where?
-    ra, dec = csl.coords()[:, :2].T
-    ra0, dec0 = ra.mean(), dec.mean()
-    shape = (250, 300)  # This will clip some samples
-    if not clipped:
-        shape = (200, 350)  # This will not.
-    shape, wcs = enmap.geometry((dec0, ra0), res=(.01*DEG, -0.01*DEG),
-                                shape=shape, proj='tan', ref=(dec0, ra0))
-    return ((t, az, el), asm, (shape, wcs))
+    return ((t, az, el), asm)
 
 
-class TestProjEng(unittest.TestCase):
-    """Test the Projectionist and supporting structures.
-
+class TestProjEngHP(unittest.TestCase):
+    """Test ProjectionistHealpix
+       Based on TestProjEng
     """
-    @requires_pixell
+
     def test_00_basic(self):
-        scan, asm, (shape, wcs) = get_basics()
-        p = proj.Projectionist.for_geom(shape, wcs)
+        scan, asm = get_basics()
+        nside = 128
+        p = proj.ProjectionistHealpix.for_healpix(nside)
         sig = np.ones((2, len(scan[0])), 'float32')
         for comps in ['T', 'QU', 'TQU']:
-            m = p.to_map(sig, asm, comps=comps)[0]
+            m = p.to_map(sig, asm, comps=comps)
             assert(np.any(m != 0))
-            w = p.to_weights(asm, comps=comps)[0, 0]
+            w = p.to_weights(asm, comps=comps)
             assert(np.any(w != 0))
-
-        target = np.zeros((1, ) + m.shape[:-1])
-        with self.assertRaises(RuntimeError):
-            p.to_map(sig, asm, comps='T', output=target)
+            m = np.asarray(m, dtype=np.float64)
+            s = p.from_map(m, asm, comps=comps)
 
         # Does det_weights seem to work?
         m = p.to_map(sig, asm, comps='T',
@@ -81,37 +59,38 @@ class TestProjEng(unittest.TestCase):
         with self.assertRaises(ValueError):
            p.to_weights(asm, comps='T')
 
-    @requires_pixell
     def test_10_tiled(self):
-        scan, asm, (shape, wcs) = get_basics()
-        p = proj.Projectionist.for_tiled(shape, wcs, (150, 150))
-        sig = np.ones((2, len(scan[0])), 'float32')
-        for comps in ['T', 'QU', 'TQU']:
-            m = p.to_map(sig, asm, comps=comps)[0][0]
-            assert(np.any(m != 0))
-            w = p.to_weights(asm, comps=comps)[0][0, 0]
-            assert(np.any(w != 0))
-        # Identify active subtiles?
-        p = proj.Projectionist.for_tiled(shape, wcs, (20, 20))
-        print(p.active_tiles)
-        p2 = p.get_active_tiles(asm, assign=2)
-        print(p2)
+        scan, asm = get_basics()
+        nside = 128
+        for nside_tile in [8, 'auto']:
+            p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile)
+            p.active_tiles = p.get_active_tiles(asm)['active_tiles']
+            sig = np.ones((2, len(scan[0])), 'float32')
+            for comps in ['T', 'QU', 'TQU']:
+                m = p.to_map(sig, asm, comps=comps)
+                m2 = [tile for tile in m if tile is not None]
+                assert(np.any(m2))
+                w = p.to_weights(asm, comps=comps)
+                w2 = [tile for tile in w if tile is not None]
+                assert(np.any(w2))
+            # Identify active subtiles?
+            print(p.active_tiles)
 
-    @requires_pixell
     def test_20_threads(self):
-        for (clipped, tiled, interpol, method) in itertools.product(
+        for (tiled, interpol, method) in itertools.product(
                 [False, True],
-                [False, True],
-                ['nearest', 'bilinear'],
-                proj.wcs.THREAD_ASSIGNMENT_METHODS):
+                ['nearest'],
+                ['simple', 'tiles']):
             # For error messages ...
-            detail = f'(method={method}, tiled={tiled}, clipped={clipped}, interpol={interpol})'
-            scan, asm, (shape, wcs) = get_basics(clipped=clipped)
+            detail = f'(method={method}, tiled={tiled}, interpol={interpol})'
+            scan, asm = get_basics()
+            nside = 128
             if tiled:
-                p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False,
-                                                 interpol=interpol)
+                nside_tile = 8
             else:
-                p = proj.Projectionist.for_geom(shape, wcs, interpol=interpol)
+                nside_tile = None
+
+            p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile, interpol=interpol)
             sig = np.ones((2, len(scan[0])), 'float32')
             n_threads = 3
 
@@ -139,7 +118,7 @@ class TestProjEng(unittest.TestCase):
                 self.assertEqual(t.shape[1:], sig.shape,
                                  msg=f'a thread bunch has unexpected shape ({detail})')
 
-            target = set([0,1]) if clipped else set([1])
+            target = set([1])
             self.assertEqual(set((counts0 + counts1).ravel()), target,
                              msg=f'threads does not cover TOD ({detail})')
             # Only the first segment should be non-empty, unless bilinear.

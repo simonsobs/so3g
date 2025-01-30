@@ -120,9 +120,7 @@ static std::string shape_string(std::vector<int> shape)
         else if (shape[i] == -1)
             s << "*";
         else if (shape[i] == -2)
-            s << "...->";
-        else if (shape[i] == -3)
-            s << "->...";
+            s << "...";
         else
             s << "!error";
     }
@@ -157,11 +155,11 @@ public:
     // Constructor with no shape or type checking.
     BufferWrapper(std::string name, const bp::object &src, bool optional)
         : BufferWrapper() {
+        if (optional && (src.ptr() == Py_None))
+            return;
         if (PyObject_GetBuffer(src.ptr(), view.get(),
                                PyBUF_RECORDS) == -1) {
             PyErr_Clear();
-            if (optional)
-                return;
             throw buffer_exception(name);
         }
     }
@@ -183,21 +181,24 @@ public:
         for (int i=0; i<view->ndim; i++)
             vshape.push_back(view->shape[i]);
 
-        // Note special values (-1,-2,-3) permit unknown, arbitrary
-        // leading, and arbitrary trailing elements in buffer's shape.
+        // Note special value -1 is as in numpy -- matches a single
+        // axis.  Special value -2 is treated as an ellipsis -- can be
+        // specified at most once, and matches 0 or more axes.
         int i=0, j=0;
-        while (i < shape.size() && j < vshape.size()) {
-            if (shape[i] == -1) {
-                // Match any single entry.
-                j++;
-            } else if (shape[i] == -2) {
+        int ellipsis_count = 0;
+        while (i < shape.size()) {
+            if (shape[i] == -2) {
+                if (ellipsis_count++) {
+                    std::ostringstream s;
+                    s << "Invalid shape specifier " << shape_string(shape) << " (multiple elipses).";
+                    throw shape_exception(name, s.str());
+                }
                 // Ignore 0 or more leading entries.
                 j = vshape.size() - (shape.size() - i) + 1;
-            } else if (shape[i] == -3) {
-                // Ignore 0 or more trailing entries.
-                j = vshape.size();
-            } else if (shape[i] == vshape[j]) {
-                // Matched exactly.
+            } else if (j >= vshape.size()) {
+                break;
+            } else if (shape[i] == -1 || shape[i] == vshape[j]) {
+                // Match.
                 j++;
             } else
                 break;
@@ -209,6 +210,23 @@ public:
                 shape_string(vshape) << ".";
             throw shape_exception(name, s.str());
         }
+    }
+
+    // These accessors are for convenience but you should probably
+    // roll your own for inner loops.
+    inline
+    T* ptr_1d(int i0) {
+        return (T*)((char*)view->buf + view->strides[0] * i0);
+    }
+
+    inline
+    T* ptr_2d(int i0, int i1) {
+        return (T*)((char*)view->buf + view->strides[0] * i0 + view->strides[1] * i1);
+    }
+
+    inline
+    bool test() {
+        return view->obj != nullptr;
     }
 
 private:
