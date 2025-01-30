@@ -36,7 +36,7 @@
 # No handler for "load_pybindings"
 
 def version():
-  return "0.1.17"
+  return "0.1.17+1.g29558f8"
 # No handler for "useful_info"
 
 # No handler for "greet"
