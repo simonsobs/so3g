@@ -23,18 +23,6 @@ else:
 # Version is computed by versioneer.
 __version__ = version()
 
-if os.getenv('DOCS_BUILD') != '1':
-    # Instance configuration.
-    from .config import get_config
-    instance_config = get_config()
-    del get_config
-
-    # (Possibly) monkey patch the G3Frame object with hooks for
-    # so3g data types.
-    from .soframe import set_frame_hooks
-    set_frame_hooks(instance_config)
-    del set_frame_hooks
-
 # Other python modules.
 from . import hk
 from . import proj

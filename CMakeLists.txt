@@ -52,11 +52,7 @@ include_directories(${NUMPY_INCLUDE_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY so3g)
 add_library(so3g SHARED
   src/main.cxx
-  src/test.cxx
   src/hkagg.cxx
-  src/G3Ndarray.cxx
-  src/G3WCS.cxx
-  src/G3Ndmap.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
   src/Ranges.cxx
