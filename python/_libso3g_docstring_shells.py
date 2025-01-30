@@ -23,6 +23,12 @@
 
 # No handler for "os"
 
+# No handler for "np"
+
+# No handler for "npversion"
+
+# No handler for "npversplit"
+
 # No handler for "spt3g"
 
 # No handler for "spt3g_core"
@@ -30,7 +36,7 @@
 # No handler for "load_pybindings"
 
 def version():
-  return "0.1.8+7.gceeb23e"
+  return "0.1.17"
 # No handler for "useful_info"
 
 # No handler for "greet"
@@ -81,12 +87,14 @@ class G3IndexedReader:
   pass
   def Tell():
     """Tell() -> int
+    Return the current byte offset from start of stream.
 
     C++ signature :
         int Tell(G3IndexedReader {lvalue})"""
     pass
   def Seek():
     """Seek(arg2) -> int
+    Position the stream read pointer at specific byte offset. Note that once EOF is reached, Seek does not work any more.
 
     C++ signature :
         int Seek(G3IndexedReader {lvalue},int)"""
@@ -966,61 +974,125 @@ class ProjEng_Flat_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Flat_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Flat_T_NonTiled:
@@ -1030,61 +1102,125 @@ class ProjEng_Flat_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Flat_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Flat_QU_Tiled:
@@ -1094,61 +1230,125 @@ class ProjEng_Flat_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Flat_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Flat_QU_NonTiled:
@@ -1158,61 +1358,125 @@ class ProjEng_Flat_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Flat_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Flat_TQU_Tiled:
@@ -1222,61 +1486,125 @@ class ProjEng_Flat_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Flat_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Flat_TQU_NonTiled:
@@ -1286,61 +1614,125 @@ class ProjEng_Flat_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Flat_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjFlat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Quat_T_Tiled:
@@ -1350,61 +1742,125 @@ class ProjEng_Quat_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Quat_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Quat_T_NonTiled:
@@ -1414,61 +1870,125 @@ class ProjEng_Quat_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Quat_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Quat_QU_Tiled:
@@ -1478,61 +1998,125 @@ class ProjEng_Quat_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Quat_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Quat_QU_NonTiled:
@@ -1542,61 +2126,125 @@ class ProjEng_Quat_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Quat_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Quat_TQU_Tiled:
@@ -1606,61 +2254,125 @@ class ProjEng_Quat_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Quat_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Quat_TQU_NonTiled:
@@ -1670,61 +2382,125 @@ class ProjEng_Quat_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_Quat_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjQuat, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CAR_T_Tiled:
@@ -1734,61 +2510,125 @@ class ProjEng_CAR_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CAR_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CAR_T_NonTiled:
@@ -1798,61 +2638,125 @@ class ProjEng_CAR_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CAR_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CAR_QU_Tiled:
@@ -1862,61 +2766,125 @@ class ProjEng_CAR_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CAR_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CAR_QU_NonTiled:
@@ -1926,61 +2894,125 @@ class ProjEng_CAR_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CAR_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CAR_TQU_Tiled:
@@ -1990,61 +3022,125 @@ class ProjEng_CAR_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CAR_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CAR_TQU_NonTiled:
@@ -2054,61 +3150,125 @@ class ProjEng_CAR_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CAR_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CEA_T_Tiled:
@@ -2118,61 +3278,125 @@ class ProjEng_CEA_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CEA_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CEA_T_NonTiled:
@@ -2182,61 +3406,125 @@ class ProjEng_CEA_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CEA_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CEA_QU_Tiled:
@@ -2246,61 +3534,125 @@ class ProjEng_CEA_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CEA_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CEA_QU_NonTiled:
@@ -2310,61 +3662,125 @@ class ProjEng_CEA_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CEA_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CEA_TQU_Tiled:
@@ -2374,61 +3790,125 @@ class ProjEng_CEA_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CEA_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_CEA_TQU_NonTiled:
@@ -2438,61 +3918,125 @@ class ProjEng_CEA_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_CEA_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ARC_T_Tiled:
@@ -2502,61 +4046,125 @@ class ProjEng_ARC_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ARC_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ARC_T_NonTiled:
@@ -2566,61 +4174,125 @@ class ProjEng_ARC_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ARC_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ARC_QU_Tiled:
@@ -2630,61 +4302,125 @@ class ProjEng_ARC_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ARC_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ARC_QU_NonTiled:
@@ -2694,61 +4430,125 @@ class ProjEng_ARC_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ARC_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ARC_TQU_Tiled:
@@ -2758,61 +4558,125 @@ class ProjEng_ARC_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ARC_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ARC_TQU_NonTiled:
@@ -2822,61 +4686,125 @@ class ProjEng_ARC_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ARC_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjARC, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_TAN_T_Tiled:
@@ -2886,61 +4814,125 @@ class ProjEng_TAN_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_TAN_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_TAN_T_NonTiled:
@@ -2950,61 +4942,125 @@ class ProjEng_TAN_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_TAN_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_TAN_QU_Tiled:
@@ -3014,61 +5070,125 @@ class ProjEng_TAN_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_TAN_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_TAN_QU_NonTiled:
@@ -3078,61 +5198,125 @@ class ProjEng_TAN_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_TAN_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_TAN_TQU_Tiled:
@@ -3142,61 +5326,125 @@ class ProjEng_TAN_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_TAN_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_TAN_TQU_NonTiled:
@@ -3206,61 +5454,125 @@ class ProjEng_TAN_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_TAN_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjTAN, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ZEA_T_Tiled:
@@ -3270,61 +5582,125 @@ class ProjEng_ZEA_T_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ZEA_T_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ZEA_T_NonTiled:
@@ -3334,61 +5710,125 @@ class ProjEng_ZEA_T_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ZEA_T_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ZEA_QU_Tiled:
@@ -3398,61 +5838,125 @@ class ProjEng_ZEA_QU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ZEA_QU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ZEA_QU_NonTiled:
@@ -3462,61 +5966,125 @@ class ProjEng_ZEA_QU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ZEA_QU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ZEA_TQU_Tiled:
@@ -3526,61 +6094,125 @@ class ProjEng_ZEA_TQU_Tiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ZEA_TQU_Tiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<Tiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_ZEA_TQU_NonTiled:
@@ -3590,61 +6222,125 @@ class ProjEng_ZEA_TQU_NonTiled:
     """coords(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixels():
     """pixels(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_hits():
     """tile_hits(arg2, arg3) -> IntVector
 
     C++ signature :
-        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
     pass
   def tile_ranges():
     """tile_ranges(arg2, arg3, arg4) -> object
 
     C++ signature :
-        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pointing_matrix():
-    """pointing_matrix(arg2, arg3, arg4, arg5) -> object
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def pixel_ranges():
     """pixel_ranges(arg2, arg3, arg4, arg5) -> object
 
     C++ signature :
-        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
     pass
   def zeros():
     """zeros(arg2) -> object
 
     C++ signature :
-        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object)"""
     pass
   def from_map():
-    """from_map(arg2, arg3, arg4, arg5) -> object
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
 
     C++ signature :
-        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_map():
-    """to_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
 
     C++ signature :
-        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
   def to_weight_map():
-    """to_weight_map(arg2, arg3, arg4, arg5, arg6) -> object
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
 
     C++ signature :
-        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, NearestNeighbor>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_ZEA_TQU_NonTiled_Bilinear:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjZEA, Pixelizor2_Flat<NonTiled, Bilinear>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
 class ProjEng_Precomp_NonTiled:
@@ -3691,6 +6387,390 @@ class ProjEng_Precomp_Tiled:
         boost::python::api::object to_weight_map(ProjEng_Precomp<Tiled> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
     pass
 
+class ProjEng_HP_T_NonTiled:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_HP_QU_NonTiled:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_HP_TQU_NonTiled:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<NonTiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_HP_T_Tiled:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_HP_QU_Tiled:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
+class ProjEng_HP_TQU_Tiled:
+  """None"""
+  pass
+  def coords():
+    """coords(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object coords(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixels():
+    """pixels(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object pixels(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_hits():
+    """tile_hits(arg2, arg3) -> IntVector
+
+    C++ signature :
+        std::vector<int, std::allocator<int> > tile_hits(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object)"""
+    pass
+  def tile_ranges():
+    """tile_ranges(arg2, arg3, arg4) -> object
+
+    C++ signature :
+        boost::python::api::object tile_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pointing_matrix():
+    """pointing_matrix(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object pointing_matrix(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def pixel_ranges():
+    """pixel_ranges(arg2, arg3, arg4, arg5) -> object
+
+    C++ signature :
+        boost::python::api::object pixel_ranges(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,int)"""
+    pass
+  def zeros():
+    """zeros(arg2) -> object
+
+    C++ signature :
+        boost::python::api::object zeros(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object)"""
+    pass
+  def from_map():
+    """from_map(arg2, arg3, arg4, arg5, arg6) -> object
+
+    C++ signature :
+        boost::python::api::object from_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_map():
+    """to_map(arg2, arg3, arg4, arg5, arg6, arg7, arg8) -> object
+
+    C++ signature :
+        boost::python::api::object to_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+  def to_weight_map():
+    """to_weight_map(arg2, arg3, arg4, arg5, arg6, arg7) -> object
+
+    C++ signature :
+        boost::python::api::object to_weight_map(ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> {lvalue},boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object,boost::python::api::object)"""
+    pass
+
 class G3SuperTimestream:
   """G3SuperTimestream()
 
@@ -3701,6 +6781,9 @@ class G3SuperTimestream:
     pass
   def decode():
     """Decompress."""
+    pass
+  def extract():
+    """Decompress data subset into an array."""
     pass
   def calibrate():
     """calibrate(cal_factors)
@@ -3720,7 +6803,39 @@ Apply per-channel scale factors.  Note this puts you in float mode
 
 # No handler for "process_cuts"
 
+# No handler for "translate_cuts"
+
 # No handler for "get_gap_fill_poly"
+
+# No handler for "get_gap_fill_poly64"
+
+# No handler for "test_buffer_wrapper"
+
+# No handler for "block_moment"
+
+# No handler for "block_moment64"
+
+# No handler for "block_minmax"
+
+# No handler for "block_minmax64"
+
+# No handler for "matched_jumps"
+
+# No handler for "matched_jumps64"
+
+# No handler for "find_quantized_jumps"
+
+# No handler for "find_quantized_jumps64"
+
+# No handler for "subtract_jump_heights"
+
+# No handler for "subtract_jump_heights64"
+
+# No handler for "clean_flag"
+
+# No handler for "interp1d_linear"
+
+# No handler for "detrend"
 
 # No handler for "__version__"
 
