@@ -60,7 +60,6 @@ add_library(so3g SHARED
   src/Intervals.cxx
   src/Butterworth.cxx
   src/Ranges.cxx
-  src/Rebundler.cxx
   src/Projection.cxx
   src/G3SuperTimestream.cxx
   src/so_linterp.cxx
