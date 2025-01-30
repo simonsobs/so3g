@@ -38,3 +38,5 @@ if os.getenv('DOCS_BUILD') != '1':
 # Other python modules.
 from . import hk
 from . import proj
+
+from .g3reader_shim import G3IndexedReader
