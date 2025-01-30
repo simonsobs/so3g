@@ -57,7 +57,6 @@ add_library(so3g SHARED
   src/G3Ndarray.cxx
   src/G3WCS.cxx
   src/G3Ndmap.cxx
-  src/G3IndexedReader.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
   src/Ranges.cxx
