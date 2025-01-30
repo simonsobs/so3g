@@ -29,6 +29,7 @@ def write_example_file(filename='hk_out.g3'):
 
     # Create something to help us track the aggregator session.
     hksess = so3g.hk.HKSessionHelper(session_id=1234,
+                                     hkagg_version=2,
                                      description="Test HK data.")
 
     # Register a data provider.
@@ -50,12 +51,13 @@ def write_example_file(filename='hk_out.g3'):
     f = hksess.data_frame(prov_id=prov_id)
 
     # Add a data block.
-    hk = so3g.IrregBlockDouble()
-    hk.prefix = 'hwp_'
-    hk.data['position'] = [1, 2, 3, 4, 5]
-    hk.data['speed'] = [1.2, 1.2, 1.2, 1.2, 1.2]
-    hk.t = [0, 1, 2, 3, 4]
+    hk = core.G3TimesampleMap()
+    hk.times = core.G3VectorTime([core.G3Time('2018-1-1T00:00:%02i' % i)
+                for i in [0, 1, 2, 3, 4]])
+    hk['position'] = core.G3VectorInt([1, 2, 3, 4, 5])
+    hk['speed'] = core.G3VectorDouble([1.2, 1.2, 1.2, 1.2, 1.2])
     f['blocks'].append(hk)
+    f['block_names'].append('hwp')
 
     # Write two more housekeeping frames.
     w.Process(f)
