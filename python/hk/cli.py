@@ -246,14 +246,14 @@ def main(args=None):
         for filename in get_file_list(args):
             file_size = os.path.getsize(filename)
             clean_exit = True
-            r = so3g.G3IndexedReader(filename)
+            r = core.G3Reader(filename)
             while True:
                 try:
                     f = r.Process(None)
                 except:
                     clean_exit = False
                     break
-                end = r.Tell()
+                end = r.tell()
                 if f is None or len(f) == 0:
                     break
             rows.append((filename, file_size, end,
@@ -274,11 +274,11 @@ def main(args=None):
         renamer = TokenCleanser(args.strip_tokens)
 
         for filename in get_file_list(args):
-            r = so3g.G3IndexedReader(filename)
+            r = core.G3Reader(filename)
             while True:
-                start = r.Tell()
+                start = r.tell()
                 f = r.Process(None)
-                end = r.Tell()
+                end = r.tell()
                 if f is None or len(f) == 0:
                     break
                 f = f[0]
@@ -305,7 +305,7 @@ def main(args=None):
         renamer = TokenCleanser(args.strip_tokens)
 
         for filename in get_file_list(args):
-            r = so3g.G3IndexedReader(filename)
+            r = core.G3Reader(filename)
             while True:
                 f = r.Process(None)
                 if f is None or len(f) == 0:
