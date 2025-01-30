@@ -1,9 +1,5 @@
 #pragma once
 
-#include <G3Frame.h>
-#include <G3Map.h>
-#include <G3TimeStamp.h>
-
 #include <stdint.h>
 
 #include "numpy_assist.h"
@@ -16,7 +12,7 @@ namespace bp = boost::python;
 // intersection, union, and subtraction.
 
 template <typename T>
-class Ranges : public G3FrameObject {
+class Ranges {
 public:
     T count;
     T reference;
@@ -65,9 +61,7 @@ public:
     static bp::object from_mask(const bp::object &src);
     bp::object mask();
 
-    // Required for G3FrameObjects.
     string Description() const;
-    template <class A> void serialize(A &ar, unsigned v);
 };
 
 
@@ -81,8 +75,3 @@ vector<Ranges<T>> extract_ranges(const bp::object & ival_list) {
 }
 
 typedef Ranges<int32_t> RangesInt32;
-
-G3_SERIALIZABLE(RangesInt32, 0);
-
-G3MAP_OF(std::string, RangesInt32, MapRangesInt32);
-

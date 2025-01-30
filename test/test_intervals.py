@@ -150,27 +150,3 @@ try:
 except ValueError:
     mask3 = 'failed'
 assert(mask3 == 'failed')
-
-print()
-print('Map test')
-tmap = so3g.MapIntervalsTime()
-tmap['a'] = ti
-print('    ', tmap)
-print('    ', tmap['a'])
-
-# Can we read and write them?
-print()
-test_filename = 'test_intervals.g3'
-print('Writing to %s' % test_filename)
-w = core.G3Writer(test_filename)
-f = core.G3Frame()
-f['map'] = tmap
-f['iv'] = iv2
-w.Process(f)
-del w
-
-print()
-print('Reading from %s' % test_filename)
-for f in core.G3File(test_filename):
-    print('   ', f)
-    
