@@ -164,14 +164,14 @@ class SmurfArchive:
         db_file = Files(path=path)
         session.add(db_file)
 
-        reader = so3g.G3IndexedReader(path)
+        reader = so3g.G3Reader(path)
 
         total_channels = 0
         file_start, file_stop = None, None
         frame_idx = 0
         while True:
             db_frame = Frame(frame_idx=frame_idx, file=db_file)
-            db_frame.offset = reader.Tell()
+            db_frame.offset = reader.tell()
 
             frames = reader.Process(None)
             if not frames:
@@ -326,10 +326,10 @@ class SmurfArchive:
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
-                reader = so3g.G3IndexedReader(file)
+                reader = so3g.G3Reader(file)
                 cur_file = file
 
-            reader.Seek(frame_info.offset)
+            reader.seek(frame_info.offset)
             frame = reader.Process(None)[0]
             nsamp = frame['data'].n_samples
 
@@ -400,9 +400,9 @@ class SmurfArchive:
         for frame_info in tqdm(status_frames.all(), disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
-                reader = so3g.G3IndexedReader(file)
+                reader = so3g.G3Reader(file)
                 cur_file = file
-            reader.Seek(frame_info.offset)
+            reader.seek(frame_info.offset)
             frame = reader.Process(None)[0]
             status.update(yaml.safe_load(frame['status']))
 

@@ -314,12 +314,12 @@ class HKArchive:
         timelines = {}
         for filename, file_map in sorted(files.items()):
             hk_logger.debug('get_data: reading %s' % filename)
-            reader = so3g.G3IndexedReader(filename)
+            reader = core.G3Reader(filename)
             for byte_offset, frame_info in sorted(file_map.items()):
                 # Seek and decode.
                 hk_logger.debug('get_data: seeking to %i for %i block extractions' %
                                 (byte_offset, len(frame_info)))
-                reader.Seek(byte_offset)
+                reader.seek(byte_offset)
                 frames = reader.Process(None)
                 assert(len(frames) == 1)
                 frames = self.translator(frames[0])
@@ -603,7 +603,7 @@ class HKArchiveScanner:
         return HKArchive(self.field_groups)
 
     def process_file(self, filename, flush_after=True):
-        """Process the file specified by ``filename`` using a G3IndexedReader.
+        """Process the file specified by ``filename`` using a G3Reader.
         Each frame from the file is passed to self.Process, with the
         optional index_info argument set to a dictionary containing
         the filename and byte_offset of the frame.
@@ -614,10 +614,10 @@ class HKArchiveScanner:
         with flush_after=False.
 
         """
-        reader = so3g.G3IndexedReader(filename)
+        reader = core.G3Reader(filename)
         while True:
             info = {'filename': filename,
-                    'byte_offset': reader.Tell()}
+                    'byte_offset': reader.tell()}
             frames = reader.Process(None)
             assert len(frames) <= 1
             if len(frames) == 0:
