@@ -11,7 +11,7 @@ dest_dir=$1
 wheel=$2
 delocate_archs=$3
 
-spt3g_install=$(ls -d /project/build/temp.linux*/spt3g_install)
+spt3g_install=$(ls -d /project/build/temp.*/spt3g_install)
 
 export DYLD_LIBRARY_PATH="/usr/local/lib":"${spt3g_install}/lib":"${spt3g_install}/lib64":${DYLD_LIBRARY_PATH}
 
