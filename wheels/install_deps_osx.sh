@@ -25,7 +25,7 @@ if [ "x${use_gcc}" = "xyes" ]; then
     CXX=g++-${gcc_version}
     FC=gfortran-${gcc_version}
     CFLAGS="-O3 -fPIC"
-    CXXFLAGS="-O3 -fPIC -std=c++14"
+    CXXFLAGS="-O3 -fPIC -std=c++17"
     FCFLAGS="-O3 -fPIC -pthread"
     OMPFLAGS="-fopenmp"
 else
@@ -35,7 +35,7 @@ else
     CXX=clang++
     #FC=""
     CFLAGS="-O3 -fPIC"
-    CXXFLAGS="-O3 -fPIC -std=c++14 -stdlib=libc++"
+    CXXFLAGS="-O3 -fPIC -std=c++17 -stdlib=libc++"
     #FCFLAGS=""
     #OMPFLAGS=""
 fi
@@ -193,6 +193,7 @@ tar xjf ${boost_pkg} \
     ./bootstrap.sh \
     --with-python=python3 \
     --prefix=${PREFIX} \
+    --with-libraries="iostreams,python,regex" \
     && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
     ${pyincl} -sNO_LZMA=1 -sNO_ZSTD=1 \
     cxxflags="${CXXFLAGS}" ${extra_link} \

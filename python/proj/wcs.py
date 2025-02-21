@@ -1,9 +1,10 @@
-import so3g
-from . import quat
-
 import numpy as np
 
-from .ranges import Ranges, RangesMatrix
+from .. import _libso3g as libso3g
+
+from . import quat
+
+from .ranges import RangesMatrix
 from . import mapthreads
 
 # For coordinate systems we use the following abbreviations:
@@ -111,7 +112,8 @@ class _ProjectionistBase:
         configured geometry.
 
         """
-        if proj_name is None: proj_name = self.proj_name
+        if proj_name is None:
+            proj_name = self.proj_name
         tile_suffix = 'Tiled' if self.tiling else 'NonTiled'
 
         # Interpolation mode
@@ -128,7 +130,7 @@ class _ProjectionistBase:
         if not get:
             return projeng_name
         try:
-            projeng_cls = getattr(so3g, projeng_name)
+            projeng_cls = getattr(libso3g, projeng_name)
         except AttributeError:
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
@@ -445,7 +447,7 @@ class _ProjectionistBase:
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
-            assign = so3g.useful_info()['omp_num_threads']
+            assign = libso3g.useful_info()['omp_num_threads']
         if assign > 0:
             group_n = np.array([0 for g in range(assign)])
             group_tiles = [[] for _ in group_n]
@@ -454,7 +456,7 @@ class _ProjectionistBase:
                 idx = group_n.argmin()
                 group_n[idx] += _n
                 group_tiles[idx].append(_t)
-            imax = np.argmax(group_n)
+            # imax = np.argmax(group_n)
             # max_ratio = group_n[imax] / np.mean(np.concatenate([group_n[:imax], group_n[imax+1:]]))
             # if len(group_n)>1 and max_ratio > 1.1:
             #     print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
@@ -543,8 +545,8 @@ class Projectionist(_ProjectionistBase):
                  quat.euler(1, (delta0 - 90)*quat.DEG) *
                  quat.euler(2, -alpha0 * quat.DEG))
         else:
-            raise ValueError(f'Unimplemented NSC reference (phi0,theta0)='
-                             '({wcs.wcs.phi0:.2f},{wcs.wcs.theta0:.2f})')
+            raise ValueError('Unimplemented NSC reference (phi0,theta0)='
+                             f'({wcs.wcs.phi0:.2f},{wcs.wcs.theta0:.2f})')
         return Q
 
     def __init__(self):
@@ -720,7 +722,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         self._q_fp_to_celestial = None
         self.active_tiles = None
         self.proj_name = None
-        self.q_celestial_to_native = quat.quat(1,0,0,0)
+        self.q_celestial_to_native = quat.Quat(1,0,0,0)
         self.interpol = 'nearest'
         self.tiling = None
 
@@ -771,7 +773,7 @@ class ProjectionistHealpix(_ProjectionistBase):
             nActive = len(self.get_active_tiles(assembly)['active_tiles'])
             fsky = nActive / (12 * nside_tile0**2)
             if nThreads is None:
-                nThreads = so3g.useful_info()['omp_num_threads']
+                nThreads = libso3g.useful_info()['omp_num_threads']
             # nside_tile is smallest power of 2 satisfying nTile >= nActivePerThread * nthread / fsky
             self.nside_tile = int(2**np.ceil(0.5 * np.log2(nActivePerThread * nThreads / (12 * fsky))))
             self.nside_tile = min(self.nside_tile, self.nside)

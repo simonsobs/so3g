@@ -1,10 +1,7 @@
 import numpy as np
 
-try:
-    from spt3g.core import quat, G3VectorQuat
-except ImportError:
-    # Pre-Oct 2019 versions.
-    from spt3g.coordinateutils import quat, G3VectorQuat
+from spt3g.core import Quat, G3VectorQuat
+
 
 """We are using the spt3g quaternion containers,
 i.e. cu3g.G3VectorQuat and cu3g.quat.  One way these are nice is that
@@ -12,28 +9,25 @@ they have accelerated quaternion arithmetic with operator overloading.
 The component ordering is (1,i,j,k).  We are restricted to 0d or 1d,
 and that's fine."""
 
-DEG = np.pi/180
-
-
 def euler(axis, angle):
     """
     The quaternion representing of an Euler rotation.
-    
+
     For example, if axis=2 the computed quaternion(s) will have
     components:
 
         q = (cos(angle/2), 0, 0, sin(angle/2))
-    
+
     Parameters
     ----------
     axis : {0, 1, 2}
         The index of the cartesian axis of the rotation (x, y, z).
     angle : float or 1-d float array
         Angle of rotation, in radians.
-    
+
     Returns
     -------
-    quat or G3VectorQuat, depending on ndim(angle).
+    Quat or G3VectorQuat, depending on ndim(angle).
     """
     # Either angle or axis or both can be vectors.
     angle = np.asarray(angle)
@@ -43,13 +37,13 @@ def euler(axis, angle):
     q[..., 0] = c
     q[..., axis+1] = s
     if len(shape) == 1:
-        return quat(*q)
+        return Quat(*q)
     return G3VectorQuat(q)
 
 
 def rotation_iso(theta, phi, psi=None):
     """Returns the quaternion that composes the Euler rotations:
-   
+
         Qz(phi) Qy(theta) Qz(psi)
 
     Note arguments are in radians.
@@ -62,9 +56,9 @@ def rotation_iso(theta, phi, psi=None):
 
 def rotation_lonlat(lon, lat, psi=0.):
     """Returns the quaternion that composes the Euler rotations:
-        
+
         Qz(lon) Qy(pi/2 - lat) Qz(psi)
-    
+
     Note arguments are in radians.
     """
     return rotation_iso(np.pi/2 - lat, lon, psi)
@@ -92,21 +86,21 @@ def rotation_xieta(xi, eta, gamma=0):
 def decompose_iso(q):
     """Decomposes the rotation encoded by q into the product of Euler
     rotations:
-    
+
         q = Qz(phi) Qy(theta) Qz(psi)
-    
+
     Parameters
     ----------
-    q : quat or G3VectorQuat
+    q : Quat or G3VectorQuat
         The quaternion(s) to be decomposed.
-    
+
     Returns
     -------
     (theta, phi, psi) : tuple of floats or of 1-d arrays
         The rotation angles, in radians.
     """
 
-    if isinstance(q, quat):
+    if isinstance(q, Quat):
         a,b,c,d = q.a, q.b, q.c, q.d
     else:
         a,b,c,d = np.transpose(q)

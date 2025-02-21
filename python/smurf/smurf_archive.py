@@ -1,18 +1,19 @@
+import ast
+from collections import namedtuple
+import datetime as dt
+from enum import Enum
+import os
+
 import sqlalchemy as db
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, backref
+from sqlalchemy.orm import sessionmaker, relationship
+
+import numpy as np
+from tqdm import tqdm
+import yaml
 
 from spt3g import core
-import so3g
-import datetime as dt
-import os
-from tqdm import tqdm
-import numpy as np
-import yaml
-import ast
-from collections import namedtuple
-from enum import Enum
 
 
 Base = declarative_base()
@@ -164,7 +165,7 @@ class SmurfArchive:
         db_file = Files(path=path)
         session.add(db_file)
 
-        reader = so3g.G3Reader(path)
+        reader = core.G3Reader(path)
 
         total_channels = 0
         file_start, file_stop = None, None
@@ -326,7 +327,7 @@ class SmurfArchive:
         for frame_info in tqdm(frames, total=num_frames, disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
-                reader = so3g.G3Reader(file)
+                reader = core.G3Reader(file)
                 cur_file = file
 
             reader.seek(frame_info.offset)
@@ -400,7 +401,7 @@ class SmurfArchive:
         for frame_info in tqdm(status_frames.all(), disable=(not show_pb)):
             file = frame_info.file.path
             if file != cur_file:
-                reader = so3g.G3Reader(file)
+                reader = core.G3Reader(file)
                 cur_file = file
             reader.seek(frame_info.offset)
             frame = reader.Process(None)[0]
