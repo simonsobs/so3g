@@ -126,7 +126,8 @@ LD_LIBRARY_PATH::
         -DCMAKE_INSTALL_PREFIX=/usr/local \
         ..
     make -j 4 install
-    #
+    # Copy the python package into place
+    cp -r ./spt3g ${CONDA_PREFIX}/lib/python3.12/site-packages/
 
 And similarly for so3g::
 
