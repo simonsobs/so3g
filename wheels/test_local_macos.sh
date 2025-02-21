@@ -41,23 +41,25 @@ echo "Using homebrew installation in ${brew_root}"
 
 # Export compiler information
 use_gcc=yes
-export CC=gcc-12
-export CXX=g++-12
-export FC=gfortran-12
+export CC=gcc-14
+export CXX=g++-14
+export FC=gfortran-14
 # export CC=clang
 # export CXX=clang++
 # export FC=
 export CFLAGS="-O3 -fPIC"
 export FCFLAGS="-O3 -fPIC"
 # Use the second when building with clang
-CXXFLAGS="-O3 -fPIC -std=c++11"
-#CXXFLAGS="-O3 -fPIC -std=c++11 -stdlib=libc++"
+CXXFLAGS="-O3 -fPIC -std=c++14"
+#CXXFLAGS="-O3 -fPIC -std=c++14 -stdlib=libc++"
 
 # Install most dependencies with homebrew, including python-3.9
 eval ${brew_com} install flac
 eval ${brew_com} install bzip2
 eval ${brew_com} install netcdf
 eval ${brew_com} install sqlite3
+eval ${brew_com} install openblas
+eval ${brew_com} install gsl
 eval ${brew_com} install boost-python3
 
 if [ "x${use_gcc}" = "xyes" ]; then
@@ -101,40 +103,7 @@ python3 -m pip install delocate
 export BOOST_ROOT="${brew_root}"
 export LD_LIBRARY_PATH="${brew_root}/lib"
 export DYLD_LIBRARY_PATH="${brew_root}/lib"
-export CPATH="${brew_root}/include"
-
-# Install the qpoint package
-have_qpoint=$(python -c "
-try:
-    import qpoint
-    print('yes')
-except ImportError:
-    print('no')
-")
-if [ ${have_qpoint} = "yes" ]; then
-    echo "qpoint package already installed"
-else
-    qpoint_version=828126de9f195f88bfaf1996527f633382457461
-    qpoint_dir="qpoint_temp"
-    echo "Installing qpoint version ${qpoint_version}"
-
-    echo "Fetching qpoint..."
-    if [ ! -d ${qpoint_dir} ]; then
-        git clone https://github.com/arahlin/qpoint.git ${qpoint_dir}
-    fi
-
-    echo "Building qpoint..."
-    pushd ${qpoint_dir} \
-        && git checkout master \
-        && if [ "x$(git branch -l | grep so3g)" != x ]; then \
-            git branch -D so3g; fi \
-        && git fetch \
-        && git checkout -b so3g ${qpoint_version} \
-        && python3 setup.py clean \
-        && python3 setup.py build \
-        && python3 setup.py install \
-        && popd > /dev/null
-fi
+export CPATH="${brew_root}/include:${brew_root}/opt/openblas/include"
 
 # Tell setup.py to look in the homebrew prefix for libraries when
 # building spt3g and so3g.
@@ -142,6 +111,9 @@ export SPT3G_BUILD_CMAKE_INCLUDE_PATH="${brew_root}/include"
 export SPT3G_BUILD_CMAKE_LIBRARY_PATH="${brew_root}/lib"
 export SO3G_BUILD_CMAKE_INCLUDE_PATH="${brew_root}/include"
 export SO3G_BUILD_CMAKE_LIBRARY_PATH="${brew_root}/lib"
+
+export SO3G_BUILD_BLA_VENDOR="OpenBLAS"
+export SO3G_BUILD_BLAS_LIBRARIES="${brew_root}/opt/openblas/lib/libopenblas.dylib"
 
 # Now build a wheel
 python3 setup.py clean

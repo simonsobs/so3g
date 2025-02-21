@@ -1,0 +1,35 @@
+# This is the set of conda packages needed when creating
+# a development environment for building spt3g / so3g
+# using conda compilers and packages to meet dependencies.
+#
+# For example, assuming you have a conda-forge base environment
+# you can do:
+#
+#  conda create -n dev python==3.12
+#  conda activate dev
+#  conda install --file conda_dev_requirements.txt
+#  python3 -m pip install -vv .
+#
+# Build tools
+compilers
+cmake
+# Compiled dependencies
+libopenblas=*=*openmp*
+libblas=*=*openblas
+openblas=*=*openmp*
+boost
+libflac
+gsl
+netcdf4
+# Python dependencies
+numpy
+scipy
+astropy
+matplotlib
+ephem
+pytz
+pyaml
+sqlalchemy
+tqdm
+# Eventually we should make a conda package for these:
+# qpoint

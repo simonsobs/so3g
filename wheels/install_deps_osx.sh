@@ -6,10 +6,6 @@
 
 set -e
 
-# Note:  we are not cross-compiling here.  This is for selecting the
-# openblas tarball to fetch.
-arch=$1
-
 # Location of this script
 pushd $(dirname $0) >/dev/null 2>&1
 scriptdir=$(pwd)
@@ -22,116 +18,122 @@ echo "Wheel script directory = ${scriptdir}"
 # runtime registration works.
 use_gcc=yes
 # use_gcc=no
+gcc_version=14
 
 if [ "x${use_gcc}" = "xyes" ]; then
-    CC=gcc-14
-    CXX=g++-14
+    CC=gcc-${gcc_version}
+    CXX=g++-${gcc_version}
+    FC=gfortran-${gcc_version}
     CFLAGS="-O3 -fPIC"
     CXXFLAGS="-O3 -fPIC -std=c++14"
+    FCFLAGS="-O3 -fPIC -pthread"
+    OMPFLAGS="-fopenmp"
 else
+    export MACOSX_DEPLOYMENT_TARGET=$(python3 -c "import sysconfig as s; print(s.get_config_vars()['MACOSX_DEPLOYMENT_TARGET'])")
+    echo "Using MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}"
     CC=clang
     CXX=clang++
+    #FC=""
     CFLAGS="-O3 -fPIC"
-    CXXFLAGS="-O3 -fPIC -std=c++11 -stdlib=libc++"
+    CXXFLAGS="-O3 -fPIC -std=c++14 -stdlib=libc++"
+    #FCFLAGS=""
+    #OMPFLAGS=""
 fi
 
 MAKEJ=2
 
 PREFIX=/usr/local
 
-# Install library dependencies with homebrew
-brew install netcdf
-brew install sqlite3
-brew install flac
+# Workaround permissions on macos-14 github runner
+# https://github.com/actions/runner-images/issues/9272
+sudo chown -R runner:admin /usr/local
 
-# Optionally install gcc
+# Install library dependencies with homebrew
+brew install sqlite3 netcdf
+
+# Optionally install gcc.
 if [ "x${use_gcc}" = "xyes" ]; then
-    brew install gcc@14
+    brew install gcc@${gcc_version}
 fi
 
 # Update pip
-pip install --upgrade pip
+python3 -m pip install --upgrade pip
 
 # Install a couple of base packages that are always required
-pip install -v cmake wheel setuptools
+python3 -m pip install cmake wheel setuptools
 
-# In order to maximize ABI compatibility with numpy, build with the newest numpy
-# version containing the oldest ABI version compatible with the python we are using.
 pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
-if [ ${pyver} == "3.7" ]; then
-    numpy_ver="1.20"
-fi
-if [ ${pyver} == "3.8" ]; then
-    numpy_ver="1.20"
-fi
-if [ ${pyver} == "3.9" ]; then
-    numpy_ver="1.20"
-fi
-if [ ${pyver} == "3.10" ]; then
-    numpy_ver="1.22"
-fi
-if [ ${pyver} == "3.11" ]; then
-    numpy_ver="1.24"
-fi
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" pip install -v -r "${scriptdir}/build_requirements.txt" "numpy<${numpy_ver}" "scipy_openblas32"
+CC="${CC}" CFLAGS="${CFLAGS}" python3 -m pip install -v -r "${scriptdir}/../requirements.txt" scipy_openblas32
 
-# We use the scipy openblas wheel to get the openblas to use.
+# Install Openblas
 
-# First ensure that pkg-config is set to search somewhere
-if [ -z "${PKG_CONFIG_PATH}" ]; then
-    export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+openblas_version=0.3.29
+openblas_dir=OpenBLAS-${openblas_version}
+openblas_pkg=${openblas_dir}.tar.gz
+
+if [ ! -e ${openblas_pkg} ]; then
+    echo "Fetching OpenBLAS..."
+    curl -SL https://github.com/xianyi/OpenBLAS/archive/v${openblas_version}.tar.gz -o ${openblas_pkg}
 fi
 
-python3 -c "import scipy_openblas32; print(scipy_openblas32.get_pkg_config())" > ${PKG_CONFIG_PATH}/scipy-openblas.pc
+echo "Building OpenBLAS..."
 
-# To help delocate find the libraries, we copy them into /usr/local
-python3 <<EOF
-import os, scipy_openblas32, shutil
-srcdir = os.path.dirname(scipy_openblas32.__file__)
-incdir = os.path.join(srcdir, "include")
-libdir = os.path.join(srcdir, "lib")
-shutil.copytree(libdir, "/usr/local/lib", dirs_exist_ok=True)
-shutil.copytree(incdir, "/usr/local/include", dirs_exist_ok=True)
-EOF
-
-# Install boost
-
-boost_version=1_86_0
-boost_dir=boost_${boost_version}
-boost_pkg=${boost_dir}.tar.bz2
-
-echo "Fetching boost..."
-
-if [ ! -e ${boost_pkg} ]; then
-    curl -SL "https://archives.boost.io/release/1.86.0/source/${boost_pkg}" -o "${boost_pkg}"
+omp="USE_OPENMP=1"
+if [ "x${OMPFLAGS}" = "x" ]; then
+    omp="USE_OPENMP=0"
 fi
 
-echo "Building boost..."
+rm -rf ${openblas_dir}
+tar xzf ${openblas_pkg} \
+    && pushd ${openblas_dir} >/dev/null 2>&1 \
+    && make ${omp} NO_STATIC=1 \
+    MAKE_NB_JOBS=${MAKEJ} \
+    CC="${CC}" FC="${FC}" DYNAMIC_ARCH=1 TARGET=GENERIC \
+    COMMON_OPT="${CFLAGS}" FCOMMON_OPT="${FCFLAGS}" \
+    EXTRALIB="${OMPFLAGS}" libs netlib shared \
+    && make NO_STATIC=1 DYNAMIC_ARCH=1 TARGET=GENERIC PREFIX="${PREFIX}" install \
+    && popd >/dev/null 2>&1
 
-pyincl=$(for d in $(python3-config --includes | sed -e 's/-I//g'); do echo "include=${d}"; done | xargs)
+# Install libFLAC
 
-use_line="using darwin : : ${CXX} ;"
-extra_link="linkflags=\"-stdlib=libc++\""
-if [ "x${use_gcc}" = "xyes" ]; then
-    use_line="using gcc : : ${CXX} ;"
-    extra_link=""
+flac_version=1.5.0
+flac_dir=flac-${flac_version}
+flac_pkg=${flac_dir}.tar.gz
+
+echo "Fetching libFLAC..."
+
+if [ ! -e ${flac_pkg} ]; then
+    curl -SL "https://github.com/xiph/flac/archive/refs/tags/${flac_version}.tar.gz" -o "${flac_pkg}"
 fi
 
-rm -rf ${boost_dir}
-tar xjf ${boost_pkg} \
-    && pushd ${boost_dir} \
-    && echo ${use_line} > tools/build/user-config.jam \
-    && echo "option jobs : ${MAKEJ} ;" >> tools/build/user-config.jam \
-    && BOOST_BUILD_USER_CONFIG=tools/build/user-config.jam \
-    ./bootstrap.sh \
-    --with-python=python3 \
-    --prefix=${PREFIX} \
-    && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
-    ${pyincl} -sNO_LZMA=1 -sNO_ZSTD=1 \
-    cxxflags="${CXXFLAGS}" ${extra_link} \
-    variant=release threading=multi link=shared runtime-link=shared install \
+echo "Building libFLAC..."
+
+rm -rf ${flac_dir}
+tar xzf ${flac_pkg} \
+    && pushd ${flac_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_C_FLAGS="${CFLAGS}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DBUILD_DOCS=OFF \
+    -DWITH_OGG=OFF \
+    -DBUILD_CXXLIBS=OFF \
+    -DBUILD_PROGRAMS=OFF \
+    -DBUILD_UTILS=OFF \
+    -DBUILD_TESTING=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_SHARED_LIBS=ON \
+    -DINSTALL_MANPAGES=OFF \
+    -DENABLE_MULTITHREADING=ON \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    .. \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1 \
     && popd >/dev/null 2>&1
 
 # Build GSL
@@ -155,6 +157,46 @@ tar xzf ${gsl_pkg} \
     && CC="${CC}" CFLAGS="-O3 -fPIC" ../configure --prefix="${PREFIX}" \
     && make -j ${MAKEJ} \
     && make install \
+    && popd >/dev/null 2>&1
+
+# Install boost
+
+boost_version=1_87_0
+boost_dir=boost_${boost_version}
+boost_pkg=${boost_dir}.tar.bz2
+
+echo "Fetching boost..."
+
+if [ ! -e ${boost_pkg} ]; then
+    curl -SL "https://archives.boost.io/release/1.87.0/source/${boost_pkg}" -o "${boost_pkg}"
+fi
+
+echo "Building boost..."
+
+pyincl=$(for d in $(python3-config --includes | sed -e 's/-I//g'); do echo "include=${d}"; done | xargs)
+
+use_line="using darwin : : ${CXX} ;"
+extra_link="linkflags=\"-stdlib=libc++\""
+#toolset="clang"
+if [ "x${use_gcc}" = "xyes" ]; then
+    use_line="using gcc : : ${CXX} ;"
+    #toolset="gcc"
+    extra_link=""
+fi
+
+rm -rf ${boost_dir}
+tar xjf ${boost_pkg} \
+    && pushd ${boost_dir} \
+    && echo ${use_line} > tools/build/user-config.jam \
+    && echo "option jobs : ${MAKEJ} ;" >> tools/build/user-config.jam \
+    && BOOST_BUILD_PATH=tools/build \
+    ./bootstrap.sh \
+    --with-python=python3 \
+    --prefix=${PREFIX} \
+    && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
+    ${pyincl} -sNO_LZMA=1 -sNO_ZSTD=1 \
+    cxxflags="${CXXFLAGS}" ${extra_link} \
+    variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1
 
 # Astropy caching...

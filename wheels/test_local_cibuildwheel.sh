@@ -5,7 +5,7 @@
 
 export CIBW_DEBUG_KEEP_CONTAINER=TRUE
 
-export CIBW_BUILD="cp311-manylinux_x86_64"
+export CIBW_BUILD="cp312-manylinux_x86_64"
 export CIBW_MANYLINUX_X86_64_IMAGE="manylinux2014"
 export CIBW_BUILD_VERBOSITY=3
 export CIBW_ENVIRONMENT_LINUX="CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14'"

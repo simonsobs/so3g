@@ -1,15 +1,12 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required(VERSION 3.17)
 project (so3g)
 
 include(local.cmake OPTIONAL)
 
 # cmake policies -- best to keep these in sync with spt3g!
-if(POLICY CMP0060) # Suppress cmake stripping full paths from libraries in some cases
-  cmake_policy(SET CMP0060 NEW)
-endif()
-cmake_policy(SET CMP0012 NEW) # Allow use of true in boolean expressions
-if(POLICY CMP0042) # Enable RPATH on OSX
-   cmake_policy(SET CMP0042 NEW)
+# Don't warn about removal of FindBoost in cmake 3.30+
+if(POLICY CMP0167)
+	cmake_policy(SET CMP0167 NEW)
 endif()
 
 # Default to Release because we want that -O3.  This is what spt3g_software does too.
@@ -18,12 +15,20 @@ if(NOT CMAKE_BUILD_TYPE)
     "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel" FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
+# Require C++ 17 (aligned with spt3g)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# We are building libraries that will eventually be linked into shared
+# modules.  All code should be built with PIC.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # For this to be found, make sure the spt3g build directory can be
 # searched; i.e. -DCMAKE_PREFIX_PATH=/path/to/spt3g_software/build
 find_package(Spt3g REQUIRED)
 
-find_package(PythonInterp 3)
-find_package(PythonLibs 3)
+find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(FLAC)
 find_package(GSL)
 
@@ -36,11 +41,14 @@ else()
 endif()
 
 # Determine the location of site-packages.
-execute_process ( COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${Python_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-# Numpy include directory?
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
-                 OUTPUT_VARIABLE NUMPY_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+# Numpy include directory
+execute_process(COMMAND ${Python_EXECUTABLE} -c
+  "import numpy; print(numpy.get_include())"
+  OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 include_directories(${NUMPY_INCLUDE_DIR})
@@ -48,7 +56,6 @@ include_directories(${NUMPY_INCLUDE_DIR})
 #
 # Define the so3g build target.  This is a shared library.
 #
-
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY so3g)
 add_library(so3g SHARED
   src/main.cxx
@@ -66,6 +73,57 @@ add_library(so3g SHARED
 # We could disable the lib prefix on the output library... but let's not.
 #set_target_properties(so3g PROPERTIES PREFIX "")
 
+# Disable boost python auto_ptr warnings
+target_compile_definitions(so3g PUBLIC BOOST_NO_AUTO_PTR)
+
+# Link to the core spt3g library.  This brings in boost dependencies
+# as well.
+target_link_libraries(so3g PUBLIC spt3g::core)
+
+# Link to GSL
+target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
+target_link_libraries(so3g PUBLIC ${GSL_LIBRARIES})
+
+# FLAC- library already comes from spt3g dependencies, but
+# we need to have the headers.
+target_include_directories(so3g PRIVATE ${FLAC_INCLUDE_DIR})
+
+# You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
+find_package(BLAS REQUIRED)
+if(BLAS_FOUND)
+  message("-- BLAS found: ${BLAS_LIBRARIES}")
+  target_link_libraries(so3g PUBLIC ${BLAS_LIBRARIES})
+
+  # The BLAS library may or may not include the cblas_* bindings.
+  # This variable set is needed by check_function_exists; starting in
+  # cmake v3.18 you can say BLAS::BLAS instead of the lib path...
+  set(CMAKE_REQUIRED_LIBRARIES ${BLAS_LIBRARIES})
+  check_function_exists(cblas_sgemm CBLAS_OK)
+  if(${CBLAS_OK})
+    message("-- cblas bindings are included in the BLAS library")
+  else()
+    message("-- cblas bindings not found in BLAS; adding cblas.")
+    target_link_libraries(so3g PUBLIC cblas)
+  endif()
+
+  # On MacOS with clang linking to the Accelerate framework, the cblas
+  # headers are not always found.  Handle this case.  Also note that the
+  # Accelerate framework has documented numerical problems- consider using
+  # a better BLAS/LAPACK implementation.
+  if(BLAS_Accelerate_LIBRARY)
+    target_include_directories(so3g PRIVATE ${BLAS_Accelerate_LIBRARY}/Versions/A/Frameworks/vecLib.framework/Headers)
+  endif()
+endif(BLAS_FOUND)
+
+# This custom target generates _version.h, in the build tree.  That is all.
+add_custom_target(so3g-version
+  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/version_h.py
+  SO3G_VERSION_STRING ${CMAKE_CURRENT_BINARY_DIR}/_version.h
+  SOURCES version_h.py
+)
+
+add_dependencies(so3g so3g-version)
+
 # Make a list of .py files for the library.
 file(GLOB MY_PYTHONS
   "${CMAKE_CURRENT_SOURCE_DIR}/python/*.py")
@@ -75,48 +133,6 @@ file(GLOB MY_PYTHONS_PROJ
   "${CMAKE_CURRENT_SOURCE_DIR}/python/proj/*.py")
 file(GLOB MY_PYTHONS_SMURF
   "${CMAKE_CURRENT_SOURCE_DIR}/python/smurf/*.py")
-
-# Provide list of libs to link against.
-target_link_libraries(so3g spt3g::core)
-# Link GSL
-target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
-target_link_libraries(so3g ${GSL_LIBRARIES})
-
-# You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
-find_package(BLAS REQUIRED)
-if(BLAS_FOUND)
-  message("-- BLAS found: ${BLAS_LIBRARIES}")
-  target_link_libraries(so3g ${BLAS_LIBRARIES})
-
-  # The BLAS library may or may not include the cblas_ bindings.
-  # This variable set is needed by check_function_exists; starting in
-  # cmake v3.18 you can say BLAS::BLAS instead of the lib path...
-  set(CMAKE_REQUIRED_LIBRARIES ${BLAS_LIBRARIES})
-  check_function_exists(cblas_sgemm CBLAS_OK)
-  if(${CBLAS_OK})
-    message("-- cblas bindings are included in the BLAS library")
-  else()
-    message("-- cblas bindings not found in BLAS; adding cblas.")
-    target_link_libraries(so3g cblas)
-  endif()
-
-  # On MacOS with clang linking to the Accelerate framework, the cblas
-  # headers are not always found.  Handle this case.
-  if(BLAS_Accelerate_LIBRARY)
-    #string(REGEX REPLACE "^(.*)/System/Library/Frameworks/Accelerate.framework" "\\1" FRAMEWORK_INCLUDE "${BLAS_Accelerate_LIBRARY}")
-    #target_compile_options(so3g PRIVATE -F ${FRAMEWORK_INCLUDE})
-    target_include_directories(so3g PRIVATE ${BLAS_Accelerate_LIBRARY}/Versions/A/Frameworks/vecLib.framework/Headers)
-  endif()
-endif(BLAS_FOUND)
-
-# This custom target generates _version.h, in the build tree.  That is all.
-add_custom_target(so3g-version
-                  COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/version_h.py
-                    SO3G_VERSION_STRING ${CMAKE_CURRENT_BINARY_DIR}/_version.h
-                  SOURCES version_h.py
-                   )
-
-add_dependencies(so3g so3g-version)
 
 # Define the install rules.
 
