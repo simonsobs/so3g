@@ -1,3 +1,11 @@
+// The original source in this file was downloaded from the "healpix_bare"
+// package on sourceforge under the 3-clause BSD license (see copyright below).
+//
+// This code has been modified slightly from the original.  In several cases,
+// variables with type int64_t were being implicitly truncated to int32_t.  The
+// code has been changed to add explicit casts to int32_t in these cases to avoid
+// compiler warnings / errors.
+
 /* -----------------------------------------------------------------------------
  *
  *  Copyright (C) 1997-2019 Krzysztof M. Gorski, Eric Hivon, Martin Reinecke,
