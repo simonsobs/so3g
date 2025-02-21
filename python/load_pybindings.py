@@ -2,14 +2,10 @@
 # Based on spt3g.core.load_bindings.
 #
 import platform, sys, os
-try:
-    # Starting in spt3g 0.3-240-ga9d32d5, a custom loader is available.
-    from spt3g import dload
-    imp = None
-except ImportError:
-    # The imp module is deprecated; to suppress warning, upgrade spt3g ^^^.
-    import imp
-    dload = None
+
+# Starting in spt3g 0.3-240-ga9d32d5, dload may be used.
+from spt3g import dload
+
 
 if platform.system().startswith('freebsd') or platform.system().startswith('FreeBSD'):
     # C++ modules are extremely fragile when loaded with RTLD_LOCAL,
@@ -40,10 +36,7 @@ def load_pybindings(paths, name=None, lib_suffix=None):
             name = os.path.split(path)[1]
         # Save copy of current module def
         mod = sys.modules[name]
-        if dload is None:
-            m = imp.load_dynamic(name, path + lib_suffix)
-        else:
-            m = dload.load_dynamic(name, name, path + lib_suffix)
+        m = dload.load_dynamic(name, name, path + lib_suffix)
         sys.modules[name] = mod # Don't override Python mod with C++
 
         for (k,v) in m.__dict__.items():
