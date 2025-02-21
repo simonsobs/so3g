@@ -22,7 +22,7 @@ CXX=g++
 FC=gfortran
 
 CFLAGS="-O3 -fPIC -pthread"
-CXXFLAGS="-O3 -fPIC -pthread -std=c++14"
+CXXFLAGS="-O3 -fPIC -pthread -std=c++17"
 FCFLAGS="-O3 -fPIC -pthread"
 
 MAKEJ=2
@@ -94,6 +94,7 @@ tar xjf ${boost_pkg} \
     ./bootstrap.sh \
     --with-python=python3 \
     --prefix=${PREFIX} \
+    --with-libraries="iostreams,python,regex" \
     && ./b2 --layout=tagged --user-config=./tools/build/user-config.jam \
     ${pyincl} cxxflags="${CXXFLAGS}" variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1

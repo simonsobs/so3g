@@ -50,7 +50,7 @@ export FC=gfortran-14
 export CFLAGS="-O3 -fPIC"
 export FCFLAGS="-O3 -fPIC"
 # Use the second when building with clang
-CXXFLAGS="-O3 -fPIC -std=c++14"
+CXXFLAGS="-O3 -fPIC -std=c++17"
 #CXXFLAGS="-O3 -fPIC -std=c++14 -stdlib=libc++"
 
 # Install most dependencies with homebrew, including python-3.9

@@ -5,9 +5,14 @@ code that projects from time to map space using OpenMP
 parallelization.
 
 """
-
-import so3g
 import numpy as np
+
+from .. import _libso3g as libso3g
+
+from . import quat, DEG
+from .coords import Assembly, FocalPlane
+from .wcs import Projectionist
+
 
 def get_num_threads(n_threads=None):
     """Utility function for computing n_threads.  If n_threads is not
@@ -16,7 +21,7 @@ def get_num_threads(n_threads=None):
 
     """
     if n_threads is None:
-        return so3g.useful_info()['omp_num_threads']
+        return libso3g.useful_info()['omp_num_threads']
     return n_threads
 
 def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
@@ -77,11 +82,11 @@ def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
         active_tiles = [0]
 
     # The full assembly, for later.
-    asm_full = so3g.proj.Assembly.attach(sight, fplane)
+    asm_full = Assembly.attach(sight, fplane)
 
     # Get a Projectionist -- note it can be used with full or
     # representative assembly.
-    pmat = so3g.proj.wcs.Projectionist.for_tiled(
+    pmat = Projectionist.for_tiled(
         shape, wcs, tile_shape=tile_shape, active_tiles=active_tiles
     )
     if active_tiles is None:
@@ -93,9 +98,9 @@ def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
     # For the scan direction map, use the "representative" subset
     # detectors, with polarization direction aligned parallel to
     # elevation.
-    xi, eta, gamma = so3g.proj.quat.decompose_xieta(fplane_rep.quats)
-    fplane_xl = so3g.proj.FocalPlane.from_xieta(xi, eta, gamma*0+90*so3g.proj.DEG)
-    asm_rep = so3g.proj.Assembly.attach(sight, fplane_xl)
+    xi, eta, gamma = quat.decompose_xieta(fplane_rep.quats)
+    fplane_xl = FocalPlane.from_xieta(xi, eta, gamma*0+90*DEG)
+    asm_rep = Assembly.attach(sight, fplane_xl)
     sig = np.ones((fplane_xl.ndet, len(asm_rep.Q)), dtype='float32')
     scan_maps = pmat.to_map(sig, asm_rep, comps='TQU')
 
@@ -107,7 +112,7 @@ def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
     phi = np.arctan2(U, Q) / 2
 
     if plot_prefix:
-        text = 'Qf=%.2f Uf=%.2f phi=%.1f deg' % (Q/T, U/T, phi / so3g.proj.DEG)
+        text = 'Qf=%.2f Uf=%.2f phi=%.1f deg' % (Q/T, U/T, phi / DEG)
         for label, _m in tile_iter(scan_maps):
             for i in range(3):
                 pl.imshow(_m[i], origin='lower')

@@ -18,9 +18,10 @@ import glob
 import numpy as np
 import datetime as dt
 
-
-import so3g
 from spt3g import core
+from .. import _libso3g as libso3g
+
+from .translator import HKTranslator
 
 
 hk_logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ class HKArchive:
             self.field_groups = list(field_groups)
         # A translator is used to update frames, on the fly, to the
         # modern schema assumed here.
-        self.translator = so3g.hk.HKTranslator()
+        self.translator = HKTranslator()
 
     def _get_groups(self, fields=None, start=None, end=None,
                     short_match=False):
@@ -136,7 +137,7 @@ class HKArchive:
             in any group.
 
         """
-        span = so3g.IntervalsDouble()
+        span = libso3g.IntervalsDouble()
         if start is None:
             start = span.domain[0]
         if end is None:
@@ -170,7 +171,7 @@ class HKArchive:
                                 continue
                         elif full_field not in fields:
                             continue
-                    if not key_field in field_map:
+                    if key_field not in field_map:
                         field_map[key_field] = [fg]
                     else:
                         field_map[key_field].append(fg)
@@ -292,7 +293,7 @@ class HKArchive:
             for time_range, n, filename, byte_offset, block_index in all_frame_refs:
                 if not check_overlap(time_range):
                     continue
-                if not filename in files:
+                if filename not in files:
                     files[filename] = {}
                 if byte_offset not in files[filename]:
                     files[filename][byte_offset] = []
@@ -484,7 +485,7 @@ class HKArchiveScanner:
         self.field_groups = []
         self.frame_info = []
         self.counter = -1
-        self.translator = so3g.hk.HKTranslator()
+        self.translator = HKTranslator()
         self.pre_proc_dir = pre_proc_dir
         self.pre_proc_mode = pre_proc_mode
 
@@ -516,7 +517,7 @@ class HKArchiveScanner:
         vers = f.get('hkagg_version', 0)
         assert(vers == 2)
 
-        if f['hkagg_type'] == so3g.HKFrameType.session:
+        if f['hkagg_type'] == libso3g.HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
@@ -526,7 +527,7 @@ class HKArchiveScanner:
                               (session_id, f['start_time']), unit='HKScanner')
                 self.session_id = session_id
 
-        elif f['hkagg_type'] == so3g.HKFrameType.status:
+        elif f['hkagg_type'] == libso3g.HKFrameType.status:
             # If a provider has disappeared, flush its information into a
             # FieldGroup.
             prov_cands = [_HKProvider.from_g3(p) for p in f['providers']]
@@ -539,10 +540,9 @@ class HKArchiveScanner:
             for prov_id in to_flush:
                 self.flush([prov_id])
 
-        elif f['hkagg_type'] == so3g.HKFrameType.data:
+        elif f['hkagg_type'] == libso3g.HKFrameType.data:
             # Data frame -- merge info for this provider.
             prov = self.providers[f['prov_id']]
-            representatives = prov.blocks.keys()
 
             for bidx, (bname, b) in enumerate(zip(f['block_names'], f['blocks'])):
                 assert(isinstance(b, core.G3TimesampleMap))
@@ -560,7 +560,7 @@ class HKArchiveScanner:
                       'count': len(b.times)}
                 ii.update(index_info)
                 prov.blocks[bname]['index_info'].append(ii)
-                
+
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
                           unit='HKScanner')
@@ -665,7 +665,7 @@ class HKArchiveScanner:
             with open(path, 'wb') as pkfl:
                 pickle.dump(hksc, pkfl)
             if self.pre_proc_mode is not None:
-                os.chmod( path, self.pre_proc_mode )            
+                os.chmod( path, self.pre_proc_mode )
 
         self.field_groups += hksc.field_groups
         self.counter += hksc.counter
@@ -711,17 +711,17 @@ class _FieldGroup:
     def __init__(self, prefix, fields, start, end, index_info):
         self.prefix = prefix
         self.fields = list(fields)
-        self.cover = so3g.IntervalsDouble().add_interval(start, end)
+        self.cover = libso3g.IntervalsDouble().add_interval(start, end)
         self.index_info = index_info
     def __repr__(self):
         try:
             return '_FieldGroup("%s", %i fields, %i segments)' % (
                 self.prefix, len(self.fields), len(self.index_info))
-        except:
+        except Exception:
             return '_FieldGroup(<bad internal state!>)'
 
 
-def to_timestamp(some_time, str_format=None): 
+def to_timestamp(some_time, str_format=None):
     """Convert the argument to a unix timestamp.
 
     Args:
@@ -736,25 +736,25 @@ def to_timestamp(some_time, str_format=None):
         float: Unix timestamp corresponding to some_time.
 
     """
-    
-    if type(some_time) == dt.datetime:
+
+    if isinstance(some_time, dt.datetime):
         return some_time.astimezone(dt.timezone.utc).timestamp()
-    if type(some_time) == int or type(some_time) == float:
+    if isinstance(some_time, (int, float)):
         return some_time
-    if type(some_time) == str:
+    if isinstance(some_time, str):
         if str_format is not None:
             return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, str_format )))
         str_options = ['%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f']
         for option in str_options:
             try:
                 return to_timestamp(pytz.utc.localize( dt.datetime.strptime(some_time, option )))
-            except:
+            except Exception:
                 continue
         raise ValueError('Could not process string into date object, options are: {}'.format(str_options))
-        
+
     raise ValueError('Type of date / time indication is invalid, accepts datetime, int, float, and string')
 
-def load_range(start, stop, fields=None, alias=None, 
+def load_range(start, stop, fields=None, alias=None,
                data_dir=None, config=None, pre_proc_dir=None, pre_proc_mode=None,
                folder_patterns=None, strict=True):
     """Args:
@@ -827,7 +827,7 @@ def load_range(start, stop, fields=None, alias=None,
             hk_logger.warning('''load_range has a config file - data_dir, fields, and alias are ignored''')
         with open(config, 'r') as f:
             setup = yaml.load(f, Loader=yaml.FullLoader)
-        
+
         if 'data_dir' not in setup.keys():
             raise ValueError('load_range config file requires data_dir entry')
         data_dir = setup['data_dir']
@@ -838,14 +838,14 @@ def load_range(start, stop, fields=None, alias=None,
         for k in setup['field_list']:
             fields.append( setup['field_list'][k])
             alias.append( k )
-            
+
     if data_dir is None and 'OCS_DATA_DIR' not in os.environ.keys():
         raise ValueError('if $OCS_DATA_DIR is not defined a data directory must be passed to getdata')
     if data_dir is None:
         data_dir = os.environ['OCS_DATA_DIR']
 
     hk_logger.debug('Loading data from {}'.format(data_dir))
-    
+
     start_ctime = to_timestamp(start) - 3600
     stop_ctime = to_timestamp(stop) + 3600
 
@@ -877,20 +877,20 @@ def load_range(start, stop, fields=None, alias=None,
                 continue
             try:
                 t = int(file[:-3])
-            except:
+            except Exception:
                 hk_logger.debug('{} does not have the right format, skipping'.format(file))
                 continue
             if t >= start_ctime-3600 and t <=stop_ctime+3600:
                 hk_logger.debug('Processing {}'.format(base+'/'+file))
                 hksc.process_file_with_cache( base+'/'+file)
 
-    
+
     cat = hksc.finalize()
     start_ctime = to_timestamp(start)
     stop_ctime = to_timestamp(stop)
-    
+
     all_fields,_ = cat.get_fields()
-    
+
     if fields is None:
         fields = all_fields
     if alias is not None:
@@ -898,7 +898,7 @@ def load_range(start, stop, fields=None, alias=None,
             hk_logger.error('if provided, alias needs to be the length of fields')
     else:
         alias = fields
-    
+
     # Single pass load.
     keepers = []
     for name, field in zip(alias, fields):
@@ -969,7 +969,7 @@ if __name__ == '__main__':
     # This is the easy way, which just gives you one timeline per
     # requested field.
     x1, y1 = cat.simple(field_name)
-    
+
     assert np.all(np.array(x0) == x1) and np.all(np.array(y0) == y1)
 
     import pylab as pl

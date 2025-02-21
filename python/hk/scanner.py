@@ -1,12 +1,14 @@
-import so3g
-from spt3g import core
 import numpy as np
 
-from so3g import hk
+from spt3g import core
+
+from .. import _libso3g as libso3g
+from . import hk
+
 
 class HKScanner:
     """Module that scans and reports on HK archive contents and compliance.
-    
+
     Attributes:
       stats (dict): A nested dictionary of statistics that are updated as
         frames are processed by the module.  Elements:
@@ -62,7 +64,7 @@ class HKScanner:
         vers = f.get('hkagg_version', 0)
         self.stats['versions'][vers] = self.stats['versions'].get(vers, 0) + 1
 
-        if f['hkagg_type'] == so3g.HKFrameType.session:
+        if f['hkagg_type'] == libso3g.HKFrameType.session:
             session_id = f['session_id']
             if self.session_id is not None:
                 if self.session_id != session_id:
@@ -73,13 +75,13 @@ class HKScanner:
                 self.session_id = session_id
                 self.stats['n_session'] += 1
 
-        elif f['hkagg_type'] == so3g.HKFrameType.status:
+        elif f['hkagg_type'] == libso3g.HKFrameType.status:
             # Have any providers disappeared?
             now_prov_id = [p['prov_id'].value for p in f['providers']]
             for p, info in self.providers.items():
                 if p not in now_prov_id:
                     info['active'] = False
-            
+
             # New providers?
             for p in now_prov_id:
                 info = self.providers.get(p)
@@ -102,7 +104,7 @@ class HKScanner:
                         'block_streams_map': {},  # Map from field name to block name.
                     }
 
-        elif f['hkagg_type'] == so3g.HKFrameType.data:
+        elif f['hkagg_type'] == libso3g.HKFrameType.data:
             info = self.providers[f['prov_id']]
             vers = f.get('hkagg_version', 0)
 
@@ -178,7 +180,7 @@ class HKScanner:
                               'data timestamp vectors (%s) .' % (t_this, t_check),
                               unit='HKScanner')
                 self.stats['concerns']['n_warning'] += 1
-                
+
         else:
             core.log_warn('Weird hkagg_type: %i' % f['hkagg_type'],
                           unit='HKScanner')
