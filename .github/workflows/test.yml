@@ -82,7 +82,7 @@ jobs:
         run: |
           source ~/conda/etc/profile.d/conda.sh \
             && conda activate test \
-            && python3 -m pip install .
+            && CPU_COUNT=2 python3 -m pip install -vv .
       - name: Run Tests
         run: |
           source ~/conda/etc/profile.d/conda.sh \
