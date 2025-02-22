@@ -7,6 +7,9 @@ from . import quat
 from .ranges import RangesMatrix
 from . import mapthreads
 
+DEG = np.pi / 180.
+
+
 # For coordinate systems we use the following abbreviations:
 #
 # - DC: Detector coordinates
@@ -536,14 +539,14 @@ class Projectionist(_ProjectionistBase):
             # This is typical for cylindrical projections.
             assert((delta0 >= 0 and wcs.wcs.lonpole == 180.0) or
                    (delta0 <= 0 and wcs.wcs.lonpole ==   0.0))
-            Q = (quat.euler(1,  delta0 * quat.DEG) *
-                 quat.euler(2, -alpha0 * quat.DEG))
+            Q = (quat.euler(1,  delta0 * DEG) *
+                 quat.euler(2, -alpha0 * DEG))
         elif (wcs.wcs.phi0 == 0. and wcs.wcs.theta0 == 90.):
             # This is typical for zenithal projections.
             assert(wcs.wcs.lonpole == 180.0)
             Q = (quat.euler(2, np.pi) *
-                 quat.euler(1, (delta0 - 90)*quat.DEG) *
-                 quat.euler(2, -alpha0 * quat.DEG))
+                 quat.euler(1, (delta0 - 90)*DEG) *
+                 quat.euler(2, -alpha0 * DEG))
         else:
             raise ValueError('Unimplemented NSC reference (phi0,theta0)='
                              f'({wcs.wcs.phi0:.2f},{wcs.wcs.theta0:.2f})')
@@ -597,7 +600,7 @@ class Projectionist(_ProjectionistBase):
         self.q_celestial_to_native = self.get_q(wcs)
 
         # Store the grid info.
-        self.cdelt = np.array(wcs.wcs.cdelt) * quat.DEG
+        self.cdelt = np.array(wcs.wcs.cdelt) * DEG
         self.crpix = np.array(wcs.wcs.crpix)
 
         # Pixel interpolation mode
@@ -636,8 +639,8 @@ class Projectionist(_ProjectionistBase):
         assert(gamma0 == 0.)
         self.q_celestial_to_native = (
             quat.euler(2, np.pi)
-            * quat.euler(1, (delta0 - 90)*quat.DEG)
-            * quat.euler(2, -alpha0 * quat.DEG))
+            * quat.euler(1, (delta0 - 90)*DEG)
+            * quat.euler(2, -alpha0 * DEG))
         return self
 
     @classmethod

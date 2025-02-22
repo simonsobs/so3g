@@ -2,7 +2,7 @@ from . import quat
 from . import util
 from . import mapthreads
 
-from .wcs import Projectionist, ProjectionistHealpix, Ranges, RangesMatrix
+from .wcs import Projectionist, ProjectionistHealpix, RangesMatrix
 from .coords import CelestialSightLine, EarthlySite, Assembly, FocalPlane, SITES
 from .weather import Weather, weather_factory
 from .ranges import Ranges, RangesMatrix
