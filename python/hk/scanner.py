@@ -3,7 +3,7 @@ import numpy as np
 from spt3g import core
 
 from .. import _libso3g as libso3g
-from . import hk
+from .translator import HKTranslator
 
 
 class HKScanner:
@@ -205,6 +205,6 @@ if __name__ == '__main__':
         p = core.G3Pipeline()
         p.Add(core.G3Reader(f))
         if args.translate:
-            p.Add(hk.HKTranslator(target_version=args.target_version))
+            p.Add(HKTranslator(target_version=args.target_version))
         p.Add(HKScanner())
         p.Run()
