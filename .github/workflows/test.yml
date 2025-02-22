@@ -78,11 +78,11 @@ jobs:
             && conda activate test \
             && conda install --yes --file conda_dev_requirements.txt \
             && pip install -r test-requirements.txt
-      - name: Install
+      - name: Install so3g
         run: |
           source ~/conda/etc/profile.d/conda.sh \
             && conda activate test \
-            && CPU_COUNT=2 python3 -m pip install -vv .
+            && CPU_COUNT=2 python3 -m pip install -v .
       - name: Run Tests
         run: |
           source ~/conda/etc/profile.d/conda.sh \
