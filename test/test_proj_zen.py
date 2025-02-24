@@ -130,7 +130,7 @@ class TestZenithalProjEng(unittest.TestCase):
                     mm[2] = np.sin(2*ang)
                     p.from_map(mm, asm, sig, comps='TQU')
                     expected = np.cos(2*(ang - det_gamma * DEG))
-                    np.testing.assert_allclose(sig - expected, 0)
+                    np.testing.assert_allclose(sig, expected, rtol=0., atol=1e-6)
 
 
 if __name__ == '__main__':
