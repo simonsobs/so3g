@@ -154,6 +154,7 @@ class ProjFlat;
 class ProjCEA;
 class ProjCAR;
 class ProjARC;
+class ProjSIN;
 class ProjTAN;
 class ProjZEA;
 
@@ -320,6 +321,44 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
 
     coords[0] = ss * R_factor;
     coords[1] = sc * R_factor;
+    coords[2] = (a*a - d*d) / cos_theta2_sq;
+    coords[3] = (2*a*d) / cos_theta2_sq;
+}
+
+// ProjSIN: the orthographic projection
+//
+// This is the projection plane most naturally associated with our
+// "xieta" system -- pixels are on lines of constant (xi, eta).
+//
+// The first two coordinates are R(lat)*sin(lon) and -R(lat)*cos(lon)
+// [see FITS-II].  Then cos and sin of parallactic angle.  For SIN,
+// R(lat) = sin(90 - lat) = sin(theta).
+
+template <>
+inline
+void Pointer<ProjSIN>::GetCoords(int i_det, int i_time,
+                                 const double *dofs, double *coords)
+{
+    double _qbore[4];
+    for (int ic=0; ic<4; ic++)
+        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
+                            _pborebuf->strides[0] * i_time +
+                            _pborebuf->strides[1] * ic);
+
+    // What could possibly go wrong.
+    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
+    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
+    quatd qdet = (*qbore) * (*qofs);
+
+    const double a = qdet.R_component_1();
+    const double b = qdet.R_component_2();
+    const double c = qdet.R_component_3();
+    const double d = qdet.R_component_4();
+
+    const double cos_theta2_sq = a*a + d*d;
+
+    coords[0] = 2 * (a*b - c*d);
+    coords[1] = 2 * (c*a + d*b);
     coords[2] = (a*a - d*d) / cos_theta2_sq;
     coords[3] = (2*a*d) / cos_theta2_sq;
 }
@@ -2246,6 +2285,7 @@ TYPEDEF_PIX(Quat)
 TYPEDEF_PIX(CAR)
 TYPEDEF_PIX(CEA)
 TYPEDEF_PIX(ARC)
+TYPEDEF_PIX(SIN)
 TYPEDEF_PIX(TAN)
 TYPEDEF_PIX(ZEA)
 
@@ -2301,6 +2341,7 @@ PYBINDINGS("so3g")
     EXPORT_PIX(CAR);
     EXPORT_PIX(CEA);
     EXPORT_PIX(ARC);
+    EXPORT_PIX(SIN);
     EXPORT_PIX(TAN);
     EXPORT_PIX(ZEA);
 
