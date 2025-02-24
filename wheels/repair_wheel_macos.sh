@@ -16,8 +16,9 @@ pushd $(dirname $0) >/dev/null 2>&1
 scriptdir=$(pwd)
 popd >/dev/null 2>&1
 
-spt3g_install=$(ls -d ${scriptdir}/../build/temp.*/spt3g_install/lib)
-export DYLD_LIBRARY_PATH="/usr/local/lib":"${spt3g_install}":${DYLD_LIBRARY_PATH}
+# spt3g_install=$(ls -d ${scriptdir}/../build/temp.*/spt3g_install/lib)
+# export DYLD_LIBRARY_PATH="/usr/local/lib":"${spt3g_install}":${DYLD_LIBRARY_PATH}
+export DYLD_LIBRARY_PATH="/usr/local/lib":${DYLD_LIBRARY_PATH}
 
 delocate-listdeps --all ${wheel} \
 && delocate-wheel -v --require-archs ${delocate_archs} -w ${dest_dir} ${wheel}
