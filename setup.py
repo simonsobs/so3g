@@ -4,7 +4,6 @@
 
 import os
 import sys
-import sysconfig
 import re
 import subprocess as sp
 import glob
@@ -19,26 +18,9 @@ import numpy as np
 # Absolute path to the directory with this file
 topdir = Path(__file__).resolve().parent
 
-# The version of spt3g we will be installing.  Get this from the
-# Dockerfile for consistency.
+# The version of spt3g we will be installing.
 def get_spt3g_version():
-    dockerfile = os.path.join(topdir, "Dockerfile")
-    ver = None
-    linepat = re.compile(r".*simonsobs/spt3g:(.*)\s*")
-    verpat = re.compile(r".*-g(.*)")
-    with open(dockerfile, "r") as f:
-        for line in f:
-            mat = linepat.match(line)
-            if mat is not None:
-                fullver = mat.group(1)
-                vermat = verpat.match(fullver)
-                if vermat is None:
-                    # This must be an actual tag
-                    ver = fullver
-                else:
-                    # Extract the short hash
-                    ver = vermat.group(1)
-    return ver
+    return "66f373d1b4bf9076fe0af8236eed022c3d006664"
 
 upstream_spt3g_version = get_spt3g_version()
 
@@ -56,7 +38,7 @@ def get_version():
         ver_info = ver_function()
         ver = ver_info["version"]
         sys.path.pop(0)
-    except:
+    except Exception:
         raise RuntimeError("Cannot call get_versions() from version_h.py!")
     return ver
 
@@ -128,7 +110,7 @@ def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, versi
     cxxflags = f"{cxxflags} -DVERSION_INFO='{version}'"
     if sys.platform.lower() == "darwin":
         cmake_args += ["-DCMAKE_SHARED_LINKER_FLAGS='-undefined dynamic_lookup'"]
-    
+
     # Add numpy includes
     numpy_inc = np.get_include()
     cxxflags += f" -I{numpy_inc}"

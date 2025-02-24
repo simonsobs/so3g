@@ -1,10 +1,10 @@
-import so3g
-from spt3g import core
 import numpy as np
 import os
 import sys
 import csv
 import argparse
+
+from spt3g import core
 
 
 _UNITS = {
@@ -49,7 +49,7 @@ def get_parser():
     # Main "mode" subprocessors.
 
     # "list-files"
-    p = cmdsubp.add_parser(
+    _ = cmdsubp.add_parser(
         'list-files',
         parents=[data_args, output_args],
         help="Report per-file stats.",
@@ -62,7 +62,7 @@ def get_parser():
         """)
 
     # "list-provs"
-    p = cmdsubp.add_parser(
+    _ = cmdsubp.add_parser(
         'list-provs',
         parents=[data_args, output_args],
         help="List all data providers (feeds).",
@@ -77,7 +77,7 @@ def get_parser():
         """)
 
     # "list-fields"
-    p = cmdsubp.add_parser(
+    _ = cmdsubp.add_parser(
         'list-fields',
         parents=[data_args, output_args],
         help="List all data field names.",
@@ -242,7 +242,6 @@ def main(args=None):
 
     if args.mode == 'list-files':
         rows = []
-        file_list = get_file_list
         for filename in get_file_list(args):
             file_size = os.path.getsize(filename)
             clean_exit = True
@@ -250,7 +249,7 @@ def main(args=None):
             while True:
                 try:
                     f = r.Process(None)
-                except:
+                except Exception:
                     clean_exit = False
                     break
                 end = r.tell()
@@ -318,7 +317,7 @@ def main(args=None):
                         n = len(block.times)
                         for k in keys:
                             field = addr + '.' + k
-                            if not field in counts:
+                            if field not in counts:
                                 counts[field] = 0
                             counts[field] += n
         header = ['field_name', 'samples']

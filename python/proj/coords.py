@@ -1,10 +1,9 @@
-import so3g
+import numpy as np
+
+from .. import _libso3g as libso3g
 from . import quat
 from .weather import weather_factory
 
-from collections import OrderedDict
-
-import numpy as np
 
 DEG = np.pi / 180.
 
@@ -224,7 +223,7 @@ class CelestialSightLine:
           be [n_det,n_samp,{lon,lat,cos2psi,sin2psi}]
         """
         # Get a projector, in CAR.
-        p = so3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
+        p = libso3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
         # Pre-process the offsets
         collapse = (fplane is None)
         if collapse:
@@ -277,7 +276,8 @@ class FocalPlane:
         # quats will be an quat coeff array-2 and resps will be a numpy
         # array with the right shape, so we don't need to check
         # for this when we use FocalPlane later
-        if quats is None: quats = []
+        if quats is None:
+            quats = []
         # Asarray needed because G3VectorQuat doesn't handle list of lists,
         # which we want to be able to accept
         self.quats = quat.G3VectorQuat(np.asarray(quats))
@@ -370,7 +370,8 @@ class FocalPlane:
         xi, eta, gamma, T, P, Q, U, hwp, dets = cls._xieta_compat(*args, **kwargs)
         gamma = gamma + np.arctan2(U,Q)/2
         P     = P * (Q**2+U**2)**0.5
-        if hwp: gamma = -gamma
+        if hwp:
+            gamma = -gamma
         # Broadcast everything to 1d
         xi, eta, gamma, T, P, _ = np.broadcast_arrays(xi, eta, gamma, T, P, [0])
         quats = quat.rotation_xieta(xi, eta, gamma)
@@ -395,7 +396,8 @@ class FocalPlane:
         in which case an  ``spt3g.core.quat`` is returned for that detector.
         This is provided for backwards compatibility."""
         # FIXME: old sotodlib compat - remove later
-        if isinstance(sel, str): return self.quats[self._dets.index(sel)]
+        if isinstance(sel, str):
+            return self.quats[self._dets.index(sel)]
         # We go via .coeffs() here to get around G3VectorQuat's lack
         # of boolean mask support
         return FocalPlane(quats=self.coeffs()[sel], resps=self.resps[sel])
@@ -424,7 +426,7 @@ class FocalPlane:
         # expects to be able to build up a focalplane by assigning
         # quats one at a time
         if name in self._detmap:
-            i = self._detmap[i]
+            i = self._detmap[name]
             self.quats[i] = q
         else:
             self._dets.append(name)

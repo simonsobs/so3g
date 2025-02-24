@@ -191,7 +191,7 @@ class TestSuperTimestream(unittest.TestCase):
             ts = self._get_ts(1, nsamp, sigma=0, dtype='int32')
             ts.encode()
             self._readback_compare(ts)
-        
+
         # Random time vector.
         n = 200
         ts = self._get_ts(1, n, sigma=0, dtype='int32')
@@ -241,7 +241,7 @@ class TestSuperTimestream(unittest.TestCase):
         self.assertTrue(np.all(ts.data[1:] == 0.))
         self._readback_compare(ts)
         del ts
-        
+
     def test_40_encoding_serialized(self):
         test_file = 'test_g3super.g3'
         offsets = {
@@ -314,12 +314,12 @@ class TestSuperTimestream(unittest.TestCase):
         del w
 
         # Readback
-        r = so3g.G3IndexedReader(test_file)
+        r = core.G3Reader(test_file)
         last = 0
         for dtype in ALL_DTYPES:
             for i in range(2):
                 r.Process(None)[0]
-                here = r.Tell()
+                here = r.tell()
                 sizes[dtype].append(here - last)
                 last = here
 
