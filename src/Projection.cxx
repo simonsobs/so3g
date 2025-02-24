@@ -302,15 +302,21 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
     const double d = qdet.R_component_4();
 
     const double cos_theta2_sq = a*a + d*d;
+    const double sin_theta2_sq = b*b + c*c;
 
     const double sc = c*a + d*b;
     const double ss = a*b - c*d;
     const double half_sin_theta = sqrt(sc*sc + ss*ss);
+
     double R_factor;
     if (half_sin_theta < 1e-8)
         R_factor = 2 + 1.33333333333*half_sin_theta*half_sin_theta;
     else
         R_factor = ASIN(half_sin_theta*2) / half_sin_theta;
+
+    // Allow for theta in [pi/2, pi).
+    if (cos_theta2_sq < sin_theta2_sq)
+        R_factor = M_PI / half_sin_theta - R_factor;
 
     coords[0] = ss * R_factor;
     coords[1] = sc * R_factor;
