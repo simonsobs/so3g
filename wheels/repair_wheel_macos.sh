@@ -16,7 +16,7 @@ pushd $(dirname $0) >/dev/null 2>&1
 scriptdir=$(pwd)
 popd >/dev/null 2>&1
 
-spt3g_install=$(ls -d ${scriptdir}/../build/temp.*/spt3g/spt3g)
+spt3g_install=$(ls -d ${scriptdir}/../build/temp.*/spt3g_install/lib)
 export DYLD_LIBRARY_PATH="/usr/local/lib":"${spt3g_install}":${DYLD_LIBRARY_PATH}
 
 delocate-listdeps --all ${wheel} \
