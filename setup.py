@@ -4,7 +4,6 @@
 
 import os
 import sys
-import sysconfig
 import re
 import subprocess as sp
 import glob
@@ -19,26 +18,9 @@ import numpy as np
 # Absolute path to the directory with this file
 topdir = Path(__file__).resolve().parent
 
-# The version of spt3g we will be installing.  Get this from the
-# Dockerfile for consistency.
+# The version of spt3g we will be installing.
 def get_spt3g_version():
-    dockerfile = os.path.join(topdir, "Dockerfile")
-    ver = None
-    linepat = re.compile(r".*simonsobs/spt3g:(.*)\s*")
-    verpat = re.compile(r".*-g(.*)")
-    with open(dockerfile, "r") as f:
-        for line in f:
-            mat = linepat.match(line)
-            if mat is not None:
-                fullver = mat.group(1)
-                vermat = verpat.match(fullver)
-                if vermat is None:
-                    # This must be an actual tag
-                    ver = fullver
-                else:
-                    # Extract the short hash
-                    ver = vermat.group(1)
-    return ver
+    return "66f373d1b4bf9076fe0af8236eed022c3d006664"
 
 upstream_spt3g_version = get_spt3g_version()
 
@@ -56,7 +38,7 @@ def get_version():
         ver_info = ver_function()
         ver = ver_info["version"]
         sys.path.pop(0)
-    except:
+    except Exception:
         raise RuntimeError("Cannot call get_versions() from version_h.py!")
     return ver
 
@@ -128,7 +110,7 @@ def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, versi
     cxxflags = f"{cxxflags} -DVERSION_INFO='{version}'"
     if sys.platform.lower() == "darwin":
         cmake_args += ["-DCMAKE_SHARED_LINKER_FLAGS='-undefined dynamic_lookup'"]
-    
+
     # Add numpy includes
     numpy_inc = np.get_include()
     cxxflags += f" -I{numpy_inc}"
@@ -206,7 +188,7 @@ class CMakeBuild(build_ext):
         Perform build_cmake before doing the 'normal' stuff
         """
         for extension in self.extensions:
-            if extension.name == "so3g.libso3g":
+            if extension.name == "so3g._libso3g":
                 # We just trigger this on one of the extensions.  build_cmake()
                 # will actually build everything.
                 self.build_cmake()
@@ -234,13 +216,9 @@ class CMakeBuild(build_ext):
         # CMake build directory for spt3g
         temp_spt3g = os.path.join(temp_build, "spt3g")
 
-        # The python module in the spt3g build directory.  This contains
-        # the compiled libraries and symlinks to the python source.
-        spt3g_python_dir = os.path.join(temp_spt3g, "spt3g")
-
         # Use CMake to install to the distutils build location
         install_so3g = os.path.dirname(
-            Path(self.get_ext_fullpath("so3g.libso3g")).resolve().parents[0]
+            Path(self.get_ext_fullpath("so3g._libso3g")).resolve().parents[0]
         )
 
         # Fake install directory passed to spt3g cmake.
@@ -262,9 +240,6 @@ class CMakeBuild(build_ext):
         dlist3g = [
             f"-DPython_EXECUTABLE={py_exe}",
             f"-DPython_INCLUDE_DIRS={py_incl}",
-            "-DPython_LIBRARIES=''",
-            "-DPython_RUNTIME_LIBRARY_DIRS=''",
-            "-DPython_LIBRARY_DIRS=''",
             f"-DPython_VERSION_MAJOR={py_maj}",
             f"-DPython_VERSION_MINOR={py_min}",
             "-DBoost_ARCHITECTURE=-x64",
@@ -295,6 +270,13 @@ class CMakeBuild(build_ext):
             self.debug,
         )
 
+        # Move spt3g python directory into place.  Remove any stale copy of the
+        # directory.
+        install_spt3g_internal = os.path.join(install_so3g, "so3g", "spt3g_internal")
+        if os.path.isdir(install_spt3g_internal):
+            shutil.rmtree(install_spt3g_internal)
+        os.rename(os.path.join(temp_spt3g, "spt3g"), install_spt3g_internal)
+
         build_so3g(
             topdir,
             temp_so3g,
@@ -306,25 +288,11 @@ class CMakeBuild(build_ext):
             self.debug,
         )
 
-        # Move spt3g python directory into place.  Remove any stale copy of the
-        # directory.
-        install_spt3g_internal = os.path.join(install_so3g, "so3g", "spt3g_internal")
-        if os.path.isdir(install_spt3g_internal):
-            print(f"rm stale: {install_spt3g_internal}")
-            shutil.rmtree(install_spt3g_internal)
-        print(f"copy {spt3g_python_dir}, {install_spt3g_internal}")
-        shutil.copytree(spt3g_python_dir, install_spt3g_internal, symlinks=False)
-
         self.cmake_build_done = True
 
 
 ext_modules = [
-    CMakeExtension("so3g.libso3g"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-core"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-dfmux"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-calibration"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-gcp"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-maps"),
+    CMakeExtension("so3g._libso3g"),
 ]
 
 # Install the python scripts from spt3g
