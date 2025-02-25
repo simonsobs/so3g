@@ -98,7 +98,8 @@ private:
 };
 
 // Model independent Negative Log Likelihood for generalized 
-// unconstrained minimization
+// unconstrained minimization.  This is to be used when data
+// has residuals that follow a chi^2(1) distribution.
 template <typename Model>
 struct NegLogLikelihood
 {

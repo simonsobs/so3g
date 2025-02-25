@@ -1,17 +1,19 @@
 #define NO_IMPORT_ARRAY
+#define GLOG_USE_GLOG_EXPORT
 
 #include <stdint.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
 #include <cmath>
+#include <cstdint>
 
 #include <boost/python.hpp>
 #include <omp.h>
 
 #include <gsl/gsl_statistics.h>
-#include <ceres/ceres.h>
 #include <glog/logging.h>
+#include <ceres/ceres.h>
 
 #include <pybindings.h>
 #include "so3g_numpy.h"
@@ -220,31 +222,33 @@ auto _get_frequency_limits(const double* f, const double lowf,
                            const double fwhite_upper,
                            const int nsamps)
 {
-    // Index for f = lowf
+
+    // Index where f = lowf
     int lowf_i = 0;
-    for (int i = 0; i < nsamps; ++i) {
-        if (f[i] > lowf) {
-            lowf_i = i;
-            break;
-        }
+    while (lowf_i < nsamps && f[lowf_i] < lowf) {
+        lowf_i++;
     }
 
-    std::vector<int> fwhite_i;
+    std::vector<int> fwhite_i(2);
 
-    // index for f > lower fwhite
-    for (int i = 0; i < nsamps; ++i) {
-        if (f[i] > fwhite_lower) {
-            fwhite_i.push_back(i);
-            break;
-        }
+    // Index where f = fwhite_lower
+    fwhite_i[0] = 0;
+    while (fwhite_i[0] < nsamps && f[fwhite_i[0]] < fwhite_lower) {
+        fwhite_i[0]++;
     }
 
-    // index for f < upper fwhite
-    for (int i = nsamps - 1; i >= 0; --i) {
-        if (f[i] < fwhite_upper) {
-            fwhite_i.push_back(i);
-            break;
-        }
+    // Index where f = fwhite_upper
+    fwhite_i[1] = nsamps - 1;
+    while (fwhite_i[1] > fwhite_i[0] && f[fwhite_i[1]] > fwhite_upper) {
+        fwhite_i[1]--;
+    }
+
+    if (fwhite_i[0] < lowf) {
+        throw ValueError_exception("fwhite lower index < lower freq index.");
+    }
+
+    if (fwhite_i[1] <= fwhite_i[0]) {
+        throw ValueError_exception("fwhite upper index <= fwhite lower index.");
     }
 
     int fwhite_size = fwhite_i[1] - fwhite_i[0] + 1;
@@ -443,19 +447,22 @@ PYBINDINGS("so3g")
              "fit_noise(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon)"
              "\n"
              "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE "
-             "method that minimizes a log likelihood. OMP is used to parallelize across dets (rows)."
+             "method that minimizes a log-likelihood. OMP is used to parallelize across dets (rows)."
              "\n"
              "Args:\n"
-             "  f: frequency array (float32/64) with dimensions (nsamps,).\n"
+             "  f: frequency array (float32/64) with dimensions (nsamps,). "
+             "     Should be positive definite and strictly increasing.\n"
              "  pxx: PSD array (float32/64) with dimensions (ndets, nsamps).\n"
-             "  p: parameter array (float32/64) with dimensions (ndets, nparams). This is modified in place.\n"
-             "  c: uncertaintiy array (float32/64) with dimensions (ndets, nparams). This is modified in place.\n"
+             "  p: output parameter array (float32/64) with dimensions (ndets, nparams). "
+             "     This is modified in place and input values are ignored.\n"
+             "  c: output uncertaintiy array (float32/64) with dimensions (ndets, nparams). "
+             "     This is modified in place and input values are ignored.\n"
              "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial "
              "        guess passed to least_squares fit (float64).\n"
              "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to "
-             "                least_squares fit (float64).\n"
+             "                least_squares fit (float64).  Should be < fwhite_upper and >= lowf.\n"
              "  fwhite_upper: Upper frequency used to estimate white noise for initial guess passed to "
-             "                least_squares fit (float64).\n"
+             "                least_squares fit (float64).  Should be > fwhite_lower and lowf.\n"
              "  tol: absolute tolerance for minimization (float64).\n"
              "  niter: total number of iterations to run minimization for (int).\n"
              "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse "
