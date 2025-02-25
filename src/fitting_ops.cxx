@@ -6,7 +6,6 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <cstdint>
 
 #include <boost/python.hpp>
 #include <omp.h>

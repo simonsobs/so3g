@@ -90,7 +90,7 @@ target_link_libraries(so3g spt3g::core)
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g ${GSL_LIBRARIES})
 # Link Ceres
-target_link_libraries(so3g Ceres::Ceres Eigen3::Eigen)
+target_link_libraries(so3g Ceres::ceres Eigen3::Eigen)
 
 # You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)
