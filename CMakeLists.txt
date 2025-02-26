@@ -95,7 +95,7 @@ target_link_libraries(so3g PUBLIC ${FFTWF_OMP_LIBRARY})
 
 # FLAC- library already comes from spt3g dependencies, but
 # we need to have the headers.
-# target_include_directories(so3g PRIVATE ${FLAC_INCLUDE_DIR})
+target_include_directories(so3g PRIVATE ${FLAC_INCLUDE_DIR})
 
 # You probably want to select openblas, so pass -DBLA_VENDOR=OpenBLAS
 find_package(BLAS REQUIRED)
