@@ -6,7 +6,7 @@ cmake \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
     -DCMAKE_BUILD_TYPE=Release \
     -DPython_EXECUTABLE=$(which python3) \
-    -DCMAKE_MODULE_PATH=../cmake \
+    -DCMAKE_MODULE_PATH=$(pwd)/../cmake \
     ..
 make -j 2
 make install
