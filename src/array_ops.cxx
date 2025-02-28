@@ -1297,10 +1297,10 @@ int _find_bin_index(const T* bin_edges, T value, int nbins) {
 
         if (value >= bin_edges[mid] && value < bin_edges[mid + 1]) {
             return mid;
-        } 
+        }
         else if (value >= bin_edges[mid + 1]) {
             left = mid + 1;
-        } 
+        }
         else {
             right = mid;
         }
@@ -1314,7 +1314,9 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
                  const bp::object & weight, bp::object & binned_sig,
                  bp::object & binned_sig_sigma, bp::object & bin_counts,
                  const bp::object & bin_edges, const T lower, const T upper,
-                 const int* flags_data=nullptr, const bool is_flags_2d=false)
+                 const int* flags_data=nullptr,
+                 const std::vector<int> & flags_shape={0,0},
+                 const int flags_stride=0)
 {
     // signal
     BufferWrapper<T> signal_buf  ("signal",  signal,  false, std::vector<int>{-1, -1});
@@ -1324,6 +1326,20 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
     const int nsamps = signal_buf->shape[1];
     T* signal_data = (T*)signal_buf->buf;
 
+    // Check flags shape
+    bool is_flags_2d = false;
+    if (flags_data) {
+        if (flags_shape.size() == 2) {
+            is_flags_2d = true;
+            if (flags_shape[0] != ndets || flags_shape[1] != nsamps) {
+                throw ValueError_exception("2D 'flags' array has incorrect shape");
+            }
+        }
+        else if (flags_shape[0] != nsamps) {
+            throw ValueError_exception("1D 'flags' array has incorrect shape");
+        }
+    }
+
     // bin_by
     BufferWrapper<T> bin_by_buf  ("bin_by",  bin_by,  false, std::vector<int>{nsamps});
     if (bin_by_buf->strides[0] != bin_by_buf->itemsize)
@@ -1331,18 +1347,25 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
     T* bin_by_data = (T*)bin_by_buf->buf;
 
     // weight
-    BufferWrapper<int> weight_buf  ("weight",  weight,  false);
-    if (weight_buf->ndim == 1 && weight_buf->strides[0] != weight_buf->itemsize)
+    BufferWrapper<T> weight_buf_temp  ("weight",  weight, true);
+    if (weight_buf_temp->ndim == 1 && weight_buf_temp->strides[0] != weight_buf_temp->itemsize)
         throw ValueError_exception("Argument 'weight' must be a C-contiguous 1d array");
-    else if (weight_buf->ndim == 2 && weight_buf->strides[1] != weight_buf->itemsize)
+    else if (weight_buf_temp->ndim == 2 && weight_buf_temp->strides[1] != weight_buf_temp->itemsize)
         throw ValueError_exception("Argument 'weight' must be contiguous in last axis.");
 
-    T* weight_data = (T*)weight_buf->buf;
-
+    // Check weight dimensions
     bool is_weight_2d = false;
-    if (weight_buf->ndim == 2) {
+    std::vector<int> weight_dims;
+    if (weight_buf_temp->ndim == 2) {
+        weight_dims.push_back(ndets);
         is_weight_2d = true;
     }
+    if (weight_buf_temp->ndim >= 1) {
+        weight_dims.push_back(nsamps);
+    }
+
+    BufferWrapper<T> weight_buf  ("weight",  weight, false, weight_dims);
+    T* weight_data = (T*)weight_buf->buf;
 
     // bin_edges
     BufferWrapper<T> bin_edges_buf  ("bin_edges",  bin_edges,  false, std::vector<int>{-1});
@@ -1369,56 +1392,67 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
         throw ValueError_exception("Argument 'bin_counts' must be contiguous in last axis.");
     int* bin_counts_data = (int*)bin_counts_buf->buf;
 
+    // Strides
+    int signal_stride = signal_buf->strides[0] / sizeof(T);
+    int weight_stride = 0;
+    if (is_weight_2d) {
+        weight_stride = weight_buf->strides[0] / sizeof(T);
+    }
+    int binned_sig_stride = binned_sig_buf->strides[0] / sizeof(T);
+    int binned_sig_sigma_stride = binned_sig_sigma_buf->strides[0] / sizeof(T);
+    int bin_counts_stride = bin_counts_buf->strides[0] / sizeof(int);
+
     // Map from data column to bin index
     T* bin_indices = (T*) malloc(nsamps * sizeof(T));
     for (int i = 0; i < nsamps; ++i) {
         bin_indices[i] = _find_bin_index(bin_edges_data, bin_by_data[i], nbins);
     }
-    
+
     // Make the histogram up front if no flag array given
+    // Assumes weights is 1D
     if (!flags_data) {
         for (int i = 0; i < nbins; ++i) {
             bin_counts_data[i] = 0;
         }
         _histogram(bin_by_data, weight_data, bin_counts_data, bin_edges_data,
                    nsamps, nbins, lower, upper);
-        
+
         // Set all other detectors to first det bins if no flags
         #pragma omp parallel for
         for (int i = 1; i < ndets; ++i) {
-            int binned_ioff = i * nbins;
+            int binned_ioff = i * bin_counts_stride;
             int* bin_counts_row = bin_counts_data + binned_ioff;
             for (int j = 0; j < nbins; ++j) {
                 bin_counts_row[j] = bin_counts_data[j];
             }
         }
     }
-    
+
     T* binned_sig_sq_mean = (T*) malloc(nbins * ndets * sizeof(T));
-    
+
     #pragma omp parallel for
     for (int i = 0; i < ndets; ++i) {
-        int ioff = i * nsamps;
-        int binned_ioff = i * nbins;
+        int ioff = i * signal_stride;
+        int binned_ioff = i * bin_counts_stride;
         int weight_ioff = 0;
 
         // Weights may be 1D or 2D
         if (is_weight_2d) {
-            weight_ioff = ioff;
+            weight_ioff = i * weight_stride;
         }
-        
+
         T* signal_row = signal_data + ioff;
-        T* binned_sig_row = binned_sig_data + binned_ioff;
-        T* binned_sig_sq_mean_row = binned_sig_sq_mean + binned_ioff;
-        T* binned_sig_sigma_row = binned_sig_sigma_data + binned_ioff;
-        T* weight_row = weight_data + weight_ioff;
+        T* binned_sig_row = binned_sig_data + (i * binned_sig_stride);
+        T* binned_sig_sq_mean_row = binned_sig_sq_mean + (i * nbins);
+        T* binned_sig_sigma_row = binned_sig_sigma_data + (i * binned_sig_sigma_stride);
+        T* weight_row = weight_data + weight_stride;
         int* bin_counts_row = bin_counts_data + binned_ioff;
-        
+
         // Zero out binned data
         for (int j = 0; j < nbins; ++j) {
             binned_sig_row[j] = 0;
             binned_sig_sq_mean_row[j] = 0;
-            
+
             if (flags_data) {
                 bin_counts_row[j] = 0;
             }
@@ -1430,9 +1464,9 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
             if (flags_data) {
                 // Flags may be 1D or 2D
                 int flags_ioff = 0;
-                
+
                 if (is_flags_2d) {
-                    flags_ioff = ioff;
+                    flags_ioff = i * flags_stride;
                 }
 
                 samp_flagged = flags_data[flags_ioff + j];
@@ -1442,7 +1476,7 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
                 if (flags_data) {
                     bin_counts_row[bin] += weight_row[j];
                 }
-                
+
                 if (bin_counts_row[bin] > 0) {
                     T ws = weight_row[j] * signal_row[j];
                     binned_sig_row[bin] += ws;
@@ -1455,7 +1489,7 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
             if (bin_counts_row[j] > 0) {
                 binned_sig_row[j] /= bin_counts_row[j];
                 binned_sig_sq_mean_row[j] /= bin_counts_row[j];
-                binned_sig_sigma_row[j] = 
+                binned_sig_sigma_row[j] =
                     std::sqrt(std::abs(binned_sig_sq_mean_row[j] -
                                        binned_sig_row[j] * binned_sig_row[j])) /
                                        std::sqrt(bin_counts_row[j]);
@@ -1476,7 +1510,7 @@ void bin_signal(const bp::object & bin_by, const bp::object & signal,
 {
     // Get data type
     int dtype = get_dtype(signal);
-        
+
     if (dtype == NPY_FLOAT) {
         _bin_signal<float>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
                            bin_counts, bins, (float)lower, (float)upper);
@@ -1506,22 +1540,25 @@ void bin_flagged_signal(const bp::object & bin_by, const bp::object & signal,
     else if (flags_buf->ndim == 2 && flags_buf->strides[1] != flags_buf->itemsize)
         throw ValueError_exception("Argument 'flags' must be contiguous in last axis.");
 
-    bool is_flags_2d = false;
+    std::vector<int> flags_shape;
+    flags_shape.push_back(flags_buf->shape[0]);
+
     if (flags_buf->ndim == 2) {
-        is_flags_2d = true;
+        flags_shape.push_back(flags_buf->shape[1]);
     }
-    
+
     int* flags_data = (int*)flags_buf->buf;
-    
+    int flags_stride = flags_buf->strides[0] / sizeof(int);
+
     if (dtype == NPY_FLOAT) {
         _bin_signal<float>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
                            bin_counts, bins, (float)lower, (float)upper,
-                           flags_data, is_flags_2d);
+                           flags_data, flags_shape, flags_stride);
     }
     else if (dtype == NPY_DOUBLE) {
         _bin_signal<double>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
                             bin_counts, bins, (double)lower, (double)upper,
-                            flags_data, is_flags_2d);
+                            flags_data, flags_shape, flags_stride);
     }
     else {
         throw TypeError_exception("Only float32 or float64 arrays are supported.");
@@ -1690,35 +1727,37 @@ PYBINDINGS("so3g")
     bp::def("bin_signal", bin_signal,
             "bin_signal(bin_by, signal, weight, binned_sig, binned_sig_sigma, bin_counts, bin_edges, lower, upper)"
             "\n"
-            "Bin time-ordered data by the ``bin_by`` and return the binned signal and its standard deviation."
+            "Bin time-ordered data by ``bin_by`` and return the binned signal and its standard deviation. "
+            "This function uses OMP to parallelize over the dets (rows) axis.\n"
             "Args:\n"
             "  bin_by: the array (float32/float64) by which signal is binned with shape (nsamp)"
             "  signal: the signal array (float32/float64) to be binned with shape (ndet,nsamp)"
             "  weight: array (float32/float64) of weights for the signal values.  May have shapes "
             "          of (nsamps) or (ndets, nsamps)"
-            "  binned_signal: binned signal array (float32/float64) with shape (ndet,nsamp). "
+            "  binned_signal: binned signal array (float32/float64) with shape (ndet,nbin). "
             "                 Modified in place."
-            "  binned_sig_sigma: estimated sigma of binned signal (float32/float64) with shape (ndet,nsamp). "
+            "  binned_sig_sigma: estimated sigma of binned signal (float32/float64) with shape (ndet,nbin). "
             "                    Modified in place."
-            "  bin_counts: counts of binned samples (int32) with shape (ndet,nsamp).  Modified in place."
-            "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Modified in place."
+            "  bin_counts: counts of binned samples (int32) with shape (ndet,nbin).  Modified in place."
+            "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Must be monotonically increasing."
             "  lower: lower bin range (float64)"
             "  upper: upper bin range (float64)\n");
     bp::def("bin_flagged_signal", bin_flagged_signal,
             "bin_signal(bin_by, signal, weight, binned_sig, binned_sig_sigma, bin_counts, bin_edges, lower, upper, flags)"
             "\n"
-            "Bin time-ordered data by the ``bin_by`` and return the binned signal and its standard deviation."
+            "Bin time-ordered data by ``bin_by`` and return the binned signal and its standard deviation. "
+            "This function uses OMP to parallelize over the dets (rows) axis.\n"
             "Args:\n"
             "  bin_by: the array (float32/float64) by which signal is binned with shape (nsamp)"
             "  signal: the signal array (float32/float64) to be binned with shape (ndet,nsamp)"
             "  weight: array (float32/float64) of weights for the signal values.  May have shapes "
             "          of (nsamps) or (ndets, nsamps)"
-            "  binned_signal: binned signal array (float32/float64) with shape (ndet,nsamp). "
+            "  binned_signal: binned signal array (float32/float64) with shape (ndet,nbin). "
             "                 Modified in place."
-            "  binned_sig_sigma: estimated sigma of binned signal (float32/float64) with shape (ndet,nsamp). "
+            "  binned_sig_sigma: estimated sigma of binned signal (float32/float64) with shape (ndet,nbin). "
             "                    Modified in place."
-            "  bin_counts: counts of binned samples (int32) with shape (ndet,nsamp).  Modified in place."
-            "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Modified in place."
+            "  bin_counts: counts of binned samples (int32) with shape (ndet,nbin).  Modified in place."
+            "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Must be monotonically increasing."
             "  lower: lower bin range (float64)"
             "  upper: upper bin range (float64)"
             "  flags: array (int32) indicating whether to exclude flagged samples when binning the signal."

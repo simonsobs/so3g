@@ -453,20 +453,20 @@ class TestBinning(unittest.TestCase):
             binned_signal = np.full([ndets, nbins], np.nan)
             binned_signal_squared_mean = np.full([ndets, nbins], np.nan)
             binned_signal_sigma = np.full([ndets, nbins], np.nan)
-            
+
             # get bin indices
             bin_indices = np.digitize(x, bin_edges) - 1
             bin_indices = np.clip(bin_indices, 0, nbins-1)
-    
+
             bin_counts, _ = np.histogram(x, bins=bins, range=[x_min,x_max], weights = weight)
             mcnts = bin_counts > 0
-            
-            for i in range(ndets):      
+
+            for i in range(ndets):
                 binned_signal[i][mcnts] = np.bincount(bin_indices, weights=signal[i]*weight, minlength=nbins
                                                      )[mcnts]/bin_counts[mcnts]
                 binned_signal_squared_mean[i][mcnts] = np.bincount(bin_indices, weights=(signal[i]*weight)**2, minlength=nbins
                                                      )[mcnts]/bin_counts[mcnts]
-                
+
             binned_signal_sigma[:, mcnts] = np.sqrt(np.abs(binned_signal_squared_mean[:,mcnts] - binned_signal[:,mcnts]**2)
                                           ) / np.sqrt(bin_counts[mcnts])
             bin_counts_dets = np.tile(bin_counts, (ndets, 1))
@@ -475,7 +475,7 @@ class TestBinning(unittest.TestCase):
 
 
         binned_signal, binned_signal_sigma, bin_counts_dets = numpy_binning()
-    
+
         # so3g
         binned_signal_so3g = np.zeros((ndets, nbins), dtype=dtype, order=order)
         binned_signal_sigma_so3g = np.zeros((ndets, nbins), dtype=dtype, order=order)
@@ -485,14 +485,14 @@ class TestBinning(unittest.TestCase):
                         bin_counts_so3g, bin_edges, x_min, x_max)#, flags)
 
         tolerance = 1e-10
-        np.testing.assert_allclose(binned_signal, binned_signal, rtol=tolerance)
-        np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, rtol=tolerance)
-        np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, rtol=tolerance)
+        np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)
+        np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, atol=tolerance)
+        np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, atol=tolerance)
 
-    def test_00_binning_flags_float64(self):
+    def test_01_binning_flags_float32(self):
         nsamps = 1000
         ndets = 3
-        dtype = "float64"
+        dtype = "float32"
         order = "C"
 
         x_min = 0.0
@@ -502,7 +502,7 @@ class TestBinning(unittest.TestCase):
         x = np.linspace(x_min, x_max, nsamps, dtype=dtype)
         signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)],
                           dtype=dtype, order=order)
-        weight = np.ones((nsamps), dtype=dtype, order=order)
+        weight = np.ones((ndets, nsamps), dtype=dtype, order=order)
         flags = np.zeros((ndets, nsamps), dtype=np.int32, order=order)
         flags[0,::2] = 1
         flags[1,::3] = 1
@@ -516,28 +516,28 @@ class TestBinning(unittest.TestCase):
             binned_signal = np.full([ndets, nbins], np.nan)
             binned_signal_squared_mean = np.full([ndets, nbins], np.nan)
             binned_signal_sigma = np.full([ndets, nbins], np.nan)
-            
+
             # get bin indices
             bin_indices = np.digitize(x, bin_edges) - 1
             bin_indices = np.clip(bin_indices, 0, nbins-1)
             bin_counts_dets = np.full([ndets, nbins], np.nan)
-            
+
             if flags.shape == (ndets, nsamps):
                 flag_is_2d = True
                 m_2d = ~flags.astype(bool)
             elif flags.shape == (nsamps, ):
                 flag_is_2d = False
                 m = ~flags.astype(bool)
-    
+
             for i in range(ndets):
                 if flag_is_2d:
                     m = m_2d[i]
-    
+
                 if weight.shape == (ndets, nsamps):
                     weight_det = weight[i]
                 elif weight.shape == (nsamps, ):
                     weight_det = weight
-    
+
                 bin_counts_dets[i] = np.bincount(bin_indices[m], weights=weight_det[m], minlength=nbins)
                 mcnts = bin_counts_dets[i] > 0
                 binned_signal[i][mcnts] = np.bincount(bin_indices[m], weights=signal[i][m]*weight_det[m], minlength=nbins
@@ -551,7 +551,84 @@ class TestBinning(unittest.TestCase):
 
 
         binned_signal, binned_signal_sigma, bin_counts_dets = numpy_binning()
-    
+
+        # so3g
+        binned_signal_so3g = np.zeros((ndets, nbins), dtype=dtype, order=order)
+        binned_signal_sigma_so3g = np.zeros((ndets, nbins), dtype=dtype, order=order)
+        bin_counts_so3g = np.zeros((ndets, nbins), dtype=np.int32, order=order)
+
+        so3g.bin_flagged_signal(x, signal, weight, binned_signal_so3g,
+                                binned_signal_sigma_so3g, bin_counts_so3g,
+                                bin_edges, x_min, x_max, flags)
+
+        tolerance = 1e-4
+        np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)
+        np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, atol=tolerance)
+        np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, atol=tolerance)
+
+    def test_02_binning_flags_float64(self):
+        nsamps = 1000
+        ndets = 3
+        dtype = "float64"
+        order = "C"
+
+        x_min = 0.0
+        x_max = 1.0
+        bins = 10
+
+        x = np.linspace(x_min, x_max, nsamps, dtype=dtype)
+        signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)],
+                          dtype=dtype, order=order)
+        weight = np.ones((ndets, nsamps), dtype=dtype, order=order)
+        flags = np.zeros((ndets, nsamps), dtype=np.int32, order=order)
+        # flags[0,::2] = 1
+        # flags[1,::3] = 1
+        # flags[2,::4] = 1
+
+        bin_edges = np.histogram_bin_edges(x, bins=bins, range=[x_min,x_max],)
+        bin_centers = (bin_edges[1] - bin_edges[0])/2. + bin_edges[:-1] # edge to center
+        nbins = len(bin_centers)
+
+        def numpy_binning():
+            binned_signal = np.full([ndets, nbins], np.nan)
+            binned_signal_squared_mean = np.full([ndets, nbins], np.nan)
+            binned_signal_sigma = np.full([ndets, nbins], np.nan)
+
+            # get bin indices
+            bin_indices = np.digitize(x, bin_edges) - 1
+            bin_indices = np.clip(bin_indices, 0, nbins-1)
+            bin_counts_dets = np.full([ndets, nbins], np.nan)
+
+            if flags.shape == (ndets, nsamps):
+                flag_is_2d = True
+                m_2d = ~flags.astype(bool)
+            elif flags.shape == (nsamps, ):
+                flag_is_2d = False
+                m = ~flags.astype(bool)
+
+            for i in range(ndets):
+                if flag_is_2d:
+                    m = m_2d[i]
+
+                if weight.shape == (ndets, nsamps):
+                    weight_det = weight[i]
+                elif weight.shape == (nsamps, ):
+                    weight_det = weight
+
+                bin_counts_dets[i] = np.bincount(bin_indices[m], weights=weight_det[m], minlength=nbins)
+                mcnts = bin_counts_dets[i] > 0
+                binned_signal[i][mcnts] = np.bincount(bin_indices[m], weights=signal[i][m]*weight_det[m], minlength=nbins
+                                                     )[mcnts]/bin_counts_dets[i][mcnts]
+                binned_signal_squared_mean[i][mcnts] = np.bincount(bin_indices[m], weights=(signal[i][m]*weight_det[m])**2, minlength=nbins
+                                                     )[mcnts]/bin_counts_dets[i][mcnts]
+                binned_signal_sigma[i][mcnts] = np.sqrt(np.abs(binned_signal_squared_mean[i,mcnts] - binned_signal[i,mcnts]**2)
+                                                     ) / np.sqrt(bin_counts_dets[i][mcnts])
+
+            return binned_signal, binned_signal_sigma, bin_counts_dets
+
+
+        binned_signal, binned_signal_sigma, bin_counts_dets = numpy_binning()
+
         # so3g
         binned_signal_so3g = np.zeros((ndets, nbins), dtype=dtype, order=order)
         binned_signal_sigma_so3g = np.zeros((ndets, nbins), dtype=dtype, order=order)
@@ -562,9 +639,9 @@ class TestBinning(unittest.TestCase):
                                 bin_edges, x_min, x_max, flags)
 
         tolerance = 1e-10
-        np.testing.assert_allclose(binned_signal, binned_signal, rtol=tolerance)
-        np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, rtol=tolerance)
-        np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, rtol=tolerance)
+        np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)
+        np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, atol=tolerance)
+        np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, atol=tolerance)
 
 
 if __name__ == "__main__":
