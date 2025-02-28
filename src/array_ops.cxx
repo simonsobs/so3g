@@ -1403,7 +1403,7 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
     int bin_counts_stride = bin_counts_buf->strides[0] / sizeof(int);
 
     // Map from data column to bin index
-    T* bin_indices = (T*) malloc(nsamps * sizeof(T));
+    int* bin_indices = (int*) malloc(nsamps * sizeof(int));
     for (int i = 0; i < nsamps; ++i) {
         bin_indices[i] = _find_bin_index(bin_edges_data, bin_by_data[i], nbins);
     }
@@ -1434,12 +1434,7 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
     for (int i = 0; i < ndets; ++i) {
         int ioff = i * signal_stride;
         int binned_ioff = i * bin_counts_stride;
-        int weight_ioff = 0;
-
-        // Weights may be 1D or 2D
-        if (is_weight_2d) {
-            weight_ioff = i * weight_stride;
-        }
+        int weight_ioff = i * weight_stride;
 
         T* signal_row = signal_data + ioff;
         T* binned_sig_row = binned_sig_data + (i * binned_sig_stride);
@@ -1462,13 +1457,7 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
         for (int j = 0; j < nsamps; ++j) {
             bool samp_flagged = false;
             if (flags_data) {
-                // Flags may be 1D or 2D
-                int flags_ioff = 0;
-
-                if (is_flags_2d) {
-                    flags_ioff = i * flags_stride;
-                }
-
+                int flags_ioff = i * flags_stride;
                 samp_flagged = flags_data[flags_ioff + j];
             }
             if (!samp_flagged) {
@@ -1543,12 +1532,13 @@ void bin_flagged_signal(const bp::object & bin_by, const bp::object & signal,
     std::vector<int> flags_shape;
     flags_shape.push_back(flags_buf->shape[0]);
 
+    int flags_stride = 0;
     if (flags_buf->ndim == 2) {
         flags_shape.push_back(flags_buf->shape[1]);
+        flags_stride = flags_buf->strides[0] / sizeof(int);
     }
 
     int* flags_data = (int*)flags_buf->buf;
-    int flags_stride = flags_buf->strides[0] / sizeof(int);
 
     if (dtype == NPY_FLOAT) {
         _bin_signal<float>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
