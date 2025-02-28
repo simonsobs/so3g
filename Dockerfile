@@ -14,7 +14,8 @@ RUN apt update && apt install -y \
     gfortran \
     libopenblas-openmp-dev \
     libbz2-dev \
-    python-is-python3
+    python-is-python3 \
+    libfftw3-dev
 
 # Set the working directory
 WORKDIR /app_lib/so3g
