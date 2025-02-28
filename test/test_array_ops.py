@@ -485,7 +485,7 @@ class TestBinning(unittest.TestCase):
                         bin_counts_so3g, bin_edges, x_min, x_max)
 
         tolerance = 1e-10
-        np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)
+        np.testing.assert_allclose(binned_signal_so3g, binned_signal, atol=tolerance)
         np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, atol=tolerance)
         np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, atol=tolerance)
 
@@ -562,7 +562,7 @@ class TestBinning(unittest.TestCase):
                                 bin_edges, x_min, x_max, flags)
 
         tolerance = 1e-4
-        np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)
+        np.testing.assert_allclose(binned_signal_so3g, binned_signal, atol=tolerance)
         np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, atol=tolerance)
         np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, atol=tolerance)
 
@@ -639,7 +639,7 @@ class TestBinning(unittest.TestCase):
                                 bin_edges, x_min, x_max, flags)
 
         tolerance = 1e-10
-        np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)
+        np.testing.assert_allclose(binned_signal_so3g, binned_signal, atol=tolerance)
         np.testing.assert_allclose(binned_signal_sigma_so3g, binned_signal_sigma, atol=tolerance)
         np.testing.assert_allclose(bin_counts_so3g, bin_counts_dets, atol=tolerance)
 
