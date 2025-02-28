@@ -240,7 +240,7 @@ class TestGslInterpolate(unittest.TestCase):
         t_interp_end = 1009.0
         t_interp_size = 2000
 
-        ndet = 3
+        ndet = 10
         dtype = "float32"
         order = "C"
 
@@ -581,9 +581,9 @@ class TestBinning(unittest.TestCase):
                           dtype=dtype, order=order)
         weight = np.ones((ndets, nsamps), dtype=dtype, order=order)
         flags = np.zeros((ndets, nsamps), dtype=np.int32, order=order)
-        # flags[0,::2] = 1
-        # flags[1,::3] = 1
-        # flags[2,::4] = 1
+        flags[0,::2] = 1
+        flags[1,::3] = 1
+        flags[2,::4] = 1
 
         bin_edges = np.histogram_bin_edges(x, bins=bins, range=[x_min,x_max],)
         bin_centers = (bin_edges[1] - bin_edges[0])/2. + bin_edges[:-1] # edge to center
