@@ -429,7 +429,7 @@ class TestWelch(unittest.TestCase):
     """
     Test Welch PSD calculation.
     """
-    
+
     def test_00_psd_float32(self):
         nsamps = 1000
         ndets = 3
@@ -438,29 +438,26 @@ class TestWelch(unittest.TestCase):
 
         x = np.linspace(0., 1., nsamps, dtype=dtype)
         signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
-        
+
         fs = 200.
         nperseg = 256
         noverlap = -1 # noverlap = nperseg // 2
         detrend_method = "mean" # "constant" in scipy's welch
         detrend_ncount = 0
         scaling = "density"
-        padding = False
-        
+
         npsd = (nperseg // 2) + 1
-        
+
         window = np.hanning(nperseg)
         scipy_f, scipy_psd = welch(signal, fs, nperseg=nperseg, window=window, detrend="constant", scaling=scaling)
-        
-        so3g_psd = np.zeros((ndets, npsd), dtype=dtype, order=order)
-        so3g.welch(signal, so3g_psd, fs, nperseg, noverlap, detrend_method, detrend_ncount, scaling, padding)
 
-        print('diff',np.max(so3g_psd - scipy_psd))
-        
+        so3g_psd = np.zeros((ndets, npsd), dtype=dtype, order=order)
+        so3g.welch(signal, so3g_psd, fs, nperseg, noverlap, detrend_method, detrend_ncount, scaling)
+
         rtol = 1e-4
         atol = 1e-8
         np.testing.assert_allclose(scipy_psd, so3g_psd, rtol=rtol, atol=atol)
-        
+
     def test_00_psd_float64(self):
         nsamps = 1000
         ndets = 3
@@ -469,23 +466,22 @@ class TestWelch(unittest.TestCase):
 
         x = np.linspace(0., 1., nsamps, dtype=dtype)
         signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)], dtype=dtype, order=order)
-        
+
         fs = 200.
         nperseg = 256
         noverlap = -1 # noverlap = nperseg // 2
         detrend_method = "mean" # "constant" in scipy's welch
         detrend_ncount = 0
         scaling = "density"
-        padding = False
-        
+
         npsd = (nperseg // 2) + 1
 
         window = np.hanning(nperseg)
         scipy_f, scipy_psd = welch(signal, fs, nperseg=nperseg, window=window, detrend="constant", scaling=scaling)
 
         so3g_psd = np.zeros((ndets, npsd), dtype=dtype, order=order)
-        so3g.welch(signal, so3g_psd, fs, nperseg, noverlap, detrend_method, detrend_ncount, scaling, padding)
-      
+        so3g.welch(signal, so3g_psd, fs, nperseg, noverlap, detrend_method, detrend_ncount, scaling)
+
         rtol = 1e-10
         atol = 1e-10
         np.testing.assert_allclose(scipy_psd, so3g_psd, rtol=rtol, atol=atol)
