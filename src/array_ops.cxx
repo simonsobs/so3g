@@ -1505,7 +1505,7 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
 void bin_signal(const bp::object & bin_by, const bp::object & signal,
                 const bp::object & weight, bp::object & binned_sig,
                 bp::object & binned_sig_sigma, bp::object & bin_counts,
-                const bp::object & bins, const double lower,
+                const bp::object & bin_edges, const double lower,
                 const double upper)
 {
     // Get data type
@@ -1513,11 +1513,11 @@ void bin_signal(const bp::object & bin_by, const bp::object & signal,
 
     if (dtype == NPY_FLOAT) {
         _bin_signal<float>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
-                           bin_counts, bins, (float)lower, (float)upper);
+                           bin_counts, bin_edges, (float)lower, (float)upper);
     }
     else if (dtype == NPY_DOUBLE) {
         _bin_signal<double>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
-                            bin_counts, bins, (double)lower, (double)upper);
+                            bin_counts, bin_edges, (double)lower, (double)upper);
     }
     else {
         throw TypeError_exception("Only float32 or float64 arrays are supported.");
@@ -1527,7 +1527,7 @@ void bin_signal(const bp::object & bin_by, const bp::object & signal,
 void bin_flagged_signal(const bp::object & bin_by, const bp::object & signal,
                         const bp::object & weight, bp::object & binned_sig,
                         bp::object & binned_sig_sigma, bp::object & bin_counts,
-                        const bp::object & bins, const double lower,
+                        const bp::object & bin_edges, const double lower,
                         const double upper, const bp::object & flags)
 {
     // Get data type
@@ -1552,12 +1552,12 @@ void bin_flagged_signal(const bp::object & bin_by, const bp::object & signal,
 
     if (dtype == NPY_FLOAT) {
         _bin_signal<float>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
-                           bin_counts, bins, (float)lower, (float)upper,
+                           bin_counts, bin_edges, (float)lower, (float)upper,
                            flags_data, flags_shape, flags_stride);
     }
     else if (dtype == NPY_DOUBLE) {
         _bin_signal<double>(bin_by, signal, weight, binned_sig, binned_sig_sigma,
-                            bin_counts, bins, (double)lower, (double)upper,
+                            bin_counts, bin_edges, (double)lower, (double)upper,
                             flags_data, flags_shape, flags_stride);
     }
     else {
@@ -1734,7 +1734,7 @@ PYBINDINGS("so3g")
             "  signal: the signal array (float32/float64) to be binned with shape (ndet,nsamp)"
             "  weight: array (float32/float64) of weights for the signal values.  May have shapes "
             "          of (nsamps) or (ndets, nsamps)"
-            "  binned_signal: binned signal array (float32/float64) with shape (ndet,nbin). "
+            "  binned_sig: binned signal array (float32/float64) with shape (ndet,nbin). "
             "                 Modified in place."
             "  binned_sig_sigma: estimated sigma of binned signal (float32/float64) with shape (ndet,nbin). "
             "                    Modified in place."
@@ -1752,7 +1752,7 @@ PYBINDINGS("so3g")
             "  signal: the signal array (float32/float64) to be binned with shape (ndet,nsamp)"
             "  weight: array (float32/float64) of weights for the signal values.  May have shapes "
             "          of (nsamps) or (ndets, nsamps)"
-            "  binned_signal: binned signal array (float32/float64) with shape (ndet,nbin). "
+            "  binned_sig: binned signal array (float32/float64) with shape (ndet,nbin). "
             "                 Modified in place."
             "  binned_sig_sigma: estimated sigma of binned signal (float32/float64) with shape (ndet,nbin). "
             "                    Modified in place."
