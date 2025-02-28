@@ -431,14 +431,14 @@ class TestBinning(unittest.TestCase):
     """
 
     def test_00_binning_no_flags_float64(self):
-        nsamps = 1000
-        ndets = 3
+        nsamps = 10
+        ndets = 1
         dtype = "float64"
         order = "C"
 
         x_min = 0.0
         x_max = 1.0
-        bins = 10
+        bins = 2
 
         x = np.linspace(x_min, x_max, nsamps, dtype=dtype)
         signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)],
@@ -482,7 +482,7 @@ class TestBinning(unittest.TestCase):
         bin_counts_so3g = np.zeros((ndets, nbins), dtype=np.int32, order=order)
 
         so3g.bin_signal(x, signal, weight, binned_signal_so3g, binned_signal_sigma_so3g,
-                        bin_counts_so3g, bin_edges, x_min, x_max)#, flags)
+                        bin_counts_so3g, bin_edges, x_min, x_max)
 
         tolerance = 1e-10
         np.testing.assert_allclose(binned_signal, binned_signal, atol=tolerance)

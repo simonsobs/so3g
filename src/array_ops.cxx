@@ -1272,7 +1272,7 @@ void _histogram(const T* data, const T* weights, int* histogram,
             }
         }
         // Edge case to match np.histogram
-        if (data[i] == bin_edges[nbins]) {
+        if (data[i] == bin_edges[nbins] && data[i] <= upper) {
             histogram[nbins - 1] += weights[i];
         }
     }
