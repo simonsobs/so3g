@@ -240,7 +240,7 @@ class TestGslInterpolate(unittest.TestCase):
         t_interp_end = 1009.0
         t_interp_size = 2000
 
-        ndet = 10
+        ndet = 3
         dtype = "float32"
         order = "C"
 
@@ -395,7 +395,7 @@ class TestDetrend(unittest.TestCase):
 
     def test_02_linear_detrending(self):
         nsamps = 1000
-        ndets = 3
+        ndets = 10
         dtype = "float32"
         order = "C"
         count = nsamps // 3
