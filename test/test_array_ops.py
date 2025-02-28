@@ -431,14 +431,14 @@ class TestBinning(unittest.TestCase):
     """
 
     def test_00_binning_no_flags_float64(self):
-        nsamps = 10
-        ndets = 1
+        nsamps = 1000
+        ndets = 3
         dtype = "float64"
         order = "C"
 
         x_min = 0.0
         x_max = 1.0
-        bins = 2
+        bins = 10
 
         x = np.linspace(x_min, x_max, nsamps, dtype=dtype)
         signal = np.array([(i + 1) * np.sin(2*np.pi*x + i) for i in range(ndets)],
