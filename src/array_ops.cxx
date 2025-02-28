@@ -1322,10 +1322,21 @@ void _welch(const bp::object & signal, bp::object & psd, const double fs,
     const int nsamps = signal_buf->shape[1];
     T* signal_data = (T*)signal_buf->buf;
 
-    BufferWrapper<T> psd_buf  ("psd",  psd,  false, std::vector<int>{-1, -1});
+    BufferWrapper<T> psd_buf  ("psd",  psd,  false, std::vector<int>{-1, nperseg / 2 + 1});
     if (psd_buf->strides[1] != psd_buf->itemsize)
         throw ValueError_exception("Argument 'psd' must be contiguous in last axis.");
+    const int npsd = psd_buf->shape[1];
     T* psd_data = (T*)psd_buf->buf;
+
+    if (nperseg > nsamps) {
+        throw ValueError_exception("nperseg must be <= nsamps");
+    }
+    if (noverlap >= nperseg) {
+        throw ValueError_exception("noverlap must be < nperseg");
+    }
+    if (fs <= 0) {
+        throw ValueError_exception("fs must be > 0");
+    }
 
     // Data strides
     int signal_stride = signal_buf->strides[0] / sizeof(T);
@@ -1350,16 +1361,11 @@ void _welch(const bp::object & signal, bp::object & psd, const double fs,
         fftw_plan_with_nthreads(nthreads);
     }
 
-    if (nperseg > nsamps) {
-        throw ValueError_exception("nperseg > nsamps'");
-    }
-
     // Default noverlap
     if (noverlap < 0) {
         noverlap = nperseg / 2;
     }
 
-    int npsd = (nperseg / 2) + 1;
     int nstep = nperseg - noverlap;
 
     // Window array
