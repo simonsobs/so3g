@@ -35,7 +35,7 @@ void _least_squares(const double* x, const double* y, double* p, const int n,
     options.logging_type = ceres::LoggingType::SILENT;
     options.minimizer_progress_to_stdout = false;
     options.num_threads = nthreads;
-    
+
     // Set bounds
     if (lower_bounds) {
         for (int i = 0; i < CostFunction::model::nparams; ++i) {
@@ -58,9 +58,9 @@ void _least_squares(const double* x, const double* y, double* p, const int n,
     if (summary.IsSolutionUsable()) {
         if (c) {
             ceres::Covariance::Options covariance_options;
-            covariance_options.sparse_linear_algebra_library_type = 
+            covariance_options.sparse_linear_algebra_library_type =
                 ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE;
-            covariance_options.algorithm_type = 
+            covariance_options.algorithm_type =
                 ceres::CovarianceAlgorithmType::DENSE_SVD;
             covariance_options.null_space_rank = -1;
 
@@ -155,7 +155,7 @@ void _compute_hessian(ceres::GradientProblem& problem, double* p,
 
         // Second derivative approximation
         for (int j = 0; j < Likelihood::model::nparams; ++j) {
-            hessian[i * Likelihood::model::nparams + j] = 
+            hessian[i * Likelihood::model::nparams + j] =
                 (gradient_plus[j] - gradient_minus[j]) / (2 * epsilon);
         }
     }
@@ -163,8 +163,8 @@ void _compute_hessian(ceres::GradientProblem& problem, double* p,
 
 // General minimization function
 template <typename Likelihood>
-void _minimize(const double* x, const double* y, double* p, const int n, 
-               const double tol, const int niter, double* c=nullptr, 
+void _minimize(const double* x, const double* y, double* p, const int n,
+               const double tol, const int niter, double* c=nullptr,
                const double epsilon=1e-5)
 {
     // Create problem
@@ -183,7 +183,7 @@ void _minimize(const double* x, const double* y, double* p, const int n,
     // Run the solver
     ceres::Solve(options, problem, p, &summary);
 
-    // Calculate uncertainties.  Ceres does not include a way to calculate 
+    // Calculate uncertainties.  Ceres does not include a way to calculate
     // uncertainties for gradient problems but this seems fast enough.
     if (summary.IsSolutionUsable()) {
         if (c) {
@@ -216,49 +216,51 @@ void _minimize(const double* x, const double* y, double* p, const int n,
     }
 }
 
+// Get indices in an array corresponding to input values.  Assumes both
+// are monotonically increasing.
+auto _get_array_indices(const double* x, const std::vector<double>& vals,
+                        const int nsamps)
+{
+    std::vector<int> indices(vals.size(), -1);
+
+    int j = 0;
+    for (int i = 0; i < vals.size(); ++i) {
+        while (j < nsamps && x[j] <= vals[i]) {
+            ++j;
+        }
+        indices[i] = j - 1;
+    }
+
+    return indices;
+}
+
+// Get indices corresponding to lower freq and white noise
+// limits.
 auto _get_frequency_limits(const double* f, const double lowf,
                            const double fwhite_lower,
                            const double fwhite_upper,
                            const int nsamps)
 {
-
-    // Index where f = lowf
-    int lowf_i = 0;
-    while (lowf_i < nsamps && f[lowf_i] < lowf) {
-        lowf_i++;
+    if (fwhite_lower < lowf) {
+        throw ValueError_exception("fwhite lower < lower freq.");
     }
 
-    std::vector<int> fwhite_i(2);
-
-    // Index where f = fwhite_lower
-    fwhite_i[0] = 0;
-    while (fwhite_i[0] < nsamps && f[fwhite_i[0]] < fwhite_lower) {
-        fwhite_i[0]++;
+    if (fwhite_lower >= fwhite_upper) {
+        throw ValueError_exception("fwhite lower >= fwhite upper.");
     }
 
-    // Index where f = fwhite_upper
-    fwhite_i[1] = nsamps - 1;
-    while (fwhite_i[1] > fwhite_i[0] && f[fwhite_i[1]] > fwhite_upper) {
-        fwhite_i[1]--;
-    }
+    std::vector<int> f_indx = _get_array_indices(f, {lowf, fwhite_lower,
+                                                     fwhite_upper}, nsamps);
+    int fwhite_size = f_indx[2] - f_indx[1] + 1;
 
-    if (fwhite_i[0] < lowf) {
-        throw ValueError_exception("fwhite lower index < lower freq index.");
-    }
-
-    if (fwhite_i[1] <= fwhite_i[0]) {
-        throw ValueError_exception("fwhite upper index <= fwhite lower index.");
-    }
-
-    int fwhite_size = fwhite_i[1] - fwhite_i[0] + 1;
-
-    return std::make_tuple(lowf_i, fwhite_i, fwhite_size);
+    return std::make_tuple(f_indx[0], std::vector<int>{f_indx[1], f_indx[2]},
+                           fwhite_size);
 }
 
 template <typename CostFunc, typename Likelihood, typename T>
 void _fit_noise(const double* f, const double* log_f, const double* pxx,
                 T* p,  T* c, const int ndets, const int nsamps,
-                const int lowf_i, const std::vector<int> fwhite_i, 
+                const int lowf_i, const std::vector<int> fwhite_i,
                 const int fwhite_size, const double tol, const int niter,
                 const double epsilon)
 {
@@ -272,14 +274,14 @@ void _fit_noise(const double* f, const double* log_f, const double* pxx,
 
     // Fit 1/f to line in logspace
     double pfit[2] = {1., -1.};
-    
+
     // Some weak bounds (w > 0, alpha < 0)
     double lower_bounds[2] = {0., std::numeric_limits<double>::quiet_NaN()};
     double upper_bounds[2] = {std::numeric_limits<double>::quiet_NaN(), 0.};
 
     _least_squares<CostFunc>(log_f, log_pxx, pfit, lowf_i + 1, 1,
                              lower_bounds, upper_bounds);
-    
+
     // Don't run minimization if least squares fit failed
     if (std::isnan(pfit[0]) || std::isnan(pfit[1])) {
         // Implict cast from double to T
@@ -324,7 +326,7 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
 {
     using Likelihood = NegLogLikelihood<NoiseModel>;
     using CostFunc = CostFunction<PolynomialModel<1>>;
-    
+
     // Disable google logging to prevent failed fit warnings for each detector
     google::InitGoogleLogging("logger");
     FLAGS_minloglevel = google::FATAL + 1;
@@ -359,11 +361,11 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
         // Copy f to double
         double f_double[nsamps];
 
-        std::transform(f_data, f_data + nsamps, f_double, 
+        std::transform(f_data, f_data + nsamps, f_double,
                        [](float value) { return static_cast<double>(value); });
 
         // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] = 
+        auto [lowf_i, fwhite_i, fwhite_size] =
             _get_frequency_limits(f_double, lowf, fwhite_lower, fwhite_upper, nsamps);
 
         // Fit in logspace
@@ -381,7 +383,7 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
             // Copy pxx row to double
             double pxx_det[nsamps];
 
-            std::transform(pxx_data + ioff, pxx_data + ioff + nsamps, pxx_det, 
+            std::transform(pxx_data + ioff, pxx_data + ioff + nsamps, pxx_det,
                        [](float value) { return static_cast<double>(value); });
 
             // Cast implicitly on assignment
@@ -389,13 +391,13 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
             T* c_det = c_data + coff;
 
             _fit_noise<CostFunc, Likelihood>(f_double, log_f, pxx_det, p_det,
-                                             c_det, ndets, nsamps, lowf_i, fwhite_i, 
+                                             c_det, ndets, nsamps, lowf_i, fwhite_i,
                                              fwhite_size, tol, niter, epsilon);
         }
     }
     else if constexpr (std::is_same<T, double>::value) {
         // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] = 
+        auto [lowf_i, fwhite_i, fwhite_size] =
             _get_frequency_limits(f_data, lowf, fwhite_lower, fwhite_upper, nsamps);
 
         // Fit in logspace
@@ -415,14 +417,15 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
             T* c_det = c_data + coff;
 
             _fit_noise<CostFunc, Likelihood>(f_data, log_f, pxx_det, p_det, c_det,
-                                             ndets, nsamps, lowf_i, fwhite_i, fwhite_size, 
+                                             ndets, nsamps, lowf_i, fwhite_i, fwhite_size,
                                              tol, niter, epsilon);
         }
     }
+    google::ShutdownGoogleLogging();
 }
 
 void fit_noise(const bp::object & f, const bp::object & pxx, bp::object & p, bp::object & c,
-               const double lowf, const double fwhite_lower, const double fwhite_upper, 
+               const double lowf, const double fwhite_lower, const double fwhite_upper,
                const double tol, const int niter, const double epsilon)
 {
     // Get data type
@@ -445,25 +448,25 @@ PYBINDINGS("so3g")
      bp::def("fit_noise", fit_noise,
              "fit_noise(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon)"
              "\n"
-             "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE "
+             "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE\n"
              "method that minimizes a log-likelihood. OMP is used to parallelize across dets (rows)."
              "\n"
              "Args:\n"
-             "  f: frequency array (float32/64) with dimensions (nsamps,). "
+             "  f: frequency array (float32/64) with dimensions (nsamps,).\n"
              "     Should be positive definite and strictly increasing.\n"
              "  pxx: PSD array (float32/64) with dimensions (ndets, nsamps).\n"
-             "  p: output parameter array (float32/64) with dimensions (ndets, nparams). "
+             "  p: output parameter array (float32/64) with dimensions (ndets, nparams).\n"
              "     This is modified in place and input values are ignored.\n"
-             "  c: output uncertaintiy array (float32/64) with dimensions (ndets, nparams). "
+             "  c: output uncertaintiy array (float32/64) with dimensions (ndets, nparams).\n"
              "     This is modified in place and input values are ignored.\n"
-             "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial "
+             "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial\n"
              "        guess passed to least_squares fit (float64).\n"
-             "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to "
+             "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to\n"
              "                least_squares fit (float64).  Should be < fwhite_upper and >= lowf.\n"
-             "  fwhite_upper: Upper frequency used to estimate white noise for initial guess passed to "
+             "  fwhite_upper: Upper frequency used to estimate white noise for initial guess passed to\n"
              "                least_squares fit (float64).  Should be > fwhite_lower and lowf.\n"
              "  tol: absolute tolerance for minimization (float64).\n"
              "  niter: total number of iterations to run minimization for (int).\n"
-             "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse "
+             "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse\n"
              "           Hessian matrix (float64). Affects minimization only.\n");
 }

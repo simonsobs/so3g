@@ -21,7 +21,7 @@ struct PolynomialModel
 
         return result;
     }
-    // Not needed for least squares as ceres 
+    // Not needed for least squares as ceres
     // supports boundaries
     template <typename T>
     static bool check_bounds(const T* params)
@@ -84,7 +84,7 @@ struct CostFunction
         ceres::Problem problem;
 
         problem.AddResidualBlock(
-            new ceres::AutoDiffCostFunction<CostFunction<Model>, 
+            new ceres::AutoDiffCostFunction<CostFunction<Model>,
             ceres::DYNAMIC, Model::nparams>(
                 new CostFunction<Model>(n, xx, yy), n), nullptr, p);
 
@@ -97,7 +97,7 @@ private:
     const double* y;
 };
 
-// Model independent Negative Log Likelihood for generalized 
+// Model independent Negative Log Likelihood for generalized
 // unconstrained minimization.  This is to be used when data
 // has residuals that follow a chi^2(1) distribution.
 template <typename Model>
