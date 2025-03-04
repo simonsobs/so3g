@@ -468,5 +468,5 @@ PYBINDINGS("so3g")
              "  tol: absolute tolerance for minimization (float64).\n"
              "  niter: total number of iterations to run minimization for (int).\n"
              "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse\n"
-             "           Hessian matrix (float64). Affects minimization only.\n";
+             "           Hessian matrix (float64). Affects minimization only.\n");
 }
