@@ -91,7 +91,7 @@ class TestFitting(unittest.TestCase):
             pxx[i,:] = noise_model(f, p0)
             # Add chi2 noise
             pxx[i,:] = pxx[i,:] + np.random.normal(noise_model(f, p0)**.5,
-                                                   size=(nsamps))
+                                                   size=(nsamps))**2
 
         so3g_params = np.zeros((ndets, nparams), dtype=dtype, order=order)
         so3g_sigmas = np.zeros((ndets, nparams), dtype=dtype, order=order)
