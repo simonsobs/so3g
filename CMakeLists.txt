@@ -54,11 +54,11 @@ include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 include_directories(${NUMPY_INCLUDE_DIR})
 
 #
-# Define the so3g build target.  This is a shared library.
+# Define the libso3g build target.  This is an internal library that holds all the
+# linking dependencies.
 #
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY so3g)
-add_library(so3g SHARED
-  src/main.cxx
+add_library(so3g OBJECT
   src/hkagg.cxx
   src/Intervals.cxx
   src/Butterworth.cxx
@@ -69,9 +69,6 @@ add_library(so3g SHARED
   src/exceptions.cxx
   src/array_ops.cxx
 )
-
-# We could disable the lib prefix on the output library... but let's not.
-#set_target_properties(so3g PROPERTIES PREFIX "")
 
 # Disable boost python auto_ptr warnings
 target_compile_definitions(so3g PUBLIC BOOST_NO_AUTO_PTR)
@@ -124,6 +121,15 @@ add_custom_target(so3g-version
 
 add_dependencies(so3g so3g-version)
 
+# Add the Python interface module
+Python_add_library(_libso3g MODULE WITH_SOABI src/main.cxx)
+set_target_properties(_libso3g PROPERTIES PREFIX "")
+target_link_libraries(_libso3g PUBLIC so3g)
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  # Assume Linux-style ld linker
+  target_link_options(_libso3g PUBLIC "LINKER:--no-as-needed")
+endif()
+
 # Make a list of .py files for the library.
 file(GLOB MY_PYTHONS
   "${CMAKE_CURRENT_SOURCE_DIR}/python/*.py")
@@ -144,7 +150,7 @@ else()
   set(INSTALL_DEST ${PYTHON_SITE_PACKAGES}/so3g)
 endif()
 
-install(TARGETS so3g
+install(TARGETS _libso3g
         DESTINATION ${INSTALL_DEST})
 
 install(FILES ${MY_PYTHONS}

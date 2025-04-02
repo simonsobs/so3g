@@ -1,5 +1,3 @@
-import numpy as np
-
 
 def ces(el, az0, throw, v_scan, t):
     """Generate a CES scan pattern.

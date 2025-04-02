@@ -1,5 +1,4 @@
 import os
-import numpy as np
 
 
 if os.getenv('DOCS_BUILD') == '1':
@@ -9,10 +8,10 @@ else:
     from . import spt3g
     from spt3g import core as spt3g_core
 
-    # Our library is called libso3g.{suffix}, but will load into module
-    # namespace so3g.
-    from .load_pybindings import load_pybindings
-    load_pybindings([__path__[0] + '/libso3g'], name='so3g')
+    # Load all symbols from our compiled extension.  This is needed for backwards
+    # compatibility with external packages that expect those symbols to exist based
+    # on how the previous loader worked.
+    from ._libso3g import *
 
 # Version is computed by versioneer.
 __version__ = version()

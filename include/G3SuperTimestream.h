@@ -106,7 +106,14 @@ namespace cereal {
 }
 
 G3_POINTERS(G3SuperTimestream);
-G3_SERIALIZABLE(G3SuperTimestream, 0);
+
+CEREAL_CLASS_VERSION(G3SuperTimestream, 0);
+CEREAL_REGISTER_TYPE_WITH_NAME(G3SuperTimestream, "G3SuperTimestream");
+CEREAL_REGISTER_POLYMORPHIC_RELATION(G3FrameObject, G3SuperTimestream);
+
+CEREAL_FORCE_DYNAMIC_INIT(libso3g);
+
+// G3_SERIALIZABLE(G3SuperTimestream, 0);
 
 class g3supertimestream_exception : std::exception
 {

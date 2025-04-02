@@ -1176,7 +1176,15 @@ G3SuperTimestreamPtr test_cxx_interface(int nsamps, int first, int second)
 }
 
 
-G3_SPLIT_SERIALIZABLE_CODE(G3SuperTimestream);
+template void G3SuperTimestream::save(
+    cereal::PortableBinaryOutputArchive &, unsigned
+) const;
+
+template void G3SuperTimestream::load(cereal::PortableBinaryInputArchive &, unsigned);
+
+CEREAL_REGISTER_DYNAMIC_INIT(libso3g);
+
+// G3_SPLIT_SERIALIZABLE_CODE(G3SuperTimestream);
 
 static void translate_ValueError(g3supertimestream_exception const& e)
 {

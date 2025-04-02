@@ -1,10 +1,10 @@
 """Backwards compatibility for older SO HK schemas.
 
 """
-
-import so3g
-import so3g.hk
 from spt3g import core
+from .. import _libso3g as libso3g
+
+from .util import get_g3_time
 
 
 class HKTranslator:
@@ -89,7 +89,7 @@ class HKTranslator:
         f['hkagg_version'] = self.target_version
 
         # No difference in Session/Status for v0, v1, v2.
-        if f.get('hkagg_type') != so3g.HKFrameType.data:
+        if f.get('hkagg_type') != libso3g.HKFrameType.data:
             return [f]
 
         if self.target_version == 0:
@@ -103,7 +103,7 @@ class HKTranslator:
             # Now process the data blocks.
             for block in orig_blocks:
                 new_block = core.G3TimesampleMap()
-                new_block.times = so3g.hk.util.get_g3_time(block.t)
+                new_block.times = get_g3_time(block.t)
                 for k in block.data.keys():
                     v = block.data[k]
                     new_block[k] = core.G3VectorDouble(v)
@@ -122,7 +122,6 @@ class HKTranslator:
                 field_names = list(sorted(block.keys()))
                 block_names.append('block_for_%s' % field_names[0])
                 assert(len(block_names[-1]) < 256)  # What have you done.
-            orig_block_names = []
             f['block_names'] = core.G3VectorString(block_names)
 
         return [f]
