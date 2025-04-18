@@ -15,7 +15,6 @@ extern "C" {
                 double* b, int* ldb, int* info );
 }
 
-#include <boost/python.hpp>
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
@@ -23,7 +22,6 @@ extern "C" {
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_statistics.h>
 
-#include <pybindings.h>
 #include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"

@@ -1,13 +1,17 @@
 #include <assert.h>
 #include <math.h>
 
-#include <pybindings.h>
-#include <container_pybindings.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 
 #include "Butterworth.h"
 #include "exceptions.h"
 
+
 using namespace std;
+
+namespace nb = nanobind;
+
 
 BFilterBank::BFilterBank(const BFilterBank& a) {
     // Copy the parameters but reset the accumulators... that's probably evil.
@@ -124,16 +128,19 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
 }
 
 
-PYBINDINGS("so3g")
-{
-    bp::class_<BFilterParams>("BFilterParams",
-                              bp::init<int32_t, int32_t, int, int, int>() );
+NB_MODULE(libso3g, m) {
+    nb::class_<BFilterParams>(m, "BFilterParams")
+    .def(nb::init<int32_t, int32_t, int, int, int>())
+    .def("b0", &BFilterParams::b0)
+    .def("b1", &BFilterParams::b1)
+    .def("b_bits", &BFilterParams::b_bits)
+    .def("p_bits", &BFilterParams::p_bits)
+    .def("shift", &BFilterParams::shift);
 
-    bp::class_<BFilterBank>("BFilterBank")
-        .def("add", &BFilterBank::add,
-             bp::return_internal_reference<>() )
-        .def("init", &BFilterBank::init,
-             bp::return_internal_reference<>() )
-        .def("apply", &BFilterBank::apply_buffer);
+    nb::class_<BFilterBank>(m, "BFilterBank")
+    .def(nb::init<>())
+    .def("add", &BFilterBank::add, np::rv_policy::none)
+    .def("init", &BFilterBank::init, np::rv_policy::none)
+    .def("apply", &BFilterBank::apply_buffer);
 }
 

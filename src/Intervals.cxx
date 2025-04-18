@@ -1,12 +1,8 @@
 #define NO_IMPORT_ARRAY
 
-#include <pybindings.h>
-
 #include <iostream>
 #include <limits>
 #include <type_traits>
-
-#include <boost/python.hpp>
 
 #include "so3g_numpy.h"
 

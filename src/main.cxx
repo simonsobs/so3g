@@ -1,12 +1,9 @@
-#include <boost/python.hpp>
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
 
 // See this header file for discussion of numpy compilation issues.
 #include "so3g_numpy.h"
-
-#include <container_pybindings.h>
 
 #include <string>
 
@@ -16,7 +13,7 @@
 //   #define SO3G_VERSION_STRING "unknown"
 #include "_version.h"
 
-namespace bp = boost::python;
+
 
 const std::string version()
 {
