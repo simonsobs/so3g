@@ -1,13 +1,13 @@
 #pragma once
 
-#include <G3TimeStamp.h>
-
 #include <stdint.h>
 
-#include "numpy_assist.h"
+#include <nanobind/nanobind.h>
 
 using namespace std;
-namespace bp = boost::python;
+
+namespace nb = nanobind;
+
 
 // Template class for working with intervals -- pairs of objects of
 // the same (well-ordered) type, with operations defined that support
