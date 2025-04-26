@@ -9,6 +9,8 @@
 #endif // ifdef _OPENMP
 
 #include <hkagg.h>
+#include <exceptions.h>
+//#include <Intervals.h>
 
 // Note _version.h is auto-generated during build.  You can
 // also override it here if needed:
@@ -43,4 +45,6 @@ NB_MODULE(libso3g, m) {
     m.def("useful_info", &useful_info);
 
     register_hkagg(m);
+    register_exeptions(m);
+    //register_intervals(m);
 }

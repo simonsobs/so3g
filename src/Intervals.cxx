@@ -1,12 +1,9 @@
-#define NO_IMPORT_ARRAY
 
 #include <iostream>
 #include <limits>
 #include <type_traits>
 
-#include "so3g_numpy.h"
-
-#include "Intervals.h"
+#include <Intervals.h>
 #include "exceptions.h"
 #include <exception>
 
@@ -296,7 +293,7 @@ static int format_to_dtype(const BufferWrapper<T> &view)
         case 8:
             return NPY_FLOAT64;
         }
-    } 
+    }
 
     return NPY_NOTYPE;
 }
@@ -314,7 +311,7 @@ Intervals<T> Intervals<T>::from_array(const bp::object &src)
         output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    
+
     return output;
 }
 
@@ -531,7 +528,7 @@ bp::object Intervals<T>::mask(const bp::list &ivlist, int n_bits)
 //
 // Implementation of the algebra
 //
- 
+
 template <typename T>
 Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
 {
@@ -540,7 +537,7 @@ Intervals<T>& Intervals<T>::intersect(const Intervals<T> &src)
     *this = output.complement();
     return *this;
 }
-    
+
 template <typename T>
 void Intervals<T>::set_domain(T start, T end)
 {
@@ -768,4 +765,9 @@ PYBINDINGS("so3g")
     EXPORT_INTERVALS(int64_t, IntervalsInt);
     EXPORT_INTERVALS(int32_t, IntervalsInt32);
     EXPORT_INTERVALS(G3Time,  IntervalsTime);
+}
+
+
+void register_intervals(nb::module_ & m) {
+
 }

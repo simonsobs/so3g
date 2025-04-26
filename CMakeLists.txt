@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project (so3g)
+project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX C)
 
 include(local.cmake OPTIONAL)
 
@@ -53,12 +53,12 @@ find_package(nanobind CONFIG REQUIRED)
 nanobind_add_module(libso3g STABLE_ABI
   src/main.cxx
   src/hkagg.cxx
+  src/exceptions.cxx
   # src/Intervals.cxx
   # src/Butterworth.cxx
   # src/Ranges.cxx
   # src/Projection.cxx
   # src/so_linterp.cxx
-  # src/exceptions.cxx
   # src/array_ops.cxx
 )
 

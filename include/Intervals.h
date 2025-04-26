@@ -18,7 +18,7 @@ class Intervals {
 public:
     pair<T,T> domain;
     vector<pair<T,T>> segments;
-    
+
     // Construction
     Intervals();
     Intervals(pair<T,T> domain) : domain{domain} {}
@@ -40,7 +40,7 @@ public:
     void cleanup();
 
     bp::object array() const;
- 
+
     Intervals<T> getitem(bp::object indices);
 
     // Operators.
@@ -64,3 +64,7 @@ typedef Intervals<double> IntervalsDouble;
 typedef Intervals<int64_t> IntervalsInt;
 typedef Intervals<int32_t> IntervalsInt32;
 typedef Intervals<G3Time> IntervalsTime;
+
+
+void register_intervals(nb::module_ & m);
+
