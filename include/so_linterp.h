@@ -5,6 +5,11 @@
 #include <vector>
 #include <iostream>
 
+#include <nanobind/nanobind.h>
+
+namespace nb = nanobind;
+
+
 class LookupTable
 {
 public:
@@ -69,3 +74,5 @@ public:
         return get_raw(y/x);
     }
 };
+
+void register_so_linterp(nb::module_ & m);

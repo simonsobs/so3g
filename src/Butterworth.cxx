@@ -1,12 +1,8 @@
 #include <assert.h>
 #include <math.h>
 
-#include <nanobind/nanobind.h>
-#include <nanobind/ndarray.h>
-
-#include "Butterworth.h"
-#include "exceptions.h"
-
+#include <exceptions.h>
+#include <Butterworth.h>
 
 using namespace std;
 
@@ -20,7 +16,6 @@ BFilterBank::BFilterBank(const BFilterBank& a) {
     if (a.w.size() > 0)
         init(a.w[0].size());
 }
-
 
 BFilterBank& BFilterBank::add(BFilterParams bp) {
     par.push_back(bp);
@@ -37,45 +32,6 @@ BFilterBank& BFilterBank::init(int n_chan) {
     }
     return *this;
 }
-
-void BFilterBank::apply_buffer(boost::python::object input,
-                               boost::python::object output)
-{
-    // User wrappers so we can throw exceptions and the view will be
-    // released in destructor.
-    BufferWrapper<float> inbuf("input", input, false);
-    BufferWrapper<float> outbuf("output", output, false);
-
-    if (strcmp(inbuf->format, outbuf->format) != 0)
-        throw agreement_exception("input", "output", "data type");
-
-    if (inbuf->ndim != 1)
-        throw shape_exception("input", "must be 1-d");
-
-    if (inbuf->shape[0] != outbuf->shape[0])
-        throw agreement_exception("input", "output", "shape");
-
-    // We later assume contiguity.
-    if (inbuf->strides[0] != inbuf->itemsize)
-        throw buffer_exception("input");
-
-    if (outbuf->strides[0] != outbuf->itemsize)
-        throw buffer_exception("output");
-
-    int n_samp = inbuf->shape[0];
-    if (strcmp(inbuf->format, "i")==0) {
-        int *in = reinterpret_cast<int*>(inbuf->buf);
-        int *out = reinterpret_cast<int*>(outbuf->buf);
-        apply(in, out, n_samp);
-    } else if (strcmp(inbuf->format, "f") == 0) {
-        float *in = reinterpret_cast<float*>(inbuf->buf);
-        float *out = reinterpret_cast<float*>(outbuf->buf);
-        apply_to_float(in, out, 1., n_samp);
-    } else {
-        throw dtype_exception("input", "int or float32");
-    }
-}
-
 
 void BFilterBank::apply(int32_t* input, int32_t* output, int n_samp)
 {
@@ -128,19 +84,46 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
 }
 
 
-NB_MODULE(libso3g, m) {
+void register_butterworth(nb::module_ & m) {
     nb::class_<BFilterParams>(m, "BFilterParams")
     .def(nb::init<int32_t, int32_t, int, int, int>())
-    .def("b0", &BFilterParams::b0)
-    .def("b1", &BFilterParams::b1)
-    .def("b_bits", &BFilterParams::b_bits)
-    .def("p_bits", &BFilterParams::p_bits)
-    .def("shift", &BFilterParams::shift);
+    .def_rw("b0", &BFilterParams::b0)
+    .def_rw("b1", &BFilterParams::b1)
+    .def_rw("b_bits", &BFilterParams::b_bits)
+    .def_rw("p_bits", &BFilterParams::p_bits)
+    .def_rw("shift", &BFilterParams::shift);
 
     nb::class_<BFilterBank>(m, "BFilterBank")
     .def(nb::init<>())
-    .def("add", &BFilterBank::add, np::rv_policy::none)
-    .def("init", &BFilterBank::init, np::rv_policy::none)
-    .def("apply", &BFilterBank::apply_buffer);
+    .def("add", &BFilterBank::add, nb::rv_policy::none)
+    .def("init", &BFilterBank::init, nb::rv_policy::none)
+    .def("apply", [](
+        BFilterBank & self,
+        nb::ndarray<int32_t, nb::ndim<1>, nb::c_contig> input, 
+        nb::ndarray<int32_t, nb::ndim<1>, nb::c_contig> output
+    ) {
+        auto v_in = input.view();
+        auto v_out = output.view();
+        auto n_samp = input.shape(0);
+        if (v_out.shape(0) != n_samp) {
+            throw agreement_exception("input", "output", "shape");
+        }
+        self.apply(&v_in(0), &v_out(0), (int)n_samp);
+    })
+    .def("apply", [](
+        BFilterBank & self,
+        nb::ndarray<float, nb::ndim<1>, nb::c_contig> input, 
+        nb::ndarray<float, nb::ndim<1>, nb::c_contig> output
+    ) {
+        auto v_in = input.view();
+        auto v_out = output.view();
+        auto n_samp = input.shape(0);
+        if (v_out.shape(0) != n_samp) {
+            throw agreement_exception("input", "output", "shape");
+        }
+        self.apply_to_float(&v_in(0), &v_out(0), 1.0, (int)n_samp);
+    });
+
+    return;
 }
 

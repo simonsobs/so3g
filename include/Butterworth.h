@@ -1,9 +1,12 @@
 #include <vector>
+#include <array>
 #include <cstdint>
 
-#include <boost/python.hpp>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 
-#include "numpy_assist.h"
+namespace nb = nanobind;
+
 
 class BFilterParams {
 public:
@@ -25,11 +28,8 @@ public:
     void apply(int32_t* input, int32_t* output, int n_samp);
     void apply_to_float(float *input, float *output, float unit, int n_samp);
 
-    void apply_buffer(boost::python::object input,
-                      boost::python::object output);
-
     std::vector<std::vector<std::array<std::int64_t,2>>> w;  // (n_bank,n_chan,2)
     std::vector<BFilterParams> par;
 };
 
-void butterworth_test();
+void register_butterworth(nb::module_ & m);

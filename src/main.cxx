@@ -10,6 +10,8 @@
 
 #include <hkagg.h>
 #include <exceptions.h>
+#include <Butterworth.h>
+#include <so_linterp.h>
 //#include <Intervals.h>
 
 // Note _version.h is auto-generated during build.  You can
@@ -46,5 +48,7 @@ NB_MODULE(libso3g, m) {
 
     register_hkagg(m);
     register_exeptions(m);
+    register_butterworth(m);
+    register_so_linterp(m);
     //register_intervals(m);
 }

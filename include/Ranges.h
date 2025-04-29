@@ -1,11 +1,15 @@
 #pragma once
 
 #include <stdint.h>
+#include <vector>
+#include <utility>
 
-#include "numpy_assist.h"
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 
 using namespace std;
-namespace bp = boost::python;
+
+namespace nb = nanobind;
 
 // Template class for working with intervals -- pairs of objects of
 // the same (well-ordered) type, with operations defined that support
@@ -38,7 +42,7 @@ public:
     Ranges<T> complement() const;
     Ranges<T> zeros_like() const;
     Ranges<T> ones_like() const;
-    
+
     void cleanup();
 
     bp::object ranges() const;

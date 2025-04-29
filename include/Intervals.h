@@ -1,12 +1,18 @@
 #pragma once
 
 #include <stdint.h>
+#include <vector>
+#include <utility>
 
 #include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
 
 using namespace std;
 
 namespace nb = nanobind;
+
+// G3Time is just an int64_t
+typedef int64_t G3Time;
 
 
 // Template class for working with intervals -- pairs of objects of
@@ -39,7 +45,7 @@ public:
 
     void cleanup();
 
-    bp::object array() const;
+    nb::ndarray<T> array() const;
 
     Intervals<T> getitem(bp::object indices);
 
