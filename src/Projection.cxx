@@ -1,4 +1,3 @@
-#define NO_IMPORT_ARRAY
 
 // debug
 #include <iostream>

@@ -5,14 +5,10 @@
 #include <utility>
 
 #include <nanobind/nanobind.h>
-#include <nanobind/ndarray.h>
 
 using namespace std;
 
 namespace nb = nanobind;
-
-// G3Time is just an int64_t
-typedef int64_t G3Time;
 
 
 // Template class for working with intervals -- pairs of objects of
@@ -69,7 +65,6 @@ public:
 typedef Intervals<double> IntervalsDouble;
 typedef Intervals<int64_t> IntervalsInt;
 typedef Intervals<int32_t> IntervalsInt32;
-typedef Intervals<G3Time> IntervalsTime;
 
 
 void register_intervals(nb::module_ & m);

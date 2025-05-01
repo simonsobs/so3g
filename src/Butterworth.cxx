@@ -4,6 +4,9 @@
 #include <exceptions.h>
 #include <Butterworth.h>
 
+// Needed to work with numpy arrays in bindings
+#include <nanobind/ndarray.h>
+
 using namespace std;
 
 namespace nb = nanobind;
@@ -98,7 +101,7 @@ void register_butterworth(nb::module_ & m) {
     .def("add", &BFilterBank::add, nb::rv_policy::none)
     .def("init", &BFilterBank::init, nb::rv_policy::none)
     .def("apply", [](
-        BFilterBank & self,
+        BFilterBank & slf,
         nb::ndarray<int32_t, nb::ndim<1>, nb::c_contig> input, 
         nb::ndarray<int32_t, nb::ndim<1>, nb::c_contig> output
     ) {
@@ -108,10 +111,10 @@ void register_butterworth(nb::module_ & m) {
         if (v_out.shape(0) != n_samp) {
             throw agreement_exception("input", "output", "shape");
         }
-        self.apply(&v_in(0), &v_out(0), (int)n_samp);
+        slf.apply(&v_in(0), &v_out(0), (int)n_samp);
     })
     .def("apply", [](
-        BFilterBank & self,
+        BFilterBank & slf,
         nb::ndarray<float, nb::ndim<1>, nb::c_contig> input, 
         nb::ndarray<float, nb::ndim<1>, nb::c_contig> output
     ) {
@@ -121,7 +124,7 @@ void register_butterworth(nb::module_ & m) {
         if (v_out.shape(0) != n_samp) {
             throw agreement_exception("input", "output", "shape");
         }
-        self.apply_to_float(&v_in(0), &v_out(0), 1.0, (int)n_samp);
+        slf.apply_to_float(&v_in(0), &v_out(0), 1.0, (int)n_samp);
     });
 
     return;

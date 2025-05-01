@@ -79,3 +79,6 @@ vector<Ranges<T>> extract_ranges(const bp::object & ival_list) {
 }
 
 typedef Ranges<int32_t> RangesInt32;
+
+
+void register_ranges(nb::module_ & m);

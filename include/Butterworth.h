@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include <nanobind/nanobind.h>
-#include <nanobind/ndarray.h>
 
 namespace nb = nanobind;
 

@@ -1,4 +1,3 @@
-#define NO_IMPORT_ARRAY
 
 #include <pybindings.h>
 
@@ -671,6 +670,12 @@ Ranges<T> Ranges<T>::operator*(const Ranges<T> &src) const
     auto output = *this;
     output *= src;
     return output;
+}
+
+
+void register_ranges(nb::module_ & m) {
+
+    return;
 }
 
 

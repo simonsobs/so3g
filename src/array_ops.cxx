@@ -1,4 +1,3 @@
-#define NO_IMPORT_ARRAY
 
 #include <complex>
 #include <stdint.h>
@@ -22,9 +21,13 @@ extern "C" {
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_statistics.h>
 
-#include "so3g_numpy.h"
-#include "numpy_assist.h"
-#include "Ranges.h"
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+
+#include <Ranges.h>
+
+namespace nb = nanobind;
+
 
 // TODO: Generalize to double precision too.
 // This implements Jon's noise model for ACT. It takes in
@@ -1255,11 +1258,49 @@ void detrend(bp::object & tod, const std::string & method, const int linear_ncou
 }
 
 
+void register_array_ops(nb::module_ & m) {
+    m.def("nmat_detvecs_apply", &nmat_detvecs_apply);
+    m.def("process_cuts", &process_cuts);
+    m.def("translate_cuts", &translate_cuts);
+    m.def("get_gap_fill_poly", [](
+        ranges,
+        nb::ndarray<float, nb::ndim<2>, nb::c_contig> signal,
+        int buffer,
+        int order,
+        bool extract
+    ) {
+
+    }, 
+        nb::arg("ranges"), 
+        nb::arg("signal"), 
+        nb::arg("buffer"), 
+        nb::arg("order"),
+        nb::arg("extract"),
+        R"(
+        Do polynomial gap-filling on a float32 array.
+
+        Args:
+            ranges: RangesMatrix with shape (ndet, nsamp)
+            signal: data array (float32) with shape (ndet, nsamp)
+            buffer: integer stating max number of samples to use on each end
+            order: order of polynomial to use (1 means linear)
+            inplace: whether to overwrite data array with the model
+            extract: array to write the original data samples (inplace)
+                or the model (!inplace) into.
+        Returs:
+            None
+        )"
+    )
+
+
+    return;
+}
+
 PYBINDINGS("so3g")
 {
-    bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
-    bp::def("process_cuts",  process_cuts);
-    bp::def("translate_cuts", translate_cuts);
+    // bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
+    // bp::def("process_cuts",  process_cuts);
+    // bp::def("translate_cuts", translate_cuts);
     bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
             "get_gap_fill_poly(ranges, signal, buffer, order, extract)\n"
             "\n"
