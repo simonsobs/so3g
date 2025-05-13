@@ -1,11 +1,11 @@
-import so3g
+
 import numpy as np
 
 """Objects will self report as being of type "RangesInt32" rather than
 Ranges.  But let's try to use so3g.proj.Ranges when testing types and
 making new ones and stuff."""
 
-Ranges = so3g.RangesInt32
+from ..libso3g import RangesInt32 as Ranges
 
 
 class RangesMatrix():
@@ -44,7 +44,7 @@ class RangesMatrix():
     def zeros_like(self):
         return RangesMatrix([x.zeros_like() for x in self.ranges],
                             child_shape=self.shape[1:])
-    
+
     def ones_like(self):
         return RangesMatrix([x.ones_like() for x in self.ranges],
                             child_shape=self.shape[1:])
@@ -53,7 +53,7 @@ class RangesMatrix():
         [x.buffer(buff) for x in self.ranges]
         ## just to make this work like Ranges.buffer()
         return self
-    
+
     def buffered(self, buff):
         out = self.copy()
         [x.buffer(buff) for x in out.ranges]
@@ -128,7 +128,7 @@ class RangesMatrix():
                 elif self.shape[0] == x.shape[0]:
                     return self.__class__([r + d for r, d in zip(self.ranges, x)], skip_shape_check=True)
             return self.__class__([r + x for r in self.ranges], skip_shape_check=True)
-        
+
     def __mul__(self, x):
         if isinstance(x, Ranges):
             return self.__class__([d * x for d in self.ranges], skip_shape_check=True)

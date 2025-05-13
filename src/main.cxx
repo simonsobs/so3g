@@ -1,14 +1,14 @@
-#include <boost/python.hpp>
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
 
+#include <string>
+
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
+
 // See this header file for discussion of numpy compilation issues.
 #include "so3g_numpy.h"
-
-#include <container_pybindings.h>
-
-#include <string>
 
 // Note _version.h is supposed to be auto-generated during build.  If
 // that breaks at some point, you can replace it with a single
@@ -16,14 +16,28 @@
 //   #define SO3G_VERSION_STRING "unknown"
 #include "_version.h"
 
-namespace bp = boost::python;
+// Include headers with registration functions
+#include "exceptions.h"
+#include "hkagg.h"
+#include "so_linterp.h"
+#include "Butterworth.h"
+#include "Intervals.h"
+#include "Ranges.h"
+#include "Projection.h"
+
+// Declaration here, since there is no header file for array_ops.
+void register_array_ops(nb::module_ & m);
+
+
+namespace nb = nanobind;
+
 
 const std::string version()
 {
     return SO3G_VERSION_STRING;
 }
 
-bp::object useful_info() {
+nb::object useful_info() {
     int omp_num_threads = 1;
 #pragma omp parallel
     {
@@ -32,26 +46,31 @@ bp::object useful_info() {
             omp_num_threads = omp_get_num_threads();
         #endif
     }
-    bp::dict output;
+    nb::dict output;
     output["omp_num_threads"] = omp_num_threads;
     output["version"] = version();
     return output;
 }
 
 
-
-
-PYBINDINGS("so3g") {
-    bp::def("version", version);
-    bp::def("useful_info", useful_info);
-}
-
 static void* _so3g_import_array() {
     import_array();
     return NULL;
 }
 
-BOOST_PYTHON_MODULE(so3g) {
+
+NB_MODULE(libso3g, m) {
     _so3g_import_array();
-    G3ModuleRegistrator::CallRegistrarsFor("so3g");
+
+    m.def("version", &version);
+    m.def("useful_info", &useful_info);
+
+    register_exceptions(m);
+    register_hkagg(m);
+    register_butterworth(m);
+    register_so_linterp(m);
+    register_intervals(m);
+    register_ranges(m);
+    register_array_ops(m);
+    register_projection(m);
 }
