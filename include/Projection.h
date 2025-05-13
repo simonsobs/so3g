@@ -1,8 +1,16 @@
-#include <boost/python.hpp>
+#pragma once
+
+#include <vector>
+
+#include <nanobind/nanobind.h>
+
 #include "exceptions.h"
 #include "numpy_assist.h"
 
-namespace bp = boost::python;
+using namespace std;
+
+namespace nb = nanobind;
+
 
 // For detector timestreams, a.k.a. "signal", float32 is sufficient in
 // most cases.  We don't want to template this, but let's leave our
@@ -16,9 +24,9 @@ typedef float FSIGNAL;
 template <typename DTYPE>
 class SignalSpace {
 public:
-    SignalSpace(bp::object input, std::string var_name,
+    SignalSpace(nb::object input, std::string var_name,
                 int dtype, int n_det, int n_time);
-    SignalSpace(bp::object input, std::string var_name,
+    SignalSpace(nb::object input, std::string var_name,
                 int dtype, int n_det, int n_time, int n_thirdaxis);
     ~SignalSpace() { if (data_ptr) free(data_ptr); };
 
@@ -29,10 +37,10 @@ public:
     vector<int> dims;
 
     vector<BufferWrapper<DTYPE>> bw;
-    bp::object ret_val;
+    nb::object ret_val;
 
 private:
-    bool _Validate(bp::object input, std::string var_name,
+    bool _Validate(nb::object input, std::string var_name,
                    int dtype);
 };
 
@@ -42,23 +50,23 @@ template<typename CoordSys, typename PixelSys, typename SpinSys>
 class ProjectionEngine {
 public:
     //ProjectionEngine(PixelSys pixelizor);
-    ProjectionEngine(bp::object pix_args);
-    bp::object coords(bp::object pbore, bp::object pofs,
-                      bp::object coord);
-    bp::object pixels(bp::object pbore, bp::object pofs, bp::object pixel);
-    vector<int> tile_hits(bp::object pbore, bp::object pofs);
-    bp::object tile_ranges(bp::object pbore, bp::object pofs, bp::object tile_lists);
-    bp::object pointing_matrix(bp::object pbore, bp::object pofs, bp::object response,
-                               bp::object pixel, bp::object proj);
-    bp::object zeros(bp::object shape);
-    bp::object pixel_ranges(bp::object pbore, bp::object pofs, bp::object map, int n_domain=-1);
-    bp::object from_map(bp::object map, bp::object pbore, bp::object pofs,
-                        bp::object response, bp::object signal);
-    bp::object to_map(bp::object map, bp::object pbore, bp::object pofs, bp::object response,
-                      bp::object signal, bp::object det_weights,
-                      bp::object thread_intervals);
-    bp::object to_weight_map(bp::object map, bp::object pbore, bp::object pofs,
-                  bp::object response, bp::object det_weights, bp::object thread_intervals);
+    ProjectionEngine(nb::object pix_args);
+    nb::object coords(nb::object pbore, nb::object pofs,
+                      nb::object coord);
+    nb::object pixels(nb::object pbore, nb::object pofs, nb::object pixel);
+    vector<int> tile_hits(nb::object pbore, nb::object pofs);
+    nb::object tile_ranges(nb::object pbore, nb::object pofs, nb::list tile_lists);
+    nb::object pointing_matrix(nb::object pbore, nb::object pofs, nb::object response,
+                               nb::object pixel, nb::object proj);
+    nb::object zeros(nb::object shape);
+    nb::object pixel_ranges(nb::object pbore, nb::object pofs, nb::object map, int n_domain=-1);
+    nb::object from_map(nb::object map, nb::object pbore, nb::object pofs,
+                        nb::object response, nb::object signal);
+    nb::object to_map(nb::object map, nb::object pbore, nb::object pofs, nb::object response,
+                      nb::object signal, nb::object det_weights,
+                      nb::object thread_intervals);
+    nb::object to_weight_map(nb::object map, nb::object pbore, nb::object pofs,
+                  nb::object response, nb::object det_weights, nb::object thread_intervals);
 
     int comp_count() const;
     int index_count() const;
@@ -66,3 +74,6 @@ public:
 private:
     PixelSys _pixelizor;
 };
+
+
+void register_projection(nb::module_ & m);
