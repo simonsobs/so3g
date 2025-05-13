@@ -1,7 +1,12 @@
 #pragma once
 
-#include <boost/python.hpp>
 #include <exception>
+#include <sstream>
+
+#include <nanobind/nanobind.h>
+
+namespace nb = nanobind;
+
 
 // so3g_exception is our internal base class, which defines the
 // interface we use for converting C++ exceptions to python.
@@ -15,8 +20,8 @@ public:
     so3g_exception(std::string text) :
         text{text} {}
 
-    virtual std::string msg_for_python() const throw() {
-        return text;
+    const char * what() const throw() {
+        return text.c_str();
     }
 };
 
@@ -45,11 +50,11 @@ public:
     std::string var_name;
     buffer_exception(std::string var_name) : var_name{var_name} {}
 
-    std::string msg_for_python() const throw() {
+    const char * what() const throw() {
         std::ostringstream s;
         s << "Argument '" << var_name << "' does not expose buffer protocol, "
             "is not contiguous, or does not export a format.";
-        return s.str();
+        return s.str().c_str();
     }
 };
 
@@ -61,11 +66,11 @@ public:
     shape_exception(std::string var_name, std::string detail) :
         var_name{var_name}, detail(detail) {}
 
-    std::string msg_for_python() const throw() {
+    const char * what() const throw() {
         std::ostringstream s;
         s << "Buffer '" << var_name << "' has incompatible shape: "
           << detail << ".";
-        return s.str();
+        return s.str().c_str();
     }
 };
 
@@ -77,11 +82,11 @@ public:
     dtype_exception(std::string var_name, std::string type_str) :
         var_name{var_name}, type_str{type_str} {}
 
-    std::string msg_for_python() const throw() {
+    const char * what() const throw() {
         std::ostringstream s;
         s << "Expected buffer '" << var_name << "' to contain items of type "
           << type_str << ".";
-        return s.str();
+        return s.str().c_str();
     }
 };
 
@@ -92,11 +97,11 @@ public:
     agreement_exception(std::string var1, std::string var2, std::string prop) :
         var1{var1}, var2{var2}, prop{prop} {}
 
-    std::string msg_for_python() const throw() {
+    const char * what() const throw() {
         std::ostringstream s;
         s << "Expected buffers '" << var1 << "' and '" << var2 << "' to have "
           << "the same " << prop << ".";
-        return s.str();
+        return s.str().c_str();
     }
 };
 
@@ -108,10 +113,10 @@ public:
     tiling_exception(int tile_idx, std::string msg) :
         tile_idx{tile_idx}, msg{msg} {}
 
-    std::string msg_for_python() const throw() {
+    const char * what() const throw() {
         std::ostringstream s;
         s << "Tiling problem (index " << tile_idx << "): " << msg;
-        return s.str();
+        return s.str().c_str();
     }
 };
 
@@ -122,7 +127,10 @@ public:
     general_agreement_exception(std::string text) :
         text{text} {}
 
-    std::string msg_for_python() const throw() {
-        return text;
+    const char * what() const throw() {
+        return text.c_str();
     }
 };
+
+
+void register_exceptions(nb::module_ & m);

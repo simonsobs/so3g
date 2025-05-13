@@ -1,13 +1,15 @@
 #include <assert.h>
 #include <math.h>
 
-#include <pybindings.h>
-#include <container_pybindings.h>
+#include <nanobind/ndarray.h>
 
 #include "Butterworth.h"
 #include "exceptions.h"
 
 using namespace std;
+
+namespace nb = nanobind;
+
 
 BFilterBank::BFilterBank(const BFilterBank& a) {
     // Copy the parameters but reset the accumulators... that's probably evil.
@@ -34,8 +36,8 @@ BFilterBank& BFilterBank::init(int n_chan) {
     return *this;
 }
 
-void BFilterBank::apply_buffer(boost::python::object input,
-                               boost::python::object output)
+void BFilterBank::apply_buffer(nb::object input,
+                               nb::object output)
 {
     // User wrappers so we can throw exceptions and the view will be
     // released in destructor.
@@ -124,16 +126,20 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
 }
 
 
-PYBINDINGS("so3g")
-{
-    bp::class_<BFilterParams>("BFilterParams",
-                              bp::init<int32_t, int32_t, int, int, int>() );
+void register_butterworth(nb::module_ & m) {
+    nb::class_<BFilterParams>(m, "BFilterParams")
+    .def(nb::init<int32_t, int32_t, int, int, int>())
+    .def_rw("b0", &BFilterParams::b0)
+    .def_rw("b1", &BFilterParams::b1)
+    .def_rw("b_bits", &BFilterParams::b_bits)
+    .def_rw("p_bits", &BFilterParams::p_bits)
+    .def_rw("shift", &BFilterParams::shift);
 
-    bp::class_<BFilterBank>("BFilterBank")
-        .def("add", &BFilterBank::add,
-             bp::return_internal_reference<>() )
-        .def("init", &BFilterBank::init,
-             bp::return_internal_reference<>() )
-        .def("apply", &BFilterBank::apply_buffer);
+    nb::class_<BFilterBank>(m, "BFilterBank")
+    .def(nb::init<>())
+    .def("add", &BFilterBank::add, nb::rv_policy::none)
+    .def("init", &BFilterBank::init, nb::rv_policy::none)
+    .def("apply", &BFilterBank::apply_buffer);
+
+    return;
 }
-

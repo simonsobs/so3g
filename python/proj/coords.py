@@ -1,10 +1,10 @@
-import so3g
-from . import quat
-from .weather import weather_factory
-
 from collections import OrderedDict
 
 import numpy as np
+
+from . import quat
+from .weather import weather_factory
+
 
 DEG = np.pi / 180.
 

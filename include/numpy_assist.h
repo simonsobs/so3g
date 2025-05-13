@@ -1,9 +1,14 @@
 #pragma once
 
-#include <boost/python.hpp>
 #include <exception>
+#include <memory>
+#include <vector>
+
+#include <nanobind/nanobind.h>
 
 #include "exceptions.h"
+
+namespace nb = nanobind;
 
 
 // check_buffer_type<T>(const Py_buffer &view)
@@ -83,28 +88,30 @@ std::string type_name<double>() {
 // or np.int64 can be passed in places where we'd otherwise expect an
 // integer.
 
-inline int numpysafe_extract_int(const bp::object obj, const std::string argstr)
+inline int numpysafe_extract_int(nb::object obj, const std::string argstr)
 {
     int result = 0;
-
-    // Try extracting integer directly.
-    bp::extract<int> extractor(obj);
-    if (extractor.check())
-        return extractor();
-
-    // Maybe this is a numpy.int32, or other array scalar, for which
-    // .item() is the way to pull out the int.
-    if (PyObject_HasAttrString(obj.ptr(), "item")) {
-        bp::object result = (obj.attr("item"))();
-        bp::extract<int> extractor(result);
-        if (extractor.check())
-            return extractor();
+    // Try extracting integer directly and fall back to manual extraction.
+    if (! nb::try_cast<int>(obj, result)) {
+        if (PyObject_HasAttrString(obj.ptr(), "item")) {
+            std::string result_str = nb::str(obj.attr("item")).c_str();
+            if (result_str == "0") {
+                // legitimate zero value
+                result = 0;
+            } else {
+                result = std::atoi(result_str.c_str());
+                // atoi returns zero on error
+                if (result == 0) {
+                    std::string errstr = "Failed to get int from obj item \"" + argstr + "\"";
+                    throw ValueError_exception("errstr");
+                }
+            }
+        } else {
+            std::string errstr = "Failed to interpret argument \"" + argstr + "\" as int.";
+            throw ValueError_exception("errstr");
+        }
     }
-
-    std::string errstr = "Failed to interpret argument \"" + argstr + "\" as int.";
-    PyErr_SetString(PyExc_ValueError, errstr.c_str());
-    bp::throw_error_already_set();
-    return 0;
+    return result;
 }
 
 
@@ -153,7 +160,7 @@ public:
     }
 
     // Constructor with no shape or type checking.
-    BufferWrapper(std::string name, const bp::object &src, bool optional)
+    BufferWrapper(std::string name, const nb::object &src, bool optional)
         : BufferWrapper() {
         if (optional && (src.ptr() == Py_None))
             return;
@@ -165,7 +172,7 @@ public:
     }
 
     // Constructor with shape and type checking.
-    BufferWrapper(std::string name, const bp::object &src, bool optional,
+    BufferWrapper(std::string name, const nb::object &src, bool optional,
                   std::vector<int> shape)
         : BufferWrapper(name, src, optional) {
 
