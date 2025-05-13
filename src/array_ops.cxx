@@ -15,19 +15,22 @@ extern "C" {
                 double* b, int* ldb, int* info );
 }
 
-#include <boost/python.hpp>
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
 
+#include <nanobind/nanobind.h>
+
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_statistics.h>
 
-#include <pybindings.h>
 #include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"
 #include "array_ops.h"
+
+namespace nb = nanobind;
+
 
 // TODO: Generalize to double precision too.
 // This implements Jon's noise model for ACT. It takes in
@@ -91,7 +94,7 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
 // probably be moved into its own file.
 
 // Forward declarations of helper functions
-int get_dtype(const bp::object &);
+int get_dtype(const nb::object &);
 int pcut_full_measure_helper(const vector<RangesInt32> &);
 template <typename T> void pcut_full_tod2vals_helper(const vector<RangesInt32> &, T *, int, T *);
 template <typename T> void pcut_full_vals2tod_helper(const vector<RangesInt32> &, T *, int, T *);
@@ -127,14 +130,14 @@ template <typename T> void pcut_poly_translate_helper(const vector<RangesInt32> 
 // cut range starts. This will be fast enough to build on the fly. Would pass this as an extra
 // argument to the helper functions.
 
-int process_cuts(const bp::object & range_matrix, const std::string & operation, const std::string & model, const bp::dict & params, const bp::object & tod, const bp::object & vals) {
+int process_cuts(const nb::object & range_matrix, const std::string & operation, const std::string & model, const nb::dict & params, const nb::object & tod, const nb::object & vals) {
     auto ranges = extract_ranges<int32_t>(range_matrix);
     // Decoding these up here lets us avoid some duplication later
     int resolution, nmax;
     if     (model == "full") {}
     else if(model == "poly") {
-        resolution = bp::extract<int>(params.get("resolution"));
-        nmax       = bp::extract<int>(params.get("nmax"));
+        resolution = nb::cast<int>(params["resolution"]);
+        nmax       = nb::cast<int>(params["nmax"]);
     } else throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
 
     if(operation == "measure") {
@@ -181,14 +184,14 @@ int process_cuts(const bp::object & range_matrix, const std::string & operation,
     return 0;
 }
 
-void translate_cuts(const bp::object & irange_matrix, const bp::object & orange_matrix, const std::string & model, const bp::dict & params, const bp::object & ivals, bp::object & ovals) {
+void translate_cuts(const nb::object & irange_matrix, const nb::object & orange_matrix, const std::string & model, const nb::dict & params, const nb::object & ivals, nb::object & ovals) {
     // Decoding these up here lets us avoid some duplication later
     int resolution, nmax;
     if       (model == "full") {
         // nothing to do - res and nmax not used here
     } else if(model == "poly") {
-        resolution = bp::extract<int>(params.get("resolution"));
-        nmax       = bp::extract<int>(params.get("nmax"));
+        resolution = nb::cast<int>(params["resolution"]);
+        nmax       = nb::cast<int>(params["nmax"]);
     } else {
         throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
     }
@@ -216,7 +219,7 @@ void translate_cuts(const bp::object & irange_matrix, const bp::object & orange_
 
 // Helpers for the cuts
 
-int get_dtype(const bp::object & arr) {
+int get_dtype(const nb::object & arr) {
     PyObject *ob = PyArray_FromAny(arr.ptr(), NULL, 0, 0, 0, NULL);
     if (ob == NULL) throw exception();
     PyArrayObject * a = reinterpret_cast<PyArrayObject*>(ob);
@@ -521,12 +524,12 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
 }
 
 template <typename T>
-void get_gap_fill_poly(const bp::object ranges,
-                       const bp::object tod,
+void get_gap_fill_poly(const nb::object ranges,
+                       const nb::object tod,
                        int buffer,
                        int order,
                        bool inplace,
-                       const bp::object ex)
+                       const nb::object ex)
 {
     // As a test, copy data from rangemat into segment.
     auto rangemat = extract_ranges<int32_t>(ranges);
@@ -567,12 +570,12 @@ void get_gap_fill_poly(const bp::object ranges,
 }
 
 
-void test_buffer_wrapper(const bp::object array,
-                         const bp::object dims)
+void test_buffer_wrapper(const nb::object array,
+                         const nb::object dims)
 {
-    std::vector<int> _dims(bp::len(dims));
-    for (int i=0; i<bp::len(dims); i++)
-        _dims[i] = bp::extract<double>(dims[i]);
+    std::vector<int> _dims(nb::len(dims));
+    for (int i=0; i<nb::len(dims); i++)
+        _dims[i] = nb::cast<int>(dims[i]);
     BufferWrapper<double> array_buf  ("array",  array,  false, _dims);
 
 }
@@ -628,7 +631,7 @@ void _block_moment(T* tod_data, T* output, int bsize, int moment, bool central, 
 }
 
 template <typename T>
-void block_moment(const bp::object & tod, const bp::object & out, int bsize, int moment, bool central, int shift)
+void block_moment(const nb::object & tod, const nb::object & out, int bsize, int moment, bool central, int shift)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -686,7 +689,7 @@ void _block_minmax(T* tod_data, T* output, int bsize, int mode, int ndet, int ns
 }
 
 template <typename T>
-void block_minmax(const bp::object & tod, const bp::object & out, int bsize, int mode, int shift)
+void block_minmax(const nb::object & tod, const nb::object & out, int bsize, int mode, int shift)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -728,7 +731,7 @@ void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
     }
 }
 
-void clean_flag(const bp::object & flag, int width)
+void clean_flag(const nb::object & flag, int width)
 {
     BufferWrapper<int> flag_buf  ("flag", flag, false, std::vector<int>{-1, -1});
     int ndet = flag_buf->shape[0];
@@ -793,7 +796,7 @@ void _jumps_matched_filter(T* tod_data, T* output, int bsize, int shift, int nde
 }
 
 template <typename T>
-void matched_jumps(const bp::object & tod, const bp::object & out, const bp::object & min_size, int bsize)
+void matched_jumps(const nb::object & tod, const nb::object & out, const nb::object & min_size, int bsize)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -810,7 +813,7 @@ void matched_jumps(const bp::object & tod, const bp::object & out, const bp::obj
         throw buffer_exception("min_size must be C-contiguous along last axis");
     T* size = (T*)size_buf->buf;
     T* buffer = new T[ndet * nsamp];
-    
+
     int half_win = bsize / 2;
     int quarter_win = bsize / 4;
 
@@ -819,12 +822,12 @@ void matched_jumps(const bp::object & tod, const bp::object & out, const bp::obj
     // For this first round of cleaning we use min_size/2
     // Note that after this filtering we are left with at least win_size/4 width
     _jumps_thresh_on_mfilt(buffer, output, size, bsize, 0, (T).5, false, false, ndet, nsamp);
-    // Clean spurs 
+    // Clean spurs
     _clean_flag(output, quarter_win, ndet, nsamp);
     // Recall that we set _min_size to be half the actual peak min above
     // We allow for .5 samples worth of uncertainty here
     _jumps_thresh_on_mfilt(buffer, output, size, bsize, 0, (T)1., true, true, ndet, nsamp);
-    
+
     // Now do the shifted filter
     _jumps_matched_filter(tod_data, buffer, bsize, half_win, ndet, nsamp);
     int* shift_flag = new int[ndet * nsamp];
@@ -839,14 +842,14 @@ void matched_jumps(const bp::object & tod, const bp::object & out, const bp::obj
         int ioff = di*nsamp;
         for(int si = 0; si < nsamp; si++) {
             int i = ioff + si;
-            output[i] = output[i] || shift_flag[i]; 
+            output[i] = output[i] || shift_flag[i];
         }
     }
     delete shift_flag;
 }
 
 template <typename T>
-void find_quantized_jumps(const bp::object & tod, const bp::object & out, const bp::object & atol, int win_size, T scale)
+void find_quantized_jumps(const nb::object & tod, const nb::object & out, const nb::object & atol, int win_size, T scale)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -891,7 +894,7 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
 }
 
 template <typename T>
-void subtract_jump_heights(const bp::object & tod, const bp::object & out, const bp::object & heights, const bp::object & jumps) {
+void subtract_jump_heights(const nb::object & tod, const nb::object & out, const nb::object & heights, const nb::object & jumps) {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
     int nsamp = tod_buf->shape[1];
@@ -968,7 +971,7 @@ void _linear_interp(const double* x, const double* y, const double* x_interp,
         // Points above maximum value
         else if (x_interp[si] >= x_max) {
             y_interp[si] = y[n_x - 1] + slope_right * (x_interp[si] - x_max);
-        } 
+        }
         else {
             y_interp[si] = gsl_spline_eval(spline, x_interp[si], acc);
         }
@@ -976,8 +979,8 @@ void _linear_interp(const double* x, const double* y, const double* x_interp,
 }
 
 template <typename T>
-void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_interp,
-               bp::object & y_interp, const gsl_interp_type* interp_type,
+void _interp1d(const nb::object & x, const nb::object & y, const nb::object & x_interp,
+               nb::object & y_interp, const gsl_interp_type* interp_type,
                _interp_func_pointer<T> interp_func)
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
@@ -1041,7 +1044,7 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
         // Transform x and x_interp to double arrays for gsl
         double x_dbl[n_x], x_interp_dbl[n_x_interp];
 
-        std::transform(x_data, x_data + n_x, x_dbl, 
+        std::transform(x_data, x_data + n_x, x_dbl,
                        [](float value) { return static_cast<double>(value); });
 
         std::transform(x_interp_data, x_interp_data + n_x_interp, x_interp_dbl,
@@ -1080,8 +1083,8 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
     }
 }
 
-void interp1d_linear(const bp::object & x, const bp::object & y,
-                     const bp::object & x_interp, bp::object & y_interp)
+void interp1d_linear(const nb::object & x, const nb::object & y,
+                     const nb::object & x_interp, nb::object & y_interp)
 {
     // Get data type
     int dtype = get_dtype(y);
@@ -1218,7 +1221,7 @@ void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
 }
 
 template <typename T>
-void _detrend_buffer(bp::object & tod, const std::string & method,
+void _detrend_buffer(nb::object & tod, const std::string & method,
                      const int linear_ncount)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
@@ -1246,7 +1249,7 @@ void _detrend_buffer(bp::object & tod, const std::string & method,
     _detrend<T>(tod_data, ndets, nsamps, row_stride, method, linear_ncount, nthreads);
 }
 
-void detrend(bp::object & tod, const std::string & method, const int linear_ncount)
+void detrend(nb::object & tod, const std::string & method, const int linear_ncount)
 {
     // Get data type
     int dtype = get_dtype(tod);
