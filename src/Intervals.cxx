@@ -187,18 +187,6 @@ Intervals<T>& Intervals<T>::merge(const Intervals<T> &src)
 }
 
 //
-// Machinery for converting between Interval vector<pair>
-// representation and buffers (such as numpy arrays).
-//
-
-template <typename T>
-static inline
-pair<T,T> interval_pair(char *p1, char *p2) {
-    return make_pair(*reinterpret_cast<T*>(p1),
-                     *reinterpret_cast<T*>(p2));
-}
-
-//
 // Implementation of the algebra
 //
 
@@ -304,7 +292,6 @@ template <
 nb::list intervals_from_mask(
     nb::ndarray_view<M, 1, 'C'> & view, int n_bits
 ) {
-    // Fast-access view of the array
     auto p = view.data();
     if (n_bits < 0) {
         // Use all bits
@@ -319,16 +306,13 @@ nb::list intervals_from_mask(
         start.push_back(-1);
     }
 
-    auto last = p[0];
-    last = 0;
+    M last = 0;
     for (C i = 0; i < count; i++) {
         auto d = p[i] ^ last;
         for (int bit = 0; bit < n_bits; ++bit) {
             if (d & (1 << bit)) {
                 if (start[bit] >= 0) {
-                    output[bit].segments.push_back(
-                        interval_pair<C>((char*)&start[bit], (char*)&i)
-                    );
+                    output[bit].segments.push_back(make_pair(start[bit], i));
                     start[bit] = -1;
                 } else {
                     start[bit] = i;
@@ -339,9 +323,7 @@ nb::list intervals_from_mask(
     }
     for (int bit = 0; bit < n_bits; ++bit) {
         if (start[bit] >= 0) {
-            output[bit].segments.push_back(
-                interval_pair<C>((char*)&start[bit], (char*)&count)
-            );
+            output[bit].segments.push_back(make_pair(start[bit], count));
         }
     }
 
@@ -421,6 +403,8 @@ nb::object intervals_to_mask(nb::list ivlist, int n_bits) {
             }
         }
     }
+    // Return a generic nb::object, so that all template types have the same
+    // return type.
     return array.cast();
 }
 
@@ -509,7 +493,7 @@ void intervals_bindings(nb::module_ & m, char const * name) {
                 seg++;
             }
             return array;
-        })
+        }, nb::rv_policy::take_ownership)
         .def("__getitem__", [](Intervals<C> & slf, nb::slice slc) {
             if (! std::is_integral<C>::value) {
                 throw ValueError_exception("Intervals __getitem__: type not integral");
@@ -547,7 +531,7 @@ void intervals_bindings(nb::module_ & m, char const * name) {
             nb::ndarray<nb::ndim<1>, nb::c_contig> input, int n_bits
         ) {
             // Do runtime creation of a view with a specific type, and then
-            // dispatch that to the proper function.  See:
+            // dispatch that to the proper templated function.  See:
             // https://nanobind.readthedocs.io/en/latest/ndarray.html#specializing-views-at-runtime
 
             if (input.dtype() == nb::dtype<uint8_t>()) {
@@ -605,7 +589,6 @@ void register_intervals(nb::module_ & m) {
     intervals_bindings<double>(m, "IntervalsDouble");
     intervals_bindings<int64_t>(m, "IntervalsInt");
     intervals_bindings<int32_t>(m, "IntervalsInt32");
-    intervals_bindings<int64_t>(m, "IntervalsTime");
     return;
 }
 
