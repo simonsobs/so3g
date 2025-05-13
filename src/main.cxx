@@ -12,7 +12,7 @@
 #include <exceptions.h>
 #include <Butterworth.h>
 #include <so_linterp.h>
-//#include <Intervals.h>
+#include <Intervals.h>
 
 // Note _version.h is auto-generated during build.  You can
 // also override it here if needed:
@@ -50,5 +50,5 @@ NB_MODULE(libso3g, m) {
     register_exeptions(m);
     register_butterworth(m);
     register_so_linterp(m);
-    //register_intervals(m);
+    register_intervals(m);
 }

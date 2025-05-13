@@ -18,6 +18,7 @@ namespace nb = nanobind;
 template <typename T>
 class Intervals {
 public:
+    typedef T value_type;
     pair<T,T> domain;
     vector<pair<T,T>> segments;
 
@@ -25,9 +26,6 @@ public:
     Intervals();
     Intervals(pair<T,T> domain) : domain{domain} {}
     Intervals(T start, T end) : Intervals(make_pair(start,end)) {}
-
-    //static Intervals<T> from_array(const bp::numpy::ndarray &src);
-    static Intervals<T> from_array(const bp::object &src);
 
     // Basic ops
     Intervals<T>& merge(const Intervals<T> &src);
@@ -41,10 +39,6 @@ public:
 
     void cleanup();
 
-    nb::ndarray<T> array() const;
-
-    Intervals<T> getitem(bp::object indices);
-
     // Operators.
     Intervals<T> operator~() const;
     Intervals<T> operator-() const;
@@ -53,10 +47,6 @@ public:
     Intervals<T> operator+(const Intervals<T> &src) const;
     Intervals<T> operator-(const Intervals<T> &src) const;
     Intervals<T> operator*(const Intervals<T> &src) const;
-
-    // Special conversions.
-    static bp::object from_mask(const bp::object &src, int n_bits);
-    static bp::object mask(const bp::list &ivlist, int n_bits);
 
     string Description() const;
 };
