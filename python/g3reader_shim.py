@@ -1,8 +1,9 @@
 import warnings
 
-from . import spt3g
+from spt3g import core
 
-class G3IndexedReader(spt3g.core.G3Reader):
+
+class G3IndexedReader(core.G3Reader):
     def __init__(self, *a, **kw):
         warnings.warn("so3g.G3IndexedReader is deprecated and will be removed "
                       "in a future version; use spt3g.G3Reader (.seek/.tell).",
