@@ -1,17 +1,15 @@
 [build-system]
 requires = [
-    "cmake>=3.17",
-    "setuptools",
-    "wheel",
+    "scikit-build-core >=0.10",
+    "nanobind >=1.3.2",
     "numpy",
-    "scipy",
     # Astropy depends on numpy 1.x with python-3.9.  Place
     # a build-time dependency here so that we build with a
     # compatible version of numpy.  Remove this after dropping
     # python-3.9 support.
     "astropy",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "so3g"
@@ -23,6 +21,7 @@ requires-python = ">=3.9"
 dependencies = [
     "numpy",
     "scipy",
+    "spt3g",
     "astropy",
     "matplotlib",
     "ephem",
@@ -43,9 +42,28 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
+
+[project.scripts]
+so-hk-tool = "so3g.hk.cli:main"
+
+[tool.scikit-build]
+build.verbose = true
+cmake.build-type = "Release"
+build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"
+
+[tool.scikit-build.wheel.packages]
+#"so3g/." = "python/."
+"so3g/hk" = "python/hk"
+"so3g/proj" = "python/proj"
+"so3g/smurf" = "python/smurf"
+
+#[tool.scikit-build.metadata.version]
 
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
 ]
+
