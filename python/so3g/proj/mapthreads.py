@@ -10,10 +10,12 @@ import numpy as np
 
 from ..libso3g import useful_info
 
-from . import DEG
 from . import quat
 from .coords import Assembly, FocalPlane
 from .wcs import Projectionist
+
+
+DEG = np.pi/180
 
 
 def get_num_threads(n_threads=None):
