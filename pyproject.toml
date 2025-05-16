@@ -55,10 +55,10 @@ build-dir = "build/{wheel_tag}"
 wheel.py-api = "cp312"
 
 [tool.scikit-build.wheel.packages]
-#"so3g/." = "python/."
-"so3g/hk" = "python/hk"
-"so3g/proj" = "python/proj"
-"so3g/smurf" = "python/smurf"
+"so3g" = "python/so3g"
+"so3g/hk" = "python/so3g/hk"
+"so3g/proj" = "python/so3g/proj"
+"so3g/smurf" = "python/so3g/smurf"
 
 #[tool.scikit-build.metadata.version]
 
