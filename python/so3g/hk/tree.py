@@ -3,11 +3,12 @@ of attributes.
 
 """
 
-from so3g.hk import getdata
 import time
 import os
 import yaml
 import logging
+
+from .getdata import to_timestamp, HKArchiveScanner
 
 
 logger = logging.getLogger(__name__)
@@ -137,11 +138,11 @@ class HKTree:
         if start is None:
             start = now - 86400
         else:
-            start = getdata.to_timestamp(start)
+            start = to_timestamp(start)
         if stop is None:
             stop = start + 86400
         else:
-            stop = getdata.to_timestamp(stop)
+            stop = to_timestamp(stop)
 
         if aliases is None:
             aliases = {}
@@ -170,7 +171,7 @@ class HKTree:
 
         # Walk the files -- same approach as load_ranges
         logger.debug('Scanning %s (pre_proc=%s)' % (data_dir, pre_proc_dir))
-        hksc = getdata.HKArchiveScanner(pre_proc_dir=pre_proc_dir)
+        hksc = HKArchiveScanner(pre_proc_dir=pre_proc_dir)
         for folder in range(int(start / 1e5), int(stop / 1e5) + 1):
             base = os.path.join(data_dir, str(folder))
             logger.debug(f' ... checking {base}')
