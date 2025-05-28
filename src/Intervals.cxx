@@ -7,8 +7,6 @@
 #include <type_traits>
 
 #include <boost/python.hpp>
-#include <cereal/types/utility.hpp>
-#include <container_pybindings.h>
 
 #include "so3g_numpy.h"
 
@@ -109,17 +107,6 @@ std::string Intervals<T>::Description() const
           << "," << _ival_cute_lim<T>(domain.second) << "), "
           << "ivals=" << segments.size() << ")";
 	return s.str();
-}
-
-template <typename T>
-template <class A> void Intervals<T>::serialize(A &ar, unsigned v)
-{
-	using namespace cereal;
-        // v is the version code!
-
-	ar & make_nvp("G3FrameObject", base_class<G3FrameObject>(this));
-	ar & make_nvp("domain", domain);
-	ar & make_nvp("segments", segments);
 }
 
 template <typename T>
@@ -715,10 +702,11 @@ Intervals<T> Intervals<T>::operator*(const Intervals<T> &src) const
 using namespace boost::python;
 
 #define EXPORT_INTERVALS(DOMAIN_TYPE, CLASSNAME) \
-    EXPORT_FRAMEOBJECT(CLASSNAME, init<>(),                             \
+    bp::class_<CLASSNAME>(#CLASSNAME,                                   \
         "A finite series of non-overlapping semi-open intervals on a "  \
         "domain of type: " #DOMAIN_TYPE ".")                            \
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with domain.")) \
+    .def("__str__", &CLASSNAME::Description) \
     .def("add_interval", &CLASSNAME::add_interval,                      \
          return_internal_reference<>(),                                 \
          args("self", "start", "end"),                                  \
@@ -774,20 +762,8 @@ using namespace boost::python;
     .def(self -= self)                                                  \
     .def(self + self)                                                   \
     .def(self - self)                                                   \
-    .def(self * self);                                                  \
-    register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from "  \
-      "strings to Intervals over " #DOMAIN_TYPE ".")
+    .def(self * self);
 
-
-G3_SERIALIZABLE_CODE(IntervalsDouble);
-G3_SERIALIZABLE_CODE(IntervalsInt);
-G3_SERIALIZABLE_CODE(IntervalsInt32);
-G3_SERIALIZABLE_CODE(IntervalsTime);
-
-G3_SERIALIZABLE_CODE(MapIntervalsDouble);
-G3_SERIALIZABLE_CODE(MapIntervalsInt);
-G3_SERIALIZABLE_CODE(MapIntervalsInt32);
-G3_SERIALIZABLE_CODE(MapIntervalsTime);
 
 PYBINDINGS("so3g")
 {

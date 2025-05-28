@@ -16,7 +16,9 @@ extern "C" {
 }
 
 #include <boost/python.hpp>
-#include <omp.h>
+#ifdef _OPENMP
+# include <omp.h>
+#endif // ifdef _OPENMP
 
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_statistics.h>

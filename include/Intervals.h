@@ -1,7 +1,5 @@
 #pragma once
 
-#include <G3Frame.h>
-#include <G3Map.h>
 #include <G3TimeStamp.h>
 
 #include <stdint.h>
@@ -16,7 +14,7 @@ namespace bp = boost::python;
 // intersection, union, and subtraction.
 
 template <typename T>
-class Intervals : public G3FrameObject {
+class Intervals {
 public:
     pair<T,T> domain;
     vector<pair<T,T>> segments;
@@ -58,9 +56,7 @@ public:
     static bp::object from_mask(const bp::object &src, int n_bits);
     static bp::object mask(const bp::list &ivlist, int n_bits);
 
-    // Required for G3FrameObjects.
     string Description() const;
-    template <class A> void serialize(A &ar, unsigned v);
 };
 
 
@@ -68,14 +64,3 @@ typedef Intervals<double> IntervalsDouble;
 typedef Intervals<int64_t> IntervalsInt;
 typedef Intervals<int32_t> IntervalsInt32;
 typedef Intervals<G3Time> IntervalsTime;
-
-G3_SERIALIZABLE(IntervalsDouble, 0);
-G3_SERIALIZABLE(IntervalsInt, 0);
-G3_SERIALIZABLE(IntervalsInt32, 0);
-G3_SERIALIZABLE(IntervalsTime, 0);
-
-G3MAP_OF(std::string, IntervalsDouble, MapIntervalsDouble);
-G3MAP_OF(std::string, IntervalsInt, MapIntervalsInt);
-G3MAP_OF(std::string, IntervalsInt32, MapIntervalsInt32);
-G3MAP_OF(std::string, IntervalsTime, MapIntervalsTime);
-

@@ -13,7 +13,8 @@ from pathlib import Path
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-from distutils.command.clean import clean
+
+import numpy as np
 
 # Absolute path to the directory with this file
 topdir = Path(__file__).resolve().parent
@@ -40,10 +41,8 @@ def get_spt3g_version():
     return ver
 
 upstream_spt3g_version = get_spt3g_version()
-print(f"Using upstream spt3g_software version {upstream_spt3g_version}")
 
 # The name of the spt3g source and package dirs
-spt3g_pkg_dir = os.path.join(topdir, "python", "spt3g_internal")
 spt3g_src_dir = os.path.join(topdir, "spt3g_software")
 
 
@@ -66,8 +65,6 @@ def get_version():
 
 
 def get_spt3g():
-    # if os.path.isdir(spt3g_pkg_dir):
-    #     return
     # We use git to get the repo, since spt3g uses git to get its version
     # information.
     if not os.path.isdir(spt3g_src_dir):
@@ -102,23 +99,21 @@ def get_spt3g():
 
 def extract_cmake_env(varprefix):
     cmake_opts = list()
-    cpat = re.compile(r"{}_(.*)".format(varprefix))
+    cpat = re.compile(f"{varprefix}_(.*)")
     for k, v in os.environ.items():
         mat = cpat.match(k)
         if mat is not None:
-            cmake_opts.append("-D{}={}".format(mat.group(1), v))
+            cmake_opts.append(f"-D{mat.group(1)}={v}")
     return cmake_opts
 
 
 def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, version):
     cmake_args = list()
-    #cmake_args = ["-DPYTHON_EXECUTABLE=" + sys.executable]
-    #cmake_args += ["-DBOOST_PYTHON_MAX_ARITY=20"]
     cfg = "Debug" if debug else "Release"
     cmake_args += ["-DCMAKE_BUILD_TYPE=" + cfg]
     cmake_args += ["-DCMAKE_VERBOSE_MAKEFILE=ON"]
-    cmake_args += ["-DCMAKE_INSTALL_PREFIX={}".format(install_dir)]
-    cmake_args.extend(extract_cmake_env("{}_BUILD".format(pkg)))
+    cmake_args += [f"-DCMAKE_INSTALL_PREFIX={install_dir}"]
+    cmake_args.extend(extract_cmake_env(f"{pkg}_BUILD"))
     cmake_args.extend(cmake_extra)
 
     build_args = ["--config", cfg]
@@ -130,9 +125,14 @@ def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, versi
     cxxcomp = env.get("CXX", None)
     cflags = env.get("CFLAGS", None)
     cxxflags = env.get("CXXFLAGS", "")
-    cxxflags = "{} -DVERSION_INFO='{}'".format(cxxflags, version)
+    cxxflags = f"{cxxflags} -DVERSION_INFO='{version}'"
     if sys.platform.lower() == "darwin":
         cmake_args += ["-DCMAKE_SHARED_LINKER_FLAGS='-undefined dynamic_lookup'"]
+    
+    # Add numpy includes
+    numpy_inc = np.get_include()
+    cxxflags += f" -I{numpy_inc}"
+
     env["CXXFLAGS"] = cxxflags
 
     if ccomp is not None:
@@ -148,11 +148,15 @@ def build_common(src_dir, build_dir, install_dir, cmake_extra, debug, pkg, versi
 
     # CMakeLists.txt is in the source dir
     cmake_list_dir = os.path.abspath(src_dir)
-    print("-" * 10, "Running {} CMake".format(pkg), "-" * 40)
+    print("-" * 10, f"Running {pkg} CMake", "-" * 40)
+    print(f"cmake {cmake_list_dir} {' '.join(cmake_args)}")
     sp.check_call(["cmake", cmake_list_dir] + cmake_args, cwd=build_dir, env=env)
 
-    print("-" * 10, "Building {}".format(pkg), "-" * 40)
-    cmake_cmd = ["cmake", "--build", "."] + build_args + ["--", "-j2"]
+    make_j = 2
+    if "CPU_COUNT" in os.environ:
+        make_j = int(os.environ["CPU_COUNT"])
+    print("-" * 10, f"Building {pkg}", "-" * 40)
+    cmake_cmd = ["cmake", "--build", "."] + build_args + ["--", f"-j{make_j}"]
     sp.check_call(cmake_cmd, cwd=build_dir)
     cmake_cmd = ["cmake", "--install", "."] + build_args
     sp.check_call(cmake_cmd, cwd=build_dir)
@@ -178,36 +182,6 @@ def build_so3g(src_dir, build_dir, install_dir, cmake_extra, debug):
 get_spt3g()
 
 
-class RealClean(clean):
-    """Really clean up.
-
-    Delete all temporary build directories when running `python setup.py clean`.
-    """
-
-    def run(self):
-        super().run()
-        clean_files = [
-            "./build",
-            "./dist",
-            "./__pycache__",
-            "./*.egg-info",
-            spt3g_pkg_dir,
-            spt3g_src_dir,
-            "./include/_version.h",
-        ]
-        for cf in clean_files:
-            if not os.path.exists(cf):
-                continue
-            # Make paths absolute and relative to this path
-            apaths = glob.glob(os.path.abspath(cf))
-            for path in apaths:
-                if os.path.isdir(path):
-                    shutil.rmtree(path)
-                elif os.path.isfile(path):
-                    os.remove(path)
-        return
-
-
 class CMakeExtension(Extension):
     """
     This overrides the built-in extension class and essentially does nothing,
@@ -223,6 +197,10 @@ class CMakeBuild(build_ext):
     Builds the full package using CMake.
     """
 
+    def initialize_options(self):
+        super().initialize_options()
+        self.cmake_build_done = False
+
     def run(self):
         """
         Perform build_cmake before doing the 'normal' stuff
@@ -237,6 +215,8 @@ class CMakeBuild(build_ext):
         # super().run()
 
     def build_cmake(self):
+        if self.cmake_build_done:
+            return
         try:
             out = sp.check_output(["cmake", "--version"])
         except OSError:
@@ -254,21 +234,20 @@ class CMakeBuild(build_ext):
         # CMake build directory for spt3g
         temp_spt3g = os.path.join(temp_build, "spt3g")
 
+        # The python module in the spt3g build directory.  This contains
+        # the compiled libraries and symlinks to the python source.
+        spt3g_python_dir = os.path.join(temp_spt3g, "spt3g")
+
         # Use CMake to install to the distutils build location
         install_so3g = os.path.dirname(
             Path(self.get_ext_fullpath("so3g.libso3g")).resolve().parents[0]
         )
 
-        # Use CMake to install spt3g python code into a subdirectory of so3g, but
-        # install the headers and other files to a separate location.
+        # Fake install directory passed to spt3g cmake.
         install_spt3g_fake = os.path.join(temp_build, "spt3g_install")
-        install_spt3g_py = install_so3g
 
-        # By default, the spt3g build system attempts to link to libpython, which
-        # should never be done when building wheels.  This link resolution should
-        # only be done at runtime on the target system after installation.  We
-        # have patched spt3g to not look for the python "Development" target, so
-        # here we specify the associated CMake variables directly.
+        # The cmake python discovery can be fragile.  Here we override some
+        # artifacts explicitly.
         py_exe = sys.executable
         py_maj = sys.version_info[0]
         py_min = sys.version_info[1]
@@ -283,15 +262,13 @@ class CMakeBuild(build_ext):
         dlist3g = [
             f"-DPython_EXECUTABLE={py_exe}",
             f"-DPython_INCLUDE_DIRS={py_incl}",
-            f"-DPython_LIBRARIES=''",
-            f"-DPython_RUNTIME_LIBRARY_DIRS=''",
-            f"-DPython_LIBRARY_DIRS=''",
+            "-DPython_LIBRARIES=''",
+            "-DPython_RUNTIME_LIBRARY_DIRS=''",
+            "-DPython_LIBRARY_DIRS=''",
             f"-DPython_VERSION_MAJOR={py_maj}",
             f"-DPython_VERSION_MINOR={py_min}",
             "-DBoost_ARCHITECTURE=-x64",
             f"-DBoost_PYTHON_TYPE=python{py_maj}{py_min}",
-            "-DBoost_DEBUG=ON",
-            f"-DPYTHON_MODULE_DIR={install_spt3g_py}",
         ]
         if "BOOST_ROOT" in os.environ:
             dlist3g.append(f"-DBOOST_ROOT={os.environ['BOOST_ROOT']}")
@@ -306,7 +283,7 @@ class CMakeBuild(build_ext):
                 [
                     f"-DFLAC_LIBRARIES={flcroot}/lib/libFLAC.{flcext}",
                     f"-DFLAC_INCLUDE_DIR={flcroot}/include",
-                    f"-DFLAC_FOUND=1",
+                    "-DFLAC_FOUND=1",
                 ]
             )
 
@@ -318,27 +295,27 @@ class CMakeBuild(build_ext):
             self.debug,
         )
 
-        # Move spt3g python directory into place.  Remove any stale copy of the
-        # directory.
-        sh_ext = os.path.splitext(sysconfig.get_config_var("EXT_SUFFIX"))[1]
-
-        install_spt3g_internal = os.path.join(install_so3g, "so3g", "spt3g_internal")
-        if os.path.isdir(install_spt3g_internal):
-            print(f"rmtree {install_spt3g_internal}")
-            shutil.rmtree(install_spt3g_internal)
-        print(f"mv/rename {os.path.join(install_spt3g_py, 'spt3g')}, {install_spt3g_internal}")
-        os.rename(os.path.join(install_spt3g_py, "spt3g"), install_spt3g_internal)
-
         build_so3g(
             topdir,
             temp_so3g,
             install_so3g,
             [
-                "-DPYTHON_INSTALL_DEST={}".format(install_so3g),
+                f"-DPYTHON_INSTALL_DEST={install_so3g}",
                 f"-DCMAKE_PREFIX_PATH={install_spt3g_fake}",
             ],
             self.debug,
         )
+
+        # Move spt3g python directory into place.  Remove any stale copy of the
+        # directory.
+        install_spt3g_internal = os.path.join(install_so3g, "so3g", "spt3g_internal")
+        if os.path.isdir(install_spt3g_internal):
+            print(f"rm stale: {install_spt3g_internal}")
+            shutil.rmtree(install_spt3g_internal)
+        print(f"copy {spt3g_python_dir}, {install_spt3g_internal}")
+        shutil.copytree(spt3g_python_dir, install_spt3g_internal, symlinks=False)
+
+        self.cmake_build_done = True
 
 
 ext_modules = [
@@ -350,41 +327,13 @@ ext_modules = [
     CMakeExtension("so3g.spt3g_internal.libspt3g-maps"),
 ]
 
-
 # Install the python scripts from spt3g
-scripts = glob.glob(os.path.join(spt3g_src_dir, "*", "bin", "*"))
-
-
-def readme():
-    with open("README.rst") as f:
-        return f.read()
-
+raw_scripts = glob.glob(os.path.join(spt3g_src_dir, "*", "bin", "*"))
+scripts = [x.removeprefix(f"{topdir}/") for x in raw_scripts]
 
 conf = dict()
 conf["name"] = "so3g"
-conf["description"] = "Tools for Simons Observatory work with spt3g_software"
-conf["long_description"] = readme()
-conf["long_description_content_type"] = "text/x-rst"
-conf["author"] = "Simons Observatory Collaboration"
-conf["author_email"] = "so_software@simonsobservatory.org"
-conf["license"] = "MIT"
-conf["url"] = "https://github.com/simonsobs/so3g"
 conf["version"] = get_version()
-conf["python_requires"] = ">=3.7.0"
-conf["setup_requires"] = (["wheel", "cmake"],)
-conf["install_requires"] = [
-    "numpy<2",
-    "astropy",
-    "matplotlib",
-    "scipy",
-    "ephem",
-    "pytz",
-    "pyaml",
-    "sqlalchemy",
-    "pysqlite3-wheels",
-    "tqdm",
-    "qpoint",
-]
 
 # Since the so3g python package is in a directory called "python", we can't use the
 # normal find_packages() function to recursively set these up.  Instead we specify them
@@ -396,25 +345,14 @@ conf["package_dir"] = {
 }
 
 for sub in ["hk", "proj", "smurf"]:
-    psub = "so3g.{}".format(sub)
+    psub = f"so3g.{sub}"
     pdir = os.path.join("python", sub)
     conf["packages"].append(psub)
     conf["package_dir"][psub] = pdir
 
 conf["ext_modules"] = ext_modules
 conf["scripts"] = scripts
-conf["cmdclass"] = {"build_ext": CMakeBuild, "clean": RealClean}
+conf["cmdclass"] = {"build_ext": CMakeBuild}
 conf["zip_safe"] = False
-conf["classifiers"] = [
-    "Development Status :: 5 - Production/Stable",
-    "Environment :: Console",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
-    "Operating System :: POSIX",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Topic :: Scientific/Engineering :: Astronomy",
-]
 
 setup(**conf)

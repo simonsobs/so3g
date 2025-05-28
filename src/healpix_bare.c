@@ -1,3 +1,11 @@
+// The original source in this file was downloaded from the "healpix_bare"
+// package on sourceforge under the 3-clause BSD license (see copyright below).
+//
+// This code has been modified slightly from the original.  In several cases,
+// variables with type int64_t were being implicitly truncated to int32_t.  The
+// code has been changed to add explicit casts to int32_t in these cases to avoid
+// compiler warnings / errors.
+
 /* -----------------------------------------------------------------------------
  *
  *  Copyright (C) 1997-2019 Krzysztof M. Gorski, Eric Hivon, Martin Reinecke,
@@ -65,8 +73,8 @@ static t_hpc loc2hpc (tloc loc)
   double jm = (1.0-tp)*tmp; /* decreasing edge line index */
   if (jp>1.) jp = 1.; /* for points too close to the boundary */
   if (jm>1.) jm = 1.;
-  return (loc.z >= 0) ? (t_hpc){1.-jm, 1.-jp, ntt}
-                      : (t_hpc){jp, jm, ntt+8};
+  return (loc.z >= 0) ? (t_hpc){1.-jm, 1.-jp, (int32_t)ntt}
+                      : (t_hpc){jp, jm, (int32_t)ntt+8};
   }
 
 static tloc hpc2loc (t_hpc hpc)
@@ -173,7 +181,7 @@ static int64_t hpd2nest (int64_t nside, t_hpd hpd)
 static t_hpd nest2hpd (int64_t nside, int64_t pix)
   {
   int64_t npface_=nside*nside, p2=pix&(npface_-1);
-  return (t_hpd){compress_bits(p2), compress_bits(p2>>1), pix/npface_};
+  return (t_hpd){compress_bits(p2), compress_bits(p2>>1), (int32_t)(pix/npface_)};
   }
 
 static int64_t hpd2ring (int64_t nside_, t_hpd hpd)
@@ -215,7 +223,7 @@ static t_hpd ring2hpd (int64_t nside_, int64_t pix)
     int64_t irt = iring - (jrll[face]*nside_) + 1;
     int64_t ipt = 2*iphi- jpll[face]*iring -1;
     if (ipt>=2*nside_) ipt-=8*nside_;
-    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, face};
+    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, (int32_t)face};
     }
   else if (pix<(npix_-ncap_)) /* Equatorial region */
     {
@@ -231,7 +239,7 @@ static t_hpd ring2hpd (int64_t nside_, int64_t pix)
     int64_t irt = iring - (jrll[face]*nside_) + 1;
     int64_t ipt = 2*iphi- jpll[face]*nside_ - kshift -1;
     if (ipt>=2*nside_) ipt-=8*nside_;
-    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, face};
+    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, (int32_t)face};
     }
   else /* South Polar cap */
     {
@@ -242,7 +250,7 @@ static t_hpd ring2hpd (int64_t nside_, int64_t pix)
     int64_t irt = 4*nside_ - iring - (jrll[face]*nside_) + 1;
     int64_t ipt = 2*iphi- jpll[face]*iring -1;
     if (ipt>=2*nside_) ipt-=8*nside_;
-    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, face};
+    return (t_hpd) {(ipt-irt)>>1, (-(ipt+irt))>>1, (int32_t)face};
     }
   }
 
@@ -263,7 +271,7 @@ int64_t ring2nest(int64_t nside, int64_t ipring)
 static t_hpd loc2hpd (int64_t nside_, tloc loc)
   {
   t_hpc tmp = loc2hpc(loc);
-  return (t_hpd){(tmp.x*nside_), (tmp.y*nside_), tmp.f};
+  return (t_hpd){((int64_t)(tmp.x*nside_)), ((int64_t)(tmp.y*nside_)), tmp.f};
   }
 
 static tloc hpd2loc (int64_t nside_, t_hpd hpd)

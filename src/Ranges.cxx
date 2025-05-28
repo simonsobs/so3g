@@ -7,8 +7,6 @@
 #include <type_traits>
 
 #include <boost/python.hpp>
-#include <cereal/types/utility.hpp>
-#include <container_pybindings.h>
 
 #include "so3g_numpy.h"
 
@@ -24,18 +22,6 @@ std::string Ranges<T>::Description() const
 	s << "Ranges(n=" << count
           << ":rngs=" << segments.size() << ")";
 	return s.str();
-}
-
-template <typename T>
-template <class A> void Ranges<T>::serialize(A &ar, unsigned v)
-{
-	using namespace cereal;
-        // v is the version code!
-
-	ar & make_nvp("G3FrameObject", base_class<G3FrameObject>(this));
-	ar & make_nvp("count", count);
-	ar & make_nvp("reference", reference);
-	ar & make_nvp("segments", segments);
 }
 
 template <typename T>
@@ -212,12 +198,12 @@ static inline int get_dtype() {
 }
 
 template <>
-inline int get_dtype<std::int64_t>() {
+inline int get_dtype<int64_t>() {
     return NPY_INT64;
 }
 
 template <>
-inline int get_dtype<std::int32_t>() {
+inline int get_dtype<int32_t>() {
     return NPY_INT32;
 }
 
@@ -694,8 +680,9 @@ Ranges<T> Ranges<T>::operator*(const Ranges<T> &src) const
 
 using namespace boost::python;
 
+
 #define EXPORT_RANGES(DOMAIN_TYPE, CLASSNAME)                           \
-    EXPORT_FRAMEOBJECT(CLASSNAME, init<>(),                             \
+    bp::class_<CLASSNAME>(#CLASSNAME,                                   \
     "A finite series of non-overlapping semi-open intervals on a domain\n" \
     "of type: " #DOMAIN_TYPE ".\n\n"                                    \
     "To create an empty object, instantiate with just a sample count:\n" \
@@ -724,6 +711,7 @@ using namespace boost::python;
     "would be found.  This is useful for bookkeeping in some cases.\n") \
     .def(init<const DOMAIN_TYPE&>("Initialize with count."))            \
     .def(init<const DOMAIN_TYPE&, const DOMAIN_TYPE&>("Initialize with count and reference.")) \
+    .def("__str__", &CLASSNAME::Description) \
     .add_property("count", &CLASSNAME::count, &CLASSNAME::safe_set_count) \
     .add_property("reference", &CLASSNAME::reference)                   \
     .def("add_interval", &CLASSNAME::_add_interval_numpysafe,           \
@@ -793,14 +781,8 @@ using namespace boost::python;
     .def(self += self)                                                  \
     .def(self *= self)                                                  \
     .def(self + self)                                                   \
-    .def(self * self);                                                  \
-    register_g3map<Map ## CLASSNAME>("Map" #CLASSNAME, "Mapping from "  \
-        "strings to Ranges over " #DOMAIN_TYPE ".")
+    .def(self * self);
 
-
-G3_SERIALIZABLE_CODE(RangesInt32);
-
-G3_SERIALIZABLE_CODE(MapRangesInt32);
 
 PYBINDINGS("so3g")
 {

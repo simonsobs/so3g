@@ -1,12 +1,6 @@
 import os
 import numpy as np
 
-# Verify that we are using numpy 1.x
-npversion = np.version.version
-npversplit = npversion.split(".")
-if npversplit[0] != "1":
-    msg = f"so3g requires numpy version 1.x but found version {npversion}"
-    raise RuntimeError(msg)
 
 if os.getenv('DOCS_BUILD') == '1':
     from ._libso3g_docstring_shells import *
@@ -23,18 +17,8 @@ else:
 # Version is computed by versioneer.
 __version__ = version()
 
-if os.getenv('DOCS_BUILD') != '1':
-    # Instance configuration.
-    from .config import get_config
-    instance_config = get_config()
-    del get_config
-
-    # (Possibly) monkey patch the G3Frame object with hooks for
-    # so3g data types.
-    from .soframe import set_frame_hooks
-    set_frame_hooks(instance_config)
-    del set_frame_hooks
-
 # Other python modules.
 from . import hk
 from . import proj
+
+from .g3reader_shim import G3IndexedReader
