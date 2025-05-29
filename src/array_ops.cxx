@@ -27,6 +27,7 @@ extern "C" {
 #include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"
+#include "array_ops.h"
 
 // TODO: Generalize to double precision too.
 // This implements Jon's noise model for ACT. It takes in
@@ -1118,6 +1119,9 @@ T _calculate_median(const T* data, const int n)
     return gsl_stats_median(data_copy.data(), 1, n);
 }
 
+template double _calculate_median<double>(const double* arr, int size);
+template float _calculate_median<float>(const float* arr, int size);
+
 template <typename T>
 void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
               const std::string & method, const int linear_ncount,
@@ -1255,7 +1259,6 @@ void detrend(bp::object & tod, const std::string & method, const int linear_ncou
         throw TypeError_exception("Only float32 or float64 arrays are supported.");
     }
 }
-
 
 PYBINDINGS("so3g")
 {
