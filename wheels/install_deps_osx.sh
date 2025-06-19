@@ -199,6 +199,68 @@ tar xjf ${boost_pkg} \
     variant=release threading=multi link=shared runtime-link=shared install \
     && popd >/dev/null 2>&1
 
+# Build Eigen
+
+eigen_version=3.4.0
+eigen_dir=eigen-${eigen_version}
+eigen_pkg=${eigen_dir}.tar.gz
+
+echo "Fetching Eigen..."
+
+if [ ! -e ${eigen_pkg} ]; then
+    curl -SL "https://gitlab.com/libeigen/eigen/-/archive/${eigen_version}/eigen-${eigen_version}.tar.bz2" -o "${eigen_pkg}"
+fi
+
+echo "Building Eigen..."
+
+rm -rf ${eigen_dir}
+tar xjf ${eigen_pkg} \
+    && pushd ${eigen_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    .. \
+    && make install \
+    && popd >/dev/null 2>&1 \
+    && popd >/dev/null 2>&1
+
+# Build Ceres
+
+ceres_version=2.2.0
+ceres_dir=ceres-solver-${ceres_version}
+ceres_pkg=${ceres_dir}.tar.gz
+
+echo "Fetching ceres-solver..."
+
+if [ ! -e ${ceres_pkg} ]; then
+    curl -SL "http://ceres-solver.org/ceres-solver-${ceres_version}.tar.gz" -o "${ceres_pkg}"
+fi
+
+echo "Building ceres-solver..."
+
+rm -rf ${ceres_dir}
+tar xzf ${ceres_pkg} \
+    && pushd ${ceres_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_C_FLAGS="${CFLAGS}" \
+    -DCMAKE_CXX_COMPILER="${CXX}" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_BENCHMARKS=OFF \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_TESTING=OFF \
+    .. \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1 \
+    && popd >/dev/null 2>&1
+
 # Astropy caching...
 
 echo "Attempting to trigger astropy IERS download..."
