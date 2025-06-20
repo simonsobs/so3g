@@ -159,6 +159,7 @@ tar xzf ${gsl_pkg} \
     && CC="${CC}" CFLAGS="-O3 -fPIC" ../configure --prefix="${PREFIX}" \
     && make -j ${MAKEJ} \
     && make install \
+    && popd >/dev/null 2>&1 \
     && popd >/dev/null 2>&1
 
 # Build Eigen
