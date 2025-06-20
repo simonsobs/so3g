@@ -188,6 +188,38 @@ tar xjf ${eigen_pkg} \
     && popd >/dev/null 2>&1 \
     && popd >/dev/null 2>&1
 
+# Build GLOG
+
+glog_version=0.7.1
+glog_dir=glog-${glog_version}
+glog_pkg=${glog_dir}.tar.gz
+
+echo "Fetching GLOG..."
+
+if [ ! -e ${glog_pkg} ]; then
+    curl -SL "https://github.com/google/glog/archive/refs/tags/v${glog_version}.tar.gz" -o "${glog_pkg}"
+fi
+
+echo "Building GLOG..."
+
+rm -rf ${glog_dir}
+tar xzf ${glog_pkg} \
+    && pushd ${glog_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_C_FLAGS="${CFLAGS}" \
+    -DCMAKE_CXX_COMPILER="${CXX}" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    .. \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1 \
+    && popd >/dev/null 2>&1
+
 # Build Ceres
 
 ceres_version=2.2.0
@@ -219,7 +251,6 @@ tar xzf ${ceres_pkg} \
     -DBUILD_BENCHMARKS=OFF \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_TESTING=OFF \
-    -DMINIGLOG=ON \
     -DGFLAGS=OFF \
     -DSUITESPARSE=OFF \
     -DBLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran' \
