@@ -218,6 +218,9 @@ tar xzf ${ceres_pkg} \
     -DBUILD_BENCHMARKS=OFF \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_TESTING=OFF \
+    -DMINIGLOG=ON \
+    -DGFLAGS=OFF \
+    -DSUITESPARSE=OFF \
     -DBLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran' \
     .. \
     && make -j ${MAKEJ} install \

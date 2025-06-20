@@ -256,6 +256,9 @@ tar xzf ${ceres_pkg} \
     -DBUILD_BENCHMARKS=OFF \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_TESTING=OFF \
+    -DMINIGLOG=ON \
+    -DGFLAGS=OFF \
+    -DSUITESPARSE=OFF \
     -DBLAS_LIBRARIES='/usr/local/lib/libopenblas.dylib' \
     .. \
     && make -j ${MAKEJ} install \
