@@ -3,7 +3,7 @@ requires = [
     "cmake>=3.17",
     "setuptools",
     "wheel",
-    "numpy",
+    "numpy<2.3",
     "scipy",
     # Astropy depends on numpy 1.x with python-3.9.  Place
     # a build-time dependency here so that we build with a
@@ -21,7 +21,7 @@ urls = {source = "https://github.com/simonsobs/so3g"}
 license = {file = "LICENSE"}
 requires-python = ">=3.9"
 dependencies = [
-    "numpy",
+    "numpy<2.3",
     "scipy",
     "astropy",
     "matplotlib",

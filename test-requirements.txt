@@ -1,5 +1,7 @@
-# testing
+# Testing
 pytest
 pytest-cov
+# Enforce numpy pin again
+numpy<2.3
 # Required for full pointing support and testing
 pixell
