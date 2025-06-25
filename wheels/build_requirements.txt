@@ -1,0 +1,15 @@
+# This is a separate file from the top-level
+# requirements.txt, in order to deal with special
+# challenges of building inside a cibuildwheel
+# environment.
+astropy
+matplotlib
+numpy<2.3
+scipy
+ephem
+pytz
+pyaml
+sqlalchemy
+tqdm
+cmake
+qpoint
