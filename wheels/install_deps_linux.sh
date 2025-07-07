@@ -215,6 +215,9 @@ tar xzf ${glog_pkg} \
     -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
     -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
     -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    -DWITH_GFLAGS:BOOL=OFF \
+    -DWITH_GTEST:BOOL=OFF \
+    -DBUILD_SHARED_LIBS:BOOL=OFF \
     .. \
     && make -j ${MAKEJ} install \
     && popd >/dev/null 2>&1 \
@@ -249,7 +252,7 @@ tar xzf ${ceres_pkg} \
     -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
     -DBUILD_EXAMPLES=OFF \
     -DBUILD_BENCHMARKS=OFF \
-    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_TESTING=OFF \
     -DGFLAGS=OFF \
     -DSUITESPARSE=OFF \
