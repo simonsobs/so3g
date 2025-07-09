@@ -43,7 +43,7 @@ python3 -m pip install -v cmake wheel setuptools
 pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
 
 # Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" python3 -m pip install -v -r "${scriptdir}/../requirements.txt"
+CC="${CC}" CFLAGS="${CFLAGS}" python3 -m pip install -v -r "${scriptdir}/../requirements.txt" --prefer-binary
 
 # Install Openblas
 
@@ -159,6 +159,107 @@ tar xzf ${gsl_pkg} \
     && CC="${CC}" CFLAGS="-O3 -fPIC" ../configure --prefix="${PREFIX}" \
     && make -j ${MAKEJ} \
     && make install \
+    && popd >/dev/null 2>&1 \
+    && popd >/dev/null 2>&1
+
+# Build Eigen
+
+eigen_version=3.4.0
+eigen_dir=eigen-${eigen_version}
+eigen_pkg=${eigen_dir}.tar.gz
+
+echo "Fetching Eigen..."
+
+if [ ! -e ${eigen_pkg} ]; then
+    curl -SL "https://gitlab.com/libeigen/eigen/-/archive/${eigen_version}/eigen-${eigen_version}.tar.bz2" -o "${eigen_pkg}"
+fi
+
+echo "Building Eigen..."
+
+rm -rf ${eigen_dir}
+tar xjf ${eigen_pkg} \
+    && pushd ${eigen_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    .. \
+    && make install \
+    && popd >/dev/null 2>&1 \
+    && popd >/dev/null 2>&1
+
+# Build GLOG
+
+glog_version=0.7.1
+glog_dir=glog-${glog_version}
+glog_pkg=${glog_dir}.tar.gz
+
+echo "Fetching GLOG..."
+
+if [ ! -e ${glog_pkg} ]; then
+    curl -SL "https://github.com/google/glog/archive/refs/tags/v${glog_version}.tar.gz" -o "${glog_pkg}"
+fi
+
+echo "Building GLOG..."
+
+rm -rf ${glog_dir}
+tar xzf ${glog_pkg} \
+    && pushd ${glog_dir} >/dev/null 2>&1 \
+    && mkdir -p build \
+    && pushd build >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_C_FLAGS="${CFLAGS}" \
+    -DCMAKE_CXX_COMPILER="${CXX}" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    -DWITH_GFLAGS:BOOL=OFF \
+    -DWITH_GTEST:BOOL=OFF \
+    -DBUILD_SHARED_LIBS:BOOL=OFF \
+    .. \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1 \
+    && popd >/dev/null 2>&1
+
+# Build Ceres
+
+ceres_version=2.2.0
+ceres_dir=ceres-solver-${ceres_version}
+ceres_pkg=${ceres_dir}.tar.gz
+
+echo "Fetching ceres-solver..."
+
+if [ ! -e ${ceres_pkg} ]; then
+    curl -SL "http://ceres-solver.org/ceres-solver-${ceres_version}.tar.gz" -o "${ceres_pkg}"
+fi
+
+echo "Building ceres-solver..."
+
+rm -rf ${ceres_dir}
+tar xzf ${ceres_pkg} \
+    && pushd ${ceres_dir} >/dev/null 2>&1 \
+    && mkdir -p build_dir \
+    && pushd build_dir >/dev/null 2>&1 \
+    && cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="${CC}" \
+    -DCMAKE_C_FLAGS="${CFLAGS}" \
+    -DCMAKE_CXX_COMPILER="${CXX}" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_BENCHMARKS=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_TESTING=OFF \
+    -DGFLAGS=OFF \
+    -DSUITESPARSE=OFF \
+    -DBLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran' \
+    .. \
+    && make -j ${MAKEJ} install \
+    && popd >/dev/null 2>&1 \
     && popd >/dev/null 2>&1
 
 # Astropy caching...

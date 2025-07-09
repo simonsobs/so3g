@@ -31,6 +31,7 @@ find_package(Spt3g REQUIRED)
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(FLAC)
 find_package(GSL)
+find_package(Ceres)
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -68,6 +69,7 @@ add_library(so3g SHARED
   src/so_linterp.cxx
   src/exceptions.cxx
   src/array_ops.cxx
+  src/fitting_ops.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.
@@ -83,6 +85,8 @@ target_link_libraries(so3g PUBLIC spt3g::core)
 # Link to GSL
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g PUBLIC ${GSL_LIBRARIES})
+# Link Ceres
+target_link_libraries(so3g PUBLIC Ceres::ceres Eigen3::Eigen)
 
 # FLAC- library already comes from spt3g dependencies, but
 # we need to have the headers.
