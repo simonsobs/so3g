@@ -1257,28 +1257,6 @@ void detrend(bp::object & tod, const std::string & method, const int linear_ncou
 }
 
 template <typename T>
-void _histogram(const T* data, const T* weights, int* histogram,
-                const T* bin_edges, const int nsamps, const int nbins,
-                const T lower, const T upper)
-{
-    for (int i = 0; i < nsamps; ++i) {
-        for (int j = 0; j < nbins; ++j) {
-            if (data[i] < lower || data[i] > upper)
-                continue;
-
-            if ((data[i] >= bin_edges[j]) && (data[i] < bin_edges[j + 1])) {
-                histogram[j] += weights[i];
-                break;
-            }
-        }
-        // Edge case to match np.histogram
-        if (data[i] == bin_edges[nbins] && data[i] <= upper) {
-            histogram[nbins - 1] += weights[i];
-        }
-    }
-}
-
-template <typename T>
 int _find_bin_index(const T* bin_edges, T value, int nbins) {
     int left = 0;
     int right = nbins;
@@ -1408,14 +1386,16 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
         bin_indices[i] = _find_bin_index(bin_edges_data, bin_by_data[i], nbins);
     }
 
-    // Make the histogram up front if no flag array given
-    // Assumes weights is 1D
     if (!flags_data) {
         for (int i = 0; i < nbins; ++i) {
             bin_counts_data[i] = 0;
         }
-        _histogram(bin_by_data, weight_data, bin_counts_data, bin_edges_data,
-                   nsamps, nbins, lower, upper);
+        for (int i = 0; i < nsamps; ++i) {
+            if (bin_by[i] < lower || bin_by[i] > upper)
+                continue;
+            int bin = bin_indices[i];
+            bin_counts_data[bin] += weight_data[i];
+        }
 
         // Set all other detectors to first det bins if no flags
         #pragma omp parallel for
@@ -1489,6 +1469,9 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
             }
         }
     }
+
+    free(bin_indices);
+    free(binned_sig_sq_mean);
 }
 
 void bin_signal(const bp::object & bin_by, const bp::object & signal,
@@ -1750,8 +1733,8 @@ PYBINDINGS("so3g")
             "  bin_counts: counts of binned samples (int32) with shape (ndet,nbin).  Modified in place.\n"
             "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Must be monotonically increasing but\n"
             "             but may have different widths.\n"
-            "  lower: lower bin range (float64)\n"
-            "  upper: upper bin range (float64)\n"
+            "  lower: lower bin range. Data points falling outside this range will be ignored. (float64)\n"
+            "  upper: upper bin range. Data points falling outside this range will be ignored.  (float64)\n"
             "  flags: array (int32) indicating whether to exclude flagged samples when binning the signal.\n"
             "         Can be of shape (nsamp) or (ndet,nsamp).\n");
 }
