@@ -1390,6 +1390,8 @@ void _bin_signal(const bp::object & bin_by, const bp::object & signal,
         bin_indices[i] = _find_bin_index(bin_edges_data, bin_by_data[i], nbins);
     }
 
+    // Populate bin_counts_data up front if no flag array given since its
+    // faster
     if (!flags_data) {
         for (int i = 0; i < nbins; ++i) {
             bin_counts_data[i] = 0;
