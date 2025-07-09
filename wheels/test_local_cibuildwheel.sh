@@ -6,13 +6,12 @@
 export CIBW_DEBUG_KEEP_CONTAINER=TRUE
 
 export CIBW_BUILD="cp312-manylinux_x86_64"
-export CIBW_MANYLINUX_X86_64_IMAGE="manylinux2014"
+export CIBW_MANYLINUX_X86_64_IMAGE="manylinux_2_28"
 export CIBW_BUILD_VERBOSITY=3
 export CIBW_ENVIRONMENT_LINUX="CC=gcc CXX=g++ CFLAGS='-O3 -fPIC' CXXFLAGS='-O3 -fPIC -std=c++14'"
 export CIBW_BEFORE_BUILD_LINUX="./wheels/install_deps_linux.sh"
 export CIBW_REPAIR_WHEEL_COMMAND_LINUX="./wheels/repair_wheel_linux.sh {dest_dir} {wheel}"
-export CIBW_BEFORE_TEST="export OMP_NUM_THREADS=2"
-export CIBW_TEST_REQUIRES="pytest"
+export CIBW_BEFORE_TEST="python -m pip install -r test-requirements.txt && export OMP_NUM_THREADS=2"
 export CIBW_TEST_COMMAND="python -c 'import so3g.smurf.reader; from spt3g import core' && python -m pytest {package}/test"
 
 # Get the current date for logging

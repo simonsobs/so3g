@@ -21,11 +21,12 @@ class RangesMatrix():
     standard numpy array rules.
 
     """
-    def __init__(self, items=[], child_shape=None):
+    def __init__(self, items=[], child_shape=None, skip_shape_check=False):
         self.ranges = [x for x in items]
         if len(items):
             child_shape = items[0].shape
-            assert all([(item.shape == child_shape) for item in items])
+            if not skip_shape_check:
+                assert all([(item.shape == child_shape) for item in items])
         elif child_shape is None:
             child_shape = ()
         self._child_shape = child_shape
@@ -307,7 +308,7 @@ def _gibasic(target, index):
     if len(index) == 0:
         return target
     if index[0] is None:
-        return RangesMatrix([_gibasic(target, index[1:])])
+        return RangesMatrix([_gibasic(target, index[1:])], skip_shape_check=True)
     is_rm = isinstance(target, RangesMatrix)
     if not is_rm and len(index) > 1:
         raise IndexError(f'Too many indices (extras: {index[1:]}).')
@@ -323,7 +324,7 @@ def _gibasic(target, index):
     if isinstance(index[0], slice):
         if is_rm:
             rm = RangesMatrix([_gibasic(r, index[1:]) for r in target.ranges[index[0]]],
-                              child_shape=target.shape[1:])
+                              child_shape=target.shape[1:], skip_shape_check=True)
             if rm.shape[0] == 0:
                 # If your output doesn't have any .ranges, you need to
                 # fake one in order to figure out how the dimensions
