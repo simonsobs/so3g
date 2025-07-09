@@ -1718,8 +1718,8 @@ PYBINDINGS("so3g")
             "  bin_counts: counts of binned samples (int32) with shape (ndet,nbin).  Modified in place.\n"
             "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Must be monotonically increasing but\n"
             "             but may have different widths.\n"
-            "  lower: lower bin range (float64)\n"
-            "  upper: upper bin range (float64)\n");
+            "  lower: lower bin range (float64). Data points falling outside this range will be ignored.\n"
+            "  upper: upper bin range (float64). Data points falling outside this range will be ignored.\n");
     bp::def("bin_flagged_signal", bin_flagged_signal,
             "bin_signal(bin_by, signal, weight, binned_sig, binned_sig_sigma, bin_counts, bin_edges, lower, upper, flags)\n"
             "\n"
@@ -1737,8 +1737,8 @@ PYBINDINGS("so3g")
             "  bin_counts: counts of binned samples (int32) with shape (ndet,nbin).  Modified in place.\n"
             "  bin_edges: array (float32/float64) of bin edges with length=nbins+1.  Must be monotonically increasing but\n"
             "             but may have different widths.\n"
-            "  lower: lower bin range. Data points falling outside this range will be ignored. (float64)\n"
-            "  upper: upper bin range. Data points falling outside this range will be ignored.  (float64)\n"
+            "  lower: lower bin range (float64). Data points falling outside this range will be ignored.\n"
+            "  upper: upper bin range (float64). Data points falling outside this range will be ignored.\n"
             "  flags: array (int32) indicating whether to exclude flagged samples when binning the signal.\n"
             "         Can be of shape (nsamp) or (ndet,nsamp).\n");
 }
