@@ -87,7 +87,7 @@ target_link_libraries(so3g PUBLIC spt3g::core)
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g PUBLIC ${GSL_LIBRARIES})
 # Link Ceres
-target_link_libraries(so3g PUBLIC Ceres::ceres Eigen3::Eigen)
+target_link_libraries(so3g PUBLIC Ceres::Ceres Eigen3::Eigen)
 
 # Link FFTW
 target_include_directories(so3g PRIVATE ${FFTW_INCLUDE_DIRS})
