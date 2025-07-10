@@ -15,7 +15,7 @@ RUN apt update && apt install -y \
     libopenblas-openmp-dev \
     libbz2-dev \
     python-is-python3 \
-    libfftw3-dev
+    libfftw3-dev \
     libgoogle-glog-dev \
     libgflags-dev \
     libmetis-dev \
