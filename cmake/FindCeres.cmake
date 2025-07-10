@@ -15,8 +15,8 @@ find_package(Glog REQUIRED)
 find_package(Gflags REQUIRED)
 
 # Create the imported Ceres target
-add_library(Ceres::Ceres UNKNOWN IMPORTED)
-set_target_properties(Ceres::Ceres PROPERTIES
+add_library(Ceres::ceres UNKNOWN IMPORTED)
+set_target_properties(Ceres::ceres PROPERTIES
     IMPORTED_LOCATION "${CERES_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${CERES_INCLUDE_DIR};${EIGEN3_INCLUDE_DIR}"
     INTERFACE_LINK_LIBRARIES "${GLOG_LIBRARIES};${GFLAGS_LIBRARIES};${CERES_LIBRARY}"
