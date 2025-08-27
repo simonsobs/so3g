@@ -50,6 +50,17 @@ class TestCoordSys(unittest.TestCase):
                 self.assertGreater(el, el0)
                 self.assertAlmostEqual(az, az0)
 
+    def test_30_xieta(self):
+        """Test that xieta decomposition always interprets rotation as
+        a gamma angle; this is relevant for "detectors" at xi,eta =
+        (0, 0).
+
+        """
+        G = 1.
+        q = quat.rotation_xieta(0., 0., G)
+        _, _, g = quat.decompose_xieta(q)
+        assert abs(g - G) < 1e-9
+
 
 if __name__ == '__main__':
     unittest.main()

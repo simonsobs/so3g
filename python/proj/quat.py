@@ -135,8 +135,12 @@ def decompose_xieta(q):
     gamma).
 
     """
-    theta, phi, psi = decompose_iso(q)
-    xi = -np.sin(theta) * np.sin(phi)
-    eta = -np.sin(theta) * np.cos(phi)
-    gamma = psi + phi
-    return (xi, eta, gamma)
+    if isinstance(q, quat):
+        a,b,c,d = q.a, q.b, q.c, q.d
+    else:
+        a,b,c,d = np.transpose(q)
+    return (
+        2 * (a * b - c * d),
+        -2 * (a * c + b * d),
+        np.arctan2(2 * a * d, a * a - d * d)
+    )
