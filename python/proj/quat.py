@@ -57,13 +57,19 @@ def rotation_iso(theta, phi, psi=None):
     return output * euler(2, psi)
 
 
-def rotation_lonlat(lon, lat, psi=0.):
+def rotation_lonlat(lon, lat, psi=0., azel=False):
     """Returns the quaternion that composes the Euler rotations:
         
         Qz(lon) Qy(pi/2 - lat) Qz(psi)
     
-    Note arguments are in radians.
+    Note the three angle arguments are in radians.
+
+    If azel is True, then the sign of lon is flipped (as though lon
+    and lat were azimuth and elevation).
+
     """
+    if azel:
+        return rotation_iso(np.pi/2 - lat, -lon, psi)
     return rotation_iso(np.pi/2 - lat, lon, psi)
 
 def rotation_xieta(xi, eta, gamma=0):
@@ -117,13 +123,18 @@ def decompose_iso(q):
 
     return (theta, phi, psi)
 
-def decompose_lonlat(q):
+def decompose_lonlat(q, azel=False):
     """Like decompose_iso, but returns (lon, lat, psi) assuming that the
     input quaternion(s) were constructed as rotation_lonlat(lon, lat,
     psi).
 
+    If azel is True, returns (-lon, lat, psi), so that first two
+    coords are easily interpreted as an azimuth and elevation.
+
     """
     theta, phi, psi = decompose_iso(q)
+    if azel:
+        return (-phi, np.pi/2 - theta, psi)
     return (phi, np.pi/2 - theta, psi)
 
 def decompose_xieta(q):
