@@ -16,6 +16,8 @@ class TestCoordSys(unittest.TestCase):
         ('iso',    quat.rotation_iso,    quat.decompose_iso),
         ('lonlat', quat.rotation_lonlat, quat.decompose_lonlat),
         ('xieta',  quat.rotation_xieta,  quat.decompose_xieta),
+        ('azel', lambda *args: quat.rotation_lonlat(*args, azel=True),
+         lambda *args: quat.decompose_lonlat(*args, azel=True)),
     ]
 
     def test_00_inversion(self):
@@ -23,6 +25,7 @@ class TestCoordSys(unittest.TestCase):
         test_args = (.1, .2, .3)
         for name, rotation, decompose in self.convention_pairs:
             q = rotation(*test_args)
+            print(name, q)
             check = decompose(q)
             [self.assertAlmostEqual(x, y) for x, y in zip(check, test_args)]
 
