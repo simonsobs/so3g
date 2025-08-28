@@ -60,8 +60,8 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
 
     // Ok, actually do the work
     for(int bi = 0; bi < nbin; bi++) {
-        int b1 = min(2*bins_[2*bi+0],nmode-1);
-        int b2 = min(2*bins_[2*bi+1],nmode);
+        int b1 = min(bins_[2*bi+0],nmode-1);
+        int b2 = min(bins_[2*bi+1],nmode);
         int nm = b2-b1;
         float * biD = iD_ + bi*ndet;
         float * biV = iV_ + bi*ndet*nvec;
