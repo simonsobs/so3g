@@ -26,7 +26,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # For this to be found, make sure the spt3g build directory can be
 # searched; i.e. -DCMAKE_PREFIX_PATH=/path/to/spt3g_software/build
-find_package(Spt3g REQUIRED)
+# find_package(Spt3g REQUIRED)
 
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(FLAC)
@@ -76,9 +76,33 @@ add_library(so3g SHARED
 # Disable boost python auto_ptr warnings
 target_compile_definitions(so3g PUBLIC BOOST_NO_AUTO_PTR)
 
-# Link to the core spt3g library.  This brings in boost dependencies
-# as well.
-target_link_libraries(so3g PUBLIC spt3g::core)
+##+++
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+set(Boost_NO_BOOST_CMAKE ON)
+
+# Find all the Boost and Python libraries
+# include(${CMAKE_SOURCE_DIR}/cmake/Spt3gIncludes.cmake)
+# include(Spt3gBoostPython)
+set(Boost_PYTHON_TYPE python)
+set(_Boost_PYTHON${Python_VERSION_MAJOR}_HEADERS "boost/python.hpp")
+set(_Boost_PYTHON${Python_VERSION_MAJOR}${Python_VERSION_MINOR}_HEADERS "boost/python.hpp")
+
+find_package(Boost QUIET COMPONENTS python${Python_VERSION_MAJOR}${Python_VERSION_MINOR})
+if (${Boost_PYTHON${Python_VERSION_MAJOR}${Python_VERSION_MINOR}_FOUND})
+  set(Boost_PYTHON_TYPE python${Python_VERSION_MAJOR}${Python_VERSION_MINOR})
+else()
+  find_package(Boost QUIET COMPONENTS python${Python_VERSION_MAJOR})
+  if (${Boost_PYTHON${Python_VERSION_MAJOR}_FOUND})
+    set(Boost_PYTHON_TYPE python${Python_VERSION_MAJOR})
+  endif()
+endif()
+
+find_package(Boost COMPONENTS system iostreams filesystem ${Boost_PYTHON_TYPE} REQUIRED)
+
+target_include_directories(so3g PRIVATE ${Boost_INCLUDE_DIRS} ${Python_INCLUDE_DIRS})
+
 
 # Link to GSL
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
