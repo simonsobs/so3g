@@ -40,23 +40,6 @@ bp::object useful_info() {
 }
 
 
-// The following implements the headerless module registration code
-typedef std::map<std::string, std::vector<void (*)()> > module_reg_t;
-static module_reg_t *modregs = NULL;
-
-G3ModuleRegistrator::G3ModuleRegistrator(const char *mod, void (*def)())
-{
-	if (modregs == NULL)
-		modregs = new module_reg_t;
-	(*modregs)[mod].push_back(def);
-}
-
-void G3ModuleRegistrator::CallRegistrarsFor(const char *mod)
-{
-	for (auto i = (*modregs)[mod].begin(); i != (*modregs)[mod].end(); i++)
-		(*i)();
-}
-
 PYBINDINGS("so3g") {
     bp::def("version", version);
     bp::def("useful_info", useful_info);

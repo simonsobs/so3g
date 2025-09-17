@@ -75,6 +75,7 @@ add_library(so3g SHARED
   src/exceptions.cxx
   src/array_ops.cxx
   src/fitting_ops.cxx
+  src/python.cxx
 )
 
 # We could disable the lib prefix on the output library... but let's not.

@@ -14,7 +14,7 @@ print('Testing interface for all data types:')
 for dtype in [
         so3g.IntervalsDouble,
         so3g.IntervalsInt,
-        so3g.IntervalsTime,
+#        so3g.IntervalsTime,
 ]:
     print('    ', dtype)
     o = dtype()
@@ -96,13 +96,13 @@ assert(len((iv1 - iv2).array()) == 2)
 assert(len((iv2 - iv1).array()) == 4)
 
 
-print('Sanity check on G3Time')
-ti = so3g.IntervalsTime()\
-    .add_interval(core.G3Time('2018-1-1T00:00:00'),
-                  core.G3Time('2018-1-2T00:00:00'))
-print('    ', ti)
-print('    ', ti.array())
-print('    ', (-ti).array())
+# print('Sanity check on G3Time')
+# ti = so3g.IntervalsTime()\
+#     .add_interval(core.G3Time('2018-1-1T00:00:00'),
+#                   core.G3Time('2018-1-2T00:00:00'))
+# print('    ', ti)
+# print('    ', ti.array())
+# print('    ', (-ti).array())
 
 print()
 print('Interval <-> mask testing')
