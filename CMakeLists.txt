@@ -65,7 +65,6 @@ add_library(so3g SHARED
   src/Butterworth.cxx
   src/Ranges.cxx
   src/Projection.cxx
-  src/G3SuperTimestream.cxx
   src/so_linterp.cxx
   src/exceptions.cxx
   src/array_ops.cxx
