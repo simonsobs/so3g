@@ -320,11 +320,11 @@ class CMakeBuild(build_ext):
 
 ext_modules = [
     CMakeExtension("so3g.libso3g"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-core"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-dfmux"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-calibration"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-gcp"),
-    CMakeExtension("so3g.spt3g_internal.libspt3g-maps"),
+#    CMakeExtension("so3g.spt3g_internal.libspt3g-core"),
+#    CMakeExtension("so3g.spt3g_internal.libspt3g-dfmux"),
+#    CMakeExtension("so3g.spt3g_internal.libspt3g-calibration"),
+#    CMakeExtension("so3g.spt3g_internal.libspt3g-gcp"),
+#    CMakeExtension("so3g.spt3g_internal.libspt3g-maps"),
 ]
 
 # Install the python scripts from spt3g
