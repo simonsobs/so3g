@@ -1,7 +1,9 @@
 import numpy as np
 
-from spt3g.core import quat, G3VectorQuat
-
+try:
+    from spt3g.core import quat, G3VectorQuat
+except ImportError:
+    from spt3g.core import Quat as quat, G3VectorQuat
 
 """We are using the spt3g quaternion containers,
 i.e. cu3g.G3VectorQuat and cu3g.quat.  One way these are nice is that
