@@ -35,19 +35,6 @@ Intervals<int32_t>::Intervals() {
     domain = make_pair(INT32_MIN, INT32_MAX);
 }
 
-// The G3Time internal encoding is an int64 with the number of 100 MHz
-// ticks since the unix epoch.  Make our default domain span from a
-// while ago to a while from now.
-
-#define G3TIME_LO                   0LL  // Jan 1 1970
-#define G3TIME_HI  725811840000000000LL  // Jan 1 2200
-
-template <>
-Intervals<G3Time>::Intervals() {
-    domain = make_pair(G3Time(G3TIME_LO), G3Time(G3TIME_HI));
-}
-
-
 //
 // Some support templates for Description() -- these are broadly
 // applicable so consider having them live more publicly.
@@ -63,8 +50,6 @@ template <>
 const char *_ival_type_name<int64_t>() { return "Int"; }
 template <>
 const char *_ival_type_name<double> () { return "Double"; }
-template <>
-const char *_ival_type_name<G3Time> () { return "Time"; }
 
 // _ival_cute_lim() allows standard limits (such as INT32_MAX) to be printed as such.
 
@@ -207,13 +192,6 @@ pair<T,T> interval_pair(char *p1, char *p2) {
                      *reinterpret_cast<T*>(p2));
 }
 
-template <>
-inline
-pair<G3Time,G3Time> interval_pair(char *p1, char *p2) {
-    return make_pair(G3Time(*reinterpret_cast<G3TimeStamp*>(p1)),
-                     G3Time(*reinterpret_cast<G3TimeStamp*>(p2)));
-}
-
 
 template <typename T>
 static inline
@@ -221,15 +199,6 @@ int interval_extract(const std::pair<T,T> *src, char *dest) {
     auto Tdest = reinterpret_cast<T*>(dest);
     *(Tdest) = src->first;
     *(Tdest+1) = src->second;
-    return 2 * sizeof(*Tdest);
-}
-
-template <>
-inline
-int interval_extract(const std::pair<G3Time,G3Time> *src, char *dest) {
-    auto Tdest = reinterpret_cast<G3TimeStamp*>(dest);
-    *(Tdest) = src->first.time;
-    *(Tdest+1) = src->second.time;
     return 2 * sizeof(*Tdest);
 }
 
@@ -251,11 +220,6 @@ inline int get_dtype<std::int32_t>() {
 template <>
 inline int get_dtype<double>() {
     return NPY_FLOAT64;
-}
-
-template <>
-inline int get_dtype<G3Time>() {
-    return NPY_INT64;
 }
 
 template <typename T>
@@ -771,5 +735,4 @@ PYBINDINGS("so3g")
     EXPORT_INTERVALS(double,  IntervalsDouble);
     EXPORT_INTERVALS(int64_t, IntervalsInt);
     EXPORT_INTERVALS(int32_t, IntervalsInt32);
-    EXPORT_INTERVALS(G3Time,  IntervalsTime);
 }

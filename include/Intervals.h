@@ -1,7 +1,5 @@
 #pragma once
 
-#include <G3TimeStamp.h>
-
 #include <stdint.h>
 
 #include "numpy_assist.h"
@@ -63,4 +61,3 @@ public:
 typedef Intervals<double> IntervalsDouble;
 typedef Intervals<int64_t> IntervalsInt;
 typedef Intervals<int32_t> IntervalsInt32;
-typedef Intervals<G3Time> IntervalsTime;
