@@ -54,6 +54,13 @@ execute_process(COMMAND ${Python_EXECUTABLE} -c
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 include_directories(${NUMPY_INCLUDE_DIR})
 
+# Dynamic Loader ...
+add_library(dload SHARED src/dload.c)
+set_target_properties(dload PROPERTIES PREFIX "")
+set_target_properties(dload PROPERTIES SUFFIX ".so")
+target_include_directories(dload PRIVATE ${Python_INCLUDE_DIRS})
+target_link_libraries(dload PUBLIC ${Python_LIBRARIES})
+
 #
 # Define the so3g build target.  This is a shared library.
 #
@@ -102,6 +109,7 @@ endif()
 find_package(Boost COMPONENTS system iostreams filesystem ${Boost_PYTHON_TYPE} REQUIRED)
 
 target_include_directories(so3g PRIVATE ${Boost_INCLUDE_DIRS} ${Python_INCLUDE_DIRS})
+target_link_libraries(so3g PRIVATE pthread ${Boost_LIBRARIES} ${Python_LIBRARIES})
 
 
 # Link to GSL
@@ -171,6 +179,8 @@ else()
 endif()
 
 install(TARGETS so3g
+        DESTINATION ${INSTALL_DEST})
+install(TARGETS dload
         DESTINATION ${INSTALL_DEST})
 
 install(FILES ${MY_PYTHONS}

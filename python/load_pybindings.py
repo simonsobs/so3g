@@ -3,8 +3,7 @@
 #
 import platform, sys, os
 
-# Starting in spt3g 0.3-240-ga9d32d5, dload may be used.
-from spt3g import dload
+from . import dload
 
 
 if platform.system().startswith('freebsd') or platform.system().startswith('FreeBSD'):
