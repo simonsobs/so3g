@@ -900,7 +900,7 @@ public:
         return -1;
     }
 
-    int crpix[2];
+    double crpix[2];
     double cdelt[2];
     int naxis[2];
     BufferWrapper<double> mapbuf;
