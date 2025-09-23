@@ -76,17 +76,17 @@ jobs:
             arch: arm64
             python: 310
             builder: macosx
-            deploy: 14.0
+            deploy: 15.0
           - os: macos-latest
             arch: arm64
             python: 311
             builder: macosx
-            deploy: 14.0
+            deploy: 15.0
           - os: macos-latest
             arch: arm64
             python: 312
             builder: macosx
-            deploy: 14.0
+            deploy: 15.0
           # - os: macos-latest
           #   arch: arm64
           #   python: 313
