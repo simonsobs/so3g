@@ -1,14 +1,12 @@
 #include <assert.h>
 #include <math.h>
 
-#include <nanobind/ndarray.h>
-
 #include "Butterworth.h"
 #include "exceptions.h"
 
 using namespace std;
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 BFilterBank::BFilterBank(const BFilterBank& a) {
@@ -36,8 +34,8 @@ BFilterBank& BFilterBank::init(int n_chan) {
     return *this;
 }
 
-void BFilterBank::apply_buffer(nb::object input,
-                               nb::object output)
+void BFilterBank::apply_buffer(py::object input,
+                               py::object output)
 {
     // User wrappers so we can throw exceptions and the view will be
     // released in destructor.
@@ -126,19 +124,19 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
 }
 
 
-void register_butterworth(nb::module_ & m) {
-    nb::class_<BFilterParams>(m, "BFilterParams")
-    .def(nb::init<int32_t, int32_t, int, int, int>())
-    .def_rw("b0", &BFilterParams::b0)
-    .def_rw("b1", &BFilterParams::b1)
-    .def_rw("b_bits", &BFilterParams::b_bits)
-    .def_rw("p_bits", &BFilterParams::p_bits)
-    .def_rw("shift", &BFilterParams::shift);
+void register_butterworth(py::module_ & m) {
+    py::class_<BFilterParams>(m, "BFilterParams")
+    .def(py::init<int32_t, int32_t, int, int, int>())
+    .def_readwrite("b0", &BFilterParams::b0)
+    .def_readwrite("b1", &BFilterParams::b1)
+    .def_readwrite("b_bits", &BFilterParams::b_bits)
+    .def_readwrite("p_bits", &BFilterParams::p_bits)
+    .def_readwrite("shift", &BFilterParams::shift);
 
-    nb::class_<BFilterBank>(m, "BFilterBank")
-    .def(nb::init<>())
-    .def("add", &BFilterBank::add, nb::rv_policy::none)
-    .def("init", &BFilterBank::init, nb::rv_policy::none)
+    py::class_<BFilterBank>(m, "BFilterBank")
+    .def(py::init<>())
+    .def("add", &BFilterBank::add, py::return_value_policy::reference_internal)
+    .def("init", &BFilterBank::init, py::return_value_policy::reference_internal)
     .def("apply", &BFilterBank::apply_buffer);
 
     return;

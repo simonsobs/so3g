@@ -2,6 +2,8 @@ from collections import OrderedDict
 
 import numpy as np
 
+from ..libso3g import ProjEng_CAR_TQU_NonTiled
+
 from . import quat
 from .weather import weather_factory
 
@@ -224,7 +226,7 @@ class CelestialSightLine:
           be [n_det,n_samp,{lon,lat,cos2psi,sin2psi}]
         """
         # Get a projector, in CAR.
-        p = so3g.ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
+        p = ProjEng_CAR_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
         # Pre-process the offsets
         collapse = (fplane is None)
         if collapse:
@@ -259,7 +261,7 @@ class FocalPlane:
          quats:
            Detector quaternions. Either:
              * An array-like of floats with shape [ndet,4]
-             * An array-like of so3g.proj.quat.quat with shape [ndet]
+             * An array-like of so3g.proj.quat.Quat with shape [ndet]
              * An so3g.proj.quat.G3VectorQuat
              * None, which results in an empty focalplane with no detectors
          resps:

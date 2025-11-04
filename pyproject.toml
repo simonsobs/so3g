@@ -1,9 +1,11 @@
 [build-system]
 requires = [
-    "scikit-build-core >=0.10",
-    "nanobind >=1.3.2",
+    "scikit-build-core >=0.11",
+    "pybind11 >=3.0",
     "numpy",
     "scipy",
+    "setuptools>=80",
+    "setuptools-scm>=8",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -43,19 +45,84 @@ classifiers = [
 [project.scripts]
 so-hk-tool = "so3g.hk.cli:main"
 
-[tool.scikit-build]
-build.verbose = true
-cmake.build-type = "Release"
-build-dir = "build/{wheel_tag}"
-wheel.py-api = "cp312"
+[tool.setuptools_scm]
 
+[tool.scikit-build]
+# A list of args to pass to CMake when configuring the project.
+cmake.args = []
+# A table of defines to pass to CMake when configuring the project. Additive.
+cmake.define = {}
+# The build type to use when building the project.
+cmake.build-type = "Debug"
+#cmake.build-type = "Release"
+# The source directory to use when building the project.
+cmake.source-dir = "."
+# Use Make as a fallback if a suitable Ninja executable is not found.
+ninja.make-fallback = true
+# The logging level to display.
+logging.level = "INFO"
+# Files to include in the SDist even if they are skipped by default.
+sdist.include = []
+# Files to exclude from the SDist even if they are included by default.
+sdist.exclude = [".github", "build", "wheelhouse"]
+# Try to build a reproducible distribution.
+sdist.reproducible = true
+# If set to True, CMake will be run before building the SDist.
+sdist.cmake = false
+# Fill out extra tags that are not required.
+wheel.expand-macos-universal-tags = false
+# The CMake install prefix relative to the platlib wheel path.
+wheel.install-dir = ""
+# A list of license files to include in the wheel. Supports glob patterns.
+wheel.license-files = ["LICENSE"]
+# Run CMake as part of building the wheel.
+wheel.cmake = true
+# Target the platlib or the purelib.
+wheel.platlib = true
+# A set of patterns to exclude from the wheel.
+wheel.exclude = []
+# The build tag to use for the wheel. If empty, no build tag is used.
+wheel.build-tag = ""
+# If CMake is less than this value, backport a copy of FindPython.
+backport.find-python = "3.26.1"
+# Select the editable mode to use. Can be "redirect" (default) or "inplace".
+editable.mode = "redirect"
+# Turn on verbose output for the editable mode rebuilds.
+editable.verbose = true
+# Rebuild the project when the package is imported.
+editable.rebuild = true
+# Extra args to pass directly to the builder in the build step.
+build.tool-args = ["-j", "4"]
+# The build targets to use when building the project.
+build.targets = []
+# Verbose printout when building.
+build.verbose = true
+# Additional ``build-system.requires``.
+build.requires = []
+# The components to install.
+install.components = []
+# Whether to strip the binaries.
+install.strip = true
+# Add the python build environment site_packages folder to the CMake prefix paths.
+search.site-packages = true
+# Strictly check all config options.
+strict-config = true
+# Enable early previews of features not finalized yet.
+experimental = true
+# If set, this will provide a method for backward compatibility.
+minimum-version = "0.11" # current version
+# The CMake build directory. Defaults to a unique temporary directory.
+build-dir = "build/{wheel_tag}"
+# Get version from setuptools_scm
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+
+# A list of packages to auto-copy into the wheel. These could also
+# be specified in CMakeLists.txt using the install() function.
 [tool.scikit-build.wheel.packages]
 "so3g" = "python/so3g"
 "so3g/hk" = "python/so3g/hk"
 "so3g/proj" = "python/so3g/proj"
 "so3g/smurf" = "python/so3g/smurf"
-
-#[tool.scikit-build.metadata.version]
 
 [tool.pytest.ini_options]
 addopts = [

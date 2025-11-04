@@ -124,16 +124,20 @@ class _ProjectionistBase:
             raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
 
         projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}{interpol_suffix}'
+        print(f"get_ProjEng: name = {projeng_name}", flush=True)
         if not get:
             return projeng_name
         try:
             projeng_cls = getattr(libso3g, projeng_name)
+            print(f"get_ProjEng: class = {projeng_cls}", flush=True)
         except AttributeError:
+            print(f"get_ProjEng: libso3g has no such attribute!", flush=True)
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
                              f'"{comps}" (tried "{projeng_name}").')
         if not instance:
             return projeng_cls
+        print(f"get_ProjEng: args = {self._get_pixelizor_args()}", flush=True)
         return projeng_cls(self._get_pixelizor_args())
 
     def _cache_q_fp_to_native(self, q_fp_to_celestial):
@@ -719,7 +723,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         self._q_fp_to_celestial = None
         self.active_tiles = None
         self.proj_name = None
-        self.q_celestial_to_native = quat.quat(1,0,0,0)
+        self.q_celestial_to_native = quat.Quat(1,0,0,0)
         self.interpol = 'nearest'
         self.tiling = None
 
@@ -838,19 +842,29 @@ class ProjectionistHealpix(_ProjectionistBase):
         constructor to define the pixelization.
 
         """
-        if self.active_tiles is not None:
-            active_tiles = list(map(int, self.active_tiles))
-        else:
-            active_tiles = None
-        nside_tile = None
         if self.nside_tile is not None:
             nside_tile = int(self.nside_tile)
+        else:
+            # The nside_tile has not been computed yet.  Pick a value to avoid
+            # errors.
+            nside_tile = 16
 
-        args = (int(self.nside),
+        if self.active_tiles is not None:
+            # The C++ code expects 4 tuple items in this case
+            active_tiles = list(map(int, self.active_tiles))
+            return (
+                int(self.nside),
                 int(self.ordering == 'NEST'),
                 nside_tile,
-                active_tiles)
-        return args
+                active_tiles,
+            )
+        else:
+            # The C++ code expects 3 tuple items in this case
+            return (
+                int(self.nside),
+                int(self.ordering == 'NEST'),
+                nside_tile,
+            )
 
     def _guess_comps(self, map_shape):
         if len(map_shape) != 2:
