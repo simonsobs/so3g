@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 double test_trig(int table_size, int verbose)
@@ -37,7 +37,7 @@ double test_trig(int table_size, int verbose)
 }
 
 
-void register_so_linterp(nb::module_ & m) {
+void register_so_linterp(py::module_ & m) {
     m.def("test_trig", &test_trig);
     return;
 }

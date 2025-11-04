@@ -2,13 +2,13 @@
 
 #include <stdint.h>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
 #include "numpy_assist.h"
 
 using namespace std;
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 // Template class for working with intervals -- pairs of objects of
@@ -27,14 +27,14 @@ public:
     Ranges(T count) : count{count}, reference(0) {}
     Ranges(T count, T reference) : count{count}, reference(reference) {}
 
-    static Ranges<T> from_array(const nb::object &src, const nb::object &count);
+    static Ranges<T> * from_array(const py::object &src, const T count);
 
     // Basic ops
     Ranges<T>& merge(const Ranges<T> &src);
     Ranges<T>& intersect(const Ranges<T> &src);
     Ranges<T>& add_interval(const T start, const T end);
-    Ranges<T>& _add_interval_numpysafe(const nb::object start,
-                                       const nb::object end);
+    // Ranges<T>& _add_interval_numpysafe(const py::object start,
+    //                                    const py::object end);
     Ranges<T>& append_interval_no_check(const T start, const T end);
     Ranges<T>& buffer(const T buff);
     Ranges<T>& close_gaps(const T gap);
@@ -45,10 +45,10 @@ public:
 
     void cleanup();
 
-    nb::object ranges() const;
+    py::object ranges() const;
 
-    Ranges<T> getitem(nb::object indices);
-    nb::object shape();
+    Ranges<T> getitem(py::object indices);
+    py::object shape();
     void safe_set_count(T count_);
 
     // Operators.
@@ -60,10 +60,10 @@ public:
     Ranges<T> operator*(const Ranges<T> &src) const;
 
     // Special conversions.
-    static nb::object from_bitmask(const nb::object &src, int n_bits);
-    static nb::object bitmask(const nb::list &ivlist, int n_bits);
-    static nb::object from_mask(const nb::object &src);
-    nb::object mask();
+    static py::object from_bitmask(const py::object &src, int n_bits);
+    static py::object bitmask(const py::list &ivlist, int n_bits);
+    static py::object from_mask(const py::object &src);
+    py::object mask();
 
     string Description() const;
 };
@@ -71,14 +71,15 @@ public:
 
 // Support for working with RangesMatrix, which is basically just a list of Ranges
 template <typename T>
-vector<Ranges<T>> extract_ranges(const nb::object & ival_list) {
-    vector<Ranges<T>> v(nb::len(ival_list));
-    for (int i=0; i<nb::len(ival_list); i++)
-        v[i] = nb::cast<Ranges<T>>(ival_list[i]);
+vector<Ranges<T>> extract_ranges(const py::object & ival_obj) {
+    py::list ival_list = py::cast<py::list>(ival_obj);
+    vector<Ranges<T>> v(py::len(ival_list));
+    for (int i=0; i<py::len(ival_list); i++)
+        v[i] = py::cast<Ranges<T>>(ival_list[i]);
     return v;
 }
 
 typedef Ranges<int32_t> RangesInt32;
 
 
-void register_ranges(nb::module_ & m);
+void register_ranges(py::module_ & m);

@@ -1,7 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
-project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX C)
-
-include(local.cmake OPTIONAL)
+cmake_minimum_required(VERSION 3.21)
 
 # Warn if the user invokes CMake directly
 if (NOT SKBUILD)
@@ -19,13 +16,18 @@ if (NOT SKBUILD)
     in your environment once and use the following command that avoids
     a costly creation of a new virtual environment at every compilation:
     =====================================================================
-    $ pip install nanobind scikit-build-core[pyproject]
+    $ pip install pybind11 scikit-build-core[pyproject]
     $ pip install --no-build-isolation -ve .
     =====================================================================
     You may optionally add -Ceditable.rebuild=true to auto-rebuild when
     the package is imported. Otherwise, you need to rerun the above
     after editing C++ files.")
 endif()
+
+include(local.cmake OPTIONAL)
+
+# Define the project with name and version from pyproject.toml
+project(${SKBUILD_PROJECT_NAME} LANGUAGES CXX C VERSION ${SKBUILD_PROJECT_VERSION})
 
 # Require C++17
 set(CMAKE_CXX_STANDARD 17)
@@ -37,18 +39,36 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(
-    Python 3.9
+    Python
     REQUIRED COMPONENTS Interpreter Development.Module
     OPTIONAL_COMPONENTS Development.SABIModule
 )
 
+# Numpy include directory
+execute_process(COMMAND ${Python_EXECUTABLE} -c
+    "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 find_package(OpenMP)
-find_package(FLAC)
 find_package(GSL)
 find_package(Ceres)
-find_package(nanobind CONFIG REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
+
+# Generate the version files, if needed
+
+set(c_version ${CMAKE_CURRENT_SOURCE_DIR}/src/_version.h)
+set(py_version ${CMAKE_CURRENT_SOURCE_DIR}/python/_version.py)
+
+add_custom_command(OUTPUT ${c_version} ${py_version}
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/generate_version.sh ${SKBUILD_PROJECT_VERSION}
+    COMMENT "Updating version files if needed ..."
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 set(libso3g_SOURCES
+    "${c_version}"
     src/main.cxx
     src/hkagg.cxx
     src/Intervals.cxx
@@ -62,23 +82,17 @@ set(libso3g_SOURCES
 )
 
 # Documentation for the options here:
-# https://nanobind.readthedocs.io/en/latest/api_cmake.html
-nanobind_add_module(libso3g NOMINSIZE NB_STATIC ${libso3g_SOURCES})
+# https://pybind11.readthedocs.io/en/stable/compiling.html#modules-with-cmake
+pybind11_add_module(libso3g ${libso3g_SOURCES})
 
-# Install directive for scikit-build-core
-install(TARGETS libso3g LIBRARY DESTINATION so3g)
+# Install module to the package directory
+install(TARGETS libso3g LIBRARY DESTINATION "${SKBUILD_PROJECT_NAME}")
 
-# Numpy include directory
-execute_process(COMMAND ${Python_EXECUTABLE} -c
-    "import numpy; print(numpy.get_include())"
-    OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
+# Global includes for all targets
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} )
 include_directories(${NUMPY_INCLUDE_DIR})
 
-# Add external dependencies to our include / link commands
+# Add external dependencies
 
 if(OPENMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -88,8 +102,6 @@ else()
 endif()
 
 target_link_libraries(libso3g PUBLIC Ceres::ceres Eigen3::Eigen)
-
-target_include_directories(libso3g PRIVATE ${FLAC_INCLUDE_DIR})
 
 target_include_directories(libso3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(libso3g PUBLIC ${GSL_LIBRARIES})
@@ -122,14 +134,6 @@ if(BLAS_FOUND)
         )
     endif()
 endif(BLAS_FOUND)
-
-# This custom target generates _version.h, in the build tree.  That is all.
-add_custom_target(so3g-version
-    COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/version_h.py
-    SO3G_VERSION_STRING ${CMAKE_CURRENT_BINARY_DIR}/_version.h
-    SOURCES version_h.py
-)
-add_dependencies(libso3g so3g-version)
 
 add_custom_target(prep-readthedocs
     COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/docs/extract_docstrings.py

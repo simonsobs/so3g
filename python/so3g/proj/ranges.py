@@ -170,6 +170,8 @@ class RangesMatrix():
                 raise ValueError('Contributed items must have same shape on non-cat axis.')
         def collect(items, join_depth):
             # Recurse through items in order to concatenate along axis join_depth.
+            print(f"DEBUG collect({items}, {join_depth})", flush=True)
+            print(f"DEBUG collect items[0] is {type(items[0])}", flush=True)
             ranges = []
             if join_depth > 0:
                 for co_items in zip(*items):
@@ -185,7 +187,8 @@ class RangesMatrix():
                         r.extend(item.ranges() + n)
                         n += item.count
                     r = Ranges.from_array(
-                        np.array(r, dtype='int32').reshape((-1, 2)), n)
+                        np.array(r, dtype='int32').reshape((-1, 2)), n
+                    )
                     return r
             return RangesMatrix(ranges, child_shape=items[0].shape[1:])
         return collect(items, axis)

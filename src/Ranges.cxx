@@ -4,9 +4,9 @@
 #include <limits>
 #include <type_traits>
 
-#include <nanobind/nanobind.h>
-#include <nanobind/operators.h>
-#include <nanobind/stl/tuple.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
+#include <pybind11/stl.h>
 
 #include "so3g_numpy.h"
 
@@ -14,7 +14,7 @@
 #include "exceptions.h"
 #include <exception>
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 template <typename T>
@@ -61,14 +61,14 @@ void Ranges<T>::cleanup()
     }
 }
 
-template <typename T>
-Ranges<T>& Ranges<T>::_add_interval_numpysafe(
-    const nb::object start_obj, const nb::object end_obj)
-{
-    int start = numpysafe_extract_int(start_obj, "start");
-    int end = numpysafe_extract_int(end_obj, "end");
-    return add_interval(start, end);
-}
+// template <typename T>
+// Ranges<T>& Ranges<T>::_add_interval_numpysafe(
+//     const py::object start_obj, const py::object end_obj)
+// {
+//     int start = numpysafe_extract_int(start_obj, "start");
+//     int end = numpysafe_extract_int(end_obj, "end");
+//     return add_interval(start, end);
+// }
 
 template <typename T>
 Ranges<T>& Ranges<T>::add_interval(const T start, const T end)
@@ -250,25 +250,29 @@ static int format_to_dtype(const BufferWrapper<T> &view)
 
 
 template <typename T>
-Ranges<T> Ranges<T>::from_array(const nb::object &src, const nb::object &count)
+Ranges<T> * Ranges<T>::from_array(const py::object &src, const T count)
 {
-    Ranges<T> output;
+    Ranges<T> * output = new Ranges<T>();
     BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
+    //std::cerr << "Ranges from_array created buf " << buf->buf << " shape " << buf->shape << std::endl;
 
     char *d = (char*)buf->buf;
     int n_seg = buf->shape[0];
+    //std::cerr << "Ranges from_array n_seg = " << n_seg << " strides " << buf->strides << std::endl;
     for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
+        output->segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    output.count = numpysafe_extract_int(count, "count");
-
-    output.cleanup();
+    //std::cerr << "Ranges from_array finished output segments" << std::endl;
+    output->count = count;
+    //std::cerr << "Ranges from_array finished count extract" << std::endl;
+    output->cleanup();
+    //std::cerr << "Ranges from_array finished output cleanup" << std::endl;
     return output;
 }
 
 template <typename T>
-nb::object Ranges<T>::ranges() const
+py::object Ranges<T>::ranges() const
 {
     npy_intp dims[2] = {0, 2};
     dims[0] = (npy_intp)segments.size();
@@ -277,11 +281,17 @@ nb::object Ranges<T>::ranges() const
         throw general_agreement_exception("ranges() not implemented for this domain dtype.");
 
     PyObject *v = PyArray_SimpleNew(2, dims, dtype);
+    if (v == NULL) {
+        ostringstream dstr;
+        dstr << "Failed to allocate Ranges numpy array of size (";
+        dstr << dims[0] << ", " << dims[1] << ")";
+        throw RuntimeError_exception(dstr.str().c_str());
+    }
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
         ptr += interval_extract((&*p), ptr);
     }
-    return nb::steal<nb::object>(v);
+    return py::reinterpret_steal<py::object>(v);
 }
 
 
@@ -297,7 +307,7 @@ nb::object Ranges<T>::ranges() const
 // uint8_t).
 
 template <typename intType, typename numpyType>
-static inline nb::object from_bitmask_(void *buf, intType count, int n_bits)
+static inline py::object from_bitmask_(void *buf, intType count, int n_bits)
 {
     bool return_singleton = (n_bits == 0);
 
@@ -338,28 +348,28 @@ static inline nb::object from_bitmask_(void *buf, intType count, int n_bits)
     }
 
     if (return_singleton)
-        return nb::cast(output[0]);
+        return py::cast(output[0]);
 
     // Once added to the list, we can't modify further.
-    nb::list bits;
+    py::list bits;
     for (auto i: output)
         bits.append(i);
     return bits;
 }
 
 template <typename T>
-nb::object Ranges<T>::from_bitmask(const nb::object &src, int n_bits)
+py::object Ranges<T>::from_bitmask(const py::object &src, int n_bits)
 {
     // Buffer protocol doesn't work directly on bool arrays, so if
     // what we've been passed is definitely a bool array, get a view
     // of it as a uint8 array and work with that.  (Wrap it with
-    // nb::object so references are counted properly.)
-    nb::object target(src);
+    // py::object so references are counted properly.)
+    py::object target(src);
     PyObject* obj_ptr = target.ptr();
     if (PyArray_Check(obj_ptr))
         if (PyArray_ISBOOL((PyArrayObject *)obj_ptr)) {
             obj_ptr = PyArray_Cast((PyArrayObject *)obj_ptr, NPY_UINT8);
-            target = nb::steal<nb::object>(obj_ptr);
+            target = py::reinterpret_steal<py::object>(obj_ptr);
         }
 
     BufferWrapper<T> buf("src", target, false);
@@ -388,11 +398,11 @@ nb::object Ranges<T>::from_bitmask(const nb::object &src, int n_bits)
     }
 
     throw dtype_exception("src", "integer type");
-    return nb::object();
+    return py::object();
 }
 
 template <typename T>
-nb::object Ranges<T>::from_mask(const nb::object &src)
+py::object Ranges<T>::from_mask(const py::object &src)
 {
     return from_bitmask(src, 0);
 }
@@ -408,16 +418,16 @@ nb::object Ranges<T>::from_mask(const nb::object &src)
 
 template <typename intType,typename std::enable_if<!std::is_integral<intType>::value,
                                                    int>::type* = nullptr>
-static inline nb::object mask_(vector<Ranges<intType>> ivals, int n_bits)
+static inline py::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 {
     intType x;
     throw dtype_exception("ivlist", "Interval<> over integral type.");
-    return nb::object();
+    return py::object();
 }
 
 template <typename intType, typename std::enable_if<std::is_integral<intType>::value,
                                                     int>::type* = nullptr>
-static inline nb::object mask_(vector<Ranges<intType>> ivals, int n_bits)
+static inline py::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 {
     vector<int> indexes;
     int count = 0;
@@ -460,6 +470,12 @@ static inline nb::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 
     npy_intp dims[1] = {count};
     PyObject *v = PyArray_SimpleNew(1, dims, npy_type);
+    if (v == NULL) {
+        ostringstream dstr;
+        dstr << "Failed to allocate Ranges mask array of size (";
+        dstr << dims[0] << ",)";
+        throw RuntimeError_exception(dstr.str().c_str());
+    }
 
     // Assumes little-endian.
     int n_byte = PyArray_ITEMSIZE((PyArrayObject*)v);
@@ -472,27 +488,27 @@ static inline nb::object mask_(vector<Ranges<intType>> ivals, int n_bits)
         }
     }
 
-    return nb::steal<nb::object>(v);
+    return py::reinterpret_steal<py::object>(v);
 }
 
 template <typename intType>
-static inline nb::object mask_(const nb::list &ivlist, int n_bits)
+static inline py::object mask_(const py::list &ivlist, int n_bits)
 {
     vector<Ranges<intType>> ivals;
-    for (long i=0; i<nb::len(ivlist); i++)
-        ivals.push_back(nb::cast<Ranges<intType>>(ivlist[i]));
+    for (long i=0; i<py::len(ivlist); i++)
+        ivals.push_back(py::cast<Ranges<intType>>(ivlist[i]));
     return mask_(ivals, n_bits);
 }
 
 
 template <typename T>
-nb::object Ranges<T>::bitmask(const nb::list &ivlist, int n_bits)
+py::object Ranges<T>::bitmask(const py::list &ivlist, int n_bits)
 {
     return mask_<T>(ivlist, n_bits);
 }
 
 template <typename T>
-nb::object Ranges<T>::mask()
+py::object Ranges<T>::mask()
 {
     vector<Ranges<T>> temp;
     temp.push_back(*this);
@@ -551,7 +567,7 @@ Ranges<T> Ranges<T>::ones_like() const
 template <typename T,
           typename std::enable_if<!std::is_integral<T>::value,
                                   int>::type* = nullptr>
-static inline Ranges<T> _getitem_(Ranges<T> &src, nb::object indices)
+static inline Ranges<T> _getitem_(Ranges<T> &src, py::object indices)
 {
     throw dtype_exception("target", "Interval<> over integral type.");
     return Ranges<T>();
@@ -560,10 +576,8 @@ static inline Ranges<T> _getitem_(Ranges<T> &src, nb::object indices)
 template <typename objType, typename T>
 static inline T extract_or_default(objType src, T default_)
 {
-    T result;
-    if (nb::try_cast<T>(src, result)) {
-        // Successful cast
-        return result;
+    if (py::isinstance<T>(src)) {
+        return py::cast<T>(src);
     } else {
         return default_;
     }
@@ -572,29 +586,35 @@ static inline T extract_or_default(objType src, T default_)
 template <typename T,
           typename std::enable_if<std::is_integral<T>::value,
                                   int>::type* = nullptr>
-static inline Ranges<T> _getitem_(Ranges<T> &src, nb::object indices)
+static inline Ranges<T> _getitem_(Ranges<T> &src, py::object indices)
 {
-    nb::object target = indices;
+    py::object target = indices;
 
     // Allow user to pass in a length-one tuple of slices.
-    nb::slice slc;
-    if (nb::isinstance<nb::tuple>(indices)) {
-        nb::tuple temp = nb::cast<nb::tuple>(indices);
-        if (nb::len(temp) != 1) {
+    py::slice slc;
+    if (py::isinstance<py::tuple>(indices)) {
+        py::tuple temp = py::cast<py::tuple>(indices);
+        if (py::len(temp) != 1) {
             throw general_agreement_exception("Ranges __getitem__ got tuple of len >1");
         }
-        slc = nb::cast<nb::slice>(temp[0]);
-    } else if (nb::isinstance<nb::slice>(indices)) {
-        slc = nb::cast<nb::slice>(indices);
+        slc = py::cast<py::slice>(temp[0]);
+    } else if (py::isinstance<py::slice>(indices)) {
+        slc = py::cast<py::slice>(indices);
     } else {
         return Ranges<T>();
     }
 
     T n = src.count;
-    auto slc_par = slc.compute(n);
-    T start = slc_par.template get<0>();
-    T stop = slc_par.template get<1>();
-    T step = slc_par.template get<2>();
+
+    size_t sstart;
+    size_t sstop;
+    size_t sstep;
+    size_t slicelen;
+    slc.compute(n, &sstart, &sstop, &sstep, &slicelen);
+
+    T start = static_cast<T>(sstart);
+    T stop = static_cast<T>(sstop);
+    T step = static_cast<T>(sstep);
 
     assert(step == 1);
     if (start < 0)
@@ -618,15 +638,15 @@ static inline Ranges<T> _getitem_(Ranges<T> &src, nb::object indices)
 }
 
 template <typename T>
-Ranges<T> Ranges<T>::getitem(nb::object indices)
+Ranges<T> Ranges<T>::getitem(py::object indices)
 {
     return _getitem_(*this, indices);
 }
 
 template <typename T>
-nb::object Ranges<T>::shape()
+py::object Ranges<T>::shape()
 {
-    return nb::make_tuple(count);
+    return py::make_tuple(count);
 }
 
 template <typename T>
@@ -679,9 +699,9 @@ Ranges<T> Ranges<T>::operator*(const Ranges<T> &src) const
 // Helper function to register an Ranges class for a concrete type.
 
 template <typename C>
-void ranges_bindings(nb::module_ & m, char const * name) {
+void ranges_bindings(py::module_ & m, char const * name) {
 
-    nb::class_<Ranges<C>>(m, name,
+    py::class_<Ranges<C>>(m, name,
             R"(
             A finite series of non-overlapping semi-open intervals on a domain.
 
@@ -709,56 +729,82 @@ void ranges_bindings(nb::module_ & m, char const * name) {
             would be found.  This is useful for bookkeeping in some cases.
             )"
         )
-        .def(nb::init<C>(),
+        .def(py::pickle(
+            [](const Ranges<C> & p) { // __getstate__
+                // Return a tuple that fully encodes the state of the object
+                return py::make_tuple(
+                    p.count,
+                    p.reference,
+                    p.segments
+                );
+            },
+            [](py::tuple t) { // __setstate__
+                if (t.size() != 3) {
+                    throw std::runtime_error("Invalid state!");
+                }
+                // Create a new C++ instance
+                Ranges<C> p(t[0].cast<C>(), t[1].cast<C>());
+
+                // Assign segments
+                p.segments = t[2].cast<vector<pair<C,C> > >();
+
+                return p;
+            }
+        ))
+        .def(py::init<>())
+        .def(py::init<C>(),
             R"(
             Initialize with count.
             )"
         )
-        .def(nb::init<C, C>(),
+        .def(py::init<C, C>(),
             R"(
             Initialize with count and reference.
             )"
         )
         .def("__str__", &Ranges<C>::Description)
-        .def_prop_rw("count",
+        .def_property("count",
             [](Ranges<C> & slf){
                 return slf.count;
             },
             &Ranges<C>::safe_set_count
         )
-        .def_prop_ro("reference",
+        .def_property_readonly("reference",
             [](Ranges<C> & slf){
                 return slf.reference;
             }
         )
-        .def_prop_ro("shape", &Ranges<C>::shape)
-        .def("add_interval", &Ranges<C>::add_interval, nb::rv_policy::none,
-            nb::arg("start"),
-            nb::arg("end"),
+        .def_property_readonly("shape", &Ranges<C>::shape)
+        .def("add_interval", &Ranges<C>::add_interval, 
+            py::return_value_policy::reference_internal,
+            py::arg("start"),
+            py::arg("end"),
             R"(
             Merge an interval into the set.
             )"
         )
         .def("append_interval_no_check", &Ranges<C>::append_interval_no_check,
-            nb::rv_policy::none,
-            nb::arg("start"),
-            nb::arg("end"),
+            py::return_value_policy::reference_internal,
+            py::arg("start"),
+            py::arg("end"),
             R"(
             Append an interval to the set without checking for overlap or sequence.
             )"
         )
-        .def("merge", &Ranges<C>::merge, nb::rv_policy::none,
+        .def("merge", &Ranges<C>::merge, py::return_value_policy::reference_internal,
             R"(
             Merge ranges from another object into this one.
             )"
         )
-        .def("intersect", &Ranges<C>::intersect, nb::rv_policy::none,
-            nb::arg("source"),
+        .def("intersect", &Ranges<C>::intersect, 
+            py::return_value_policy::reference_internal,
+            py::arg("source"),
             R"(
             Intersect another Ranges object with this one.
             )"
         )
-        .def("complement", &Ranges<C>::complement, nb::rv_policy::take_ownership,
+        .def("complement", &Ranges<C>::complement, 
+            py::return_value_policy::take_ownership,
             R"(
             Return the complement (over domain).
             )"
@@ -766,93 +812,98 @@ void ranges_bindings(nb::module_ & m, char const * name) {
         .def(
             "copy",
             [](Ranges<C> & slf) {return Ranges<C>(slf);},
-            nb::rv_policy::take_ownership,
+            py::return_value_policy::take_ownership,
             R"(
             Get a new object with a copy of the data.
             )"
         )
-        .def("buffer", &Ranges<C>::buffer, nb::rv_policy::none,
-            nb::arg("buff"),
+        .def("buffer", &Ranges<C>::buffer, py::return_value_policy::reference_internal,
+            py::arg("buff"),
             R"(
             Buffer each interval by an amount specified by buff
             )"
         )
-        .def("buffered", &Ranges<C>::buffered, nb::rv_policy::take_ownership,
-            nb::arg("buff"),
+        .def("buffered", &Ranges<C>::buffered, py::return_value_policy::take_ownership,
+            py::arg("buff"),
             R"(
             Return an interval buffered by buff
             )"
         )
-        .def("close_gaps", &Ranges<C>::close_gaps, nb::rv_policy::none,
-            nb::arg("gap"),
+        .def("close_gaps", &Ranges<C>::close_gaps, 
+            py::return_value_policy::reference_internal,
+            py::arg("gap"),
             R"(
             Remove gaps between ranges less than gap
             )"
         )
-        .def("zeros_like", &Ranges<C>::zeros_like, nb::rv_policy::take_ownership,
+        .def("zeros_like", &Ranges<C>::zeros_like, 
+            py::return_value_policy::take_ownership,
             R"(
             Return range of same length but no intervals
             )"
         )
-        .def("ones_like", &Ranges<C>::ones_like, nb::rv_policy::take_ownership,
+        .def("ones_like", &Ranges<C>::ones_like, 
+            py::return_value_policy::take_ownership,
             R"(
             Return range of same length and interval spanning count
             )"
         )
-        .def("ranges", &Ranges<C>::ranges, nb::rv_policy::take_ownership,
+        .def("ranges", &Ranges<C>::ranges, py::return_value_policy::take_ownership,
             R"(
             Return the intervals as a 2-d numpy array of ranges.
             )"
         )
         .def_static("from_array", &Ranges<C>::from_array,
-            nb::rv_policy::take_ownership,
-            nb::arg("src"),
-            nb::arg("count"),
+            py::return_value_policy::take_ownership,
+            py::arg("src"),
+            py::arg("count"),
             R"(
             The input data must be an (n,2) shape ndarray of int32.
             The integer count sets the domain of the object.
             )"
         )
-        .def("__getitem__", &Ranges<C>::getitem, nb::rv_policy::take_ownership)
+        .def("__getitem__", &Ranges<C>::getitem, 
+            py::return_value_policy::take_ownership)
         .def_static("from_bitmask", &Ranges<C>::from_mask,
-            nb::rv_policy::take_ownership,
-            nb::arg("bitmask_array"),
+            py::return_value_policy::take_ownership,
+            py::arg("bitmask_array"),
             R"(
             Return a list of Ranges extracted from an ndarray encoding a bitmask.
             )"
         )
         .def_static("from_mask", &Ranges<C>::from_mask,
-            nb::rv_policy::take_ownership,
-            nb::arg("bool_array"),
+            py::return_value_policy::take_ownership,
+            py::arg("bool_array"),
             R"(
             Return a list of Ranges extracted from an ndarray of bool.
             )"
         )
-        .def_static("bitmask", &Ranges<C>::bitmask, nb::rv_policy::take_ownership,
-            nb::arg("ranges_list"),
-            nb::arg("n_bits"),
+        .def_static("bitmask", &Ranges<C>::bitmask, 
+            py::return_value_policy::take_ownership,
+            py::arg("ranges_list"),
+            py::arg("n_bits"),
             R"(
             Return an ndarray bitmask from a list of Ranges.  n_bits determines
             the output integer type.  Bits are assigned from LSB onwards; use None
             in the list to skip a bit.
             )"
         )
-        .def("mask", &Ranges<C>::mask, nb::rv_policy::take_ownership,
+        .def("mask", &Ranges<C>::mask, py::return_value_policy::take_ownership,
             R"(
             Return a boolean mask from this Ranges object.
             )"
         )
-        .def(~nb::self)
-        .def(nb::self += nb::self)
-        .def(nb::self *= nb::self)
-        .def(nb::self + nb::self)
-        .def(nb::self * nb::self);
+        .def(~py::self)
+        .def(py::self += py::self)
+        .def(py::self *= py::self)
+        .def(py::self + py::self)
+        .def(py::self * py::self);
 
     return;
 }
 
 
-void register_ranges(nb::module_ & m) {
+void register_ranges(py::module_ & m) {
     // Concrete Ranges types
     ranges_bindings<int32_t>(m, "RangesInt32");
     return;

@@ -1,6 +1,6 @@
 import numpy as np
 
-from spt3g.core import quat, G3VectorQuat
+from spt3g.core import Quat, G3VectorQuat
 
 
 """We are using the spt3g quaternion containers,
@@ -40,7 +40,7 @@ def euler(axis, angle):
     q[..., 0] = c
     q[..., axis+1] = s
     if len(shape) == 1:
-        return quat(*q)
+        return Quat(*q)
     return G3VectorQuat(q)
 
 
@@ -109,7 +109,7 @@ def decompose_iso(q):
         The rotation angles, in radians.
     """
 
-    if isinstance(q, quat):
+    if isinstance(q, Quat):
         a,b,c,d = q.a, q.b, q.c, q.d
     else:
         a,b,c,d = np.transpose(q)
@@ -143,7 +143,7 @@ def decompose_xieta(q):
     gamma).
 
     """
-    if isinstance(q, quat):
+    if isinstance(q, Quat):
         a,b,c,d = q.a, q.b, q.c, q.d
     else:
         a,b,c,d = np.transpose(q)
