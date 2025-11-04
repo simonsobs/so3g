@@ -7,6 +7,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/tuple.h>
+#include <nanobind/stl/string.h>
 
 #include "so3g_numpy.h"
 
@@ -36,6 +37,14 @@ Intervals<int64_t>::Intervals() {
 template <>
 Intervals<int32_t>::Intervals() {
     domain = make_pair(INT32_MIN, INT32_MAX);
+}
+
+template <typename T>
+Intervals<T>::Intervals(Intervals<T> const & other) {
+    std::cerr << "Copy constructor input = " << other.Description() << std::endl;
+    domain = other.domain;
+    segments = other.segments;
+    std::cerr << "Copy constructor output = " << Description() << std::endl;
 }
 
 //
@@ -135,11 +144,18 @@ void Intervals<T>::cleanup()
 template <typename T>
 Intervals<T>& Intervals<T>::add_interval(const T start, const T end)
 {
+    ostringstream dbg;
+    dbg << "DBG add_interval (" << start << "," << end << ")";
+    std::cerr << dbg.str() << std::endl;
     // We can optimize this later.  For now just do something that is
     // obviously correct.
     auto p = lower_bound(segments.begin(), segments.end(), make_pair(start, end));
     segments.insert(p, make_pair(start, end));
     cleanup();
+
+    dbg.str("");
+    dbg << "DBG segments size now " << segments.size();
+    std::cerr << dbg.str() << std::endl;
 
     return *this;
 }
@@ -147,7 +163,14 @@ Intervals<T>& Intervals<T>::add_interval(const T start, const T end)
 template <typename T>
 Intervals<T>& Intervals<T>::append_interval_no_check(const T start, const T end)
 {
+    ostringstream dbg;
+    dbg << "DBG add_interval_no_check (" << start << "," << end << ")";
+    std::cerr << dbg.str() << std::endl;
     segments.push_back(make_pair(start, end));
+
+    dbg.str("");
+    dbg << "DBG segments size now " << segments.size();
+    std::cerr << dbg.str() << std::endl;
 
     return *this;
 }
@@ -292,13 +315,19 @@ Intervals<T> Intervals<T>::from_array(const nb::object &src)
 template <typename T>
 nb::object Intervals<T>::array() const
 {
-    npy_intp dims[2] = {0, 2};
+    npy_intp dims[2];
     dims[0] = (npy_intp)segments.size();
+    dims[1] = 2;
     int dtype = get_dtype<T>();
     if (dtype == NPY_NOTYPE)
         throw general_agreement_exception("array() not implemented for this domain dtype.");
-
     PyObject *v = PyArray_SimpleNew(2, dims, dtype);
+    if (v == NULL) {
+        ostringstream dstr;
+        dstr << "Failed to allocate Intervals numpy array of size (";
+        dstr << dims[0] << ", " << dims[1] << ")";
+        throw RuntimeError_exception(dstr.str().c_str());
+    }
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
         ptr += interval_extract((&*p), ptr);
@@ -475,8 +504,15 @@ static inline nb::object mask_(const nb::list &ivlist, int n_bits)
     }
 
     int n = domain.second - domain.first;
-    npy_intp dims[1] = {n};
+    npy_intp dims[1];
+    dims[0] = n;
     PyObject *v = PyArray_SimpleNew(1, dims, npy_type);
+    if (v == NULL) {
+        ostringstream dstr;
+        dstr << "Failed to allocate Intervals mask array of size (";
+        dstr << dims[0] << ",)";
+        throw RuntimeError_exception(dstr.str().c_str());
+    }
 
     // Assumes little-endian.
     int n_byte = PyArray_ITEMSIZE((PyArrayObject*)v);
@@ -673,6 +709,7 @@ template <typename C>
 void intervals_bindings(nb::module_ & m, char const * name) {
 
     nb::class_<Intervals<C>>(m, name)
+        .def(nb::init<>())
         .def(nb::init<C, C>(),
             R"(
             A finite series of non-overlapping semi-open intervals
@@ -707,7 +744,8 @@ void intervals_bindings(nb::module_ & m, char const * name) {
         )
         .def_prop_rw("domain",
             [](Intervals<C> & slf) {
-                return nb::make_tuple(slf.get_domain());
+                auto dom = slf.get_domain();
+                return nb::make_tuple(dom.first, dom.second);
             },
             [](Intervals<C> & slf, nb::object value) {
                 if (nb::isinstance<nb::list>(value)) {
@@ -739,8 +777,11 @@ void intervals_bindings(nb::module_ & m, char const * name) {
         )
         .def(
             "copy",
-            [](Intervals<C> & slf) {return Intervals<C>(slf);},
-            nb::rv_policy::take_ownership,
+            [](Intervals<C> & slf) {
+                auto obj = Intervals<C>(slf);
+                std::cerr << "DBG bindings: " << obj.Description() << std::endl;
+                return obj;
+            }, nb::rv_policy::move,
             R"(
             Get a new object with a copy of the data.
             )"

@@ -1,8 +1,6 @@
 #include <assert.h>
 #include <math.h>
 
-#include <nanobind/ndarray.h>
-
 #include "Butterworth.h"
 #include "exceptions.h"
 

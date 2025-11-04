@@ -7,6 +7,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/tuple.h>
+#include <nanobind/stl/string.h>
 
 #include "so3g_numpy.h"
 
@@ -277,6 +278,12 @@ nb::object Ranges<T>::ranges() const
         throw general_agreement_exception("ranges() not implemented for this domain dtype.");
 
     PyObject *v = PyArray_SimpleNew(2, dims, dtype);
+    if (v == NULL) {
+        ostringstream dstr;
+        dstr << "Failed to allocate Ranges numpy array of size (";
+        dstr << dims[0] << ", " << dims[1] << ")";
+        throw RuntimeError_exception(dstr.str().c_str());
+    }
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
         ptr += interval_extract((&*p), ptr);
@@ -460,6 +467,12 @@ static inline nb::object mask_(vector<Ranges<intType>> ivals, int n_bits)
 
     npy_intp dims[1] = {count};
     PyObject *v = PyArray_SimpleNew(1, dims, npy_type);
+    if (v == NULL) {
+        ostringstream dstr;
+        dstr << "Failed to allocate Ranges mask array of size (";
+        dstr << dims[0] << ",)";
+        throw RuntimeError_exception(dstr.str().c_str());
+    }
 
     // Assumes little-endian.
     int n_byte = PyArray_ITEMSIZE((PyArrayObject*)v);
@@ -709,6 +722,7 @@ void ranges_bindings(nb::module_ & m, char const * name) {
             would be found.  This is useful for bookkeeping in some cases.
             )"
         )
+        .def(nb::init<>())
         .def(nb::init<C>(),
             R"(
             Initialize with count.

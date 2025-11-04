@@ -50,7 +50,8 @@ so-hk-tool = "so3g.hk.cli:main"
 
 [tool.scikit-build]
 build.verbose = true
-cmake.build-type = "Release"
+# cmake.build-type = "Release"
+cmake.build-type = "Debug"
 build-dir = "build/{wheel_tag}"
 wheel.py-api = "cp312"
 
