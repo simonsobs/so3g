@@ -17,6 +17,10 @@
 // source files (main.cxx), and define NO_IMPORT_ARRAY in the others.
 // Then, from this header file, it is safe to include arrayobject.h.
 
+// Starting with numpy 2.1, the API pointer is a hidden variable.
+// Defining this symbol preserves the old behaviour, which is necessary
+// in order to use so3g shared objects in other code.
+#define NPY_API_SYMBOL_ATTRIBUTE
 #define PY_ARRAY_UNIQUE_SYMBOL Py_Array_API_SO3G
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
