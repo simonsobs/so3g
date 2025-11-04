@@ -1263,162 +1263,267 @@ void detrend(nb::object & tod, const std::string & method, const int linear_ncou
     }
 }
 
-PYBINDINGS("so3g")
-{
-    bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
-    bp::def("process_cuts",  process_cuts);
-    bp::def("translate_cuts", translate_cuts);
-    bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
-            "get_gap_fill_poly(ranges, signal, buffer, order, extract)\n"
-            "\n"
-            "Do polynomial gap-filling on a float32 array.\n"
-            "\n"
-            "Args:\n"
-            "  ranges: RangesMatrix with shape (ndet, nsamp)\n"
-            "  signal: data array (float32) with shape (ndet, nsamp)\n"
-            "  buffer: integer stating max number of samples to use on each end\n"
-            "  order: order of polynomial to use (1 means linear)\n"
-            "  inplace: whether to overwrite data array with the model\n"
-            "  extract: array to write the original data samples (inplace)\n"
-            "    or the model (!inplace) into.\n");
-    bp::def("get_gap_fill_poly64",  get_gap_fill_poly<double>,
-            "get_gap_fill_poly64(ranges, signal, buffer, order, extract)\n"
-            "\n"
-            "Do polynomial gap-filling for float64 data.\n"
-            "\n"
-            "See details in docstring for get_gap_fill_poly.\n");
-    bp::def("test_buffer_wrapper", test_buffer_wrapper,
-            "Pass array and list of dims to match against its shape.");
-    bp::def("block_moment", block_moment<float>,
-            "block_moment(tod, out, bsize, moment, central, shift)\n"
-            "\n"
-            "Compute the nth moment in blocks on a float32 array.\n"
-            "\n"
-            "Args:\n"
-            "  tod: data array (float32) with shape (ndet, nsamp)\n"
-            "  out: output array (float32) with shape (ndet, nsamp)\n"
-            "       can be the same as tod\n"
-            "  bsize: number of samples in each block\n"
-            "  moment: moment to compute, should be >= 1\n"
-            "  central: whether to compute the central moment in each block\n"
-            "  shift: sample to start block at, used in each row\n");
-    bp::def("block_moment64", block_moment<double>,
-            "block_moment64(tod, out, bsize, moment, central, shift)\n"
-            "\n"
-            "Compute the nth moment in blocks on a float32 array.\n"
-            "\n"
-            "See details in docstring for block_moment.\n");
-    bp::def("block_minmax", block_minmax<float>,
-            "block_minmax(tod, out, bsize, mode, shift)\n"
-            "\n"
-            "Compute the minimum, maximum, or peak to peak in blocks on a float32 array.\n"
-            "\n"
-            "Args:\n"
-            "  tod: data array (float32) with shape (ndet, nsamp)\n"
-            "  out: output array (float32) with shape (ndet, nsamp)\n"
-            "       can be the same as tod\n"
-            "  bsize: number of samples in each block\n"
-            "  mode: if 0 compute the block minimum, if 1 the maximum, anything else will compute the peak to peak\n"
-            "  shift: sample to start block at, used in each row\n");
-    bp::def("block_minmax64", block_minmax<double>,
-            "block_minmax64(tod, out, bsize, mode, shift)\n"
-            "\n"
-            "Compute the minimum, maximum, or peak to peak in blocks on a float64 array.\n"
-            "\n"
-            "See details in docstring for block_minmax.\n");
-    bp::def("matched_jumps", matched_jumps<float>,
-            "matched_jumps(tod, out, min_size, bsize)\n"
-            "\n"
-            "Flag jumps with the matched filter for a unit jump in a float32 array.\n"
-            "\n"
-            "Args:\n"
-            "  tod: data array (float32) with shape (ndet, nsamp)\n"
-            "  out: output array (int32) with shape (ndet, nsamp)\n"
-            "  min_size: minimum jump size for each det, shape (ndet,)\n"
-            "  bsize: number of samples in each block\n");
-    bp::def("matched_jumps64", matched_jumps<double>,
-            "matched_jumps64(tod, out, min_size, bsize)\n"
-            "\n"
-            "Flag jumps with the matched filter for a unit jump in a float64 array.\n"
-            "\n"
-            "See details in docstring for matched_jumps.\n");
-    bp::def("find_quantized_jumps", find_quantized_jumps<float>,
-            "find_quantized_jumps(tod, out, atol, win_size, scale)"
-            "\n"
-            "Search for jumps that are a multiple of a known value in a float32 array.\n"
-            "Output will be 0 where jumps are not found and the assumed jump height where jumps are found.\n"
-            "\n"
-            "Args:\n"
-            "  tod: data array (float32) with shape (ndet, nsamp)\n"
-            "  out: output array (float32) with shape (ndet, nsamp)\n"
-            "  atol: how close to the multiple of scale a value needs to be to be a jump in the same units as the signal\n"
-            "        should be an array (float32) with shape (ndet,)\n"
-            "  win_size: size of window to use as buffer when differencing\n"
-            "  scale: the scale of jumps to look for\n");
-    bp::def("find_quantized_jumps64", find_quantized_jumps<double>,
-            "find_quantized_jumps64(tod, out, atol, win_size, scale)\n"
-            "\n"
-            "Search for jumps that are a multiple of a known value in a float64 array.\n"
-            "Output will be 0 where jumps are not found and the assumed jump height where jumps are found.\n"
-            "\n"
-            "See details in docstring for find_quantized_jumps.\n");
-    bp::def("subtract_jump_heights", subtract_jump_heights<float>,
-            "subtract_jump_heights(tod, out, heights, jumps)"
-            "\n"
-            "For each detector, compute the cumulative effect of the jumps identified by the array 'heights' and the RangesMatrix 'jumps'."
-            "For each range in 'jumps', the values from 'heights' are checked and the size of the jump is either the largest positive"
-            "or the largest negative number (whichever has the largest absolute value)."
-            "The 'output' value is the difference of 'tod' and the accumulated jump vector."
-            "\n"
-            "Args:\n"
-            "  tod: data array (float32) with shape (ndet, nsamp)\n"
-            "  out: output array (float32) with shape (ndet, nsamp)\n"
-            "       can be the same as tod\n"
-            "  heights: the height of the jump at each samples\n"
-            "           should be an array (float32) with shape (ndet, nsamp)\n"
-            "  jumps: RangesMatrix with the jump locations and shape (ndet, nsamp).\n");
-    bp::def("subtract_jump_heights64", subtract_jump_heights<double>,
-            "subtract_jump_heights64(tod, out, heights, jumps)"
-            "\n"
-            "Subtract fit jump heights from known jump locatations in a float64 array."
-            "If multiple samples in a jump have different heights, the largest height is used.\n"
-            "\n"
-            "See details in docstring for subtract_jump_heights.\n");
-    bp::def("clean_flag", clean_flag,
-            "clean_flag(flag, width)"
-            "\n"
-            "Clean a flag inplace by unflagging regions without enough contiguous flagged values.\n"
-            "\n"
-            "Args:\n"
-            "  flag: flag array (int) with shape (ndet, nsamp)\n"
-            "  width: the minimum number of contiguous flagged samples\n");
-    bp::def("interp1d_linear", interp1d_linear,
-            "interp1d_linear(x, y, x_interp, y_interp)"
-            "\n"
-            "Perform linear interpolation over rows of float32 or float64 array with GSL.\n"
-            "This function uses OMP to parallelize over the dets (rows) axis.\n"
-            "Vector x must be strictly increasing. Values for x_interp beyond the "
-            "domain of x will be computed based on extrapolation."
-            "\n"
-            "Args:\n"
-            "  x: independent variable (float32/float64) of data with shape (nsamp,)\n"
-            "  y: data array (float32/float64) with shape (ndet, nsamp)\n"
-            "  x_interp: independent variable (float32/float64) for interpolated data "
-            "            with shape (nsamp_interp,)\n"
-            "  y_interp: interpolated data array (float32/float64) output buffer to be modified "
-            "            with shape (ndet, nsamp_interp)\n");
-    bp::def("detrend", detrend,
-            "detrend(tod, method, ncount)"
-            "\n"
-            "Detrend each row of an array (float32/float64). This function uses OMP to parallelize "
-            "over the dets (rows) axis."
-            "\n"
-            "Args:\n"
-            "  tod: input array (float32/float64) buffer with shape (ndet, nsamp) that is to be detrended. "
-            "       The data is modified in place.\n"
-            "  method: how to detrend data.  Options are 'mean', 'median', and 'linear'. Linear calculates "
-            "          and subtracts the slope from either end of each row as determined from 'linear_ncount'.\n"
-            "  linear_ncount: Number (int) of samples to use on each end, when measuring mean level for 'linear'"
-            "                 detrend. Must be a positive integer or -1.  If -1, nsamps / 2 will be used. Values "
-            "                 larger than 1 suppress the influence of white noise.\n");
+
+void register_array_ops(nb::module_ & m) {
+    m.def("nmat_detvecs_apply", &nmat_detvecs_apply);
+    m.def("process_cuts", &process_cuts);
+    m.def("translate_cuts", &translate_cuts);
+    m.def("get_gap_fill_poly", &get_gap_fill_poly<float>,
+        nb::arg("ranges"),
+        nb::arg("signal"),
+        nb::arg("buffer"),
+        nb::arg("order"),
+        nb::arg("inplace"),
+        nb::arg("extract"),
+        R"(
+        Do polynomial gap-filling on a float32 array.
+
+        Args:
+            ranges: RangesMatrix with shape (ndet, nsamp)
+            signal: data array (float32) with shape (ndet, nsamp)
+            buffer: integer stating max number of samples to use on each end
+            order: order of polynomial to use (1 means linear)
+            inplace: whether to overwrite data array with the model
+            extract: array to write the original data samples (inplace)
+                or the model (!inplace) into.
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("get_gap_fill_poly64", &get_gap_fill_poly<double>,
+        R"(
+        Do polynomial gap-filling on a float64 array.
+
+        See details in docstring for get_gap_fill_poly.
+        )"
+    );
+    m.def("test_buffer_wrapper", &test_buffer_wrapper,
+        R"(
+        Pass array and list of dims to match against its shape.
+        )"
+    );
+    m.def("block_moment", &block_moment<float>,
+        nb::arg("tod"),
+        nb::arg("out"),
+        nb::arg("bsize"),
+        nb::arg("moment"),
+        nb::arg("central"),
+        nb::arg("shift"),
+        R"(
+        Compute the nth moment in blocks on a float32 array.
+
+        Args:
+            tod: data array (float32) with shape (ndet, nsamp)
+            out: output array (float32) with shape (ndet, nsamp)
+                can be the same as tod
+            bsize: number of samples in each block
+            moment: moment to compute, should be >= 1
+            central: whether to compute the central moment in each block
+            shift: sample to start block at, used in each row
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("block_moment64", &block_moment<double>,
+        R"(
+        Compute the nth moment in blocks on a float64 array
+
+        See details in docstring for block_moment.
+        )"
+    );
+    m.def("block_minmax", &block_minmax<float>,
+        nb::arg("tod"),
+        nb::arg("out"),
+        nb::arg("bsize"),
+        nb::arg("mode"),
+        nb::arg("shift"),
+        R"(
+        Compute the minimum, maximum, or peak to peak in blocks on a float32 array.
+
+        Args:
+            tod: data array (float32) with shape (ndet, nsamp)
+            out: output array (float32) with shape (ndet, nsamp)
+                can be the same as tod
+            bsize: number of samples in each block
+            mode: if 0 compute the block minimum, if 1 the maximum, anything else will
+                compute the peak to peak
+            shift: sample to start block at, used in each row
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("block_minmax64", &block_minmax<double>,
+        R"(
+        Compute the minimum, maximum, or peak to peak in blocks on a float64 array.
+
+        See details in docstring for block_minmax.
+        )"
+    );
+    m.def("matched_jumps", &matched_jumps<float>,
+        nb::arg("tod"),
+        nb::arg("out"),
+        nb::arg("min_size"),
+        nb::arg("bsize"),
+        R"(
+        Flag jumps with the matched filter for a unit jump in a float32 array.
+
+        Args:
+            tod: data array (float32) with shape (ndet, nsamp)
+            out: output array (int32) with shape (ndet, nsamp)
+            min_size: minimum jump size for each det, shape (ndet,)
+            bsize: number of samples in each block
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("matched_jumps64", &matched_jumps<double>,
+        R"(
+        Flag jumps with the matched filter for a unit jump in a float64 array.
+
+        See details in docstring for matched_jumps.
+        )"
+    );
+    m.def("find_quantized_jumps", &find_quantized_jumps<float>,
+        nb::arg("tod"),
+        nb::arg("out"),
+        nb::arg("atol"),
+        nb::arg("win_size"),
+        nb::arg("scale"),
+        R"(
+        Search for jumps that are a multiple of a known value in a float32 array.
+
+        Output will be 0 where jumps are not found and the assumed jump height where
+        jumps are found.
+
+        Args:
+            tod: data array (float32) with shape (ndet, nsamp)
+            out: output array (float32) with shape (ndet, nsamp)
+            atol: how close to the multiple of scale a value needs to be to be a jump
+                in the same units as the signal. should be an array (float32) with
+                shape (ndet,)
+            win_size: size of window to use as buffer when differencing
+            scale: the scale of jumps to look for
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("find_quantized_jumps64", &find_quantized_jumps<double>,
+        R"(
+        Search for jumps that are a multiple of a known value in a float64 array.
+
+        See details in docstring for find_quantized_jumps.
+        )"
+    );
+    m.def("subtract_jump_heights", &subtract_jump_heights<float>,
+        nb::arg("tod"),
+        nb::arg("out"),
+        nb::arg("heights"),
+        nb::arg("jumps"),
+        R"(
+        Subtract cumulative jumps from a float32 TOD.
+
+        For each detector, compute the cumulative effect of the jumps identified by the
+        array 'heights' and the RangesMatrix 'jumps'.  For each range in 'jumps', the
+        values from 'heights' are checked and the size of the jump is either the
+        largest positive or the largest negative number (whichever has the largest
+        absolute value).  The 'output' value is the difference of 'tod' and the
+        accumulated jump vector.
+
+        Args:
+            tod: data array (float32) with shape (ndet, nsamp)
+            out: output array (float32) with shape (ndet, nsamp)
+                can be the same as tod
+            heights: the height of the jump at each samples
+                should be an array (float32) with shape (ndet, nsamp)
+            jumps: RangesMatrix with the jump locations and shape (ndet, nsamp).
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("subtract_jump_heights64", &subtract_jump_heights<double>,
+        R"(
+        Subtract cumulative jumps from a float64 TOD.
+
+        See details in docstring for subtract_jump_heights.
+        )"
+    );
+    m.def("clean_flag", &clean_flag,
+        nb::arg("flag"),
+        nb::arg("width"),
+        R"(
+        Unflag in-place regions without sufficient contiguous flagged values.
+
+        Args:
+            flag: flag array (int) with shape (ndet, nsamp)
+            width: the minimum number of contiguous flagged samples
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("interp1d_linear", &interp1d_linear,
+        nb::arg("x"),
+        nb::arg("y"),
+        nb::arg("x_interp"),
+        nb::arg("y_interp"),
+        R"(
+        Perform linear interpolation over rows of float32 or float64 array with GSL.
+
+        This function uses OMP to parallelize over the dets (rows) axis.
+        Vector x must be strictly increasing. Values for x_interp beyond the
+        domain of x will be computed based on extrapolation.
+
+        Args:
+            x: independent variable (float32/float64) of data with shape (nsamp,)
+            y: data array (float32/float64) with shape (ndet, nsamp)
+            x_interp: independent variable (float32/float64) for interpolated data
+                with shape (nsamp_interp,)
+            y_interp: interpolated data array (float32/float64) output buffer to be
+                modified with shape (ndet, nsamp_interp)
+
+        Returns:
+            None
+
+        )"
+    );
+    m.def("detrend", &detrend,
+        nb::arg("tod"),
+        nb::arg("method"),
+        nb::arg("linear_ncount"),
+        R"(
+        Detrend each row of an array (float32/float64).
+
+        This function uses OMP to parallelize over the dets (rows) axis.
+
+        Args:
+            tod: input array (float32/float64) buffer with shape (ndet, nsamp) that is
+                to be detrended.  The data is modified in place.
+            method: how to detrend data.  Options are 'mean', 'median', and 'linear'.
+                Linear calculates and subtracts the slope from either end of each row
+                as determined from 'linear_ncount'.
+            linear_ncount: Number (int) of samples to use on each end, when measuring
+                mean level for 'linear' detrend. Must be a positive integer or -1.  If
+                -1, nsamps / 2 will be used. Values larger than 1 suppress the
+                influence of white noise.
+
+        Returns:
+            None
+
+        )"
+    );
+
+    return;
 }
