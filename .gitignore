@@ -58,3 +58,6 @@ docs/_build
 
 # vim
 *.swp
+
+# vscode
+.vscode

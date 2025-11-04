@@ -7,14 +7,16 @@
 #include <string>
 #include <cmath>
 
-#include <boost/python.hpp>
+#ifdef _OPENMP
 #include <omp.h>
+#endif // ifdef _OPENMP
+
+#include <nanobind/nanobind.h>
 
 #include <gsl/gsl_statistics.h>
 #include <glog/logging.h>
 #include <ceres/ceres.h>
 
-#include <pybindings.h>
 #include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"
@@ -319,8 +321,8 @@ void _fit_noise(const double* f, const double* log_f, const double* pxx,
 }
 
 template <typename T>
-void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
-                       bp::object & p, bp::object & c, const double lowf,
+void _fit_noise_buffer(const nb::object & f, const nb::object & pxx,
+                       nb::object & p, nb::object & c, const double lowf,
                        const double fwhite_lower, const double fwhite_upper,
                        const double tol, const int niter, const double epsilon)
 {
@@ -424,9 +426,9 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
     google::ShutdownGoogleLogging();
 }
 
-void fit_noise(const bp::object & f, const bp::object & pxx, bp::object & p, bp::object & c,
-               const double lowf, const double fwhite_lower, const double fwhite_upper,
-               const double tol, const int niter, const double epsilon)
+void fit_noise(const nb::object & f, const nb::object & pxx, nb::object & p,
+    nb::object & c, const double lowf, const double fwhite_lower, const double
+    fwhite_upper, const double tol, const int niter, const double epsilon)
 {
     // Get data type
     int dtype = get_dtype(pxx);
@@ -443,30 +445,52 @@ void fit_noise(const bp::object & f, const bp::object & pxx, bp::object & p, bp:
 }
 
 
-PYBINDINGS("so3g")
-{
-     bp::def("fit_noise", fit_noise,
-             "fit_noise(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon)"
-             "\n"
-             "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE\n"
-             "method that minimizes a log-likelihood. OMP is used to parallelize across dets (rows)."
-             "\n"
-             "Args:\n"
-             "  f: frequency array (float32/64) with dimensions (nsamps,).\n"
-             "     Should be positive definite and strictly increasing.\n"
-             "  pxx: PSD array (float32/64) with dimensions (ndets, nsamps).\n"
-             "  p: output parameter array (float32/64) with dimensions (ndets, nparams).\n"
-             "     This is modified in place and input values are ignored.\n"
-             "  c: output uncertaintiy array (float32/64) with dimensions (ndets, nparams).\n"
-             "     This is modified in place and input values are ignored.\n"
-             "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial\n"
-             "        guess passed to least_squares fit (float64).\n"
-             "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to\n"
-             "                least_squares fit (float64).  Should be < fwhite_upper and >= lowf.\n"
-             "  fwhite_upper: Upper frequency used to estimate white noise for initial guess passed to\n"
-             "                least_squares fit (float64).  Should be > fwhite_lower and lowf.\n"
-             "  tol: absolute tolerance for minimization (float64).\n"
-             "  niter: total number of iterations to run minimization for (int).\n"
-             "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse\n"
-             "           Hessian matrix (float64). Affects minimization only.\n");
+void register_fitting_ops(nb::module_ & m) {
+    m.def("fit_noise", &fit_noise,
+        nb::arg("f"),
+        nb::arg("pxx"),
+        nb::arg("p"),
+        nb::arg("c"),
+        nb::arg("lowf"),
+        nb::arg("fwhite_lower"),
+        nb::arg("fwhite_upper"),
+        nb::arg("tol"),
+        nb::arg("niter"),
+        nb::arg("epsilon"),
+        R"(
+
+        Fits noise model with white and 1/f components to the PSD of signal. Uses a
+        MLE method that minimizes a log-likelihood. OMP is used to parallelize across
+        dets (rows).
+
+        Args:
+            f (array): frequency array (float32/64) with dimensions (nsamps,).
+                Should be positive definite and strictly increasing.
+            pxx (array): PSD array (float32/64) with dimensions (ndets, nsamps).
+            p (array): output parameter array (float32/64) with dimensions
+                (ndets, nparams). This is modified in place and input values are
+                ignored.
+            c (array): output uncertaintiy array (float32/64) with dimensions
+                (ndets, nparams). This is modified in place and input values are
+                ignored.
+            lowf (float): Frequency below which the 1/f noise index and fknee are
+                estimated for initial guess passed to least_squares fit.
+            fwhite_lower (float): Lower frequency used to estimate white noise for
+                initial guess passed to least_squares fit.  Should be < fwhite_upper
+                and >= lowf.
+            fwhite_upper (float): Upper frequency used to estimate white noise for
+                initial guess passed to least_squares fit.  Should be > fwhite_lower
+                and lowf.
+            tol (float): absolute tolerance for minimization.
+            niter (int): total number of iterations to run minimization for.
+            epsilon (float): Value to perturb gradients by when calculating
+                uncertainties with the inverse Hessian matrix. Affects minimization
+                only.
+
+        Returns:
+            None
+
+        )"
+    );
+    return;
 }
