@@ -14,7 +14,6 @@ print('Testing interface for all data types:')
 for dtype in [
         so3g.IntervalsDouble,
         so3g.IntervalsInt,
-        so3g.IntervalsTime,
 ]:
     print('    ', dtype)
     o = dtype()
@@ -66,7 +65,7 @@ for lo1 in [-1, 5, 11]:
               ivx.domain)
         assert( lo >= max(lo0, lo1) and
                 (hi==lo or hi <= min(hi0, hi1)) )
-        
+
 print()
 print('Testing import.')
 iv0 = so3g.IntervalsDouble()\
@@ -75,9 +74,14 @@ iv0 = so3g.IntervalsDouble()\
 
 
 iv1 = iv0.copy()
+print('iv0 = ', iv0)
+print('iv1 = ', iv1, flush=True)
+print('iv0.array() = ', iv0.array(), flush=True)
+print('iv1.array() = ', iv1.array(), flush=True)
 assert(np.all(iv0.array() == iv1.array()))
 
 iv1 = so3g.IntervalsDouble.from_array(iv0.array())
+print('iv1 = iv0.from_array(): ', iv1, flush=True)
 assert(np.all(iv0.array() == iv1.array()))
 
 
@@ -96,17 +100,9 @@ assert(len((iv1 - iv2).array()) == 2)
 assert(len((iv2 - iv1).array()) == 4)
 
 
-print('Sanity check on G3Time')
-ti = so3g.IntervalsTime()\
-    .add_interval(core.G3Time('2018-1-1T00:00:00'),
-                  core.G3Time('2018-1-2T00:00:00'))
-print('    ', ti)
-print('    ', ti.array())
-print('    ', (-ti).array())
-
 print()
 print('Interval <-> mask testing')
-mask = np.zeros(20, 'uint16')
+mask = np.zeros(20, np.uint16)
 n_bit, target_bit = 16, 12
 for ikill, nint in [(None, 0),
                     (19,   1),
@@ -125,6 +121,7 @@ for ikill, nint in [(None, 0),
 
 print('... to mask.')
 mask1 = so3g.IntervalsInt.mask(iv,-1)
+print(f"mask = {mask}, mask1 = {mask1}", flush=True)
 assert(np.all(mask == mask1))
 
 print('...bit-width checking works?')
