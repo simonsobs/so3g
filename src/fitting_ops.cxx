@@ -1,5 +1,4 @@
 #define NO_IMPORT_ARRAY
-#define GLOG_USE_GLOG_EXPORT
 
 #include <stdint.h>
 #include <stdio.h>

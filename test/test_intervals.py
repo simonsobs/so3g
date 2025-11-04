@@ -102,7 +102,7 @@ assert(len((iv2 - iv1).array()) == 4)
 
 print()
 print('Interval <-> mask testing')
-mask = np.zeros(20, 'uint16')
+mask = np.zeros(20, np.uint16)
 n_bit, target_bit = 16, 12
 for ikill, nint in [(None, 0),
                     (19,   1),
@@ -121,6 +121,7 @@ for ikill, nint in [(None, 0),
 
 print('... to mask.')
 mask1 = so3g.IntervalsInt.mask(iv,-1)
+print(f"mask = {mask}, mask1 = {mask1}", flush=True)
 assert(np.all(mask == mask1))
 
 print('...bit-width checking works?')

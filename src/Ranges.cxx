@@ -251,20 +251,20 @@ static int format_to_dtype(const BufferWrapper<T> &view)
 
 
 template <typename T>
-Ranges<T> Ranges<T>::from_array(const nb::object &src, const nb::object &count)
+Ranges<T> * Ranges<T>::from_array(const nb::object &src, const nb::object &count)
 {
-    Ranges<T> output;
+    Ranges<T> * output = new Ranges<T>();
     BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
 
     char *d = (char*)buf->buf;
     int n_seg = buf->shape[0];
     for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
+        output->segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    output.count = numpysafe_extract_int(count, "count");
+    output->count = numpysafe_extract_int(count, "count");
 
-    output.cleanup();
+    output->cleanup();
     return output;
 }
 

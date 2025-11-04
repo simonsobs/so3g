@@ -27,7 +27,7 @@ public:
     Intervals(T start, T end) : Intervals(make_pair(start,end)) {}
     Intervals(Intervals const & other);
 
-    static Intervals<T> from_array(const nb::object &src);
+    static Intervals<T> * from_array(const nb::object &src);
 
     // Basic ops
     Intervals<T>& merge(const Intervals<T> &src);
