@@ -25,6 +25,7 @@ public:
     Intervals();
     Intervals(pair<T,T> domain) : domain{domain} {}
     Intervals(T start, T end) : Intervals(make_pair(start,end)) {}
+    Intervals(Intervals const & other);
 
     static Intervals<T> from_array(const nb::object &src);
 

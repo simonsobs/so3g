@@ -8,7 +8,6 @@
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
-#include <boost/math/quaternion.hpp>
 
 #include <nanobind/nanobind.h>
 
