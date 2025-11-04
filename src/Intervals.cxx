@@ -8,6 +8,7 @@
 #include <nanobind/operators.h>
 #include <nanobind/stl/tuple.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/ndarray.h>
 
 #include "so3g_numpy.h"
 
@@ -295,18 +296,25 @@ static int format_to_dtype(const BufferWrapper<T> &view)
     return NPY_NOTYPE;
 }
 
-
 template <typename T>
-Intervals<T> Intervals<T>::from_array(const nb::object &src)
+Intervals<T> * Intervals<T>::from_array(const nb::object & src)
 {
-    Intervals<T> output;
-    BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
+    Intervals<T> * output = new Intervals<T>();
 
+    BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
     char *d = (char*)buf->buf;
-    int n_seg = buf->shape[0];
-    for (int i=0; i<n_seg; ++i) {
-        output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
+    size_t n_seg = buf->shape[0];
+
+    std::cerr << "Intervals from_array shape = " << buf->shape[0] << "," << buf->shape[1] << std::endl;
+    std::cerr << "Intervals from_array strides = " << buf->strides[0] << "," << buf->strides[1] << std::endl;
+
+    for (size_t i = 0; i < n_seg; ++i) {
+        std::pair<T,T> pr = interval_pair<T>(d, d+(buf->strides[1]));
+        std::cerr << "Intervals from_array seg " << i << " pair = " << pr.first << "," << pr.second << std::endl;
+        output->segments.push_back(pr);
+        //output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
+        std::cerr << "Intervals from_array segments size now " << output->segments.size() << std::endl;
     }
 
     return output;
@@ -316,6 +324,7 @@ template <typename T>
 nb::object Intervals<T>::array() const
 {
     npy_intp dims[2];
+    std::cerr << "Intervals segments.size() = " << segments.size() << std::endl;
     dims[0] = (npy_intp)segments.size();
     dims[1] = 2;
     int dtype = get_dtype<T>();
@@ -471,14 +480,23 @@ static inline nb::object mask_(const nb::list &ivlist, int n_bits)
     pair<intType,intType> domain;
 
     for (long i=0; i<nb::len(ivlist); i++) {
+        std::cerr << "Intervals mask processing list item " << i << std::endl;
         indexes.push_back(0);
-        ivals.push_back(nb::cast<Intervals<intType>>(ivlist[i]));
+        Intervals<intType> cur = nb::cast<Intervals<intType>>(ivlist[i]);
+        std::cerr << "Intervals mask cast cur domain = " << cur.domain.first << "," << cur.domain.second << std::endl;
+
         if (i==0) {
-            domain = ivals[i].domain;
-        } else if (domain != ivals[i].domain) {
+            domain = cur.domain;
+            std::cerr << "Intervals mask set domain to " << domain.first << "," << domain.second << std::endl;
+        } else if (domain == cur.domain) {
+            std::cerr << "Intervals mask domain agrees, append" << std::endl;
+            ivals.push_back(cur);
+        } else {
+            std::cerr << "Intervals mask domain mismatch" << std::endl;
             throw agreement_exception("ivlist[0]", "all other ivlist[i]", "domain");
         }
     }
+    std::cerr << "Intervals mask done processing list" << std::endl;
 
     // Determine the output mask size based on n_bits... which may be unspecified.
     int npy_type = NPY_UINT8;
@@ -487,6 +505,7 @@ static inline nb::object mask_(const nb::list &ivlist, int n_bits)
     else if (n_bits < ivals.size())
         throw general_agreement_exception("Input list has more items than the "
                                           "output mask size (n_bits).");
+    std::cerr << "Intervals mask using n_bits = " << n_bits << std::endl;
 
     if (n_bits <= 8)
         npy_type = NPY_UINT8;
@@ -502,10 +521,13 @@ static inline nb::object mask_(const nb::list &ivlist, int n_bits)
             << " requested to encode this mask.";
         throw general_agreement_exception(err.str());
     }
+    std::cerr << "Intervals mask use npy_type = " << npy_type << std::endl;
 
     int n = domain.second - domain.first;
     npy_intp dims[1];
     dims[0] = n;
+
+    std::cerr << "Intervals mask allocate 1D array of len " << n << std::endl;
     PyObject *v = PyArray_SimpleNew(1, dims, npy_type);
     if (v == NULL) {
         ostringstream dstr;
@@ -516,15 +538,20 @@ static inline nb::object mask_(const nb::list &ivlist, int n_bits)
 
     // Assumes little-endian.
     int n_byte = PyArray_ITEMSIZE((PyArrayObject*)v);
+    std::cerr << "Intervals mask n_byte = " << n_byte << std::endl;
+
     uint8_t *ptr = reinterpret_cast<uint8_t*>((PyArray_DATA((PyArrayObject*)v)));
     memset(ptr, 0, n*n_byte);
     for (long bit=0; bit<ivals.size(); ++bit) {
         for (auto p: ivals[bit].segments) {
-            for (int i=p.first - domain.first; i<p.second - domain.first; i++)
+            for (int i=p.first - domain.first; i<p.second - domain.first; i++) {
+                std::cerr << "Intervals mask bit " << bit << ", i " << i << ": ptr[" << i*n_byte + bit/8 << "] |= " << (1<<(bit%8)) << std::endl;
                 ptr[i*n_byte + bit/8] |= (1<<(bit%8));
+            }
         }
     }
 
+    std::cerr << "Intervals mask return" << std::endl;
     return nb::steal<nb::object>(v);
 }
 
