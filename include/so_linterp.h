@@ -5,9 +5,9 @@
 #include <vector>
 #include <iostream>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 class LookupTable
@@ -76,4 +76,4 @@ public:
 };
 
 
-void register_so_linterp(nb::module_ & m);
+void register_so_linterp(py::module_ & m);

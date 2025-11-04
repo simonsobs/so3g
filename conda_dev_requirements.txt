@@ -10,18 +10,24 @@
 #  conda install --file conda_dev_requirements.txt
 #  python3 -m pip install -vv .
 #
-# Build tools
+# Toolchain
 compilers
 cmake
+ninja
 # Compiled dependencies
 libopenblas=*=*openmp*
 libblas=*=*openblas
 openblas=*=*openmp*
 boost
-libflac
 gsl
 netcdf4
+glog
+ceres-solver=*=cpu*
+pybind11
 # Python dependencies
+scikit-build-core
+setuptools
+setuptools-scm
 numpy
 scipy
 astropy
@@ -31,5 +37,6 @@ pytz
 pyaml
 sqlalchemy
 tqdm
+pytest
 # Eventually we should make a conda package for these:
 # qpoint

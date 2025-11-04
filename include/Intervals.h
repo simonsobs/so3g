@@ -2,13 +2,13 @@
 
 #include <stdint.h>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
 #include "numpy_assist.h"
 
 using namespace std;
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 // Template class for working with intervals -- pairs of objects of
@@ -25,8 +25,9 @@ public:
     Intervals();
     Intervals(pair<T,T> domain) : domain{domain} {}
     Intervals(T start, T end) : Intervals(make_pair(start,end)) {}
+    Intervals(Intervals const & other);
 
-    static Intervals<T> from_array(const nb::object &src);
+    static Intervals<T> * from_array(const py::object &src);
 
     // Basic ops
     Intervals<T>& merge(const Intervals<T> &src);
@@ -40,9 +41,9 @@ public:
 
     void cleanup();
 
-    nb::object array() const;
+    py::object array() const;
 
-    Intervals<T> getitem(nb::object indices);
+    Intervals<T> getitem(py::object indices);
 
     // Operators.
     Intervals<T> operator~() const;
@@ -54,8 +55,8 @@ public:
     Intervals<T> operator*(const Intervals<T> &src) const;
 
     // Special conversions.
-    static nb::object from_mask(const nb::object &src, int n_bits);
-    static nb::object mask(const nb::list &ivlist, int n_bits);
+    static py::object from_mask(const py::object &src, int n_bits);
+    static py::object mask(const py::list &ivlist, int n_bits);
 
     string Description() const;
 };
@@ -66,4 +67,4 @@ typedef Intervals<int64_t> IntervalsInt;
 typedef Intervals<int32_t> IntervalsInt32;
 
 
-void register_intervals(nb::module_ & m);
+void register_intervals(py::module_ & m);

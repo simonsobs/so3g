@@ -2,11 +2,11 @@
 #include <cstdint>
 #include <array>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
 #include "numpy_assist.h"
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 class BFilterParams {
@@ -29,12 +29,12 @@ public:
     void apply(int32_t* input, int32_t* output, int n_samp);
     void apply_to_float(float *input, float *output, float unit, int n_samp);
 
-    void apply_buffer(nb::object input,
-                      nb::object output);
+    void apply_buffer(py::object input,
+                      py::object output);
 
     std::vector<std::vector<std::array<std::int64_t,2>>> w;  // (n_bank,n_chan,2)
     std::vector<BFilterParams> par;
 };
 
 
-void register_butterworth(nb::module_ & m);
+void register_butterworth(py::module_ & m);
