@@ -482,17 +482,10 @@ static inline nb::object mask_(const nb::list &ivlist, int n_bits)
     for (long i=0; i<nb::len(ivlist); i++) {
         std::cerr << "Intervals mask processing list item " << i << std::endl;
         indexes.push_back(0);
-        Intervals<intType> cur = nb::cast<Intervals<intType>>(ivlist[i]);
-        std::cerr << "Intervals mask cast cur domain = " << cur.domain.first << "," << cur.domain.second << std::endl;
-
+        ivals.push_back(nb::cast<Intervals<intType>>(ivlist[i]));
         if (i==0) {
-            domain = cur.domain;
-            std::cerr << "Intervals mask set domain to " << domain.first << "," << domain.second << std::endl;
-        } else if (domain == cur.domain) {
-            std::cerr << "Intervals mask domain agrees, append" << std::endl;
-            ivals.push_back(cur);
-        } else {
-            std::cerr << "Intervals mask domain mismatch" << std::endl;
+            domain = ivals[i].domain;
+        } else if (domain != ivals[i].domain) {
             throw agreement_exception("ivlist[0]", "all other ivlist[i]", "domain");
         }
     }

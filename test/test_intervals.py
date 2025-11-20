@@ -112,6 +112,7 @@ for ikill, nint in [(None, 0),
     if ikill is not None:
         mask[ikill] = (1<<target_bit)
     iv = so3g.IntervalsInt.from_mask(mask, n_bit)
+    print(f"IntervalsInt.from_mask({mask},{n_bit}) -> {iv}", flush=True)
     assert(len(iv) == n_bit)
     for i in range(n_bit):
         if i == target_bit:
@@ -119,7 +120,7 @@ for ikill, nint in [(None, 0),
         else:
             assert(len(iv[i].array()) == 0)
 
-print('... to mask.')
+print(f"so3g.IntervalsInt.mask({iv}, -1)", flush=True)
 mask1 = so3g.IntervalsInt.mask(iv,-1)
 print(f"mask = {mask}, mask1 = {mask1}", flush=True)
 assert(np.all(mask == mask1))
@@ -136,7 +137,7 @@ print('...domain checking works?')
 iv.append(so3g.IntervalsInt(-2,20))
 try:
     mask3 = so3g.IntervalsInt.mask(iv,-1)
-except RuntimeError as e:
+except Exception as e:
     mask3 = 'failed'
     print(' -> ', e)
 assert(mask3 == 'failed')
