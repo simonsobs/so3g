@@ -31,6 +31,7 @@ find_package(Spt3g REQUIRED)
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(FLAC)
 find_package(GSL)
+find_package(FFTW)
 find_package(Ceres)
 
 find_package(OpenMP)
@@ -86,7 +87,15 @@ target_link_libraries(so3g PUBLIC spt3g::core)
 target_include_directories(so3g PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(so3g PUBLIC ${GSL_LIBRARIES})
 # Link Ceres
-target_link_libraries(so3g PUBLIC Ceres::ceres Eigen3::Eigen)
+target_link_libraries(so3g PUBLIC Ceres::Ceres Eigen3::Eigen)
+
+# Link FFTW
+target_include_directories(so3g PRIVATE ${FFTW_INCLUDE_DIRS})
+target_link_libraries(so3g PUBLIC ${FFTW_LIBRARIES})
+target_link_libraries(so3g PUBLIC ${FFTW_OMP_LIBRARY})
+# Link FFTWF
+target_link_libraries(so3g PUBLIC ${FFTWF_LIBRARIES})
+target_link_libraries(so3g PUBLIC ${FFTWF_OMP_LIBRARY})
 
 # FLAC- library already comes from spt3g dependencies, but
 # we need to have the headers.
