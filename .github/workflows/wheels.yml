@@ -23,10 +23,6 @@ jobs:
           # Linux 64 bit manylinux
           - os: ubuntu-latest
             arch: x86_64
-            python: 39
-            builder: manylinux
-          - os: ubuntu-latest
-            arch: x86_64
             python: 310
             builder: manylinux
           - os: ubuntu-latest
@@ -37,61 +33,54 @@ jobs:
             arch: x86_64
             python: 312
             builder: manylinux
-          # - os: ubuntu-latest
-          #   arch: x86_64
-          #   python: 313
-          #   builder: manylinux
+          - os: ubuntu-latest
+            arch: x86_64
+            python: 313
+            builder: manylinux
 
-          # MacOS x86_64.  The macos-13 runner is the last
-          # Intel-based runner version.  At some point we'll
-          # need to switch to macos-14 and test cross compiling.
-          - os: macos-13
-            arch: x86_64
-            python: 39
-            builder: macosx
-            deploy: 13.0
-          - os: macos-13
+          # MacOS x86_64.
+          - os: macos-15-intel
             arch: x86_64
             python: 310
             builder: macosx
-            deploy: 13.0
-          - os: macos-13
+            deploy: 15.0
+          - os: macos-15-intel
             arch: x86_64
             python: 311
             builder: macosx
-            deploy: 13.0
-          - os: macos-13
+            deploy: 15.0
+          - os: macos-15-intel
             arch: x86_64
             python: 312
             builder: macosx
-            deploy: 13.0
-          # - os: macos-13
-          #   arch: x86_64
-          #   python: 313
-          #   builder: macosx
-          #   deploy: 13.0
+            deploy: 15.0
+          - os: macos-15-intel
+            arch: x86_64
+            python: 313
+            builder: macosx
+            deploy: 15.0
 
           # MacOS arm64
-          - os: macos-14
+          - os: macos-15
             arch: arm64
             python: 310
             builder: macosx
-            deploy: 14.0
-          - os: macos-14
+            deploy: 15.0
+          - os: macos-15
             arch: arm64
             python: 311
             builder: macosx
-            deploy: 14.0
-          - os: macos-14
+            deploy: 15.0
+          - os: macos-15
             arch: arm64
             python: 312
             builder: macosx
-            deploy: 14.0
-          # - os: macos-latest
-          #   arch: arm64
-          #   python: 313
-          #   builder: macosx
-          #   deploy: 14.0
+            deploy: 15.0
+          - os: macos-15
+            arch: arm64
+            python: 313
+            builder: macosx
+            deploy: 15.0
     env:
       CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.builder }}_${{ matrix.arch }}
       CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.builder }}_2_28
@@ -121,9 +110,11 @@ jobs:
         ./wheels/install_deps_osx.sh
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
       CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
-      CIBW_BEFORE_TEST: >
-        python -m pip install -r test-requirements.txt &&
+      CIBW_BEFORE_TEST_LINUX: >
+        python -m pip install pytest pixell &&
         export OMP_NUM_THREADS=2
+      CIBW_BEFORE_TEST_MACOS: >
+        python -m pip install pytest
       CIBW_TEST_COMMAND: >
         python -c 'import so3g.smurf.reader; from spt3g import core' &&
         python -m pytest {package}/test
@@ -138,7 +129,7 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel==2.23.3
+          python -m pip install cibuildwheel==3.3.0
 
       - name: Build wheel
         run: |

@@ -5,11 +5,6 @@ requires = [
     "wheel",
     "numpy",
     "scipy",
-    # Astropy depends on numpy 1.x with python-3.9.  Place
-    # a build-time dependency here so that we build with a
-    # compatible version of numpy.  Remove this after dropping
-    # python-3.9 support.
-    "astropy",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -19,7 +14,7 @@ readme = "README.rst"
 description = "Tools for Simons Observatory work with spt3g_software"
 urls = {source = "https://github.com/simonsobs/so3g"}
 license = {file = "LICENSE"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "scipy",
@@ -39,10 +34,10 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: BSD License",
   "Topic :: Scientific/Engineering :: Astronomy",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 
 [tool.pytest.ini_options]
