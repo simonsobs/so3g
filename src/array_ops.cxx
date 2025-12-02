@@ -85,7 +85,10 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
     }
 }
 
-void nmat_detvecs_apply2(const bp::object & ft, const bp::object & bins, const bp::object & iD, const bp::object & iV, float s, float norm) {
+// Similar to the previous `nmat_detvecs_apply` function but without internally double `bins`.
+// So the user must do so himself if passing in a real view of a fourier array.
+// The motivation for this to let it also work wth the already real modes of a Discrete Cosine Transform.
+void nmat_detvecs_apply_no2xbins(const bp::object & ft, const bp::object & bins, const bp::object & iD, const bp::object & iV, float s, float norm) {
     // Should pass in this too
     BufferWrapper<float>               ft_buf  ("ft",   ft,   false, std::vector<int>{-1,-1});
     BufferWrapper<int32_t>             bins_buf("bins", bins, false, std::vector<int>{-1, 2});
@@ -1312,7 +1315,7 @@ void detrend(bp::object & tod, const std::string & method, const int linear_ncou
 PYBINDINGS("so3g")
 {
     bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
-    bp::def("nmat_detvecs_apply2", nmat_detvecs_apply2);
+    bp::def("nmat_detvecs_apply_no2xbins", nmat_detvecs_apply_no2xbins);
     bp::def("process_cuts",  process_cuts);
     bp::def("translate_cuts", translate_cuts);
     bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
