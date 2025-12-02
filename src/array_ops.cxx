@@ -19,7 +19,7 @@ extern "C" {
 # include <omp.h>
 #endif // ifdef _OPENMP
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_statistics.h>
@@ -29,7 +29,7 @@ extern "C" {
 #include "Ranges.h"
 #include "array_ops.h"
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 // TODO: Generalize to double precision too.
@@ -38,7 +38,7 @@ namespace nb = nanobind;
 // * bins[nbin,{from,to}]  the start and end of each bin
 // * iD[nbin,ndet]         the inverse uncorrelated variance for each detector per bin
 // * iV[nbin,ndet,nvec]    matrix representing the scaled eivenvectors per bin
-void nmat_detvecs_apply(const nb::object & ft, const nb::object & bins, const nb::object & iD, const nb::object & iV, float s, float norm) {
+void nmat_detvecs_apply(const py::object & ft, const py::object & bins, const py::object & iD, const py::object & iV, float s, float norm) {
     // Should pass in this too
     BufferWrapper<float>               ft_buf  ("ft",   ft,   false, std::vector<int>{-1,-1});
     BufferWrapper<int32_t>             bins_buf("bins", bins, false, std::vector<int>{-1, 2});
@@ -92,7 +92,7 @@ void nmat_detvecs_apply(const nb::object & ft, const nb::object & bins, const nb
 // probably be moved into its own file.
 
 // Forward declarations of helper functions
-int get_dtype(const nb::object &);
+int get_dtype(const py::object &);
 int pcut_full_measure_helper(const vector<RangesInt32> &);
 template <typename T> void pcut_full_tod2vals_helper(const vector<RangesInt32> &, T *, int, T *);
 template <typename T> void pcut_full_vals2tod_helper(const vector<RangesInt32> &, T *, int, T *);
@@ -128,14 +128,14 @@ template <typename T> void pcut_poly_translate_helper(const vector<RangesInt32> 
 // cut range starts. This will be fast enough to build on the fly. Would pass this as an extra
 // argument to the helper functions.
 
-int process_cuts(const nb::object & range_matrix, const std::string & operation, const std::string & model, const nb::dict & params, const nb::object & tod, const nb::object & vals) {
+int process_cuts(const py::object & range_matrix, const std::string & operation, const std::string & model, const py::dict & params, const py::object & tod, const py::object & vals) {
     auto ranges = extract_ranges<int32_t>(range_matrix);
     // Decoding these up here lets us avoid some duplication later
     int resolution, nmax;
     if     (model == "full") {}
     else if(model == "poly") {
-        resolution = nb::cast<int>(params["resolution"]);
-        nmax       = nb::cast<int>(params["nmax"]);
+        resolution = py::cast<int>(params["resolution"]);
+        nmax       = py::cast<int>(params["nmax"]);
     } else throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
 
     if(operation == "measure") {
@@ -182,14 +182,14 @@ int process_cuts(const nb::object & range_matrix, const std::string & operation,
     return 0;
 }
 
-void translate_cuts(const nb::object & irange_matrix, const nb::object & orange_matrix, const std::string & model, const nb::dict & params, const nb::object & ivals, nb::object & ovals) {
+void translate_cuts(const py::object & irange_matrix, const py::object & orange_matrix, const std::string & model, const py::dict & params, const py::object & ivals, py::object & ovals) {
     // Decoding these up here lets us avoid some duplication later
     int resolution, nmax;
     if       (model == "full") {
         // nothing to do - res and nmax not used here
     } else if(model == "poly") {
-        resolution = nb::cast<int>(params["resolution"]);
-        nmax       = nb::cast<int>(params["nmax"]);
+        resolution = py::cast<int>(params["resolution"]);
+        nmax       = py::cast<int>(params["nmax"]);
     } else {
         throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
     }
@@ -217,7 +217,7 @@ void translate_cuts(const nb::object & irange_matrix, const nb::object & orange_
 
 // Helpers for the cuts
 
-int get_dtype(const nb::object & arr) {
+int get_dtype(const py::object & arr) {
     PyObject *ob = PyArray_FromAny(arr.ptr(), NULL, 0, 0, 0, NULL);
     if (ob == NULL) throw exception();
     PyArrayObject * a = reinterpret_cast<PyArrayObject*>(ob);
@@ -522,12 +522,12 @@ void get_gap_fill_poly_single(const RangesInt32 &gaps, T *data,
 }
 
 template <typename T>
-void get_gap_fill_poly(const nb::object ranges,
-                       const nb::object tod,
+void get_gap_fill_poly(const py::object ranges,
+                       const py::object tod,
                        int buffer,
                        int order,
                        bool inplace,
-                       const nb::object ex)
+                       const py::object ex)
 {
     // As a test, copy data from rangemat into segment.
     auto rangemat = extract_ranges<int32_t>(ranges);
@@ -568,12 +568,13 @@ void get_gap_fill_poly(const nb::object ranges,
 }
 
 
-void test_buffer_wrapper(const nb::object array,
-                         const nb::object dims)
+void test_buffer_wrapper(const py::object array,
+                         const py::object dims_obj)
 {
-    std::vector<int> _dims(nb::len(dims));
-    for (int i=0; i<nb::len(dims); i++)
-        _dims[i] = nb::cast<int>(dims[i]);
+    py::tuple dims = py::cast<py::tuple>(dims_obj);
+    std::vector<int> _dims(py::len(dims));
+    for (int i=0; i<py::len(dims); i++)
+        _dims[i] = py::cast<int>(dims[i]);
     BufferWrapper<double> array_buf  ("array",  array,  false, _dims);
 
 }
@@ -629,7 +630,7 @@ void _block_moment(T* tod_data, T* output, int bsize, int moment, bool central, 
 }
 
 template <typename T>
-void block_moment(const nb::object & tod, const nb::object & out, int bsize, int moment, bool central, int shift)
+void block_moment(const py::object & tod, const py::object & out, int bsize, int moment, bool central, int shift)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -687,7 +688,7 @@ void _block_minmax(T* tod_data, T* output, int bsize, int mode, int ndet, int ns
 }
 
 template <typename T>
-void block_minmax(const nb::object & tod, const nb::object & out, int bsize, int mode, int shift)
+void block_minmax(const py::object & tod, const py::object & out, int bsize, int mode, int shift)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -729,7 +730,7 @@ void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
     }
 }
 
-void clean_flag(const nb::object & flag, int width)
+void clean_flag(const py::object & flag, int width)
 {
     BufferWrapper<int> flag_buf  ("flag", flag, false, std::vector<int>{-1, -1});
     int ndet = flag_buf->shape[0];
@@ -794,7 +795,7 @@ void _jumps_matched_filter(T* tod_data, T* output, int bsize, int shift, int nde
 }
 
 template <typename T>
-void matched_jumps(const nb::object & tod, const nb::object & out, const nb::object & min_size, int bsize)
+void matched_jumps(const py::object & tod, const py::object & out, const py::object & min_size, int bsize)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -847,7 +848,7 @@ void matched_jumps(const nb::object & tod, const nb::object & out, const nb::obj
 }
 
 template <typename T>
-void find_quantized_jumps(const nb::object & tod, const nb::object & out, const nb::object & atol, int win_size, T scale)
+void find_quantized_jumps(const py::object & tod, const py::object & out, const py::object & atol, int win_size, T scale)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
@@ -892,7 +893,7 @@ void find_quantized_jumps(const nb::object & tod, const nb::object & out, const 
 }
 
 template <typename T>
-void subtract_jump_heights(const nb::object & tod, const nb::object & out, const nb::object & heights, const nb::object & jumps) {
+void subtract_jump_heights(const py::object & tod, const py::object & out, const py::object & heights, const py::object & jumps) {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     int ndet = tod_buf->shape[0];
     int nsamp = tod_buf->shape[1];
@@ -977,8 +978,8 @@ void _linear_interp(const double* x, const double* y, const double* x_interp,
 }
 
 template <typename T>
-void _interp1d(const nb::object & x, const nb::object & y, const nb::object & x_interp,
-               nb::object & y_interp, const gsl_interp_type* interp_type,
+void _interp1d(const py::object & x, const py::object & y, const py::object & x_interp,
+               py::object & y_interp, const gsl_interp_type* interp_type,
                _interp_func_pointer<T> interp_func)
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
@@ -1081,8 +1082,8 @@ void _interp1d(const nb::object & x, const nb::object & y, const nb::object & x_
     }
 }
 
-void interp1d_linear(const nb::object & x, const nb::object & y,
-                     const nb::object & x_interp, nb::object & y_interp)
+void interp1d_linear(const py::object & x, const py::object & y,
+                     const py::object & x_interp, py::object & y_interp)
 {
     // Get data type
     int dtype = get_dtype(y);
@@ -1219,7 +1220,7 @@ void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
 }
 
 template <typename T>
-void _detrend_buffer(nb::object & tod, const std::string & method,
+void _detrend_buffer(py::object & tod, const std::string & method,
                      const int linear_ncount)
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
@@ -1247,7 +1248,7 @@ void _detrend_buffer(nb::object & tod, const std::string & method,
     _detrend<T>(tod_data, ndets, nsamps, row_stride, method, linear_ncount, nthreads);
 }
 
-void detrend(nb::object & tod, const std::string & method, const int linear_ncount)
+void detrend(py::object & tod, const std::string & method, const int linear_ncount)
 {
     // Get data type
     int dtype = get_dtype(tod);
@@ -1264,17 +1265,17 @@ void detrend(nb::object & tod, const std::string & method, const int linear_ncou
 }
 
 
-void register_array_ops(nb::module_ & m) {
+void register_array_ops(py::module_ & m) {
     m.def("nmat_detvecs_apply", &nmat_detvecs_apply);
     m.def("process_cuts", &process_cuts);
     m.def("translate_cuts", &translate_cuts);
     m.def("get_gap_fill_poly", &get_gap_fill_poly<float>,
-        nb::arg("ranges"),
-        nb::arg("signal"),
-        nb::arg("buffer"),
-        nb::arg("order"),
-        nb::arg("inplace"),
-        nb::arg("extract"),
+        py::arg("ranges"),
+        py::arg("signal"),
+        py::arg("buffer"),
+        py::arg("order"),
+        py::arg("inplace"),
+        py::arg("extract"),
         R"(
         Do polynomial gap-filling on a float32 array.
 
@@ -1305,12 +1306,12 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("block_moment", &block_moment<float>,
-        nb::arg("tod"),
-        nb::arg("out"),
-        nb::arg("bsize"),
-        nb::arg("moment"),
-        nb::arg("central"),
-        nb::arg("shift"),
+        py::arg("tod"),
+        py::arg("out"),
+        py::arg("bsize"),
+        py::arg("moment"),
+        py::arg("central"),
+        py::arg("shift"),
         R"(
         Compute the nth moment in blocks on a float32 array.
 
@@ -1336,11 +1337,11 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("block_minmax", &block_minmax<float>,
-        nb::arg("tod"),
-        nb::arg("out"),
-        nb::arg("bsize"),
-        nb::arg("mode"),
-        nb::arg("shift"),
+        py::arg("tod"),
+        py::arg("out"),
+        py::arg("bsize"),
+        py::arg("mode"),
+        py::arg("shift"),
         R"(
         Compute the minimum, maximum, or peak to peak in blocks on a float32 array.
 
@@ -1366,10 +1367,10 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("matched_jumps", &matched_jumps<float>,
-        nb::arg("tod"),
-        nb::arg("out"),
-        nb::arg("min_size"),
-        nb::arg("bsize"),
+        py::arg("tod"),
+        py::arg("out"),
+        py::arg("min_size"),
+        py::arg("bsize"),
         R"(
         Flag jumps with the matched filter for a unit jump in a float32 array.
 
@@ -1392,11 +1393,11 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("find_quantized_jumps", &find_quantized_jumps<float>,
-        nb::arg("tod"),
-        nb::arg("out"),
-        nb::arg("atol"),
-        nb::arg("win_size"),
-        nb::arg("scale"),
+        py::arg("tod"),
+        py::arg("out"),
+        py::arg("atol"),
+        py::arg("win_size"),
+        py::arg("scale"),
         R"(
         Search for jumps that are a multiple of a known value in a float32 array.
 
@@ -1425,10 +1426,10 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("subtract_jump_heights", &subtract_jump_heights<float>,
-        nb::arg("tod"),
-        nb::arg("out"),
-        nb::arg("heights"),
-        nb::arg("jumps"),
+        py::arg("tod"),
+        py::arg("out"),
+        py::arg("heights"),
+        py::arg("jumps"),
         R"(
         Subtract cumulative jumps from a float32 TOD.
 
@@ -1460,8 +1461,8 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("clean_flag", &clean_flag,
-        nb::arg("flag"),
-        nb::arg("width"),
+        py::arg("flag"),
+        py::arg("width"),
         R"(
         Unflag in-place regions without sufficient contiguous flagged values.
 
@@ -1475,10 +1476,10 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("interp1d_linear", &interp1d_linear,
-        nb::arg("x"),
-        nb::arg("y"),
-        nb::arg("x_interp"),
-        nb::arg("y_interp"),
+        py::arg("x"),
+        py::arg("y"),
+        py::arg("x_interp"),
+        py::arg("y_interp"),
         R"(
         Perform linear interpolation over rows of float32 or float64 array with GSL.
 
@@ -1500,9 +1501,9 @@ void register_array_ops(nb::module_ & m) {
         )"
     );
     m.def("detrend", &detrend,
-        nb::arg("tod"),
-        nb::arg("method"),
-        nb::arg("linear_ncount"),
+        py::arg("tod"),
+        py::arg("method"),
+        py::arg("linear_ncount"),
         R"(
         Detrend each row of an array (float32/float64).
 

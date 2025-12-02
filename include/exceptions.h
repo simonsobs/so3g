@@ -3,9 +3,9 @@
 #include <exception>
 #include <sstream>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 // so3g_exception is our internal base class, which defines the
@@ -133,4 +133,4 @@ public:
 };
 
 
-void register_exceptions(nb::module_ & m);
+void register_exceptions(py::module_ & m);

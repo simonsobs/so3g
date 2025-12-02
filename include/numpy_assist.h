@@ -4,11 +4,12 @@
 #include <memory>
 #include <vector>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "exceptions.h"
 
-namespace nb = nanobind;
+namespace py = pybind11;
 
 
 // check_buffer_type<T>(const Py_buffer &view)
@@ -88,13 +89,13 @@ std::string type_name<double>() {
 // or np.int64 can be passed in places where we'd otherwise expect an
 // integer.
 
-inline int numpysafe_extract_int(nb::object obj, const std::string argstr)
+inline int numpysafe_extract_int(py::object obj, const std::string argstr)
 {
     int result = 0;
     // Try extracting integer directly and fall back to manual extraction.
-    if (! nb::try_cast<int>(obj, result)) {
+    if (! py::isinstance<int>(obj)) {
         if (PyObject_HasAttrString(obj.ptr(), "item")) {
-            std::string result_str = nb::str(obj.attr("item")).c_str();
+            std::string result_str = py::cast<py::str>(obj.attr("item"));
             if (result_str == "0") {
                 // legitimate zero value
                 result = 0;
@@ -110,6 +111,8 @@ inline int numpysafe_extract_int(nb::object obj, const std::string argstr)
             std::string errstr = "Failed to interpret argument \"" + argstr + "\" as int.";
             throw ValueError_exception("errstr");
         }
+    } else {
+        result = py::cast<int>(obj);
     }
     return result;
 }
@@ -160,7 +163,7 @@ public:
     }
 
     // Constructor with no shape or type checking.
-    BufferWrapper(std::string name, const nb::object &src, bool optional)
+    BufferWrapper(std::string name, const py::object &src, bool optional)
         : BufferWrapper() {
         if (optional && (src.ptr() == Py_None))
             return;
@@ -172,7 +175,7 @@ public:
     }
 
     // Constructor with shape and type checking.
-    BufferWrapper(std::string name, const nb::object &src, bool optional,
+    BufferWrapper(std::string name, const py::object &src, bool optional,
                   std::vector<int> shape)
         : BufferWrapper(name, src, optional) {
 

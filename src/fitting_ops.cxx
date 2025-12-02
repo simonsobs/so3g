@@ -10,7 +10,7 @@
 #include <omp.h>
 #endif // ifdef _OPENMP
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
 
 #include <gsl/gsl_statistics.h>
 #include <glog/logging.h>
@@ -320,8 +320,8 @@ void _fit_noise(const double* f, const double* log_f, const double* pxx,
 }
 
 template <typename T>
-void _fit_noise_buffer(const nb::object & f, const nb::object & pxx,
-                       nb::object & p, nb::object & c, const double lowf,
+void _fit_noise_buffer(const py::object & f, const py::object & pxx,
+                       py::object & p, py::object & c, const double lowf,
                        const double fwhite_lower, const double fwhite_upper,
                        const double tol, const int niter, const double epsilon)
 {
@@ -425,8 +425,8 @@ void _fit_noise_buffer(const nb::object & f, const nb::object & pxx,
     google::ShutdownGoogleLogging();
 }
 
-void fit_noise(const nb::object & f, const nb::object & pxx, nb::object & p,
-    nb::object & c, const double lowf, const double fwhite_lower, const double
+void fit_noise(const py::object & f, const py::object & pxx, py::object & p,
+    py::object & c, const double lowf, const double fwhite_lower, const double
     fwhite_upper, const double tol, const int niter, const double epsilon)
 {
     // Get data type
@@ -444,18 +444,18 @@ void fit_noise(const nb::object & f, const nb::object & pxx, nb::object & p,
 }
 
 
-void register_fitting_ops(nb::module_ & m) {
+void register_fitting_ops(py::module_ & m) {
     m.def("fit_noise", &fit_noise,
-        nb::arg("f"),
-        nb::arg("pxx"),
-        nb::arg("p"),
-        nb::arg("c"),
-        nb::arg("lowf"),
-        nb::arg("fwhite_lower"),
-        nb::arg("fwhite_upper"),
-        nb::arg("tol"),
-        nb::arg("niter"),
-        nb::arg("epsilon"),
+        py::arg("f"),
+        py::arg("pxx"),
+        py::arg("p"),
+        py::arg("c"),
+        py::arg("lowf"),
+        py::arg("fwhite_lower"),
+        py::arg("fwhite_upper"),
+        py::arg("tol"),
+        py::arg("niter"),
+        py::arg("epsilon"),
         R"(
 
         Fits noise model with white and 1/f components to the PSD of signal. Uses a

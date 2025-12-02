@@ -19,7 +19,7 @@ if (NOT SKBUILD)
     in your environment once and use the following command that avoids
     a costly creation of a new virtual environment at every compilation:
     =====================================================================
-    $ pip install nanobind scikit-build-core[pyproject]
+    $ pip install pybind11 scikit-build-core[pyproject]
     $ pip install --no-build-isolation -ve .
     =====================================================================
     You may optionally add -Ceditable.rebuild=true to auto-rebuild when
@@ -46,7 +46,7 @@ find_package(OpenMP)
 find_package(FLAC)
 find_package(GSL)
 find_package(Ceres)
-find_package(nanobind CONFIG REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
 
 set(libso3g_SOURCES
     src/main.cxx
@@ -62,8 +62,8 @@ set(libso3g_SOURCES
 )
 
 # Documentation for the options here:
-# https://nanobind.readthedocs.io/en/latest/api_cmake.html
-nanobind_add_module(libso3g NOMINSIZE NB_STATIC ${libso3g_SOURCES})
+# https://pybind11.readthedocs.io/en/stable/compiling.html#modules-with-cmake
+pybind11_add_module(libso3g ${libso3g_SOURCES})
 
 # Install directive for scikit-build-core
 install(TARGETS libso3g LIBRARY DESTINATION so3g)

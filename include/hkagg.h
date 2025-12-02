@@ -2,11 +2,12 @@
 
 #include <stdint.h>
 
-#include <nanobind/nanobind.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/native_enum.h>
+
+namespace py = pybind11;
 
 using namespace std;
-
-namespace nb = nanobind;
 
 
 enum HKFrameType {
@@ -16,4 +17,4 @@ enum HKFrameType {
 };
 
 
-void register_hkagg(nb::module_ & m);
+void register_hkagg(py::module_ & m);

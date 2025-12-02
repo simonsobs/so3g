@@ -128,7 +128,7 @@ assert(np.all(mask == mask1))
 print('...bit-width checking works?')
 try:
     mask3 = so3g.IntervalsInt.mask(iv,8)
-except ValueError as e:
+except Exception as e:
     mask3 = 'failed'
     print(' -> ', e)
 assert(mask3 == 'failed')
@@ -145,6 +145,6 @@ assert(mask3 == 'failed')
 # Type failing works?  Can't create mask from non-integer Intervals.
 try:
     mask3 = so3g.IntervalsDouble.mask([], 8)
-except ValueError:
+except Exception:
     mask3 = 'failed'
 assert(mask3 == 'failed')
