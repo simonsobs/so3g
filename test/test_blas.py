@@ -26,7 +26,7 @@ class TestBlas(unittest.TestCase):
         bins[1] = [nfreq//2, nfreq]
 
         t0 = time.time()
-        so3g.nmat_detvecs_apply(ft, bins, iD, iV, s, norm)
+        so3g.nmat_detvecs_apply(ft, bins, iD, iV, s, norm, False)
         print('Elapsed: %.6f' % (time.time() - t0))
         self.assertNotEqual(ft[0,0], 1.)
         
