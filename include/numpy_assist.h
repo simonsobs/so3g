@@ -85,39 +85,6 @@ std::string type_name<double>() {
 }
 
 
-// The numpysafe_extract_int is needed so that objects of type np.int32
-// or np.int64 can be passed in places where we'd otherwise expect an
-// integer.
-
-inline int numpysafe_extract_int(py::object obj, const std::string argstr)
-{
-    int result = 0;
-    // Try extracting integer directly and fall back to manual extraction.
-    if (! py::isinstance<int>(obj)) {
-        if (PyObject_HasAttrString(obj.ptr(), "item")) {
-            std::string result_str = py::cast<py::str>(obj.attr("item"));
-            if (result_str == "0") {
-                // legitimate zero value
-                result = 0;
-            } else {
-                result = std::atoi(result_str.c_str());
-                // atoi returns zero on error
-                if (result == 0) {
-                    std::string errstr = "Failed to get int from obj item \"" + argstr + "\"";
-                    throw ValueError_exception("errstr");
-                }
-            }
-        } else {
-            std::string errstr = "Failed to interpret argument \"" + argstr + "\" as int.";
-            throw ValueError_exception("errstr");
-        }
-    } else {
-        result = py::cast<int>(obj);
-    }
-    return result;
-}
-
-
 static std::string shape_string(std::vector<int> shape)
 {
     std::ostringstream s;

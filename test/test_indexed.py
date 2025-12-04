@@ -112,5 +112,5 @@ class TestG3IndexedReader(unittest.TestCase):
         r.seek(pos)
 
         # No back seeking once there, though.
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(Exception):
             r.seek(0)

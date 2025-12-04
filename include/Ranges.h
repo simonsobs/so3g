@@ -27,14 +27,14 @@ public:
     Ranges(T count) : count{count}, reference(0) {}
     Ranges(T count, T reference) : count{count}, reference(reference) {}
 
-    static Ranges<T> * from_array(const py::object &src, const py::object &count);
+    static Ranges<T> * from_array(const py::object &src, const T count);
 
     // Basic ops
     Ranges<T>& merge(const Ranges<T> &src);
     Ranges<T>& intersect(const Ranges<T> &src);
     Ranges<T>& add_interval(const T start, const T end);
-    Ranges<T>& _add_interval_numpysafe(const py::object start,
-                                       const py::object end);
+    // Ranges<T>& _add_interval_numpysafe(const py::object start,
+    //                                    const py::object end);
     Ranges<T>& append_interval_no_check(const T start, const T end);
     Ranges<T>& buffer(const T buff);
     Ranges<T>& close_gaps(const T gap);

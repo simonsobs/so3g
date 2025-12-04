@@ -61,14 +61,14 @@ void Ranges<T>::cleanup()
     }
 }
 
-template <typename T>
-Ranges<T>& Ranges<T>::_add_interval_numpysafe(
-    const py::object start_obj, const py::object end_obj)
-{
-    int start = numpysafe_extract_int(start_obj, "start");
-    int end = numpysafe_extract_int(end_obj, "end");
-    return add_interval(start, end);
-}
+// template <typename T>
+// Ranges<T>& Ranges<T>::_add_interval_numpysafe(
+//     const py::object start_obj, const py::object end_obj)
+// {
+//     int start = numpysafe_extract_int(start_obj, "start");
+//     int end = numpysafe_extract_int(end_obj, "end");
+//     return add_interval(start, end);
+// }
 
 template <typename T>
 Ranges<T>& Ranges<T>::add_interval(const T start, const T end)
@@ -250,7 +250,7 @@ static int format_to_dtype(const BufferWrapper<T> &view)
 
 
 template <typename T>
-Ranges<T> * Ranges<T>::from_array(const py::object &src, const py::object &count)
+Ranges<T> * Ranges<T>::from_array(const py::object &src, const T count)
 {
     Ranges<T> * output = new Ranges<T>();
     BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
@@ -264,7 +264,7 @@ Ranges<T> * Ranges<T>::from_array(const py::object &src, const py::object &count
         d += buf->strides[0];
     }
     std::cerr << "Ranges from_array finished output segments" << std::endl;
-    output->count = numpysafe_extract_int(count, "count");
+    output->count = count;
     std::cerr << "Ranges from_array finished count extract" << std::endl;
     output->cleanup();
     std::cerr << "Ranges from_array finished output cleanup" << std::endl;

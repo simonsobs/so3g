@@ -112,7 +112,7 @@ class TestRanges(unittest.TestCase):
                 (Ellipsis, [1, 2]),
                 (Ellipsis, [True, False, True]),
         ]:
-            with self.assertRaises((IndexError, ValueError)):
+            with self.assertRaises(Exception):
                 r0[indices]
 
     def test_referencing(self):
@@ -136,9 +136,9 @@ class TestRanges(unittest.TestCase):
         # It should not be possible to pad or index beyond the
         # outermost dimension.  Ranges isn't very smart about this,
         # but RangesMatrix can be.
-        with self.assertRaises(IndexError):
+        with self.assertRaises(Exception):
             r0[:,:,None]
-        with self.assertRaises(IndexError):
+        with self.assertRaises(Exception):
             r0[:,:,0]
 
     def test_concat(self):

@@ -49,7 +49,7 @@ typedef quaternion<double> quatd;
 
 inline bool isNone(const py::object &pyo)
 {
-    return (pyo.ptr() == Py_None);
+    return pyo.is_none();
 }
 
 
@@ -1214,6 +1214,7 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
     // We want a list of arrays here.
     py::list sig_list;
     if (isNone(input)) {
+        std::cerr << "SignalSpace.Validate(None," << var_name << "," << dtype << ")" << std::endl;
         npy_intp _dims[dims.size()];
         for (int d=0; d<dims.size(); ++d) {
             if (dims[d] < 0)
@@ -1225,14 +1226,14 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
             sig_list.append(py::reinterpret_steal<py::object>(v));
         }
     } else if (py::isinstance<py::list>(input)) {
+        std::cerr << "SignalSpace.Validate(<list>," << var_name << "," << dtype << ")" << std::endl;
         sig_list = py::cast<py::list>(input);
     } else {
+        std::cerr << "SignalSpace.Validate(array?," << var_name << "," << dtype << ")" << std::endl;
         // Probably an array... listify it.
-        py::buffer in_arr = py::cast<py::buffer>(input);
-        py::buffer_info info = in_arr.request();
-        DTYPE * raw = static_cast<DTYPE *>(info.ptr);
-        for (int i=0; i < py::len(in_arr); ++i) {
-            sig_list.append(raw[i]);
+        py::array in_arr = py::cast<py::array>(input);
+        for (int i = 0; i < in_arr.shape(0); ++i) {
+            sig_list.append(in_arr[i]);
         }
     }
     ret_val = sig_list;
@@ -1250,6 +1251,7 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
     // This looks like a memory leak- where is `data_ptr` freed?
     data_ptr = (DTYPE**)calloc(n_det, sizeof(*data_ptr));
 
+    std::cerr << "SignalSpace.Validate: reserve bw size " << n_det << std::endl;
     bw.reserve(n_det);
 
     // Copy dims[1:] into sub_dims; potentially update sub_dims during
@@ -1934,28 +1936,37 @@ py::object ProjectionEngine<C,P,S>::to_map(
 {
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
+    std::cerr << "::to_map calling pointer.TestInputs" << std::endl;
     pointer.TestInputs(map, pbore, pofs, signal, det_weights);
+    std::cerr << "::to_map calling pointer.DetCount" << std::endl;
     int n_det = pointer.DetCount();
+    std::cerr << "::to_map calling pointer.TimeCount" << std::endl;
     int n_time = pointer.TimeCount();
 
     //Do we need a map?  Now is the time.
     if (isNone(map))
+        std::cerr << "::to_map calling pixelizer.zeros to init map" << std::endl;
         map = _pixelizor.zeros(vector<int>{S::comp_count});
 
     // Confirm that map has the right meta-shape.
+    std::cerr << "::to_map calling pixelizer.TestInputs" << std::endl;
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
+    std::cerr << "::to_map create SignalSpace" << std::endl;
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+    std::cerr << "::to_map create det_weights" << std::endl;
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+    std::cerr << "::to_map create response" << std::endl;
     auto _response = BufferWrapper<FSIGNAL>(
          "response", response, false, vector<int>{n_det,2});
 
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
+    std::cerr << "::to_map call derive_ranges" << std::endl;
     auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
 
@@ -1968,6 +1979,7 @@ py::object ProjectionEngine<C,P,S>::to_map(
         for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
             to_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
     }
+    std::cerr << "::to_map finished loop over bunches" << std::endl;
     return map;
 }
 
