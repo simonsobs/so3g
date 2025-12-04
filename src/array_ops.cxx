@@ -1266,7 +1266,7 @@ void detrend(bp::object & tod, const std::string & method, const int linear_ncou
 
 PYBINDINGS("so3g")
 {
-    bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
+    bp::def("nmat_detvecs_apply", nmat_detvecs_apply, bp::arg("dct_binning")=false);
     bp::def("process_cuts",  process_cuts);
     bp::def("translate_cuts", translate_cuts);
     bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
