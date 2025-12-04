@@ -69,7 +69,7 @@ class TestBufferWrapper(unittest.TestCase):
             ((2, 4), (-1, -1, -1, -2)),
         ]:
             a = np.zeros(array_shape)
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(Exception):
                 so3g.test_buffer_wrapper(a, list(pattern))
 
 

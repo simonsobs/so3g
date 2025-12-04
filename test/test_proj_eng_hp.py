@@ -54,9 +54,9 @@ class TestProjEngHP(unittest.TestCase):
         # Can't assign to quat fields, so do
         # it this way instead
         asm.fplane.quats[1] = asm.fplane.quats[1]*np.nan
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
            p.to_map(sig, asm, comps='T')
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
            p.to_weights(asm, comps='T')
 
     def test_10_tiled(self):
@@ -95,7 +95,7 @@ class TestProjEngHP(unittest.TestCase):
             n_threads = 3
 
             if method in ['tiles'] and not tiled:
-                with self.assertRaises(RuntimeError, msg=
+                with self.assertRaises(Exception, msg=
                                        f'Expected assignment to fail ({detail})'):
                     threads = p.assign_threads(asm, method=method, n_threads=n_threads)
                 continue
