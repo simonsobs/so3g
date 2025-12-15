@@ -135,7 +135,7 @@ jobs:
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: wheels_cp${{ matrix.python }}-${{ matrix.builder }}_${{ matrix.arch }}
           path: ./wheelhouse/so3g*cp${{ matrix.python }}-${{ matrix.builder }}*${{ matrix.arch }}*.whl
