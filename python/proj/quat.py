@@ -88,7 +88,7 @@ def rotation_xieta(xi, eta, gamma=0):
 
     """
     phi = np.arctan2(-xi, -eta)
-    theta = np.arcsin(np.sqrt(xi**2 + eta**2))
+    theta = np.arcsin(np.clip(np.sqrt(xi**2 + eta**2), 0, 1))
     psi = gamma - phi
     return rotation_iso(theta, phi, psi)
 
