@@ -1,0 +1,84 @@
+# In general, we try to run on:
+# - The oldest supported python
+# - The latest stable python that is the common default on most systems and conda
+# - (During transitions) The newly released bleeding edge python
+
+name:  Run Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python-${{ matrix.python }} on ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.10"
+            arch: Linux-x86_64
+          - os: ubuntu-latest
+            python: "3.12"
+            arch: Linux-x86_64
+          - os: ubuntu-latest
+            python: "3.13"
+            arch: Linux-x86_64
+          - os: macos-15
+            python: "3.11"
+            arch: MacOSX-arm64
+          - os: macos-15
+            python: "3.13"
+            arch: MacOSX-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Conda Base
+        run: |
+          sudo rm -rf /usr/share/miniconda \
+            && sudo rm -rf /usr/local/miniconda \
+            && curl -SL -o miniforge.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-${{ matrix.arch }}.sh \
+            && bash miniforge.sh -b -f -p ~/conda \
+            && source ~/conda/etc/profile.d/conda.sh \
+            && conda activate base \
+            && conda update -n base --yes conda
+      - name: Check Conda Config
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda activate base \
+            && conda info \
+            && conda list \
+            && conda config --show-sources \
+            && conda config --show
+      - name: Install Dependencies
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda create --yes -n test python=${{ matrix.python }} \
+            && conda activate test \
+            && conda install --yes --file conda_dev_requirements.txt
+      - name: Install so3g
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda activate test \
+            && python3 -m pip install -v ".[test]"
+      - name: Run Tests
+        run: |
+          source ~/conda/etc/profile.d/conda.sh \
+            && conda activate test \
+            && export OMP_NUM_THREADS=2 \
+            && pytest ./test

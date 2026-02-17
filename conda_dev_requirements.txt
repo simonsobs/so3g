@@ -14,11 +14,11 @@
 compilers
 cmake
 ninja
+make
 # Compiled dependencies
 libopenblas=*=*openmp*
 libblas=*=*openblas
 openblas=*=*openmp*
-boost
 gsl
 netcdf4
 glog
@@ -38,5 +38,5 @@ pyaml
 sqlalchemy
 tqdm
 pytest
-# Eventually we should make a conda package for these:
+# Soon we will include the conda package for these:
 # qpoint
