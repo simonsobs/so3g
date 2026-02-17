@@ -54,6 +54,39 @@ inline bool isNone(const py::object &pyo)
 }
 
 
+// Convert an n-dimensional array into a list of array slices.
+py::list list_of_arrays(py::object input, bool squeeze) {
+    if (input.is_none()) {
+        return py::list();
+    }
+    if (py::isinstance<py::list>(input)) {
+        // Already a list, pass-through
+        return input;
+    }
+
+    // The returned list
+    py::list output;
+
+    auto in_arr = py::cast<py::array>(input);
+    int ndim = in_arr.ndim();
+    if (ndim == 1) {
+        output.append(in_arr);
+    } else {
+        for (int i = 0; i < in_arr.shape(0); ++i) {
+            auto slc = py::make_tuple(py::int_(i), py::ellipsis());
+            py::array in_arr_row;
+            if (squeeze) {
+                in_arr_row = py::cast<py::array>(in_arr[slc]).squeeze();
+            } else {
+                in_arr_row = py::cast<py::array>(in_arr[slc]);
+            }
+            output.append(in_arr_row);
+        }
+    }
+    return output;
+}
+
+
 // ProjEng template system
 //
 // ProjEng classes will be templated like:
@@ -220,7 +253,7 @@ bool Pointer<CoordSys>::TestInputs(
             if (std::isnan(*(double*)x)) {
                 std::ostringstream err;
                 err << "Pointing offset error: nan found at index " << i << ".";
-                throw ValueError_exception(err.str());
+                throw value_exception(err.str());
             }
         }
     }
@@ -545,18 +578,12 @@ public:
     ~Pixelizor_Healpix() {};
 
     py::object zeros(vector<int> shape) {
-        std::cerr << "PixHP non-tile input shape has len " << shape.size() << std::endl;
         shape.push_back(npix);
         int ndim = 0;
         npy_intp dims[32];
         for (auto d: shape) {
             dims[ndim++] = d;
         }
-        std::cerr << "PixHP non-tile ndim = " << ndim << " (";
-        for (int i = 0; i < ndim; ++i) {
-            std::cerr << dims[i] << ", ";
-        }
-        std::cerr << ")" << std::endl;
 
         int dtype = NPY_FLOAT64;
         PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
@@ -618,7 +645,7 @@ public:
         if (! isok){
           std::ostringstream err;
           err << "Invalid nside " << nside;
-          throw ValueError_exception(err.str());
+          throw value_exception(err.str());
         }
     }
 
@@ -655,20 +682,21 @@ public:
         if (! nestin){
             std::ostringstream err;
             err << "RING not supported for tiled maps";
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
         // args[2] int nside_tile; nside defining the tiling
         int nside_tile = py::cast<int>(args_tuple[2]);
         ntiles = nside2npix(nside_tile);
         if (py::len(args) >= 4) {
             // args[3] list(int) of indexes for active tiles
-            py::list active_tiles = py::cast<py::list>(args_tuple[3]);
-            if (! isNone(active_tiles)){
+            py::list active_tiles = list_of_arrays(args_tuple[3], true);
+            if (! isNone(active_tiles)) {
                 populate = vector<bool>(ntiles, false);
                 for (int i=0; i < py::len(active_tiles); i++) {
                     int idx = py::cast<int>(active_tiles[i]);
-                    if (idx >= 0 && idx < ntiles)
+                    if (idx >= 0 && idx < ntiles) {
                         populate[idx] = true;
+                    }
                 }
             }
         }
@@ -679,13 +707,12 @@ public:
         if (nside_tile > nside) {
             std::ostringstream err;
             err << "Invalid nside_tile " << nside_tile << " > nside " << nside;
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
     }
   ~Pixelizor_Healpix() {};
 
     py::object zeros(vector<int> shape) {
-        std::cerr << "PixHP tiled input shape has len " << shape.size() << std::endl;
         int dtype = NPY_FLOAT64;
         int ndim = 0;
         npy_intp dims[32];
@@ -695,8 +722,8 @@ public:
         ndim += 1;
 
         if (populate.size() == 0)
-            throw RuntimeError_exception("Cannot create blank tiled map unless "
-                                  "user has specified what tiles to populate.");
+            throw std::runtime_error("Cannot create blank tiled map unless "
+                                     "user has specified what tiles to populate.");
 
         py::list maps_out;
         auto pop_iter = populate.begin();
@@ -706,15 +733,10 @@ public:
                 dims[ndim-1] = npix_per_tile;
                 PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
                 maps_out.append(py::reinterpret_steal<py::object>(v));
-            } else
-                maps_out.append(py::object());
+            } else {
+                maps_out.append(py::none());
+            }
         }
-
-        std::cerr << "PixHP tiled ndim = " << ndim << " (";
-        for (int i = 0; i < ndim; ++i) {
-            std::cerr << dims[i] << ", ";
-        }
-        std::cerr << ")" << std::endl;
 
         return maps_out;
     }
@@ -743,8 +765,10 @@ public:
     }
 
     bool TestInputs(py::object & map_obj, bool need_map, bool need_weight_map, int comp_count) {
+        // Get list of input maps
+        py::list map = list_of_arrays(map_obj, false);
+
         vector<int> map_shape_req;
-        py::list map = py::cast<py::list>(map_obj);
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
             // component count, second axis the npix_per_tile.
@@ -756,16 +780,26 @@ public:
         }
         if (map_shape_req.size() == 0)
             return true;
+
         mapbufs.clear();
-        for (int i_tile = 0; i_tile < py::len(map); i_tile++) {
+        // Number of tiles
+        int n_tile = py::len(map);
+
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
+            if (! isNone(map[i_tile])) {
+                py::array mp = py::cast<py::array>(map[i_tile]);
+            }
+        }
+
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
             if (isNone(map[i_tile])) {
                 if (populate[i_tile])
                     throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
-                // You should be checking that the shape is as expected.
                 mapbufs.push_back(
-                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req)
+                );
             }
         }
 
@@ -807,7 +841,7 @@ public:
         if (! isok){
             std::ostringstream err;
             err << "Invalid nside " << nside;
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
     }
 
@@ -885,6 +919,8 @@ public:
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]);
 
     bool TestInputs(py::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        py::array mp = py::cast<py::array>(map);
+
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
             // component count.  And then 2 celestial axes.
@@ -999,11 +1035,14 @@ public:
             int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
             int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
             populate = vector<bool>(n_ty * n_tx, false);
-            py::list active_tiles = py::cast<py::list>(args_tuple[8]);
-            for (int i=0; i < py::len(active_tiles); i++) {
-                int idx = py::cast<int>(active_tiles[i]);
-                if (idx >= 0 && idx < n_tx*n_ty)
-                    populate[idx] = true;
+            py::list active_tiles = list_of_arrays(args_tuple[8], true);
+            if (! isNone(active_tiles)) {
+                for (int i=0; i < py::len(active_tiles); i++) {
+                    int idx = py::cast<int>(active_tiles[i]);
+                    if (idx >= 0 && idx < n_tx*n_ty) {
+                        populate[idx] = true;
+                    }
+                }
             }
         }
     }
@@ -1035,7 +1074,7 @@ public:
                     PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
                     maps_out.append(py::reinterpret_steal<py::object>(v));
                 } else
-                    maps_out.append(py::object());
+                    maps_out.append(py::none());
             }
         }
         return maps_out;
@@ -1068,8 +1107,10 @@ public:
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]);
 
     bool TestInputs(py::object & map_obj, bool need_map, bool need_weight_map, int comp_count) {
+        // List of input maps
+        py::list map = list_of_arrays(map_obj, false);
+
         vector<int> map_shape_req;
-        py::list map = py::cast<py::list>(map_obj);
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
             // component count.  And then 2 celestial axes.
@@ -1083,15 +1124,23 @@ public:
             return true;
 
         mapbufs.clear();
-        for (int i_tile = 0; i_tile < py::len(map); i_tile++) {
+        // Number of tiles
+        int n_tile = py::len(map);
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
+            if (! isNone(map[i_tile])) {
+                py::array mp = py::cast<py::array>(map[i_tile]);
+            }
+        }
+
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
             if (isNone(map[i_tile])) {
                 if (populate[i_tile])
                     throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
-                // You should be checking that the shape is as expected.
                 mapbufs.push_back(
-                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req)
+                );
             }
         }
 
@@ -1232,7 +1281,6 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
     // We want a list of arrays here.
     py::list sig_list;
     if (isNone(input)) {
-        std::cerr << "SignalSpace.Validate(None," << var_name << "," << dtype << ")" << std::endl;
         npy_intp _dims[dims.size()];
         for (int d=0; d<dims.size(); ++d) {
             if (dims[d] < 0)
@@ -1245,36 +1293,10 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
         }
         for (int i=0; i<dims[0]; ++i) {
             PyObject *v = PyArray_ZEROS(dims.size()-1, _dims+1, dtype, 0);
-            std::cerr << "SignalSpace.Validate append row " << i << " zeros(" << dims.size()-1 << ",(" << dbg.str() << "))" << std::endl;
             sig_list.append(py::reinterpret_steal<py::object>(v));
         }
-    } else if (py::isinstance<py::list>(input)) {
-        std::cerr << "SignalSpace.Validate(<list>," << var_name << "," << dtype << ")" << std::endl;
-        sig_list = py::cast<py::list>(input);
     } else {
-        std::cerr << "SignalSpace.Validate(array?," << var_name << "," << dtype << ")" << std::endl;
-        // Probably an array... listify it.
-        py::array in_arr = py::cast<py::array>(input);
-        std::cerr << "SignalSpace.Validate(in_arr=" << typeid(in_arr).name() << ")" << std::endl;
-        if (in_arr.ndim() == 1) {
-            // 1D array
-            std::cerr << "SignalSpace.Validate(array[0]=" << typeid(in_arr).name() << ", " << in_arr.ndim() << ")" << std::endl;
-            sig_list.append(in_arr);
-        } else {
-            // N-dimensional array, with detector dimension first
-            auto full_slc = py::slice(py::none(), py::none(), py::none());
-            auto samp_slc = py::make_tuple(full_slc);
-            for (int sdim = 0; sdim < in_arr.ndim() - 2; ++sdim) {
-                samp_slc = samp_slc + full_slc;
-            }
-            for (int i = 0; i < in_arr.shape(0); ++i) {
-                auto det_slc = py::make_tuple(py::slice(i, i+1, 1));
-                auto slc = det_slc + samp_slc;
-                py::array in_arr_row = py::cast<py::array>(in_arr[slc]).squeeze();
-                std::cerr << "SignalSpace.Validate(array[" << i << "]=" << typeid(in_arr_row).name() << "," << in_arr_row.ndim() << ")" << std::endl;
-                sig_list.append(in_arr_row);
-            }
-        }
+        sig_list = list_of_arrays(input, false);
     }
     ret_val = sig_list;
 
@@ -1293,7 +1315,6 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
     // data_ptr is freed in the destructor.
     data_ptr = (DTYPE**)calloc(n_det, sizeof(*data_ptr));
 
-    std::cerr << "SignalSpace.Validate: reserve bw size " << n_det << std::endl;
     bw.reserve(n_det);
 
     // Copy dims[1:] into sub_dims; potentially update sub_dims during
@@ -1302,13 +1323,7 @@ bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
 
     for (int i=0; i<n_det; i++) {
         py::object item = py::cast<py::object>(sig_list[i]);
-        std::cerr << "SignalSpace.Validate: det " << i << " push back " << var_name << ", " << item << ", false, ";
-        for (int d=0; d<sub_dims.size(); d++) {
-            std::cerr << sub_dims[d] << ":";
-        }
-        std::cerr << std::endl;
         bw.push_back(BufferWrapper<DTYPE>(var_name, item, false, sub_dims));
-        std::cerr << "SignalSpace.Validate: det " << i << " buffer wrapper now has " << bw.size() << " elements" << std::endl;
         if (i == 0) {
             sub_dims.clear();
             for (int d=0; d<bw[0]->ndim; d++)
@@ -1606,7 +1621,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw RuntimeError_exception("No tiles in this pixelization.");
+        throw std::runtime_error("No tiles in this pixelization.");
 
     vector<int> hits(n_tile);
     vector<vector<int>> temp;
@@ -1669,7 +1684,7 @@ py::object ProjectionEngine<C,P,S>::tile_ranges(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw RuntimeError_exception("No tiles in this pixelization.");
+        throw std::runtime_error("No tiles in this pixelization.");
     int n_domain = py::len(tile_lists);
 
     // Make a vector that maps tile into thread.
@@ -1758,15 +1773,18 @@ py::object ProjectionEngine<C,P,S>::tile_ranges(
 }
 
 template<typename C, typename P, typename S>
+py::object ProjectionEngine<C,P,S>::zeros(int shape)
+{
+    vector<int> dims;
+    dims.push_back(shape);
+    return _pixelizor.zeros(dims);
+}
+
+template<typename C, typename P, typename S>
 py::object ProjectionEngine<C,P,S>::zeros(py::object shape)
 {
     vector<int> dims;
-    int dim;
-    if (py::isinstance<int>(shape)) {
-        // scalar
-        dims.push_back(py::cast<int>(shape));
-        return _pixelizor.zeros(dims);
-    } else if (py::isinstance<py::tuple>(shape)) {
+    if (py::isinstance<py::tuple>(shape)) {
         // tuple
         py::tuple shp = py::cast<py::tuple>(shape);
         for (int i = 0; i < py::len(shp); ++i) {
@@ -1909,7 +1927,7 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
 
 static
 vector<vector<vector<RangesInt32>>> derive_ranges(
-    py::object thread_intervals, int n_det, int n_time,
+    py::object input, int n_det, int n_time,
     std::string arg_name)
 {
     // The first index of the returned object should correspond to
@@ -1926,35 +1944,47 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     //   threads-lists that will be done in parallel.
     vector<vector<vector<RangesInt32>>> ivals;
 
-    if (isNone(thread_intervals)) {
+    if (isNone(input)) {
         // It's None. Generate a single bunch with a single-thread covering all samples
         auto r = RangesInt32(n_time).add_interval(0, n_time);
         vector<vector<RangesInt32>> v(1, vector<RangesInt32>(n_det, r));
         ivals.push_back(v);
-    } else if (py::isinstance<RangesInt32>(thread_intervals[0])) {
-        // It's a RangesMatrix (ndet,nranges). Promote to single thread, single bunch
-        ivals.push_back(vector<vector<RangesInt32>>(1, extract_ranges<int32_t>(thread_intervals)));
-    } else if (py::isinstance<RangesInt32>(thread_intervals[0][0])) {
-        // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to single bunch
-        vector<vector<RangesInt32>> bunch;
-        py::list leading = py::cast<py::list>(thread_intervals);
-        for (int i=0; i<py::len(leading); i++)
-            bunch.push_back(extract_ranges<int32_t>(leading[i]));
-        ivals.push_back(bunch);
-    } else if (py::isinstance<RangesInt32>(thread_intervals[0][0][0])) {
-        // It's a full multi-bunch (nbunch,nthread,ndet,nranges) thing.
-        py::list leading_i = py::cast<py::list>(thread_intervals);
-        for (int i=0; i<py::len(leading_i); i++) {
-            vector<vector<RangesInt32>> bunch;
-            py::list leading_j = py::cast<py::list>(leading_i[i]);
-            for (int j=0; j<py::len(leading_j); j++)
-                bunch.push_back(extract_ranges<int32_t>(leading_j[j]));
-            ivals.push_back(bunch);
-        }
     } else {
-        // This should not happen
-        assert(false);
+        // Convert to a list
+        py::list first_level = py::cast<py::list>(input);
+
+        if (py::isinstance<RangesInt32>(first_level[0])) {
+            // It's a RangesMatrix (ndet,nranges). Promote to single thread,
+            // single bunch
+            ivals.push_back(
+                vector<vector<RangesInt32>>(1, extract_ranges<int32_t>(first_level))
+            );
+        } else {
+            // Must be a list of lists.
+            py::list test_leading = py::cast<py::list>(first_level[0]);
+
+            if (py::isinstance<RangesInt32>(test_leading[0])) {
+                // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to
+                // single bunch.
+                vector<vector<RangesInt32>> bunch;
+                for (int i = 0; i < py::len(first_level); i++) {
+                    bunch.push_back(extract_ranges<int32_t>(first_level[i]));
+                }
+                ivals.push_back(bunch);
+            } else {
+                // It's a full multi-bunch (nbunch,nthread,ndet,nranges) thing.
+                for (int i = 0; i < py::len(first_level); i++) {
+                    py::list second_level = py::cast<py::list>(first_level[i]);
+                    vector<vector<RangesInt32>> bunch;
+                    for (int j = 0; j < py::len(second_level); j++) {
+                        bunch.push_back(extract_ranges<int32_t>(second_level[j]));
+                    }
+                    ivals.push_back(bunch);
+                }
+            }
+        }
     }
+
     // Check that these all have the right shape. Maybe consider a standard
     // for loop instead of foreach to give more useful error messages using
     // the index
@@ -1985,39 +2015,29 @@ py::object ProjectionEngine<C,P,S>::to_map(
 {
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
-    std::cerr << "::to_map calling pointer.TestInputs" << std::endl;
     pointer.TestInputs(map, pbore, pofs, signal, det_weights);
-    std::cerr << "::to_map calling pointer.DetCount" << std::endl;
     int n_det = pointer.DetCount();
-    std::cerr << "::to_map calling pointer.TimeCount" << std::endl;
     int n_time = pointer.TimeCount();
 
     //Do we need a map?  Now is the time.
     if (isNone(map)) {
-        std::cerr << "::to_map calling pixelizer.zeros to init map" << std::endl;
-        std::cerr << "::to_map zeros " << S::comp_count << " components" << std::endl;
         map = _pixelizor.zeros(vector<int>{S::comp_count});
     }
 
     // Confirm that map has the right meta-shape.
-    std::cerr << "::to_map calling pixelizer.TestInputs" << std::endl;
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
-    std::cerr << "::to_map create SignalSpace" << std::endl;
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
-    std::cerr << "::to_map create det_weights" << std::endl;
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
-    std::cerr << "::to_map create response" << std::endl;
     auto _response = BufferWrapper<FSIGNAL>(
          "response", response, false, vector<int>{n_det,2});
 
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
-    std::cerr << "::to_map call derive_ranges" << std::endl;
     auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
 
@@ -2031,7 +2051,6 @@ py::object ProjectionEngine<C,P,S>::to_map(
             to_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
         }
     }
-    std::cerr << "::to_map finished loop over bunches" << std::endl;
     return map;
 }
 
@@ -2049,8 +2068,9 @@ py::object ProjectionEngine<C,P,S>::to_weight_map(
     int n_time = pointer.TimeCount();
 
     //Do we need a map?  Now is the time.
-    if (isNone(map))
+    if (isNone(map)) {
         map = _pixelizor.zeros(vector<int>{S::comp_count,S::comp_count});
+    }
 
     // Confirm that map has the right meta-shape.
     _pixelizor.TestInputs(map, false, true, S::comp_count);
@@ -2073,8 +2093,9 @@ py::object ProjectionEngine<C,P,S>::to_weight_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             to_weight_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights);
+        }
     }
     return map;
 }
@@ -2267,10 +2288,11 @@ py::object ProjEng_Precomp<TilingSys>::to_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             precomp_to_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
                 ivals[i_thread], _det_weights, &_signalspace);
+        }
     }
     return map;
 }
@@ -2314,10 +2336,11 @@ py::object ProjEng_Precomp<TilingSys>::to_weight_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             precomp_to_weight_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
                 ivals[i_thread], _det_weights);
+        }
     }
     return map;
 }
@@ -2361,23 +2384,23 @@ TYPEDEF_PIX(ZEA)
 
 #define STRINGIFY(X) #X
 
-#define EXPORT_ENGINE(CLASSNAME)                                        \
-    py::class_<CLASSNAME>(m, STRINGIFY(CLASSNAME))                      \
-    .def(py::init<py::object>())                                        \
-    .def_property_readonly("index_count", &CLASSNAME::index_count)               \
-    .def_property_readonly("comp_count", &CLASSNAME::comp_count)                 \
-    .def("coords", &CLASSNAME::coords)                                  \
-    .def("pixels", &CLASSNAME::pixels)                                  \
-    .def("tile_hits", &CLASSNAME::tile_hits)                            \
-    .def("tile_ranges", &CLASSNAME::tile_ranges)                        \
-    .def("pointing_matrix", &CLASSNAME::pointing_matrix)                \
-    .def("pixel_ranges", &CLASSNAME::pixel_ranges)                      \
-    .def("zeros", &CLASSNAME::zeros)                                    \
-    .def("from_map", &CLASSNAME::from_map)                              \
-    .def("to_map", &CLASSNAME::to_map)                                  \
-    .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
+#define EXPORT_ENGINE(CLASSNAME)                                              \
+    py::class_<CLASSNAME>(m, STRINGIFY(CLASSNAME))                            \
+    .def(py::init<py::object>())                                              \
+    .def_property_readonly("index_count", &CLASSNAME::index_count)            \
+    .def_property_readonly("comp_count", &CLASSNAME::comp_count)              \
+    .def("coords", &CLASSNAME::coords)                                        \
+    .def("pixels", &CLASSNAME::pixels)                                        \
+    .def("tile_hits", &CLASSNAME::tile_hits)                                  \
+    .def("tile_ranges", &CLASSNAME::tile_ranges)                              \
+    .def("pointing_matrix", &CLASSNAME::pointing_matrix)                      \
+    .def("pixel_ranges", &CLASSNAME::pixel_ranges)                            \
+    .def("zeros", py::overload_cast<int>(&CLASSNAME::zeros))                  \
+    .def("zeros", py::overload_cast<py::object>(&CLASSNAME::zeros))           \
+    .def("from_map", &CLASSNAME::from_map)                                    \
+    .def("to_map", &CLASSNAME::to_map)                                        \
+    .def("to_weight_map", &CLASSNAME::to_weight_map)                          \
     ;
-
 
 #define EXPORT_TILING(PIX, SPIN, TILING)        \
     EXPORT_ENGINE(PROJENG(PIX, SPIN, TILING)) \

@@ -40,8 +40,7 @@ public:
     py::object ret_val;
 
 private:
-    bool _Validate(py::object input, std::string var_name,
-                   int dtype);
+    bool _Validate(py::object input, std::string var_name, int dtype);
 };
 
 
@@ -59,6 +58,7 @@ public:
     py::object pointing_matrix(py::object pbore, py::object pofs, py::object response,
                                py::object pixel, py::object proj);
     py::object zeros(py::object shape);
+    py::object zeros(int shape);
     py::object pixel_ranges(py::object pbore, py::object pofs, py::object map, int n_domain=-1);
     py::object from_map(py::object map, py::object pbore, py::object pofs,
                         py::object response, py::object signal);

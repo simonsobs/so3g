@@ -31,15 +31,23 @@ dependencies = [
 ]
 dynamic=["version"]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Environment :: Console",
-  "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: BSD License",
-  "Topic :: Scientific/Engineering :: Astronomy",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+    "pixell",
 ]
 
 [project.scripts]
@@ -49,12 +57,14 @@ so-hk-tool = "so3g.hk.cli:main"
 
 [tool.scikit-build]
 # A list of args to pass to CMake when configuring the project.
-cmake.args = []
+#cmake.args = []
+#cmake.args = ["-DCMAKE_C_FLAGS='-O0 -g'", "-DCMAKE_CXX_FLAGS='-O0 -g'"]
+cmake.args = ["-DCMAKE_C_FLAGS='-O3 -g'", "-DCMAKE_CXX_FLAGS='-O3 -g'"]
 # A table of defines to pass to CMake when configuring the project. Additive.
 cmake.define = {}
 # The build type to use when building the project.
-cmake.build-type = "Debug"
-#cmake.build-type = "Release"
+#cmake.build-type = "Debug"
+cmake.build-type = "Release"
 # The source directory to use when building the project.
 cmake.source-dir = "."
 # Use Make as a fallback if a suitable Ninja executable is not found.
@@ -102,7 +112,7 @@ build.requires = []
 # The components to install.
 install.components = []
 # Whether to strip the binaries.
-install.strip = true
+install.strip = false
 # Add the python build environment site_packages folder to the CMake prefix paths.
 search.site-packages = true
 # Strictly check all config options.

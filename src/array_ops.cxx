@@ -39,7 +39,7 @@ namespace py = pybind11;
 // * iD[nbin,ndet]         the inverse uncorrelated variance for each detector per bin
 // * iV[nbin,ndet,nvec]    matrix representing the scaled eivenvectors per bin
 // * dct_binning(bool)     If true, does not apply double `bins`. This works wth Discrete Cosine Transform.
-void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp::object & iD, const bp::object & iV, float s, float norm, bool dct_binning = false) {
+void nmat_detvecs_apply(const py::object & ft, const py::object & bins, const py::object & iD, const py::object & iV, float s, float norm, bool dct_binning = false) {
     // Should pass in this too
     BufferWrapper<float>               ft_buf  ("ft",   ft,   false, std::vector<int>{-1,-1});
     BufferWrapper<int32_t>             bins_buf("bins", bins, false, std::vector<int>{-1, 2});
@@ -86,7 +86,7 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
                 ft_[di*nmode+i] *= biD[di]/norm;
         // Do ft += s*iV[ndet,nvec] dot Q [nvec,nm]
         cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, ndet, nm, nvec, s/norm, biV, nvec, Q, nm, 1.0f, ft_+b1, nmode);
-        delete [] Q;
+        delete[] Q;
     }
 }
 
@@ -138,7 +138,7 @@ int process_cuts(const py::object & range_matrix, const std::string & operation,
     else if(model == "poly") {
         resolution = py::cast<int>(params["resolution"]);
         nmax       = py::cast<int>(params["nmax"]);
-    } else throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
+    } else throw value_exception("process_cuts model can only be 'full' or 'poly'");
 
     if(operation == "measure") {
         if     (model == "full") return pcut_full_measure_helper(ranges);
@@ -161,7 +161,7 @@ int process_cuts(const py::object & range_matrix, const std::string & operation,
                     pcut_poly_tod2vals_helper(ranges, resolution, nmax, (float*)tod_buf->buf, nsamp, (float*) vals_buf->buf);
             } else if(operation == "clear") {
                 pcut_clear_helper(ranges, (float*)tod_buf->buf, nsamp);
-            } else throw ValueError_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
+            } else throw value_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
         } else if(dtype == NPY_DOUBLE) {
             BufferWrapper<double> tod_buf  ("tod",  tod,  false, std::vector<int>{-1,-1});
             BufferWrapper<double> vals_buf ("vals", vals, false, std::vector<int>{-1});
@@ -178,8 +178,8 @@ int process_cuts(const py::object & range_matrix, const std::string & operation,
                     pcut_poly_tod2vals_helper(ranges, resolution, nmax, (double*)tod_buf->buf, nsamp, (double*) vals_buf->buf);
             } else if(operation == "clear") {
                 pcut_clear_helper(ranges, (float*)tod_buf->buf, nsamp);
-            } else throw ValueError_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
-        } else throw TypeError_exception("process_cuts only supports float32 and float64");
+            } else throw value_exception("process_cuts operation can only be 'measure', 'insert' or 'extract'");
+        } else throw value_exception("process_cuts only supports float32 and float64");
     }
     return 0;
 }
@@ -193,7 +193,7 @@ void translate_cuts(const py::object & irange_matrix, const py::object & orange_
         resolution = py::cast<int>(params["resolution"]);
         nmax       = py::cast<int>(params["nmax"]);
     } else {
-        throw ValueError_exception("process_cuts model can only be 'full' or 'poly'");
+        throw value_exception("process_cuts model can only be 'full' or 'poly'");
     }
     auto iranges = extract_ranges<int32_t>(irange_matrix);
     auto oranges = extract_ranges<int32_t>(orange_matrix);
@@ -221,7 +221,7 @@ void translate_cuts(const py::object & irange_matrix, const py::object & orange_
 
 int get_dtype(const py::object & arr) {
     PyObject *ob = PyArray_FromAny(arr.ptr(), NULL, 0, 0, 0, NULL);
-    if (ob == NULL) throw exception();
+    if (ob == NULL) throw std::runtime_error("Object pointer is NULL");
     PyArrayObject * a = reinterpret_cast<PyArrayObject*>(ob);
     int res = PyArray_TYPE(a);
     Py_DECREF(ob);
@@ -577,11 +577,6 @@ void test_buffer_wrapper(const py::object array,
     std::vector<int> _dims(py::len(dims));
     for (int i=0; i<py::len(dims); i++)
         _dims[i] = py::cast<int>(dims[i]);
-    std::cerr << "test_buffer_wrapper: (";
-    for (int i = 0; i < _dims.size(); ++i) {
-        std::cerr << _dims[i] << ", ";
-    }
-    std::cerr << ")" << std::endl;
     BufferWrapper<double> array_buf("array", array, false, _dims);
 }
 
@@ -839,7 +834,7 @@ void matched_jumps(const py::object & tod, const py::object & out, const py::obj
     _jumps_thresh_on_mfilt(buffer, shift_flag, size, bsize, half_win, (T).5, false, false, ndet, nsamp);
     _clean_flag(shift_flag, quarter_win, ndet, nsamp);
     _jumps_thresh_on_mfilt(buffer, shift_flag, size, bsize, half_win, (T)1., true, true, ndet, nsamp);
-    delete buffer;
+    delete[] buffer;
 
     // Now we combine
     #pragma omp parallel for
@@ -850,7 +845,7 @@ void matched_jumps(const py::object & tod, const py::object & out, const py::obj
             output[i] = output[i] || shift_flag[i];
         }
     }
-    delete shift_flag;
+    delete[] shift_flag;
 }
 
 template <typename T>
@@ -990,25 +985,25 @@ void _interp1d(const py::object & x, const py::object & y, const py::object & x_
 {
     BufferWrapper<T> y_buf  ("y",  y,  false, std::vector<int>{-1, -1});
     if (y_buf->strides[1] != y_buf->itemsize)
-        throw ValueError_exception("Argument 'y' must be contiguous in last axis.");
+        throw value_exception("Argument 'y' must be contiguous in last axis.");
     T* y_data = (T*)y_buf->buf;
     const int n_rows = y_buf->shape[0];
     const int n_x = y_buf->shape[1];
 
     BufferWrapper<T> x_buf  ("x",  x,  false, std::vector<int>{n_x});
     if (x_buf->strides[0] != x_buf->itemsize)
-        throw ValueError_exception("Argument 'x' must be a C-contiguous 1d array");
+        throw value_exception("Argument 'x' must be a C-contiguous 1d array");
     T* x_data = (T*)x_buf->buf;
 
     BufferWrapper<T> y_interp_buf  ("y_interp",  y_interp,  false, std::vector<int>{n_rows, -1});
     if (y_interp_buf->strides[1] != y_interp_buf->itemsize)
-        throw ValueError_exception("Argument 'y_interp' must be contiguous in last axis.");
+        throw value_exception("Argument 'y_interp' must be contiguous in last axis.");
     T* y_interp_data = (T*)y_interp_buf->buf;
     const int n_x_interp = y_interp_buf->shape[1];
 
     BufferWrapper<T> x_interp_buf  ("x_interp",  x_interp,  false, std::vector<int>{n_x_interp});
     if (x_interp_buf->strides[0] != x_interp_buf->itemsize)
-        throw ValueError_exception("Argument 'x_interp' must be a C-contiguous 1d array");
+        throw value_exception("Argument 'x_interp' must be a C-contiguous 1d array");
     T* x_interp_data = (T*)x_interp_buf->buf;
 
     if constexpr (std::is_same<T, double>::value) {
@@ -1111,7 +1106,7 @@ void interp1d_linear(const py::object & x, const py::object & y,
         _interp1d<double>(x, y, x_interp, y_interp, interp_type, interp_func);
     }
     else {
-        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+        throw value_exception("Only float32 or float64 arrays are supported.");
     }
 }
 
@@ -1220,7 +1215,7 @@ void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
         }
     }
     else {
-        throw ValueError_exception("Unupported detrend method. Supported methods "
+        throw value_exception("Unupported detrend method. Supported methods "
                                    "are 'mean', 'median', and 'linear'");
     }
 }
@@ -1231,7 +1226,7 @@ void _detrend_buffer(py::object & tod, const std::string & method,
 {
     BufferWrapper<T> tod_buf  ("tod",  tod,  false, std::vector<int>{-1, -1});
     if (tod_buf->strides[1] != tod_buf->itemsize)
-        throw ValueError_exception("Argument 'tod' must be contiguous in last axis.");
+        throw value_exception("Argument 'tod' must be contiguous in last axis.");
     T* tod_data = (T*)tod_buf->buf;
     const int ndets = tod_buf->shape[0];
     const int nsamps = tod_buf->shape[1];
@@ -1266,13 +1261,21 @@ void detrend(py::object & tod, const std::string & method, const int linear_ncou
         _detrend_buffer<double>(tod, method, linear_ncount);
     }
     else {
-        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+        throw value_exception("Only float32 or float64 arrays are supported.");
     }
 }
 
 
 void register_array_ops(py::module_ & m) {
-    m.def("nmat_detvecs_apply", &nmat_detvecs_apply, py::arg("dct_binning") = false);
+    m.def("nmat_detvecs_apply", &nmat_detvecs_apply,
+        py::arg("ft"),
+        py::arg("bins"),
+        py::arg("iD"),
+        py::arg("iV"),
+        py::arg("s"),
+        py::arg("norm"),
+        py::arg("dct_binning") = false
+    );
     m.def("process_cuts", &process_cuts);
     m.def("translate_cuts", &translate_cuts);
     m.def("get_gap_fill_poly", &get_gap_fill_poly<float>,
