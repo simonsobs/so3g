@@ -39,7 +39,7 @@ namespace py = pybind11;
 // * iD[nbin,ndet]         the inverse uncorrelated variance for each detector per bin
 // * iV[nbin,ndet,nvec]    matrix representing the scaled eivenvectors per bin
 // * dct_binning(bool)     If true, does not apply double `bins`. This works wth Discrete Cosine Transform.
-void nmat_detvecs_apply(const py::object & ft, const py::object & bins, const ;py::object & iD, const py::object & iV, float s, float norm, bool dct_binning = false) {
+void nmat_detvecs_apply(const py::object & ft, const py::object & bins, const py::object & iD, const py::object & iV, float s, float norm, bool dct_binning = false) {
     // Should pass in this too
     BufferWrapper<float>               ft_buf  ("ft",   ft,   false, std::vector<int>{-1,-1});
     BufferWrapper<int32_t>             bins_buf("bins", bins, false, std::vector<int>{-1, 2});
@@ -1272,7 +1272,15 @@ void detrend(py::object & tod, const std::string & method, const int linear_ncou
 
 
 void register_array_ops(py::module_ & m) {
-    m.def("nmat_detvecs_apply", &nmat_detvecs_apply, py::arg("dct_binning") = false);
+    m.def("nmat_detvecs_apply", &nmat_detvecs_apply,
+        py::arg("ft"),
+        py::arg("bins"),
+        py::arg("iD"),
+        py::arg("iV"),
+        py::arg("s"),
+        py::arg("norm"),
+        py::arg("dct_binning") = false
+    );
     m.def("process_cuts", &process_cuts);
     m.def("translate_cuts", &translate_cuts);
     m.def("get_gap_fill_poly", &get_gap_fill_poly<float>,
