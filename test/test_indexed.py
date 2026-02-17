@@ -25,6 +25,7 @@ def write_example_file(filename='hk_out.g3'):
     test_file = filename
 
     # Write a stream of HK frames.
+    print(f"G3Writer({test_file})", flush=True)
     w = core.G3Writer(test_file)
 
     # Create something to help us track the aggregator session.
@@ -59,7 +60,7 @@ def write_example_file(filename='hk_out.g3'):
     f['blocks'].append(hk)
     f['block_names'].append('hwp')
 
-    # Write two more housekeeping frames.
+    # Write some more housekeeping frames.
     w.Process(f)
     w.Process(f)
 
@@ -86,7 +87,7 @@ class TestG3IndexedReader(unittest.TestCase):
         the first frame after Seek() to be the wiring frame.
 
         """
-        print("Testing Seek/Tell in G3Reader")
+        print(f"Testing Seek/Tell in G3Reader on {self._file}", flush=True)
         r = core.G3Reader(self._file)
         # Limit the number of Process calls, if we hit the end of the file,
         # then Seek won't work...
@@ -96,7 +97,6 @@ class TestG3IndexedReader(unittest.TestCase):
             print("  " + str(f.type))
             if f.type == core.G3FrameType.Wiring:
                 w_pos = pos
-                print('  Saved wiring frame position: {}'.format(w_pos))
 
         r.seek(w_pos)
 
@@ -112,5 +112,7 @@ class TestG3IndexedReader(unittest.TestCase):
         r.seek(pos)
 
         # No back seeking once there, though.
-        with self.assertRaises(Exception):
-            r.seek(0)
+        # FIXME:  modern spt3g no longer raises an exception in this case.
+        # Instead, it logs a FATAL level warning and does not seek.
+        # with self.assertRaises(Exception):
+        #     r.seek(0)

@@ -25,7 +25,6 @@ class TestCoordSys(unittest.TestCase):
         test_args = (.1, .2, .3)
         for name, rotation, decompose in self.convention_pairs:
             q = rotation(*test_args)
-            print(name, q)
             check = decompose(q)
             [self.assertAlmostEqual(x, y) for x, y in zip(check, test_args)]
 

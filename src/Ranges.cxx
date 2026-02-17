@@ -254,20 +254,15 @@ Ranges<T> * Ranges<T>::from_array(const py::object &src, const T count)
 {
     Ranges<T> * output = new Ranges<T>();
     BufferWrapper<T> buf("src", src, false, vector<int>{-1, 2});
-    //std::cerr << "Ranges from_array created buf " << buf->buf << " shape " << buf->shape << std::endl;
 
     char *d = (char*)buf->buf;
     int n_seg = buf->shape[0];
-    //std::cerr << "Ranges from_array n_seg = " << n_seg << " strides " << buf->strides << std::endl;
     for (int i=0; i<n_seg; ++i) {
         output->segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    //std::cerr << "Ranges from_array finished output segments" << std::endl;
     output->count = count;
-    //std::cerr << "Ranges from_array finished count extract" << std::endl;
     output->cleanup();
-    //std::cerr << "Ranges from_array finished output cleanup" << std::endl;
     return output;
 }
 
@@ -285,7 +280,7 @@ py::object Ranges<T>::ranges() const
         ostringstream dstr;
         dstr << "Failed to allocate Ranges numpy array of size (";
         dstr << dims[0] << ", " << dims[1] << ")";
-        throw RuntimeError_exception(dstr.str().c_str());
+        throw alloc_exception(dstr.str().c_str());
     }
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
@@ -474,7 +469,7 @@ static inline py::object mask_(vector<Ranges<intType>> ivals, int n_bits)
         ostringstream dstr;
         dstr << "Failed to allocate Ranges mask array of size (";
         dstr << dims[0] << ",)";
-        throw RuntimeError_exception(dstr.str().c_str());
+        throw alloc_exception(dstr.str().c_str());
     }
 
     // Assumes little-endian.
@@ -775,7 +770,7 @@ void ranges_bindings(py::module_ & m, char const * name) {
             }
         )
         .def_property_readonly("shape", &Ranges<C>::shape)
-        .def("add_interval", &Ranges<C>::add_interval, 
+        .def("add_interval", &Ranges<C>::add_interval,
             py::return_value_policy::reference_internal,
             py::arg("start"),
             py::arg("end"),
@@ -796,14 +791,14 @@ void ranges_bindings(py::module_ & m, char const * name) {
             Merge ranges from another object into this one.
             )"
         )
-        .def("intersect", &Ranges<C>::intersect, 
+        .def("intersect", &Ranges<C>::intersect,
             py::return_value_policy::reference_internal,
             py::arg("source"),
             R"(
             Intersect another Ranges object with this one.
             )"
         )
-        .def("complement", &Ranges<C>::complement, 
+        .def("complement", &Ranges<C>::complement,
             py::return_value_policy::take_ownership,
             R"(
             Return the complement (over domain).
@@ -829,20 +824,20 @@ void ranges_bindings(py::module_ & m, char const * name) {
             Return an interval buffered by buff
             )"
         )
-        .def("close_gaps", &Ranges<C>::close_gaps, 
+        .def("close_gaps", &Ranges<C>::close_gaps,
             py::return_value_policy::reference_internal,
             py::arg("gap"),
             R"(
             Remove gaps between ranges less than gap
             )"
         )
-        .def("zeros_like", &Ranges<C>::zeros_like, 
+        .def("zeros_like", &Ranges<C>::zeros_like,
             py::return_value_policy::take_ownership,
             R"(
             Return range of same length but no intervals
             )"
         )
-        .def("ones_like", &Ranges<C>::ones_like, 
+        .def("ones_like", &Ranges<C>::ones_like,
             py::return_value_policy::take_ownership,
             R"(
             Return range of same length and interval spanning count
@@ -862,7 +857,7 @@ void ranges_bindings(py::module_ & m, char const * name) {
             The integer count sets the domain of the object.
             )"
         )
-        .def("__getitem__", &Ranges<C>::getitem, 
+        .def("__getitem__", &Ranges<C>::getitem,
             py::return_value_policy::take_ownership)
         .def_static("from_bitmask", &Ranges<C>::from_mask,
             py::return_value_policy::take_ownership,
@@ -878,7 +873,7 @@ void ranges_bindings(py::module_ & m, char const * name) {
             Return a list of Ranges extracted from an ndarray of bool.
             )"
         )
-        .def_static("bitmask", &Ranges<C>::bitmask, 
+        .def_static("bitmask", &Ranges<C>::bitmask,
             py::return_value_policy::take_ownership,
             py::arg("ranges_list"),
             py::arg("n_bits"),
