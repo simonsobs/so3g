@@ -8,13 +8,14 @@
 #  conda create -n dev python==3.12
 #  conda activate dev
 #  conda install --file conda_dev_requirements.txt
-#  python3 -m pip install -vv .
+#  pip install -v .
 #
 # Toolchain
 compilers
 cmake
 make
 ninja
+make
 # Compiled dependencies
 libopenblas=*=*openmp*
 libblas=*=*openblas
@@ -31,6 +32,8 @@ setuptools-scm
 numpy
 scipy
 astropy
+# FIXME: uncomment once spt3g is on conda-forge
+# spt3g
 matplotlib
 ephem
 pytz

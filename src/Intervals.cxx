@@ -40,10 +40,8 @@ Intervals<int32_t>::Intervals() {
 
 template <typename T>
 Intervals<T>::Intervals(Intervals<T> const & other) {
-    //std::cerr << "Copy constructor input = " << other.Description() << std::endl;
     domain = other.domain;
     segments = other.segments;
-    //std::cerr << "Copy constructor output = " << Description() << std::endl;
 }
 
 //
@@ -143,34 +141,18 @@ void Intervals<T>::cleanup()
 template <typename T>
 Intervals<T>& Intervals<T>::add_interval(const T start, const T end)
 {
-    ostringstream dbg;
-    dbg << "DBG add_interval (" << start << "," << end << ")";
-    std::cerr << dbg.str() << std::endl;
     // We can optimize this later.  For now just do something that is
     // obviously correct.
     auto p = lower_bound(segments.begin(), segments.end(), make_pair(start, end));
     segments.insert(p, make_pair(start, end));
     cleanup();
-
-    dbg.str("");
-    dbg << "DBG segments size now " << segments.size();
-    std::cerr << dbg.str() << std::endl;
-
     return *this;
 }
 
 template <typename T>
 Intervals<T>& Intervals<T>::append_interval_no_check(const T start, const T end)
 {
-    ostringstream dbg;
-    dbg << "DBG add_interval_no_check (" << start << "," << end << ")";
-    std::cerr << dbg.str() << std::endl;
     segments.push_back(make_pair(start, end));
-
-    dbg.str("");
-    dbg << "DBG segments size now " << segments.size();
-    std::cerr << dbg.str() << std::endl;
-
     return *this;
 }
 
@@ -303,16 +285,11 @@ Intervals<T> * Intervals<T>::from_array(const py::object & src)
     char *d = (char*)buf->buf;
     size_t n_seg = buf->shape[0];
 
-    std::cerr << "Intervals from_array shape = " << buf->shape[0] << "," << buf->shape[1] << std::endl;
-    std::cerr << "Intervals from_array strides = " << buf->strides[0] << "," << buf->strides[1] << std::endl;
-
     for (size_t i = 0; i < n_seg; ++i) {
         std::pair<T,T> pr = interval_pair<T>(d, d+(buf->strides[1]));
-        std::cerr << "Intervals from_array seg " << i << " pair = " << pr.first << "," << pr.second << std::endl;
         output->segments.push_back(pr);
         //output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
-        std::cerr << "Intervals from_array segments size now " << output->segments.size() << std::endl;
     }
 
     return output;
@@ -322,7 +299,6 @@ template <typename T>
 py::object Intervals<T>::array() const
 {
     npy_intp dims[2];
-    std::cerr << "Intervals segments.size() = " << segments.size() << std::endl;
     dims[0] = (npy_intp)segments.size();
     dims[1] = 2;
     int dtype = get_dtype<T>();
@@ -336,7 +312,7 @@ py::object Intervals<T>::array() const
         ostringstream dstr;
         dstr << "Failed to allocate Intervals numpy array of size (";
         dstr << dims[0] << ", " << dims[1] << ")";
-        throw RuntimeError_exception(dstr.str().c_str());
+        throw alloc_exception(dstr.str().c_str());
     }
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
@@ -481,7 +457,6 @@ static inline py::object mask_(const py::list &ivlist, int n_bits)
     pair<intType,intType> domain;
 
     for (long i=0; i<py::len(ivlist); i++) {
-        std::cerr << "Intervals mask processing list item " << i << std::endl;
         indexes.push_back(0);
         ivals.push_back(py::cast<Intervals<intType>>(ivlist[i]));
         if (i==0) {
@@ -490,7 +465,6 @@ static inline py::object mask_(const py::list &ivlist, int n_bits)
             throw agreement_exception("ivlist[0]", "all other ivlist[i]", "domain");
         }
     }
-    std::cerr << "Intervals mask done processing list" << std::endl;
 
     // Determine the output mask size based on n_bits... which may be unspecified.
     int npy_type = NPY_UINT8;
@@ -499,7 +473,6 @@ static inline py::object mask_(const py::list &ivlist, int n_bits)
     else if (n_bits < ivals.size())
         throw general_agreement_exception("Input list has more items than the "
                                           "output mask size (n_bits).");
-    std::cerr << "Intervals mask using n_bits = " << n_bits << std::endl;
 
     if (n_bits <= 8)
         npy_type = NPY_UINT8;
@@ -515,37 +488,32 @@ static inline py::object mask_(const py::list &ivlist, int n_bits)
             << " requested to encode this mask.";
         throw general_agreement_exception(err.str());
     }
-    std::cerr << "Intervals mask use npy_type = " << npy_type << std::endl;
 
     int n = domain.second - domain.first;
     npy_intp dims[1];
     dims[0] = n;
 
-    std::cerr << "Intervals mask allocate 1D array of len " << n << std::endl;
     PyObject *v = PyArray_SimpleNew(1, dims, npy_type);
     if (v == NULL) {
         ostringstream dstr;
         dstr << "Failed to allocate Intervals mask array of size (";
         dstr << dims[0] << ",)";
-        throw RuntimeError_exception(dstr.str().c_str());
+        throw alloc_exception(dstr.str().c_str());
     }
 
     // Assumes little-endian.
     int n_byte = PyArray_ITEMSIZE((PyArrayObject*)v);
-    std::cerr << "Intervals mask n_byte = " << n_byte << std::endl;
 
     uint8_t *ptr = reinterpret_cast<uint8_t*>((PyArray_DATA((PyArrayObject*)v)));
     memset(ptr, 0, n*n_byte);
     for (long bit=0; bit<ivals.size(); ++bit) {
         for (auto p: ivals[bit].segments) {
             for (int i=p.first - domain.first; i<p.second - domain.first; i++) {
-                std::cerr << "Intervals mask bit " << bit << ", i " << i << ": ptr[" << i*n_byte + bit/8 << "] |= " << (1<<(bit%8)) << std::endl;
                 ptr[i*n_byte + bit/8] |= (1<<(bit%8));
             }
         }
     }
 
-    std::cerr << "Intervals mask return" << std::endl;
     return py::reinterpret_steal<py::object>(v);
 }
 
@@ -740,7 +708,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             )"
         )
         .def("__str__", &Intervals<C>::Description)
-        .def("add_interval", &Intervals<C>::add_interval,  
+        .def("add_interval", &Intervals<C>::add_interval,
             py::return_value_policy::reference_internal,
             py::arg("start"),
             py::arg("end"),
@@ -761,7 +729,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             Merge an Intervals into the set.
             )"
         )
-        .def("intersect", &Intervals<C>::intersect, 
+        .def("intersect", &Intervals<C>::intersect,
             py::return_value_policy::reference_internal,
             py::arg("source"),
             R"(
@@ -796,7 +764,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             Interval set domain (settable, with consequences).
             )"
         )
-        .def("complement", &Intervals<C>::complement, 
+        .def("complement", &Intervals<C>::complement,
             py::return_value_policy::take_ownership,
             R"(
             Return the complement (over domain).
@@ -806,7 +774,6 @@ void intervals_bindings(py::module_ & m, char const * name) {
             "copy",
             [](Intervals<C> & slf) {
                 auto obj = Intervals<C>(slf);
-                std::cerr << "DBG bindings: " << obj.Description() << std::endl;
                 return obj;
             }, py::return_value_policy::move,
             R"(
@@ -825,7 +792,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             Return the intervals as a 2-d numpy array.
             )"
         )
-        .def("__getitem__", &Intervals<C>::getitem, 
+        .def("__getitem__", &Intervals<C>::getitem,
             py::return_value_policy::take_ownership)
         .def_static("from_mask", &Intervals<C>::from_mask,
             py::return_value_policy::take_ownership,
@@ -838,7 +805,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             (a 1-D array of integral type).
             )"
         )
-        .def_static("mask", &Intervals<C>::mask, 
+        .def_static("mask", &Intervals<C>::mask,
             py::return_value_policy::take_ownership,
             py::arg("intervals_list"),
             py::arg("n_bits"),

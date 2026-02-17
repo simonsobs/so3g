@@ -124,20 +124,16 @@ class _ProjectionistBase:
             raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
 
         projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}{interpol_suffix}'
-        print(f"get_ProjEng: name = {projeng_name}", flush=True)
         if not get:
             return projeng_name
         try:
             projeng_cls = getattr(libso3g, projeng_name)
-            print(f"get_ProjEng: class = {projeng_cls}", flush=True)
         except AttributeError:
-            print(f"get_ProjEng: libso3g has no such attribute!", flush=True)
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
                              f'"{comps}" (tried "{projeng_name}").')
         if not instance:
             return projeng_cls
-        print(f"get_ProjEng: args = {self._get_pixelizor_args()}", flush=True)
         return projeng_cls(self._get_pixelizor_args())
 
     def _cache_q_fp_to_native(self, q_fp_to_celestial):

@@ -51,7 +51,16 @@ execute_process(COMMAND ${Python_EXECUTABLE} -c
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-find_package(OpenMP)
+# NOTE:  even if we explicitly disable OpenMP, it *may*
+# be re-enabled if the Ceres package and its dependencies
+# (SuiteSparse) have been built with OpenMP.  That is ok,
+# since the time when we disable this is for wheel building
+# on MacOS, where we use our own Ceres with SuitSparse
+# and OpenMP disabled.
+if(NOT DISABLE_OPENMP)
+    find_package(OpenMP)
+endif()
+
 find_package(GSL)
 find_package(Ceres)
 find_package(pybind11 CONFIG REQUIRED)
