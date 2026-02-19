@@ -51,7 +51,10 @@ execute_process(COMMAND ${Python_EXECUTABLE} -c
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-find_package(OpenMP)
+if(NOT DISABLE_OPENMP)
+    find_package(OpenMP)
+endif()
+
 find_package(GSL)
 find_package(Ceres)
 find_package(pybind11 CONFIG REQUIRED)

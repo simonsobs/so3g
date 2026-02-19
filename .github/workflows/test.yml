@@ -32,18 +32,23 @@ jobs:
           - os: ubuntu-latest
             python: "3.10"
             arch: Linux-x86_64
+            ompdisable: 0
           - os: ubuntu-latest
             python: "3.12"
             arch: Linux-x86_64
+            ompdisable: 0
           - os: ubuntu-latest
             python: "3.13"
             arch: Linux-x86_64
+            ompdisable: 0
           - os: macos-15
             python: "3.11"
             arch: MacOSX-arm64
+            ompdisable: 1
           - os: macos-15
             python: "3.13"
             arch: MacOSX-arm64
+            ompdisable: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -75,7 +80,7 @@ jobs:
         run: |
           source ~/conda/etc/profile.d/conda.sh \
             && conda activate test \
-            && python3 -m pip install -v ".[test]"
+            && python3 -m pip install -v ".[test]" -Ccmake.define.DISABLE_OPENMP=${{ matrix.ompdisable }}
       - name: Run Tests
         run: |
           source ~/conda/etc/profile.d/conda.sh \

@@ -91,19 +91,14 @@ jobs:
         CXX=g++
         CFLAGS='-O3 -fPIC'
         CXXFLAGS='-O3 -fPIC -std=c++17'
-        BOOST_ROOT=/usr/local
-        FLAC_ROOT=/usr/local
-        SO3G_BUILD_BLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran'
+        CMAKE_ARGS="-DBLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran'"
       CIBW_ENVIRONMENT_MACOS: >
         MACOSX_DEPLOYMENT_TARGET=${{ matrix.deploy }}
         CC=gcc-14
         CXX=g++-14
         CFLAGS='-O3 -fPIC'
         CXXFLAGS='-O3 -fPIC -std=c++17'
-        CPATH='/usr/local/include'
-        BOOST_ROOT=/usr/local
-        FLAC_ROOT=/usr/local
-        SO3G_BUILD_BLAS_LIBRARIES='/usr/local/lib/libopenblas.dylib'
+        CMAKE_ARGS="-DDISABLE_OPENMP=1 -DBLAS_LIBRARIES='/usr/local/lib/libopenblas.dylib'"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: >
         ln -s $(dirname $(readlink -f $(which python3)))/python3-config $(dirname $(which python3))/python3-config &&
