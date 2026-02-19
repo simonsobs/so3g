@@ -59,71 +59,72 @@ class TestProjEngHP(unittest.TestCase):
         with self.assertRaises(Exception):
            p.to_weights(asm, comps='T')
 
-    # def test_10_tiled(self):
-    #     scan, asm = get_basics()
-    #     nside = 128
-    #     for nside_tile in [8, 'auto']:
-    #         p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile)
-    #         p.active_tiles = p.get_active_tiles(asm)['active_tiles']
-    #         sig = np.ones((2, len(scan[0])), 'float32')
-    #         for comps in ['T', 'QU', 'TQU']:
-    #             m = p.to_map(sig, asm, comps=comps)
-    #             m2 = [tile for tile in m if tile is not None]
-    #             assert(np.any(m2))
-    #             w = p.to_weights(asm, comps=comps)
-    #             w2 = [tile for tile in w if tile is not None]
-    #             assert(np.any(w2))
-    #         # Identify active subtiles?
-    #         print(p.active_tiles)
+    def test_10_tiled(self):
+        scan, asm = get_basics()
+        nside = 128
+        for nside_tile in [8, 'auto']:
+            p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile)
+            p.active_tiles = p.get_active_tiles(asm)['active_tiles']
+            sig = np.ones((2, len(scan[0])), 'float32')
+            for comps in ['T', 'QU', 'TQU']:
+                print(f"active tiles = {p.active_tiles}, comps = {comps}", flush=True)
+                m = p.to_map(sig, asm, comps=comps)
+                m2 = [tile for tile in m if tile is not None]
+                assert(np.any(m2))
+                w = p.to_weights(asm, comps=comps)
+                w2 = [tile for tile in w if tile is not None]
+                assert(np.any(w2))
+            # Identify active subtiles?
+            print(p.active_tiles)
 
-    # def test_20_threads(self):
-    #     for (tiled, interpol, method) in itertools.product(
-    #             [False, True],
-    #             ['nearest'],
-    #             ['simple', 'tiles']):
-    #         # For error messages ...
-    #         detail = f'(method={method}, tiled={tiled}, interpol={interpol})'
-    #         scan, asm = get_basics()
-    #         nside = 128
-    #         if tiled:
-    #             nside_tile = 8
-    #         else:
-    #             nside_tile = None
+    def test_20_threads(self):
+        for (tiled, interpol, method) in itertools.product(
+                [False, True],
+                ['nearest'],
+                ['simple', 'tiles']):
+            # For error messages ...
+            detail = f'(method={method}, tiled={tiled}, interpol={interpol})'
+            scan, asm = get_basics()
+            nside = 128
+            if tiled:
+                nside_tile = 8
+            else:
+                nside_tile = None
 
-    #         p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile, interpol=interpol)
-    #         sig = np.ones((2, len(scan[0])), 'float32')
-    #         n_threads = 3
+            p = proj.ProjectionistHealpix.for_healpix(nside, nside_tile, interpol=interpol)
+            sig = np.ones((2, len(scan[0])), 'float32')
+            n_threads = 3
 
-    #         if method in ['tiles'] and not tiled:
-    #             with self.assertRaises(Exception, msg=
-    #                                    f'Expected assignment to fail ({detail})'):
-    #                 threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-    #             continue
-    #         else:
-    #             threads = p.assign_threads(asm, method=method, n_threads=n_threads)
-    #         # This may need to be generalized if we implement fancier threads schemes.
-    #         self.assertIsInstance(threads, list,
-    #                               msg=f'a thread assignment routine did not return a list ({detail})')
+            if method in ['tiles'] and not tiled:
+                with self.assertRaises(Exception, msg=
+                                       f'Expected assignment to fail ({detail})'):
+                    threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+                continue
+            else:
+                threads = p.assign_threads(asm, method=method, n_threads=n_threads)
+            # This may need to be generalized if we implement fancier threads schemes.
+            self.assertIsInstance(threads, list,
+                                  msg=f'a thread assignment routine did not return a list ({detail})')
 
-    #         # Make sure the threads cover the TOD, or not,
-    #         # depending on clipped.
-    #         counts0 = threads[0].mask().sum(axis=0)
-    #         counts1 = np.zeros(counts0.shape, int)
+            # Make sure the threads cover the TOD, or not,
+            # depending on clipped.
+            counts0 = threads[0].mask().sum(axis=0)
+            counts1 = np.zeros(counts0.shape, int)
 
-    #         self.assertEqual(threads[0].shape, (n_threads,) + sig.shape,
-    #                          msg=f'a thread bunch has wrong shape ({detail})')
+            self.assertEqual(threads[0].shape, (n_threads,) + sig.shape,
+                             msg=f'a thread bunch has wrong shape ({detail})')
 
-    #         for t in threads[1:]:
-    #             counts1 += t.mask().sum(axis=0)
-    #             self.assertEqual(t.shape[1:], sig.shape,
-    #                              msg=f'a thread bunch has unexpected shape ({detail})')
+            for t in threads[1:]:
+                counts1 += t.mask().sum(axis=0)
+                self.assertEqual(t.shape[1:], sig.shape,
+                                 msg=f'a thread bunch has unexpected shape ({detail})')
 
-    #         target = set([1])
-    #         self.assertEqual(set((counts0 + counts1).ravel()), target,
-    #                          msg=f'threads does not cover TOD ({detail})')
-    #         # Only the first segment should be non-empty, unless bilinear.
-    #         if interpol == 'nearest':
-    #             self.assertEqual(counts1.sum(), 0)
+            target = set([1])
+            self.assertEqual(set((counts0 + counts1).ravel()), target,
+                             msg=f'threads does not cover TOD ({detail})')
+            # Only the first segment should be non-empty, unless bilinear.
+            if interpol == 'nearest':
+                self.assertEqual(counts1.sum(), 0)
 
 
 if __name__ == '__main__':

@@ -86,7 +86,7 @@ void nmat_detvecs_apply(const py::object & ft, const py::object & bins, const py
                 ft_[di*nmode+i] *= biD[di]/norm;
         // Do ft += s*iV[ndet,nvec] dot Q [nvec,nm]
         cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, ndet, nm, nvec, s/norm, biV, nvec, Q, nm, 1.0f, ft_+b1, nmode);
-        delete [] Q;
+        delete[] Q;
     }
 }
 
@@ -839,7 +839,7 @@ void matched_jumps(const py::object & tod, const py::object & out, const py::obj
     _jumps_thresh_on_mfilt(buffer, shift_flag, size, bsize, half_win, (T).5, false, false, ndet, nsamp);
     _clean_flag(shift_flag, quarter_win, ndet, nsamp);
     _jumps_thresh_on_mfilt(buffer, shift_flag, size, bsize, half_win, (T)1., true, true, ndet, nsamp);
-    delete buffer;
+    delete[] buffer;
 
     // Now we combine
     #pragma omp parallel for
@@ -850,7 +850,7 @@ void matched_jumps(const py::object & tod, const py::object & out, const py::obj
             output[i] = output[i] || shift_flag[i];
         }
     }
-    delete shift_flag;
+    delete[] shift_flag;
 }
 
 template <typename T>

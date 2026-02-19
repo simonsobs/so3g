@@ -606,6 +606,8 @@ class Projectionist(_ProjectionistBase):
             interpol = INTERPOLS[0]
         self.interpol = interpol
 
+        print(f"for_geom: naxis = {self.naxis}, cdelt = {self.cdelt}, crpix = {self.crpix}", flush=True)
+
         return self
 
     @classmethod

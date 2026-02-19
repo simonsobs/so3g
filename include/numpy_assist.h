@@ -133,7 +133,7 @@ public:
     // Constructor with no shape or type checking.
     BufferWrapper(std::string name, const py::object &src, bool optional)
         : BufferWrapper() {
-        if (optional && (src.ptr() == Py_None))
+        if (optional && (src.is_none()))
             return;
         //std::cerr << "BufferWrapper ctor " << name << " src = " << src.ptr() << ")" << std::endl;
         if (PyObject_GetBuffer(src.ptr(), view.get(),
@@ -156,27 +156,27 @@ public:
                   std::vector<int> shape)
         : BufferWrapper(name, src, optional) {
 
-        //std::cerr << "BufferWrapper start 4-arg ctor" << std::endl;
+        std::cerr << "BufferWrapper start 4-arg ctor" << std::endl;
 
         // "optional" items will cause the parent constructor to
         // succeed, but will leave buffer pointer unset.
         if (view->buf == NULL) {
-            //std::cerr << "BufferWrapper: view->buf == NULL, return" << std::endl;
+            std::cerr << "BufferWrapper: view->buf == NULL, return" << std::endl;
             return;
         }
 
         if (!check_buffer_type<T>(*(view.get()))) {
-            //std::cerr << "BufferWrapper: view invalid type = " << type_name<T>() << std::endl;
+            std::cerr << "BufferWrapper: view invalid type = " << type_name<T>() << std::endl;
             throw dtype_exception(name, type_name<T>());
         }
 
         std::vector<int> vshape;
-        //std::cerr << "BufferWrapper: vshape = ";
+        std::cerr << "BufferWrapper: vshape = ";
         for (int i=0; i<view->ndim; i++) {
-            //std::cerr << view->shape[i] << ",";
+            std::cerr << view->shape[i] << ",";
             vshape.push_back(view->shape[i]);
         }
-        //std::cerr << std::endl;
+        std::cerr << std::endl;
 
         // Note special value -1 is as in numpy -- matches a single
         // axis.  Special value -2 is treated as an ellipsis -- can be
@@ -205,6 +205,7 @@ public:
             std::ostringstream s;
             s << "Expected " << shape_string(shape) << " but got " <<
                 shape_string(vshape) << ".";
+            std::cerr << s.str() << std::endl;
             throw shape_exception(name, s.str());
         }
     }
@@ -229,3 +230,7 @@ public:
 private:
     std::shared_ptr<Py_buffer> view;
 };
+
+
+// Convert an n-dimensional array into a list of array slices.
+py::list list_of_arrays(py::object input);

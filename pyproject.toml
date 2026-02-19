@@ -57,7 +57,8 @@ so-hk-tool = "so3g.hk.cli:main"
 
 [tool.scikit-build]
 # A list of args to pass to CMake when configuring the project.
-cmake.args = []
+#cmake.args = []
+cmake.args = ["-DCMAKE_C_FLAGS='-O0 -g'", "-DCMAKE_CXX_FLAGS='-O0 -g'"]
 # A table of defines to pass to CMake when configuring the project. Additive.
 cmake.define = {}
 # The build type to use when building the project.
@@ -110,7 +111,7 @@ build.requires = []
 # The components to install.
 install.components = []
 # Whether to strip the binaries.
-install.strip = true
+install.strip = false
 # Add the python build environment site_packages folder to the CMake prefix paths.
 search.site-packages = true
 # Strictly check all config options.
