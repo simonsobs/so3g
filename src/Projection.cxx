@@ -1315,7 +1315,7 @@ void spin_proj_factors<SpinTQU>(const double* coords, const Response & response,
 
 
 template <typename DTYPE>
-constexpr bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
+bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
                                    int dtype)
 {
     // We want a list of arrays here.

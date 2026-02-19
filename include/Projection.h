@@ -40,7 +40,7 @@ public:
     py::object ret_val;
 
 private:
-    constexpr bool _Validate(py::object input, std::string var_name,
+    bool _Validate(py::object input, std::string var_name,
                    int dtype);
 };
 
