@@ -1,60 +1,30 @@
-#include <pybindings.h>
 
 #include <iostream>
-#include <boost/python.hpp>
 
-#include <container_pybindings.h>
 #include <hkagg.h>
+#include "exceptions.h"
 
+namespace py = pybind11;
 
-/* IrregBlockDouble */
-
-std::string IrregBlockDouble::Description() const
-{
-	std::ostringstream s;
-	s << "Double data (" << data.size() << " vectors) with timestamp.";
-	return s.str();
+int hk_frame_type_int(HKFrameType typ) {
+    // Manually convert enum to int for python.
+    if (typ == HKFrameType::session) {
+        return 0;
+    } else if (typ == HKFrameType::status) {
+        return 1;
+    } else if (typ == HKFrameType::data) {
+        return 2;
+    } else {
+        throw std::runtime_error("Invalid HKFrameType enum value");
+    }
+    return -1;
 }
 
-std::string IrregBlockDouble::Summary() const
-{
-    return Description();
-}
+void register_hkagg(py::module_ & m) {
+    py::enum_<HKFrameType>(m, "HKFrameType", "Identifier for generic HK streams.")
+    .value("session", HKFrameType::session)
+    .value("status", HKFrameType::status)
+    .value("data", HKFrameType::data);
 
-template <class A> void IrregBlockDouble::serialize(A &ar, unsigned v)
-{
-	using namespace cereal;
-        // v is the version code!
-
-	ar & make_nvp("G3FrameObject", base_class<G3FrameObject>(this));
-	ar & make_nvp("prefix", prefix);
-	ar & make_nvp("t", t);
-	ar & make_nvp("data", data);
-}
-
-
-G3_SERIALIZABLE_CODE(IrregBlockDouble);
-
-
-namespace bp = boost::python;
-
-PYBINDINGS("so3g")
-{
-    EXPORT_FRAMEOBJECT(IrregBlockDouble, init<>(),
-    "Data block for irregularly sampled data.")
-    .def_readwrite("prefix", &IrregBlockDouble::prefix,
-    "Prefix for field names.")
-    .def_readwrite("data", &IrregBlockDouble::data,
-    "Map to HK data vectors.")
-    .def_readwrite("t", &IrregBlockDouble::t,
-    "Timestamp vector.")
-    ;
-
-    bp::enum_<HKFrameType>("HKFrameType",
-                           "Identifier for generic HK streams.")
-        .value("session", HKFrameType::session)
-        .value("status",  HKFrameType::status)
-        .value("data",    HKFrameType::data)
-        ;
-
+    m.def("hk_frame_type_int", &hk_frame_type_int);
 }

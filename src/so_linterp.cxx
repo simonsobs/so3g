@@ -1,9 +1,9 @@
 #include <so_linterp.h>
-#include <pybindings.h>
 
 #include <cmath>
-#include <boost/python.hpp>
-namespace bp = boost::python;
+
+namespace py = pybind11;
+
 
 double test_trig(int table_size, int verbose)
 {
@@ -36,8 +36,8 @@ double test_trig(int table_size, int verbose)
     return worst;
 }
 
-PYBINDINGS("so3g")
-{
-    bp::def("test_trig", test_trig,
-        "For use in test suite -- determines worst arctrig discrepancy, in radians.");
+
+void register_so_linterp(py::module_ & m) {
+    m.def("test_trig", &test_trig);
+    return;
 }

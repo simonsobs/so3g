@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
   build_wheels:
     name: Build wheel for cp${{ matrix.python }}-${{ matrix.builder }}_${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
@@ -21,61 +22,61 @@ jobs:
       matrix:
         include:
           # Linux 64 bit manylinux
-          - os: ubuntu-latest
-            arch: x86_64
-            python: 310
-            builder: manylinux
-          - os: ubuntu-latest
-            arch: x86_64
-            python: 311
-            builder: manylinux
-          - os: ubuntu-latest
-            arch: x86_64
-            python: 312
-            builder: manylinux
+          # - os: ubuntu-latest
+          #   arch: x86_64
+          #   python: 310
+          #   builder: manylinux
+          # - os: ubuntu-latest
+          #   arch: x86_64
+          #   python: 311
+          #   builder: manylinux
+          # - os: ubuntu-latest
+          #   arch: x86_64
+          #   python: 312
+          #   builder: manylinux
           - os: ubuntu-latest
             arch: x86_64
             python: 313
             builder: manylinux
 
           # MacOS x86_64.
-          - os: macos-15-intel
-            arch: x86_64
-            python: 310
-            builder: macosx
-            deploy: 15.0
-          - os: macos-15-intel
-            arch: x86_64
-            python: 311
-            builder: macosx
-            deploy: 15.0
-          - os: macos-15-intel
-            arch: x86_64
-            python: 312
-            builder: macosx
-            deploy: 15.0
-          - os: macos-15-intel
-            arch: x86_64
-            python: 313
-            builder: macosx
-            deploy: 15.0
+          # - os: macos-15-intel
+          #   arch: x86_64
+          #   python: 310
+          #   builder: macosx
+          #   deploy: 15.0
+          # - os: macos-15-intel
+          #   arch: x86_64
+          #   python: 311
+          #   builder: macosx
+          #   deploy: 15.0
+          # - os: macos-15-intel
+          #   arch: x86_64
+          #   python: 312
+          #   builder: macosx
+          #   deploy: 15.0
+          # - os: macos-15-intel
+          #   arch: x86_64
+          #   python: 313
+          #   builder: macosx
+          #   deploy: 15.0
 
           # MacOS arm64
-          - os: macos-15
-            arch: arm64
-            python: 310
-            builder: macosx
-            deploy: 15.0
-          - os: macos-15
-            arch: arm64
-            python: 311
-            builder: macosx
-            deploy: 15.0
-          - os: macos-15
-            arch: arm64
-            python: 312
-            builder: macosx
-            deploy: 15.0
+          # - os: macos-15
+          #   arch: arm64
+          #   python: 310
+          #   builder: macosx
+          #   deploy: 15.0
+          # - os: macos-15
+          #   arch: arm64
+          #   python: 311
+          #   builder: macosx
+          #   deploy: 15.0
+          # - os: macos-15
+          #   arch: arm64
+          #   python: 312
+          #   builder: macosx
+          #   deploy: 15.0
           - os: macos-15
             arch: arm64
             python: 313
@@ -90,26 +91,19 @@ jobs:
         CC=gcc
         CXX=g++
         CFLAGS='-O3 -fPIC'
-        CXXFLAGS='-O3 -fPIC -std=c++14'
-        BOOST_ROOT=/usr/local
-        FLAC_ROOT=/usr/local
-        SO3G_BUILD_BLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran'
+        CXXFLAGS='-O3 -fPIC -std=c++17'
+        CMAKE_ARGS="-DBLAS_LIBRARIES='-L/usr/local/lib -lopenblas -fopenmp -lm -lgfortran'"
       CIBW_ENVIRONMENT_MACOS: >
         MACOSX_DEPLOYMENT_TARGET=${{ matrix.deploy }}
         CC=gcc-14
         CXX=g++-14
         CFLAGS='-O3 -fPIC'
-        CXXFLAGS='-O3 -fPIC -std=c++14'
-        CPATH='/usr/local/include'
-        BOOST_ROOT=/usr/local
-        FLAC_ROOT=/usr/local
-        SO3G_BUILD_BLAS_LIBRARIES='/usr/local/lib/libopenblas.dylib'
+        CXXFLAGS='-O3 -fPIC -std=c++17'
+        CMAKE_ARGS="-DDISABLE_OPENMP=1 -DBLAS_LIBRARIES='/usr/local/lib/libopenblas.dylib'"
       CIBW_BEFORE_BUILD_LINUX: ./wheels/install_deps_linux.sh
       CIBW_BEFORE_BUILD_MACOS: >
         ln -s $(dirname $(readlink -f $(which python3)))/python3-config $(dirname $(which python3))/python3-config &&
         ./wheels/install_deps_osx.sh
-      CIBW_REPAIR_WHEEL_COMMAND_LINUX: ./wheels/repair_wheel_linux.sh {dest_dir} {wheel}
-      CIBW_REPAIR_WHEEL_COMMAND_MACOS: ./wheels/repair_wheel_macos.sh {dest_dir} {wheel} {delocate_archs}
       CIBW_BEFORE_TEST_LINUX: >
         python -m pip install pytest pixell &&
         export OMP_NUM_THREADS=2

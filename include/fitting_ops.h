@@ -138,3 +138,5 @@ private:
     const double* x;
     const double* y;
 };
+
+void register_fitting_ops(py::module_ & m);

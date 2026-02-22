@@ -1,4 +1,6 @@
-import so3g
+
+import numpy as np
+
 from spt3g import core
 
 from . import quat
@@ -10,6 +12,5 @@ from .coords import CelestialSightLine, EarthlySite, Assembly, FocalPlane, SITES
 from .weather import Weather, weather_factory
 from .ranges import Ranges, RangesMatrix
 
-import numpy as np
 
 DEG = np.pi/180.

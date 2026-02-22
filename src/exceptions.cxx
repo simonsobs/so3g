@@ -1,32 +1,20 @@
-#include <boost/python/exception_translator.hpp>
 
-#include <container_pybindings.h>
 #include "exceptions.h"
 
-// Here we define the map from C++ exceptions defined in exceptions.h
-// to Python exceptions.  Currently we use built-in python exceptions,
-// with informative error messages.
-
-static void translate_RuntimeError(so3g_exception const& e)
-{
-    PyErr_SetString(PyExc_RuntimeError, e.msg_for_python().c_str());
-}
-
-static void translate_TypeError(so3g_exception const& e)
-{
-    PyErr_SetString(PyExc_TypeError, e.msg_for_python().c_str());
-}
-
-static void translate_ValueError(so3g_exception const& e)
-{
-    PyErr_SetString(PyExc_ValueError, e.msg_for_python().c_str());
-}
+namespace py = pybind11;
 
 
-namespace bp = boost::python;
-PYBINDINGS("so3g")
-{
-    bp::register_exception_translator<RuntimeError_exception> (&translate_RuntimeError);
-    bp::register_exception_translator<TypeError_exception> (&translate_TypeError);
-    bp::register_exception_translator<ValueError_exception> (&translate_ValueError);
+void register_exceptions(py::module_ & m) {
+    py::exception<value_exception>(m, "SO3G_value_exception", PyExc_ValueError);
+    py::exception<buffer_exception>(m, "SO3G_buffer_exception", PyExc_RuntimeError);
+    py::exception<shape_exception>(m, "SO3G_shape_exception", PyExc_RuntimeError);
+    py::exception<dtype_exception>(m, "SO3G_dtype_exception", PyExc_ValueError);
+    py::exception<agreement_exception>(
+        m, "SO3G_agreement_exception", PyExc_RuntimeError
+    );
+    py::exception<tiling_exception>(m, "SO3G_tiling_exception", PyExc_RuntimeError);
+    py::exception<general_agreement_exception>(
+        m, "SO3G_general_agreement_exception", PyExc_ValueError
+    );
+    py::exception<alloc_exception>(m, "SO3G_alloc_exception", PyExc_RuntimeError);
 }

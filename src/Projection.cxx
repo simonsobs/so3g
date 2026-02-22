@@ -1,29 +1,31 @@
 #define NO_IMPORT_ARRAY
 
-// debug
 #include <iostream>
-using namespace std;
-
-#include <pybindings.h>
-
 #include <assert.h>
-#include <math.h>
+#include <cmath>
+#include <cstdio>
+#include <typeinfo>
 
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
-#include <boost/math/quaternion.hpp>
 
-#include <container_pybindings.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
+#include "quaternion.h"
 #include "so3g_numpy.h"
 #include "Projection.h"
 #include "Ranges.h"
 #include "exceptions.h"
 #include "so_linterp.h"
 
-#include <stdio.h>
+using namespace std;
+
+namespace py = pybind11;
+
 #include "healpix_bare.c"
+
 
 // TRIG_TABLE_SIZE
 //
@@ -44,11 +46,39 @@ static atan2Table atan2_lookup(TRIG_TABLE_SIZE);
 #endif
 
 
-typedef boost::math::quaternion<double> quatd;
+typedef quaternion<double> quatd;
 
-inline bool isNone(const bp::object &pyo)
+inline bool isNone(const py::object &pyo)
 {
-    return (pyo.ptr() == Py_None);
+    return pyo.is_none();
+}
+
+
+// Convert an n-dimensional array into a list of array slices.
+py::list list_of_arrays(py::object input) {
+    if (input.is_none()) {
+        return py::list();
+    }
+    if (py::isinstance<py::list>(input)) {
+        // Already a list, pass-through
+        return input;
+    }
+
+    // The returned list
+    py::list output;
+
+    auto in_arr = py::cast<py::array>(input);
+    int ndim = in_arr.ndim();
+    if (ndim == 1) {
+        output.append(in_arr);
+    } else {
+        for (int i = 0; i < in_arr.shape(0); ++i) {
+            auto slc = py::make_tuple(py::int_(i), py::ellipsis());
+            py::array in_arr_row = py::cast<py::array>(in_arr[slc]).squeeze();
+            output.append(in_arr_row);
+        }
+    }
+    return output;
 }
 
 
@@ -130,7 +160,7 @@ inline bool isNone(const bp::object &pyo)
 // implemented as follows.
 //
 // At the top level, the functions where the responsivity is relevant, like
-// from_map, to_map etc. take a bp::object reponse argument, representing
+// from_map, to_map etc. take a py::object reponse argument, representing
 // the [ndet,2] detector responsivities.
 //
 // This is then converted into a BufferWrapper<FSIGNAL>, before each detector's
@@ -182,8 +212,8 @@ class SpinTQU : public SpinClass<3> {};
 template <typename CoordSys>
 class Pointer {
 public:
-    bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
-                    bp::object &signal, bp::object &det_weights);
+    bool TestInputs(py::object &map, py::object &pbore, py::object &pdet,
+                    py::object &signal, py::object &det_weights);
     void InitPerDet(int i_det, double *dofs);
     int DetCount() { return n_det; }
     int TimeCount() { return n_time; }
@@ -198,8 +228,8 @@ private:
 
 template <typename CoordSys>
 bool Pointer<CoordSys>::TestInputs(
-    bp::object &map, bp::object &pbore, bp::object &pdet,
-    bp::object &signal, bp::object &det_weights)
+    py::object &map, py::object &pbore, py::object &pdet,
+    py::object &signal, py::object &det_weights)
 {
     // Boresight and Detector must present and inter-compatible.
     _pborebuf = BufferWrapper<double>("boresight", pbore, false,
@@ -218,7 +248,7 @@ bool Pointer<CoordSys>::TestInputs(
             if (std::isnan(*(double*)x)) {
                 std::ostringstream err;
                 err << "Pointing offset error: nan found at index " << i << ".";
-                throw ValueError_exception(err.str());
+                throw value_exception(err.str());
             }
         }
     }
@@ -531,27 +561,34 @@ public:
         check_nside(nside);
     };
     Pixelizor_Healpix() {};
-    Pixelizor_Healpix(bp::object args) {
-        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+    Pixelizor_Healpix(py::object args) {
+        py::tuple args_tuple = py::cast<py::tuple>(args);
         // args[0]: int nside
-        nside = bp::extract<int>(args_tuple[0])();
+        nside = py::cast<int>(args_tuple[0]);
         // args[1]: bool isnest
-        nest = bp::extract<bool>(args_tuple[1])();
+        nest = py::cast<bool>(args_tuple[1]);
         npix = nside2npix(nside);
         check_nside(nside);
     }
     ~Pixelizor_Healpix() {};
 
-    bp::object zeros(vector<int> shape) {
+    py::object zeros(vector<int> shape) {
+        std::cerr << "PixHP non-tile input shape has len " << shape.size() << std::endl;
         shape.push_back(npix);
         int ndim = 0;
         npy_intp dims[32];
-        for (auto d: shape)
+        for (auto d: shape) {
             dims[ndim++] = d;
+        }
+        std::cerr << "PixHP non-tile ndim = " << ndim << " (";
+        for (int i = 0; i < ndim; ++i) {
+            std::cerr << dims[i] << ", ";
+        }
+        std::cerr << ")" << std::endl;
 
         int dtype = NPY_FLOAT64;
         PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
-        return bp::object(bp::handle<>(v));
+        return py::reinterpret_steal<py::object>(v);
     }
 
     inline
@@ -573,7 +610,7 @@ public:
         return 1;
     }
 
-    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+    bool TestInputs(py::object &map, bool need_map, bool need_weight_map, int comp_count) {
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
             // component count.  Then the one healpix pixel axis.
@@ -609,7 +646,7 @@ public:
         if (! isok){
           std::ostringstream err;
           err << "Invalid nside " << nside;
-          throw ValueError_exception(err.str());
+          throw value_exception(err.str());
         }
     }
 
@@ -637,30 +674,31 @@ public:
         check_nside(nside);
     };
     Pixelizor_Healpix() {};
-    Pixelizor_Healpix(bp::object args) {
+    Pixelizor_Healpix(py::object args) {
         // args[0]: int nside
-        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
-        nside = bp::extract<int>(args_tuple[0])();
+        py::tuple args_tuple = py::cast<py::tuple>(args);
+        nside = py::cast<int>(args_tuple[0]);
         // args[1]: bool nestin: MUST BE true ; check that
-        bool nestin = bp::extract<bool>(args_tuple[1])(); // "nest" argument, not used for tiled maps
+        bool nestin = py::cast<bool>(args_tuple[1]); // "nest" argument, not used for tiled maps
         if (! nestin){
             std::ostringstream err;
             err << "RING not supported for tiled maps";
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
         // args[2] int nside_tile; nside defining the tiling
-        int nside_tile = bp::extract<int>(args_tuple[2])();
+        int nside_tile = py::cast<int>(args_tuple[2]);
         ntiles = nside2npix(nside_tile);
-        if (bp::len(args) >= 4) {
+        if (py::len(args) >= 4) {
             // args[3] list(int) of indexes for active tiles
-            bp::object active_tiles = bp::extract<bp::object>(args_tuple[3])();
-            if (! isNone(active_tiles)){
+            py::list active_tiles = list_of_arrays(args_tuple[3]);
+            if (! isNone(active_tiles)) {
                 populate = vector<bool>(ntiles, false);
-                 for (int i=0; i < bp::len(active_tiles); i++) {
-                     int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
-                     if (idx >= 0 && idx < ntiles)
-                         populate[idx] = true;
-                 }
+                for (int i=0; i < py::len(active_tiles); i++) {
+                    int idx = py::cast<int>(active_tiles[i]);
+                    if (idx >= 0 && idx < ntiles) {
+                        populate[idx] = true;
+                    }
+                }
             }
         }
         int npix = nside2npix(nside);
@@ -670,33 +708,51 @@ public:
         if (nside_tile > nside) {
             std::ostringstream err;
             err << "Invalid nside_tile " << nside_tile << " > nside " << nside;
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
     }
   ~Pixelizor_Healpix() {};
 
-    bp::object zeros(vector<int> shape) {
+    py::object zeros(vector<int> shape) {
+        std::cerr << "PixHP tiled input shape has len " << shape.size() << std::endl;
         int dtype = NPY_FLOAT64;
         int ndim = 0;
         npy_intp dims[32];
-        for (auto d: shape)
+        for (auto d: shape) {
             dims[ndim++] = d;
+        }
         ndim += 1;
-        if (populate.size() == 0)
-            throw RuntimeError_exception("Cannot create blank tiled map unless "
-                                  "user has specified what tiles to populate.");
 
-        bp::list maps_out;
+        if (populate.size() == 0)
+            throw std::runtime_error("Cannot create blank tiled map unless "
+                                     "user has specified what tiles to populate.");
+
+        py::list maps_out;
         auto pop_iter = populate.begin();
         for (int itile = 0; itile < ntiles; itile++){
+            std::cerr << "PixHP zeros, tile " << itile;
             bool pop_this = (pop_iter != populate.end()) && *(pop_iter++);
             if (pop_this) {
                 dims[ndim-1] = npix_per_tile;
+                std::cerr << "PixHP zeros, pop_this = true, append ndim = " << ndim << " (";
+                for (int i = 0; i < ndim; ++i) {
+                    std::cerr << dims[i] << ",";
+                }
+                std::cerr << ")" << std::endl;
                 PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
-                maps_out.append(bp::handle<>(v));
-            } else
-                maps_out.append(bp::object());
+                maps_out.append(py::reinterpret_steal<py::object>(v));
+            } else {
+                std::cerr << "PixHP zeros, pop_this = false, append None" << std::endl;
+                maps_out.append(py::none());
+            }
         }
+
+        std::cerr << "PixHP tiled ndim = " << ndim << " (";
+        for (int i = 0; i < ndim; ++i) {
+            std::cerr << dims[i] << ", ";
+        }
+        std::cerr << ")" << std::endl;
+        std::cerr << "PixHP final zeros has " << py::len(maps_out) << " tiles" << std:: endl;
         return maps_out;
     }
 
@@ -723,7 +779,10 @@ public:
         return 1;
     }
 
-    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+    bool TestInputs(py::object & map_obj, bool need_map, bool need_weight_map, int comp_count) {
+        // Get list of input maps
+        py::list map = list_of_arrays(map_obj);
+
         vector<int> map_shape_req;
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
@@ -736,16 +795,32 @@ public:
         }
         if (map_shape_req.size() == 0)
             return true;
+
         mapbufs.clear();
-        for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
+        // Number of tiles
+        int n_tile = py::len(map);
+
+        std::cerr << "healpix tiled TestInputs got map with n_tile = " << n_tile << std::endl;
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
+            if (! isNone(map[i_tile])) {
+                py::array mp = py::cast<py::array>(map[i_tile]);
+                std::cerr << "healpix tiled TestInputs tile " << i_tile << " map shape: ";
+                for (int im = 0; im < mp.ndim(); ++im) {
+                    std::cerr << mp.shape(im) << ",";
+                }
+                std::cerr << std::endl;
+            }
+        }
+
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
             if (isNone(map[i_tile])) {
                 if (populate[i_tile])
                     throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
-                // You should be checking that the shape is as expected.
                 mapbufs.push_back(
-                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req)
+                );
             }
         }
 
@@ -787,7 +862,7 @@ public:
         if (! isok){
             std::ostringstream err;
             err << "Invalid nside " << nside;
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
     }
 
@@ -816,20 +891,22 @@ public:
         cdelt[1] = dx;
         crpix[0] = iy0;
         crpix[1] = ix0;
+        std::cerr << "pixelizor2 non-tile ctor naxis = " << naxis[0] << "," << naxis[1] << std::endl;
     };
     Pixelizor2_Flat() : naxis{1,1} {};
-    Pixelizor2_Flat(bp::object args) {
-        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
-        naxis[0] = bp::extract<int>(args_tuple[0])();
-        naxis[1] = bp::extract<int>(args_tuple[1])();
-        cdelt[0] = bp::extract<double>(args_tuple[2])();
-        cdelt[1] = bp::extract<double>(args_tuple[3])();
-        crpix[0] = bp::extract<double>(args_tuple[4])();
-        crpix[1] = bp::extract<double>(args_tuple[5])();
+    Pixelizor2_Flat(py::object args) {
+        py::tuple args_tuple = py::cast<py::tuple>(args);
+        naxis[0] = py::cast<int>(args_tuple[0]);
+        naxis[1] = py::cast<int>(args_tuple[1]);
+        cdelt[0] = py::cast<double>(args_tuple[2]);
+        cdelt[1] = py::cast<double>(args_tuple[3]);
+        crpix[0] = py::cast<double>(args_tuple[4]);
+        crpix[1] = py::cast<double>(args_tuple[5]);
+        std::cerr << "pixelizor2 non-tile pyctor naxis = " << naxis[0] << "," << naxis[1] << std::endl;
     }
     ~Pixelizor2_Flat() {};
 
-    bp::object zeros(vector<int> shape) {
+    py::object zeros(vector<int> shape) {
         shape.push_back(naxis[0]);
         shape.push_back(naxis[1]);
         int ndim = 0;
@@ -839,7 +916,7 @@ public:
 
         int dtype = NPY_FLOAT64;
         PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
-        return bp::object(bp::handle<>(v));
+        return py::reinterpret_steal<py::object>(v);
     }
 
     inline
@@ -864,7 +941,14 @@ public:
     inline
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]);
 
-    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+    bool TestInputs(py::object &map, bool need_map, bool need_weight_map, int comp_count) {
+        py::array mp = py::cast<py::array>(map);
+        std::cerr << "pixelizer2 non-tiled TestInputs map shape: ";
+        for (int im = 0; im < mp.ndim(); ++im) {
+            std::cerr << mp.shape(im) << ",";
+        }
+        std::cerr << std::endl;
+
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
             // component count.  And then 2 celestial axes.
@@ -968,33 +1052,31 @@ public:
         tile_shape[0] = tiley;
         tile_shape[1] = tilex;
     };
-    Pixelizor2_Flat(bp::object args) {
+    Pixelizor2_Flat(py::object args) {
         parent_pix = Pixelizor2_Flat<NonTiled>(args); // first 6...
-        bp::tuple args_tuple = bp::extract<bp::tuple>(args);
+        py::tuple args_tuple = py::cast<py::tuple>(args);
 
-        tile_shape[0] = bp::extract<int>(args_tuple[6])();
-        tile_shape[1] = bp::extract<int>(args_tuple[7])();
+        tile_shape[0] = py::cast<int>(args_tuple[6]);
+        tile_shape[1] = py::cast<int>(args_tuple[7]);
         // Check for tile list as arg[8].
-        if (bp::len(args) >= 9) {
+        if (py::len(args) >= 9) {
             int n_ty = (parent_pix.naxis[0] + tile_shape[0] - 1) / tile_shape[0];
             int n_tx = (parent_pix.naxis[1] + tile_shape[1] - 1) / tile_shape[1];
             populate = vector<bool>(n_ty * n_tx, false);
-            bp::object active_tiles = bp::extract<bp::object>(args_tuple[8])();
-            for (int i=0; i<bp::len(active_tiles); i++) {
-                // We're using C API instead of boost because this:
-                //   bp::extract<int>(active_tiles[i])
-                // does not work on an ndarray, nor even on a list of
-                // elements extracted from an array, unless one carefully
-                // casts them to int first.
-                int idx = PyLong_AsLong(bp::object(active_tiles[i]).ptr());
-                if (idx >= 0 && idx < n_tx*n_ty)
-                    populate[idx] = true;
+            py::list active_tiles = list_of_arrays(args_tuple[8]);
+            if (! isNone(active_tiles)) {
+                for (int i=0; i < py::len(active_tiles); i++) {
+                    int idx = py::cast<int>(active_tiles[i]);
+                    if (idx >= 0 && idx < n_tx*n_ty) {
+                        populate[idx] = true;
+                    }
+                }
             }
         }
     }
     ~Pixelizor2_Flat() {};
 
-    bp::object zeros(vector<int> shape) {
+    py::object zeros(vector<int> shape) {
         int dtype = NPY_FLOAT64;
         int ndim = 0;
         npy_intp dims[32];
@@ -1009,7 +1091,7 @@ public:
             throw shape_exception("zeros", "Cannot create blank tiled map unless "
                                   "user has specified what tiles to populate.");
 
-        bp::list maps_out;
+        py::list maps_out;
         auto pop_iter = populate.begin();
         for (int i_ty = 0; i_ty < n_ty; i_ty++) {
             for (int i_tx = 0; i_tx < n_tx; i_tx++) {
@@ -1018,9 +1100,9 @@ public:
                     dims[ndim-2] = min(tile_shape[0], parent_pix.naxis[0] - i_ty * tile_shape[0]);
                     dims[ndim-1] = min(tile_shape[1], parent_pix.naxis[1] - i_tx * tile_shape[1]);
                     PyObject *v = PyArray_ZEROS(ndim, dims, dtype, 0);
-                    maps_out.append(bp::handle<>(v));
+                    maps_out.append(py::reinterpret_steal<py::object>(v));
                 } else
-                    maps_out.append(bp::object());
+                    maps_out.append(py::none());
             }
         }
         return maps_out;
@@ -1052,7 +1134,10 @@ public:
     inline
     int GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]);
 
-    bool TestInputs(bp::object &map, bool need_map, bool need_weight_map, int comp_count) {
+    bool TestInputs(py::object & map_obj, bool need_map, bool need_weight_map, int comp_count) {
+        // List of input maps
+        py::list map = list_of_arrays(map_obj);
+
         vector<int> map_shape_req;
         if (need_map) {
             // The map is mandatory, and the leading axis must match the
@@ -1067,15 +1152,35 @@ public:
             return true;
 
         mapbufs.clear();
-        for (int i_tile = 0; i_tile < bp::len(map); i_tile++) {
+        // Number of tiles
+        int n_tile = py::len(map);
+        std::cerr << "pixelizer2 tiled TestInputs got map with n_tile = " << n_tile << std::endl;
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
+            if (! isNone(map[i_tile])) {
+                py::array mp = py::cast<py::array>(map[i_tile]);
+                std::cerr << "pixelizer2 tiled TestInputs tile " << i_tile << " map shape: ";
+                for (int im = 0; im < mp.ndim(); ++im) {
+                    std::cerr << mp.shape(im) << ",";
+                }
+                std::cerr << std::endl;
+            }
+        }
+
+        std::cerr << "pixelizer2 tiled TestInputs: map_shape_req = ";
+        for (int im = 0; im < map_shape_req.size(); ++im) {
+            std::cerr << map_shape_req[im] << ",";
+        }
+        std::cerr << std::endl;
+
+        for (int i_tile = 0; i_tile < n_tile; i_tile++) {
             if (isNone(map[i_tile])) {
                 if (populate[i_tile])
                     throw tiling_exception(i_tile, "Projector expects tile but it is missing.");
                 mapbufs.push_back(BufferWrapper<double>());
             } else {
-                // You should be checking that the shape is as expected.
                 mapbufs.push_back(
-                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req));
+                    BufferWrapper<double>("map", map[i_tile], false, map_shape_req)
+                );
             }
         }
 
@@ -1210,44 +1315,49 @@ void spin_proj_factors<SpinTQU>(const double* coords, const Response & response,
 
 
 template <typename DTYPE>
-bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
+bool SignalSpace<DTYPE>::_Validate(py::object input, std::string var_name,
                                    int dtype)
 {
     // We want a list of arrays here.
-    bp::list sig_list;
-    auto list_extractor = bp::extract<bp::list>(input);
+    py::list sig_list;
     if (isNone(input)) {
+        std::cerr << "SignalSpace.Validate(None," << var_name << "," << dtype << ")" << std::endl;
         npy_intp _dims[dims.size()];
         for (int d=0; d<dims.size(); ++d) {
             if (dims[d] < 0)
                 throw shape_exception(var_name, "Cannot create space with wildcard dimensons.");
             _dims[d] = dims[d];
         }
+        std::ostringstream dbg;
+        for (int i = 1; i < dims.size(); ++i) {
+            dbg << _dims[i] << ",";
+        }
         for (int i=0; i<dims[0]; ++i) {
             PyObject *v = PyArray_ZEROS(dims.size()-1, _dims+1, dtype, 0);
-            sig_list.append(bp::object(bp::handle<>(v)));
+            std::cerr << "SignalSpace.Validate append row " << i << " zeros(" << dims.size()-1 << ",(" << dbg.str() << "))" << std::endl;
+            sig_list.append(py::reinterpret_steal<py::object>(v));
         }
-    } else if (list_extractor.check()) {
-        sig_list = list_extractor();
     } else {
-        // Probably an array... listify it.
-        for (int i=0; i<bp::len(input); ++i)
-            sig_list.append(input[i]);
+        sig_list = list_of_arrays(input);
     }
     ret_val = sig_list;
 
     if (dims[0] == -1) {
-        dims[0] = bp::len(sig_list);
-        if (dims[0] == 0)
+        dims[0] = py::len(sig_list);
+        if (dims[0] == 0) {
             throw shape_exception(var_name, "has not been tested on shape 0 objects");
-    } else if (bp::len(sig_list) != dims[0])
+        }
+    } else if (py::len(sig_list) != dims[0]) {
         throw shape_exception(var_name, "must contain (n_det) vectors");
+    }
 
     const int n_det = dims[0];
 
     // Now extract each list member into our vector of BufferWrappers..
+    // data_ptr is freed in the destructor.
     data_ptr = (DTYPE**)calloc(n_det, sizeof(*data_ptr));
 
+    std::cerr << "SignalSpace.Validate: reserve bw size " << n_det << std::endl;
     bw.reserve(n_det);
 
     // Copy dims[1:] into sub_dims; potentially update sub_dims during
@@ -1255,8 +1365,14 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
     vector<int> sub_dims(dims.begin()+1, dims.end());
 
     for (int i=0; i<n_det; i++) {
-        bp::object item = bp::extract<bp::object>(sig_list[i])();
+        py::object item = py::cast<py::object>(sig_list[i]);
+        std::cerr << "SignalSpace.Validate: det " << i << " push back " << var_name << ", " << item << ", false, ";
+        for (int d=0; d<sub_dims.size(); d++) {
+            std::cerr << sub_dims[d] << ":";
+        }
+        std::cerr << std::endl;
         bw.push_back(BufferWrapper<DTYPE>(var_name, item, false, sub_dims));
+        std::cerr << "SignalSpace.Validate: det " << i << " buffer wrapper now has " << bw.size() << " elements" << std::endl;
         if (i == 0) {
             sub_dims.clear();
             for (int d=0; d<bw[0]->ndim; d++)
@@ -1273,8 +1389,9 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
     // Store the step in units of the itemsize; update dims from sub_dims.
     for (int d=0; d<dims.size()-1; d++) {
         dims[d+1] = sub_dims[d];
-        if (bw[0]->strides[d] % bw[0]->itemsize != 0)
+        if (bw[0]->strides[d] % bw[0]->itemsize != 0) {
             throw shape_exception(var_name, "stride is non-integral; realign.");
+        }
         steps[d] = bw[0]->strides[d] / bw[0]->itemsize;
     }
     return true;
@@ -1282,7 +1399,7 @@ bool SignalSpace<DTYPE>::_Validate(bp::object input, std::string var_name,
 
 template <typename DTYPE>
 SignalSpace<DTYPE>::SignalSpace(
-    bp::object input, std::string var_name, int dtype, int n_det, int n_time)
+    py::object input, std::string var_name, int dtype, int n_det, int n_time)
 {
     dims = {n_det, n_time};
     _Validate(input, var_name, dtype);
@@ -1290,7 +1407,7 @@ SignalSpace<DTYPE>::SignalSpace(
 
 template <typename DTYPE>
 SignalSpace<DTYPE>::SignalSpace(
-    bp::object input, std::string var_name, int dtype, int n_det, int n_time,
+    py::object input, std::string var_name, int dtype, int n_det, int n_time,
     int n_thirdaxis)
 {
     dims = {n_det, n_time, n_thirdaxis};
@@ -1298,7 +1415,7 @@ SignalSpace<DTYPE>::SignalSpace(
 }
 
 template<typename C, typename P, typename S>
-ProjectionEngine<C,P,S>::ProjectionEngine(bp::object pix_args)
+ProjectionEngine<C,P,S>::ProjectionEngine(py::object pix_args)
 {
     _pixelizor = P(pix_args);
 }
@@ -1314,10 +1431,10 @@ int ProjectionEngine<C,P,S>::comp_count() const {
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::coords(
-    bp::object pbore, bp::object pofs, bp::object coord)
+py::object ProjectionEngine<C,P,S>::coords(
+    py::object pbore, py::object pofs, py::object coord)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
     auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
 
@@ -1349,10 +1466,10 @@ bp::object ProjectionEngine<C,P,S>::coords(
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::pixels(
-    bp::object pbore, bp::object pofs, bp::object pixel)
+py::object ProjectionEngine<C,P,S>::pixels(
+    py::object pbore, py::object pofs, py::object pixel)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
@@ -1389,10 +1506,10 @@ bp::object ProjectionEngine<C,P,S>::pixels(
 // an [ndet,ntime,{y,x,...}] array which can't handle multiple pixels per
 // sample
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::pointing_matrix(
-    bp::object pbore, bp::object pofs, bp::object response, bp::object pixel, bp::object proj)
+py::object ProjectionEngine<C,P,S>::pointing_matrix(
+    py::object pbore, py::object pofs, py::object response, py::object pixel, py::object proj)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
@@ -1433,15 +1550,15 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
         }
     }
 
-    return bp::make_tuple(pixel_buf_man.ret_val,
+    return py::make_tuple(pixel_buf_man.ret_val,
                           proj_buf_man.ret_val);
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::pixel_ranges(
-    bp::object pbore, bp::object pofs, bp::object map, int n_domain)
+py::object ProjectionEngine<C,P,S>::pixel_ranges(
+    py::object pbore, py::object pofs, py::object map, int n_domain)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     auto pointer = Pointer<C>();
     pointer.TestInputs(map, pbore, pofs, _none, _none);
@@ -1524,27 +1641,27 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
     }
 
     // Convert super vector to a list and return
-    auto ivals = bp::list();
+    auto ivals = py::list();
     for (int i=0; i<ranges.size(); i++) {
-        auto bunches = bp::list();
+        auto bunches = py::list();
         for (int j=0; j<ranges[i].size(); j++) {
-            auto domains = bp::list();
+            auto domains = py::list();
             for (int i_det=0; i_det<n_det; i_det++) {
-                auto iv = ranges[i][j][i_det];
-                domains.append(bp::object(iv));
+                auto iv = py::cast(ranges[i][j][i_det]);
+                domains.append(py::object(iv));
             }
-            bunches.append(bp::extract<bp::object>(domains)());
+            bunches.append(py::cast<py::object>(domains));
         }
-        ivals.append(bp::extract<bp::object>(bunches)());
+        ivals.append(py::cast<py::object>(bunches));
     }
-    return bp::extract<bp::object>(ivals);
+    return py::cast<py::object>(ivals);
 }
 
 template<typename C, typename P, typename S>
 vector<int> ProjectionEngine<C,P,S>::tile_hits(
-    bp::object pbore, bp::object pofs)
+    py::object pbore, py::object pofs)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
@@ -1553,7 +1670,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw RuntimeError_exception("No tiles in this pixelization.");
+        throw std::runtime_error("No tiles in this pixelization.");
 
     vector<int> hits(n_tile);
     vector<vector<int>> temp;
@@ -1604,10 +1721,10 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 //each thread is active only on certain tiles.  tile_map should be a
 //list of lists of tiles.
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::tile_ranges(
-    bp::object pbore, bp::object pofs, bp::object tile_lists)
+py::object ProjectionEngine<C,P,S>::tile_ranges(
+    py::object pbore, py::object pofs, py::list tile_lists)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     auto pointer = Pointer<C>();
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
@@ -1616,15 +1733,15 @@ bp::object ProjectionEngine<C,P,S>::tile_ranges(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw RuntimeError_exception("No tiles in this pixelization.");
-    int n_domain = bp::len(tile_lists);
+        throw std::runtime_error("No tiles in this pixelization.");
+    int n_domain = py::len(tile_lists);
 
     // Make a vector that maps tile into thread.
     vector<int> thread_idx(n_tile, -1);
-    for (int i=0; i<bp::len(tile_lists); i++) {
-        auto tile_list = tile_lists[i];
-        for (int j=0; j<bp::len(tile_list); j++) {
-            int tile_idx = PyLong_AsLong(bp::object(tile_list[j]).ptr());
+    for (int i=0; i<py::len(tile_lists); i++) {
+        py::list tile_list = tile_lists[i];
+        for (int j=0; j<py::len(tile_list); j++) {
+            int tile_idx = PyLong_AsLong(py::object(tile_list[j]).ptr());
             thread_idx[tile_idx] = i;
        }
     }
@@ -1688,48 +1805,49 @@ bp::object ProjectionEngine<C,P,S>::tile_ranges(
     }
 
     // Convert super vector to a list and return
-    auto ivals = bp::list();
+    auto ivals = py::list();
     for (int i=0; i<ranges.size(); i++) {
-        auto bunches = bp::list();
+        auto bunches = py::list();
         for (int j=0; j<ranges[i].size(); j++) {
-            auto domains = bp::list();
+            auto domains = py::list();
             for (int i_det=0; i_det<n_det; i_det++) {
-                auto iv = ranges[i][j][i_det];
-                domains.append(bp::object(iv));
+                auto iv = py::cast(ranges[i][j][i_det]);
+                domains.append(py::object(iv));
             }
-            bunches.append(bp::extract<bp::object>(domains)());
+            bunches.append(py::cast<py::object>(domains));
         }
-        ivals.append(bp::extract<bp::object>(bunches)());
+        ivals.append(py::cast<py::object>(bunches));
     }
-    return bp::extract<bp::object>(ivals);
+    return py::cast<py::object>(ivals);
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::zeros(bp::object shape)
+py::object ProjectionEngine<C,P,S>::zeros(py::object shape)
 {
     vector<int> dims;
-    bp::extract<int> int_ex(shape);
-    if (int_ex.check()) {
-        dims.push_back(int_ex());
+    int dim;
+    if (py::isinstance<int>(shape)) {
+        // scalar
+        dims.push_back(py::cast<int>(shape));
         return _pixelizor.zeros(dims);
-    }
-
-    bp::extract<bp::tuple> tuple_ex(shape);
-    if (tuple_ex.check()) {
-        auto tuple = tuple_ex();
-        for (int i=0; i<bp::len(tuple); i++)
-            dims.push_back(bp::extract<int>(tuple[i])());
+    } else if (py::isinstance<py::tuple>(shape)) {
+        // tuple
+        py::tuple shp = py::cast<py::tuple>(shape);
+        for (int i = 0; i < py::len(shp); ++i) {
+            dims.push_back(py::cast<int>(shp[i]));
+        }
         return _pixelizor.zeros(dims);
+    } else {
+        // invalid
+        return py::object();
     }
-
-    return bp::object();  //None on fall-through
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::from_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object response, bp::object signal)
+py::object ProjectionEngine<C,P,S>::from_map(
+    py::object map, py::object pbore, py::object pofs, py::object response, py::object signal)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     // Initialize pointer and _pixelizor.
     auto pointer = Pointer<C>();
@@ -1855,7 +1973,7 @@ void to_weight_map_single_thread(Pointer<C> &pointer,
 
 static
 vector<vector<vector<RangesInt32>>> derive_ranges(
-    bp::object thread_intervals, int n_det, int n_time,
+    py::object thread_intervals, int n_det, int n_time,
     std::string arg_name)
 {
     // The first index of the returned object should correspond to
@@ -1877,21 +1995,24 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
         auto r = RangesInt32(n_time).add_interval(0, n_time);
         vector<vector<RangesInt32>> v(1, vector<RangesInt32>(n_det, r));
         ivals.push_back(v);
-    } else if(bp::extract<RangesInt32>(thread_intervals[0]).check()) {
+    } else if (py::isinstance<RangesInt32>(thread_intervals[0])) {
         // It's a RangesMatrix (ndet,nranges). Promote to single thread, single bunch
         ivals.push_back(vector<vector<RangesInt32>>(1, extract_ranges<int32_t>(thread_intervals)));
-    } else if(bp::extract<RangesInt32>(thread_intervals[0][0]).check()) {
+    } else if (py::isinstance<RangesInt32>(thread_intervals[0][0])) {
         // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to single bunch
         vector<vector<RangesInt32>> bunch;
-        for (int i=0; i<bp::len(thread_intervals); i++)
-            bunch.push_back(extract_ranges<int32_t>(thread_intervals[i]));
+        py::list leading = py::cast<py::list>(thread_intervals);
+        for (int i=0; i<py::len(leading); i++)
+            bunch.push_back(extract_ranges<int32_t>(leading[i]));
         ivals.push_back(bunch);
-    } else if(bp::extract<RangesInt32>(thread_intervals[0][0][0]).check()) {
+    } else if (py::isinstance<RangesInt32>(thread_intervals[0][0][0])) {
         // It's a full multi-bunch (nbunch,nthread,ndet,nranges) thing.
-        for (int i=0; i<bp::len(thread_intervals); i++) {
+        py::list leading_i = py::cast<py::list>(thread_intervals);
+        for (int i=0; i<py::len(leading_i); i++) {
             vector<vector<RangesInt32>> bunch;
-            for (int j=0; j<bp::len(thread_intervals[i]); j++)
-                bunch.push_back(extract_ranges<int32_t>(thread_intervals[i][j]));
+            py::list leading_j = py::cast<py::list>(leading_i[i]);
+            for (int j=0; j<py::len(leading_j); j++)
+                bunch.push_back(extract_ranges<int32_t>(leading_j[j]));
             ivals.push_back(bunch);
         }
     } else {
@@ -1922,34 +2043,45 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::to_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object response,
-    bp::object signal, bp::object det_weights, bp::object thread_intervals)
+py::object ProjectionEngine<C,P,S>::to_map(
+    py::object map, py::object pbore, py::object pofs, py::object response,
+    py::object signal, py::object det_weights, py::object thread_intervals)
 {
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
+    std::cerr << "::to_map calling pointer.TestInputs" << std::endl;
     pointer.TestInputs(map, pbore, pofs, signal, det_weights);
+    std::cerr << "::to_map calling pointer.DetCount" << std::endl;
     int n_det = pointer.DetCount();
+    std::cerr << "::to_map calling pointer.TimeCount" << std::endl;
     int n_time = pointer.TimeCount();
 
     //Do we need a map?  Now is the time.
-    if (isNone(map))
+    if (isNone(map)) {
+        std::cerr << "::to_map calling pixelizer.zeros to init map" << std::endl;
+        std::cerr << "::to_map zeros " << S::comp_count << " components" << std::endl;
         map = _pixelizor.zeros(vector<int>{S::comp_count});
+    }
 
     // Confirm that map has the right meta-shape.
+    std::cerr << "::to_map calling pixelizer.TestInputs" << std::endl;
     _pixelizor.TestInputs(map, true, false, S::comp_count);
 
     // Get pointers to the signal and (optional) per-det weights.
+    std::cerr << "::to_map create SignalSpace" << std::endl;
     auto _signalspace = SignalSpace<FSIGNAL>(
             signal, "signal", FSIGNAL_NPY_TYPE, n_det, n_time);
+    std::cerr << "::to_map create det_weights" << std::endl;
     auto _det_weights = BufferWrapper<FSIGNAL>(
          "det_weights", det_weights, true, vector<int>{n_det});
+    std::cerr << "::to_map create response" << std::endl;
     auto _response = BufferWrapper<FSIGNAL>(
          "response", response, false, vector<int>{n_det,2});
 
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
+    std::cerr << "::to_map call derive_ranges" << std::endl;
     auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
 
@@ -1959,18 +2091,20 @@ bp::object ProjectionEngine<C,P,S>::to_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             to_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights, &_signalspace);
+        }
     }
+    std::cerr << "::to_map finished loop over bunches" << std::endl;
     return map;
 }
 
 template<typename C, typename P, typename S>
-bp::object ProjectionEngine<C,P,S>::to_weight_map(
-    bp::object map, bp::object pbore, bp::object pofs, bp::object response,
-    bp::object det_weights, bp::object thread_intervals)
+py::object ProjectionEngine<C,P,S>::to_weight_map(
+    py::object map, py::object pbore, py::object pofs, py::object response,
+    py::object det_weights, py::object thread_intervals)
 {
-    auto _none = bp::object();
+    auto _none = py::object();
 
     //Initialize it / check inputs.
     auto pointer = Pointer<C>();
@@ -1979,8 +2113,9 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
     int n_time = pointer.TimeCount();
 
     //Do we need a map?  Now is the time.
-    if (isNone(map))
+    if (isNone(map)) {
         map = _pixelizor.zeros(vector<int>{S::comp_count,S::comp_count});
+    }
 
     // Confirm that map has the right meta-shape.
     _pixelizor.TestInputs(map, false, true, S::comp_count);
@@ -2003,8 +2138,9 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             to_weight_map_single_thread<C,P,S>(pointer, _response, _pixelizor, ivals[i_thread], _det_weights);
+        }
     }
     return map;
 }
@@ -2024,19 +2160,19 @@ template<typename TilingSys>
 class ProjEng_Precomp {
 public:
     ProjEng_Precomp() {};
-    bp::object from_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                        bp::object signal);
-    bp::object to_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                      bp::object signal, bp::object weights, bp::object thread_intervals);
-    bp::object to_weight_map(bp::object map, bp::object pixel_index, bp::object spin_proj,
-                             bp::object weights, bp::object thread_intervals);
+    py::object from_map(py::object map, py::object pixel_index, py::object spin_proj,
+                        py::object signal);
+    py::object to_map(py::object map, py::object pixel_index, py::object spin_proj,
+                      py::object signal, py::object weights, py::object thread_intervals);
+    py::object to_weight_map(py::object map, py::object pixel_index, py::object spin_proj,
+                             py::object weights, py::object thread_intervals);
 };
 
 
 template<typename TilingSys>
-bp::object ProjEng_Precomp<TilingSys>::from_map(
-    bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object signal)
+py::object ProjEng_Precomp<TilingSys>::from_map(
+    py::object map, py::object pixel_index, py::object spin_proj,
+    py::object signal)
 {
     // You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
@@ -2155,9 +2291,9 @@ void precomp_to_weight_map_single_thread(Pixelizor2_Flat<TilingSys> &tiling,
 }
 
 template<typename TilingSys>
-bp::object ProjEng_Precomp<TilingSys>::to_map(
-    bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object signal, bp::object det_weights, bp::object thread_intervals)
+py::object ProjEng_Precomp<TilingSys>::to_map(
+    py::object map, py::object pixel_index, py::object spin_proj,
+    py::object signal, py::object det_weights, py::object thread_intervals)
 {
     // You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
@@ -2166,11 +2302,13 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
     int n_det = pixel_buf_man.dims[0];
     int n_time = pixel_buf_man.dims[1];
     int n_pix = pixel_buf_man.dims[2];
+    std::cerr << "BIND to_map: n_det = " << n_det << ", n_time = " << n_time << ", n_pix = " << n_pix << std::endl;
 
     // Similarly, spin_proj tells you the number of components.
     auto spin_proj_man = SignalSpace<FSIGNAL>(
         spin_proj, "spin_proj", FSIGNAL_NPY_TYPE, n_det, n_time, -1);
     int n_spin = spin_proj_man.dims[2];
+    std::cerr << "BIND to_map: n_spin / n_components = " << n_spin << std::endl;
 
     // Unlike the on-the-fly class, we aren't able to make the map
     // here, because there's no initialized pixelizor.
@@ -2197,18 +2335,19 @@ bp::object ProjEng_Precomp<TilingSys>::to_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             precomp_to_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
                 ivals[i_thread], _det_weights, &_signalspace);
+        }
     }
     return map;
 }
 
 template<typename TilingSys>
-bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
-    bp::object map, bp::object pixel_index, bp::object spin_proj,
-    bp::object det_weights, bp::object thread_intervals)
+py::object ProjEng_Precomp<TilingSys>::to_weight_map(
+    py::object map, py::object pixel_index, py::object spin_proj,
+    py::object det_weights, py::object thread_intervals)
 {
     // You won't get far without pixel_index, so use that to nail down
     // the n_time and n_det.
@@ -2244,10 +2383,11 @@ bp::object ProjEng_Precomp<TilingSys>::to_weight_map(
         // Then loop over parallel bunches. This works even if omp is not enabled,
         // or if ivals.size() == 1
         #pragma omp parallel for
-        for (int i_thread = 0; i_thread < ivals.size(); i_thread++)
+        for (int i_thread = 0; i_thread < ivals.size(); i_thread++) {
             precomp_to_weight_map_single_thread<TilingSys>(
                 pixelizor, pixel_buf_man, spin_proj_man,
                 ivals[i_thread], _det_weights);
+        }
     }
     return map;
 }
@@ -2292,9 +2432,10 @@ TYPEDEF_PIX(ZEA)
 #define STRINGIFY(X) #X
 
 #define EXPORT_ENGINE(CLASSNAME)                                        \
-    bp::class_<CLASSNAME>(STRINGIFY(CLASSNAME), bp::init<bp::object>()) \
-    .add_property("index_count", &CLASSNAME::index_count)               \
-    .add_property("comp_count", &CLASSNAME::comp_count)                 \
+    py::class_<CLASSNAME>(m, STRINGIFY(CLASSNAME))                      \
+    .def(py::init<py::object>())                                        \
+    .def_property_readonly("index_count", &CLASSNAME::index_count)               \
+    .def_property_readonly("comp_count", &CLASSNAME::comp_count)                 \
     .def("coords", &CLASSNAME::coords)                                  \
     .def("pixels", &CLASSNAME::pixels)                                  \
     .def("tile_hits", &CLASSNAME::tile_hits)                            \
@@ -2322,7 +2463,7 @@ TYPEDEF_PIX(ZEA)
     EXPORT_SPIN(PIX, TQU)
 
 #define EXPORT_PRECOMP(CLASSNAME)                                       \
-    bp::class_<CLASSNAME>(#CLASSNAME)                                   \
+    py::class_<CLASSNAME>(m, #CLASSNAME)                                   \
     .def("from_map", &CLASSNAME::from_map)                              \
     .def("to_map", &CLASSNAME::to_map)                                  \
     .def("to_weight_map", &CLASSNAME::to_weight_map)                    \
@@ -2334,8 +2475,8 @@ template<typename T>
 inline
 int _index_count(const T &) { return T::index_count; }
 
-PYBINDINGS("so3g")
-{
+
+void register_projection(py::module_ & m) {
     EXPORT_PIX(Flat);
     EXPORT_PIX(Quat);
     EXPORT_PIX(CAR);
@@ -2355,4 +2496,5 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
     EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
 
+    return;
 }

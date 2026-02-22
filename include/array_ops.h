@@ -1,6 +1,6 @@
 #pragma once
 
-int get_dtype(const bp::object &);
+int get_dtype(const py::object &);
 
 template <typename T>
 T _calculate_median(const T*, const int);
