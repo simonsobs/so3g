@@ -237,10 +237,14 @@ auto _get_array_indices(const double* x, const std::vector<double>& vals,
 
 // Get indices corresponding to lower freq and white noise
 // limits.
-auto _get_frequency_limits(const double* f, const double lowf,
+void _get_frequency_limits(const double* f, const double lowf,
                            const double fwhite_lower,
                            const double fwhite_upper,
-                           const int nsamps)
+                           const int nsamps,
+                           int & lowf_i,
+                           std::vector<int> & fwhite_i,
+                           int & fwhite_size
+                        )
 {
     if (fwhite_lower < lowf) {
         throw std::runtime_error("fwhite lower < lower freq.");
@@ -252,10 +256,13 @@ auto _get_frequency_limits(const double* f, const double lowf,
 
     std::vector<int> f_indx = _get_array_indices(f, {lowf, fwhite_lower,
                                                      fwhite_upper}, nsamps);
-    int fwhite_size = f_indx[2] - f_indx[1] + 1;
 
-    return std::make_tuple(f_indx[0], std::vector<int>{f_indx[1], f_indx[2]},
-                           fwhite_size);
+    lowf_i = f_indx[0];
+    fwhite_size = f_indx[2] - f_indx[1] + 1;
+    fwhite_i.resize(2);
+    fwhite_i[0] = f_indx[1];
+    fwhite_i[1] = f_indx[2];
+    return;
 }
 
 template <typename CostFunc, typename Likelihood, typename T>
@@ -358,6 +365,10 @@ void _fit_noise_buffer(const py::object & f, const py::object & pxx,
     T* c_data = (T*)c_buf->buf;
     const int c_stride = c_buf->strides[0] / sizeof(T);
 
+    int lowf_i;
+    std::vector<int> fwhite_i(2);
+    int fwhite_size;
+
     if constexpr (std::is_same<T, float>::value) {
         // Copy f to double
         double f_double[nsamps];
@@ -366,8 +377,10 @@ void _fit_noise_buffer(const py::object & f, const py::object & pxx,
                        [](float value) { return static_cast<double>(value); });
 
         // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] =
-            _get_frequency_limits(f_double, lowf, fwhite_lower, fwhite_upper, nsamps);
+        _get_frequency_limits(
+            f_double, lowf, fwhite_lower, fwhite_upper,
+            nsamps, lowf_i, fwhite_i, fwhite_size
+        );
 
         // Fit in logspace
         double log_f[nsamps];
@@ -398,8 +411,10 @@ void _fit_noise_buffer(const py::object & f, const py::object & pxx,
     }
     else if constexpr (std::is_same<T, double>::value) {
         // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] =
-            _get_frequency_limits(f_data, lowf, fwhite_lower, fwhite_upper, nsamps);
+        _get_frequency_limits(
+            f_data, lowf, fwhite_lower, fwhite_upper,
+            nsamps, lowf_i, fwhite_i, fwhite_size
+        );
 
         // Fit in logspace
         double log_f[nsamps];

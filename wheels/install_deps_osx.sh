@@ -221,7 +221,7 @@ tar xzf ${ceres_pkg} \
 
 echo "Attempting to trigger astropy IERS download..."
 
-python3 -m pip install
+python3 -m pip install astropy
 
 python3 -c '
 from astropy.utils.iers import IERS_Auto
