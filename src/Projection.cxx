@@ -248,7 +248,7 @@ bool Pointer<CoordSys>::TestInputs(
             if (std::isnan(*(double*)x)) {
                 std::ostringstream err;
                 err << "Pointing offset error: nan found at index " << i << ".";
-                throw ValueError_exception(err.str());
+                throw value_exception(err.str());
             }
         }
     }
@@ -646,7 +646,7 @@ public:
         if (! isok){
           std::ostringstream err;
           err << "Invalid nside " << nside;
-          throw ValueError_exception(err.str());
+          throw value_exception(err.str());
         }
     }
 
@@ -683,7 +683,7 @@ public:
         if (! nestin){
             std::ostringstream err;
             err << "RING not supported for tiled maps";
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
         // args[2] int nside_tile; nside defining the tiling
         int nside_tile = py::cast<int>(args_tuple[2]);
@@ -708,7 +708,7 @@ public:
         if (nside_tile > nside) {
             std::ostringstream err;
             err << "Invalid nside_tile " << nside_tile << " > nside " << nside;
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
     }
   ~Pixelizor_Healpix() {};
@@ -724,8 +724,8 @@ public:
         ndim += 1;
 
         if (populate.size() == 0)
-            throw RuntimeError_exception("Cannot create blank tiled map unless "
-                                  "user has specified what tiles to populate.");
+            throw std::runtime_error("Cannot create blank tiled map unless "
+                                     "user has specified what tiles to populate.");
 
         py::list maps_out;
         auto pop_iter = populate.begin();
@@ -862,7 +862,7 @@ public:
         if (! isok){
             std::ostringstream err;
             err << "Invalid nside " << nside;
-            throw ValueError_exception(err.str());
+            throw value_exception(err.str());
         }
     }
 
@@ -1670,7 +1670,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw RuntimeError_exception("No tiles in this pixelization.");
+        throw std::runtime_error("No tiles in this pixelization.");
 
     vector<int> hits(n_tile);
     vector<vector<int>> temp;
@@ -1733,7 +1733,7 @@ py::object ProjectionEngine<C,P,S>::tile_ranges(
 
     int n_tile = _pixelizor.tile_count();
     if (n_tile < 0)
-        throw RuntimeError_exception("No tiles in this pixelization.");
+        throw std::runtime_error("No tiles in this pixelization.");
     int n_domain = py::len(tile_lists);
 
     // Make a vector that maps tile into thread.

@@ -15,7 +15,7 @@ int hk_frame_type_int(HKFrameType typ) {
     } else if (typ == HKFrameType::data) {
         return 2;
     } else {
-        throw RuntimeError_exception("Invalid HKFrameType enum value");
+        throw std::runtime_error("Invalid HKFrameType enum value");
     }
     return -1;
 }

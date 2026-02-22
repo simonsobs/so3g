@@ -336,7 +336,7 @@ py::object Intervals<T>::array() const
         ostringstream dstr;
         dstr << "Failed to allocate Intervals numpy array of size (";
         dstr << dims[0] << ", " << dims[1] << ")";
-        throw RuntimeError_exception(dstr.str().c_str());
+        throw alloc_exception(dstr.str().c_str());
     }
     char *ptr = reinterpret_cast<char*>((PyArray_DATA((PyArrayObject*)v)));
     for (auto p = segments.begin(); p != segments.end(); ++p) {
@@ -527,7 +527,7 @@ static inline py::object mask_(const py::list &ivlist, int n_bits)
         ostringstream dstr;
         dstr << "Failed to allocate Intervals mask array of size (";
         dstr << dims[0] << ",)";
-        throw RuntimeError_exception(dstr.str().c_str());
+        throw alloc_exception(dstr.str().c_str());
     }
 
     // Assumes little-endian.
@@ -740,7 +740,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             )"
         )
         .def("__str__", &Intervals<C>::Description)
-        .def("add_interval", &Intervals<C>::add_interval,  
+        .def("add_interval", &Intervals<C>::add_interval,
             py::return_value_policy::reference_internal,
             py::arg("start"),
             py::arg("end"),
@@ -761,7 +761,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             Merge an Intervals into the set.
             )"
         )
-        .def("intersect", &Intervals<C>::intersect, 
+        .def("intersect", &Intervals<C>::intersect,
             py::return_value_policy::reference_internal,
             py::arg("source"),
             R"(
@@ -796,7 +796,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             Interval set domain (settable, with consequences).
             )"
         )
-        .def("complement", &Intervals<C>::complement, 
+        .def("complement", &Intervals<C>::complement,
             py::return_value_policy::take_ownership,
             R"(
             Return the complement (over domain).
@@ -825,7 +825,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             Return the intervals as a 2-d numpy array.
             )"
         )
-        .def("__getitem__", &Intervals<C>::getitem, 
+        .def("__getitem__", &Intervals<C>::getitem,
             py::return_value_policy::take_ownership)
         .def_static("from_mask", &Intervals<C>::from_mask,
             py::return_value_policy::take_ownership,
@@ -838,7 +838,7 @@ void intervals_bindings(py::module_ & m, char const * name) {
             (a 1-D array of integral type).
             )"
         )
-        .def_static("mask", &Intervals<C>::mask, 
+        .def_static("mask", &Intervals<C>::mask,
             py::return_value_policy::take_ownership,
             py::arg("intervals_list"),
             py::arg("n_bits"),

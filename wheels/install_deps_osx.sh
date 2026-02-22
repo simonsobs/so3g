@@ -64,9 +64,6 @@ python3 -m pip install cmake wheel setuptools
 
 pyver=$(python3 --version 2>&1 | awk '{print $2}' | sed -e "s#\(.*\)\.\(.*\)\..*#\1.\2#")
 
-# Install build requirements.
-CC="${CC}" CFLAGS="${CFLAGS}" python3 -m pip install -v -r "${scriptdir}/../requirements.txt" --prefer-binary
-
 # Install Openblas
 
 openblas_version=0.3.29
@@ -223,6 +220,8 @@ tar xzf ${ceres_pkg} \
 # Astropy caching...
 
 echo "Attempting to trigger astropy IERS download..."
+
+python3 -m pip install
 
 python3 -c '
 from astropy.utils.iers import IERS_Auto

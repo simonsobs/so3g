@@ -243,11 +243,11 @@ auto _get_frequency_limits(const double* f, const double lowf,
                            const int nsamps)
 {
     if (fwhite_lower < lowf) {
-        throw ValueError_exception("fwhite lower < lower freq.");
+        throw std::runtime_error("fwhite lower < lower freq.");
     }
 
     if (fwhite_lower >= fwhite_upper) {
-        throw ValueError_exception("fwhite lower >= fwhite upper.");
+        throw std::runtime_error("fwhite lower >= fwhite upper.");
     }
 
     std::vector<int> f_indx = _get_array_indices(f, {lowf, fwhite_lower,
@@ -335,7 +335,7 @@ void _fit_noise_buffer(const py::object & f, const py::object & pxx,
 
     BufferWrapper<T> pxx_buf  ("pxx",  pxx,  false, std::vector<int>{-1, -1});
     if (pxx_buf->strides[1] != pxx_buf->itemsize)
-        throw ValueError_exception("Argument 'pxx' must be contiguous in last axis.");
+        throw value_exception("Argument 'pxx' must be contiguous in last axis.");
     T* pxx_data = (T*)pxx_buf->buf;
     const int ndets = pxx_buf->shape[0];
     const int nsamps = pxx_buf->shape[1];
@@ -343,18 +343,18 @@ void _fit_noise_buffer(const py::object & f, const py::object & pxx,
 
     BufferWrapper<T> f_buf  ("f",  f,  false, std::vector<int>{nsamps});
     if (f_buf->strides[0] != f_buf->itemsize)
-        throw ValueError_exception("Argument 'f' must be a C-contiguous 1d array.");
+        throw value_exception("Argument 'f' must be a C-contiguous 1d array.");
     T* f_data = (T*)f_buf->buf;
 
     BufferWrapper<T> p_buf  ("p",  p,  false, std::vector<int>{ndets, Likelihood::model::nparams});
     if (p_buf->strides[1] != p_buf->itemsize)
-        throw ValueError_exception("Argument 'p' must be contiguous in last axis.");
+        throw value_exception("Argument 'p' must be contiguous in last axis.");
     T* p_data = (T*)p_buf->buf;
     const int p_stride = p_buf->strides[0] / sizeof(T);
 
     BufferWrapper<T> c_buf  ("c",  c,  false, std::vector<int>{ndets, Likelihood::model::nparams});
     if (c_buf->strides[1] != c_buf->itemsize)
-        throw ValueError_exception("Argument 'c' must be contiguous in last axis.");
+        throw value_exception("Argument 'c' must be contiguous in last axis.");
     T* c_data = (T*)c_buf->buf;
     const int c_stride = c_buf->strides[0] / sizeof(T);
 
@@ -439,7 +439,7 @@ void fit_noise(const py::object & f, const py::object & pxx, py::object & p,
         _fit_noise_buffer<double>(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon);
     }
     else {
-        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+        throw value_exception("Only float32 or float64 arrays are supported.");
     }
 }
 
