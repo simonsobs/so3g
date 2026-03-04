@@ -32,7 +32,7 @@ def get_scan():
     return times, az*DEG, el*DEG
 
 
-def get_basics(clipped=True):
+def get_basics(clippedness=0):
     t, az, el = get_scan()
     csl = proj.CelestialSightLine.az_el(t, az, el, weather='vacuum', site='so')
     fp = proj.FocalPlane.from_xieta([0., .1*DEG], [0, .1*DEG])
@@ -41,9 +41,11 @@ def get_basics(clipped=True):
     # And a map ... of where?
     ra, dec = csl.coords()[:, :2].T
     ra0, dec0 = ra.mean(), dec.mean()
-    shape = (250, 300)  # This will clip some samples
-    if not clipped:
-        shape = (200, 350)  # This will not.
+    shape = (200, 350)  # This will not clip samples...
+    if clippedness == 1:
+        shape = (250, 300)  # But this will
+    elif clippedness == 2:
+        ra0 = ra0 - 10*DEG   # And this should miss the TOD entirely.
     shape, wcs = enmap.geometry((dec0, ra0), res=(.01*DEG, -0.01*DEG),
                                 shape=shape, proj='tan', ref=(dec0, ra0))
     return ((t, az, el), asm, (shape, wcs))
@@ -99,14 +101,14 @@ class TestProjEng(unittest.TestCase):
 
     @requires_pixell
     def test_20_threads(self):
-        for (clipped, tiled, interpol, method) in itertools.product(
-                [False, True],
+        for (clippedness, tiled, interpol, method) in itertools.product(
+                [0, 1, 2],
                 [False, True],
                 ['nearest', 'bilinear'],
                 proj.wcs.THREAD_ASSIGNMENT_METHODS):
             # For error messages ...
-            detail = f'(method={method}, tiled={tiled}, clipped={clipped}, interpol={interpol})'
-            scan, asm, (shape, wcs) = get_basics(clipped=clipped)
+            detail = f'(method={method}, tiled={tiled}, clippedness={clippedness}, interpol={interpol})'
+            scan, asm, (shape, wcs) = get_basics(clippedness=clippedness)
             if tiled:
                 p = proj.Projectionist.for_tiled(shape, wcs, (150, 150), active_tiles=False,
                                                  interpol=interpol)
@@ -139,7 +141,9 @@ class TestProjEng(unittest.TestCase):
                 self.assertEqual(t.shape[1:], sig.shape,
                                  msg=f'a thread bunch has unexpected shape ({detail})')
 
-            target = set([0,1]) if clipped else set([1])
+            target = {1: set([0,1]),
+                      0: set([1]),
+                      2: set([0])}[clippedness]
             self.assertEqual(set((counts0 + counts1).ravel()), target,
                              msg=f'threads does not cover TOD ({detail})')
             # Only the first segment should be non-empty, unless bilinear.
