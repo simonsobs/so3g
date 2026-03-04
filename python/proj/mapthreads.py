@@ -7,7 +7,9 @@ parallelization.
 """
 
 import so3g
+from .ranges import RangesMatrix
 import numpy as np
+
 
 def get_num_threads(n_threads=None):
     """Utility function for computing n_threads.  If n_threads is not
@@ -102,8 +104,18 @@ def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
     # Compute the scan angle, based on Q and U weights.  This assumes
     # that +Q is parallel to map columns, and U increases along the
     # map diagonal.
-    T, Q, U = np.sum([_m.reshape((3, -1)).sum(axis=-1)
-                      for _m in scan_maps if _m is not None], axis=0)
+    if len(pmat.active_tiles) > 0:
+        T, Q, U = np.sum([_m.reshape((3, -1)).sum(axis=-1)
+                          for _m in scan_maps if _m is not None], axis=0)
+    else:
+        T, Q, U = 0., 0., 0.
+
+    if T == 0:
+        # No hits -- plan to do nothing, but use n_threads to avoid
+        # needing a special test case.
+        n_dets, n_samps = len(asm_full.dets), len(asm_full.Q)
+        return [RangesMatrix.zeros(shape=(n_threads, n_dets, n_samps))]
+
     phi = np.arctan2(U, Q) / 2
 
     if plot_prefix:
