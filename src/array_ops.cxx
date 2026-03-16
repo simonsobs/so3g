@@ -325,8 +325,8 @@ void pcut_poly_tod2vals_helper(const vector<RangesInt32> & rangemat, int resolut
                             vals[i+p] += t*Pa;
                         }
                     }
-                    i += np;
                 }
+                i += np;
             }
         }
     }
@@ -354,8 +354,8 @@ void pcut_poly_vals2tod_helper(const vector<RangesInt32> & rangemat, int resolut
                         }
                     }
                     tod[di*nsamp+s] = t;
-                    i += np;
                 }
+                i += np;
             }
         }
     }
