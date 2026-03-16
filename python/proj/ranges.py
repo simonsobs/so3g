@@ -109,7 +109,7 @@ class RangesMatrix():
 
     def __add__(self, x):
         if isinstance(x, Ranges):
-            return self.__class__([d + x for d in self.ranges])
+            return self.__class__([d + x for d in self.ranges], skip_shape_check=True)
         elif isinstance(x, RangesMatrix):
             # Check for shape compatibility.
             nd_a = len(self.shape)
@@ -122,16 +122,16 @@ class RangesMatrix():
             if nd_a == nd_b:
                 # Broadcast if either has shape 1...
                 if x.shape[0] == 1:
-                    return self.__class__([r + x[0] for r in self.ranges])
+                    return self.__class__([r + x[0] for r in self.ranges], skip_shape_check=True)
                 elif self.shape[0] == 1:
-                    return self.__class__([self.ranges[0] + _x for _x in x])
+                    return self.__class__([self.ranges[0] + _x for _x in x], skip_shape_check=True)
                 elif self.shape[0] == x.shape[0]:
-                    return self.__class__([r + d for r, d in zip(self.ranges, x)])
-            return self.__class__([r + x for r in self.ranges])
+                    return self.__class__([r + d for r, d in zip(self.ranges, x)], skip_shape_check=True)
+            return self.__class__([r + x for r in self.ranges], skip_shape_check=True)
         
     def __mul__(self, x):
         if isinstance(x, Ranges):
-            return self.__class__([d * x for d in self.ranges])
+            return self.__class__([d * x for d in self.ranges], skip_shape_check=True)
         elif isinstance(x, RangesMatrix):
             # Check for shape compatibility.
             nd_a = len(self.shape)
@@ -144,15 +144,15 @@ class RangesMatrix():
             if nd_a == nd_b:
                 # Broadcast if either has shape 1...
                 if x.shape[0] == 1:
-                    return self.__class__([r * x[0] for r in self.ranges])
+                    return self.__class__([r * x[0] for r in self.ranges], skip_shape_check=True)
                 elif self.shape[0] == 1:
-                    return self.__class__([self.ranges[0] * _x for _x in x])
+                    return self.__class__([self.ranges[0] * _x for _x in x], skip_shape_check=True)
                 elif self.shape[0] == x.shape[0]:
-                    return self.__class__([r * d for r, d in zip(self.ranges, x)])
-            return self.__class__([r * x for r in self.ranges])
+                    return self.__class__([r * d for r, d in zip(self.ranges, x)], skip_shape_check=True)
+            return self.__class__([r * x for r in self.ranges], skip_shape_check=True)
 
     def __invert__(self):
-        return self.__class__([~x for x in self.ranges])
+        return self.__class__([~x for x in self.ranges], skip_shape_check=True)
 
     @staticmethod
     def concatenate(items, axis=0):

@@ -35,7 +35,8 @@ extern "C" {
 // * bins[nbin,{from,to}]  the start and end of each bin
 // * iD[nbin,ndet]         the inverse uncorrelated variance for each detector per bin
 // * iV[nbin,ndet,nvec]    matrix representing the scaled eivenvectors per bin
-void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp::object & iD, const bp::object & iV, float s, float norm) {
+// * dct_binning(bool)     If true, does not apply double `bins`. This works wth Discrete Cosine Transform.
+void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp::object & iD, const bp::object & iV, float s, float norm, bool dct_binning = false) {
     // Should pass in this too
     BufferWrapper<float>               ft_buf  ("ft",   ft,   false, std::vector<int>{-1,-1});
     BufferWrapper<int32_t>             bins_buf("bins", bins, false, std::vector<int>{-1, 2});
@@ -51,8 +52,9 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
         throw buffer_exception("iD must be C-contiguous along last axis");
     if (iV_buf->strides[2] != iV_buf->itemsize || iV_buf->strides[1] != iV_buf->itemsize*nvec || iV_buf->strides[0] != iV_buf->itemsize*nvec*ndet)
         throw buffer_exception("iV must be C-contiguous along last axis");
-    // Internally we work with a real view of ft, with twice as many elements to compensate
+    // When dct_binning is false, internally we work with a real view of ft, with twice as many elements to compensate, so bin_scale = 2.
     //int nmode = 2*nfreq;
+    int bin_scale = (dct_binning) ? 1 : 2;
     float   * ft_   = (float*)   ft_buf->buf;
     int32_t * bins_ = (int32_t*) bins_buf->buf;
     float   * iD_   = (float*)   iD_buf->buf;
@@ -60,8 +62,8 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
 
     // Ok, actually do the work
     for(int bi = 0; bi < nbin; bi++) {
-        int b1 = min(2*bins_[2*bi+0],nmode-1);
-        int b2 = min(2*bins_[2*bi+1],nmode);
+        int b1 = min(bin_scale*bins_[2*bi+0],nmode-1);
+        int b2 = min(bin_scale*bins_[2*bi+1],nmode);
         int nm = b2-b1;
         float * biD = iD_ + bi*ndet;
         float * biV = iV_ + bi*ndet*nvec;
@@ -1262,7 +1264,7 @@ void detrend(bp::object & tod, const std::string & method, const int linear_ncou
 
 PYBINDINGS("so3g")
 {
-    bp::def("nmat_detvecs_apply", nmat_detvecs_apply);
+    bp::def("nmat_detvecs_apply", nmat_detvecs_apply, bp::arg("dct_binning")=false);
     bp::def("process_cuts",  process_cuts);
     bp::def("translate_cuts", translate_cuts);
     bp::def("get_gap_fill_poly",  get_gap_fill_poly<float>,
