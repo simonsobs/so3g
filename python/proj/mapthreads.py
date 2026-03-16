@@ -83,7 +83,6 @@ def get_threads_domdir(sight, fplane, shape, wcs, tile_shape=None,
 
     # Get a Projectionist -- note it can be used with full or
     # representative assembly.
-
     pmat = so3g.proj.wcs.Projectionist.for_tiled(
         shape, wcs, tile_shape=tile_shape, active_tiles=active_tiles
     )
