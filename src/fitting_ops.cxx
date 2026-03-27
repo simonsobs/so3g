@@ -1,5 +1,4 @@
 #define NO_IMPORT_ARRAY
-#define GLOG_USE_GLOG_EXPORT
 
 #include <stdint.h>
 #include <stdio.h>
@@ -7,14 +6,16 @@
 #include <string>
 #include <cmath>
 
-#include <boost/python.hpp>
+#ifdef _OPENMP
 #include <omp.h>
+#endif // ifdef _OPENMP
+
+#include <pybind11/pybind11.h>
 
 #include <gsl/gsl_statistics.h>
 #include <glog/logging.h>
 #include <ceres/ceres.h>
 
-#include <pybindings.h>
 #include "so3g_numpy.h"
 #include "numpy_assist.h"
 #include "Ranges.h"
@@ -236,25 +237,32 @@ auto _get_array_indices(const double* x, const std::vector<double>& vals,
 
 // Get indices corresponding to lower freq and white noise
 // limits.
-auto _get_frequency_limits(const double* f, const double lowf,
+void _get_frequency_limits(const double* f, const double lowf,
                            const double fwhite_lower,
                            const double fwhite_upper,
-                           const int nsamps)
+                           const int nsamps,
+                           int & lowf_i,
+                           std::vector<int> & fwhite_i,
+                           int & fwhite_size
+                        )
 {
     if (fwhite_lower < lowf) {
-        throw ValueError_exception("fwhite lower < lower freq.");
+        throw std::runtime_error("fwhite lower < lower freq.");
     }
 
     if (fwhite_lower >= fwhite_upper) {
-        throw ValueError_exception("fwhite lower >= fwhite upper.");
+        throw std::runtime_error("fwhite lower >= fwhite upper.");
     }
 
     std::vector<int> f_indx = _get_array_indices(f, {lowf, fwhite_lower,
                                                      fwhite_upper}, nsamps);
-    int fwhite_size = f_indx[2] - f_indx[1] + 1;
 
-    return std::make_tuple(f_indx[0], std::vector<int>{f_indx[1], f_indx[2]},
-                           fwhite_size);
+    lowf_i = f_indx[0];
+    fwhite_size = f_indx[2] - f_indx[1] + 1;
+    fwhite_i.resize(2);
+    fwhite_i[0] = f_indx[1];
+    fwhite_i[1] = f_indx[2];
+    return;
 }
 
 template <typename CostFunc, typename Likelihood, typename T>
@@ -319,8 +327,8 @@ void _fit_noise(const double* f, const double* log_f, const double* pxx,
 }
 
 template <typename T>
-void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
-                       bp::object & p, bp::object & c, const double lowf,
+void _fit_noise_buffer(const py::object & f, const py::object & pxx,
+                       py::object & p, py::object & c, const double lowf,
                        const double fwhite_lower, const double fwhite_upper,
                        const double tol, const int niter, const double epsilon)
 {
@@ -334,7 +342,7 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
 
     BufferWrapper<T> pxx_buf  ("pxx",  pxx,  false, std::vector<int>{-1, -1});
     if (pxx_buf->strides[1] != pxx_buf->itemsize)
-        throw ValueError_exception("Argument 'pxx' must be contiguous in last axis.");
+        throw value_exception("Argument 'pxx' must be contiguous in last axis.");
     T* pxx_data = (T*)pxx_buf->buf;
     const int ndets = pxx_buf->shape[0];
     const int nsamps = pxx_buf->shape[1];
@@ -342,20 +350,24 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
 
     BufferWrapper<T> f_buf  ("f",  f,  false, std::vector<int>{nsamps});
     if (f_buf->strides[0] != f_buf->itemsize)
-        throw ValueError_exception("Argument 'f' must be a C-contiguous 1d array.");
+        throw value_exception("Argument 'f' must be a C-contiguous 1d array.");
     T* f_data = (T*)f_buf->buf;
 
     BufferWrapper<T> p_buf  ("p",  p,  false, std::vector<int>{ndets, Likelihood::model::nparams});
     if (p_buf->strides[1] != p_buf->itemsize)
-        throw ValueError_exception("Argument 'p' must be contiguous in last axis.");
+        throw value_exception("Argument 'p' must be contiguous in last axis.");
     T* p_data = (T*)p_buf->buf;
     const int p_stride = p_buf->strides[0] / sizeof(T);
 
     BufferWrapper<T> c_buf  ("c",  c,  false, std::vector<int>{ndets, Likelihood::model::nparams});
     if (c_buf->strides[1] != c_buf->itemsize)
-        throw ValueError_exception("Argument 'c' must be contiguous in last axis.");
+        throw value_exception("Argument 'c' must be contiguous in last axis.");
     T* c_data = (T*)c_buf->buf;
     const int c_stride = c_buf->strides[0] / sizeof(T);
+
+    int lowf_i;
+    std::vector<int> fwhite_i(2);
+    int fwhite_size;
 
     if constexpr (std::is_same<T, float>::value) {
         // Copy f to double
@@ -365,8 +377,10 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
                        [](float value) { return static_cast<double>(value); });
 
         // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] =
-            _get_frequency_limits(f_double, lowf, fwhite_lower, fwhite_upper, nsamps);
+        _get_frequency_limits(
+            f_double, lowf, fwhite_lower, fwhite_upper,
+            nsamps, lowf_i, fwhite_i, fwhite_size
+        );
 
         // Fit in logspace
         double log_f[nsamps];
@@ -397,8 +411,10 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
     }
     else if constexpr (std::is_same<T, double>::value) {
         // Get frequency bounds
-        auto [lowf_i, fwhite_i, fwhite_size] =
-            _get_frequency_limits(f_data, lowf, fwhite_lower, fwhite_upper, nsamps);
+        _get_frequency_limits(
+            f_data, lowf, fwhite_lower, fwhite_upper,
+            nsamps, lowf_i, fwhite_i, fwhite_size
+        );
 
         // Fit in logspace
         double log_f[nsamps];
@@ -424,9 +440,9 @@ void _fit_noise_buffer(const bp::object & f, const bp::object & pxx,
     google::ShutdownGoogleLogging();
 }
 
-void fit_noise(const bp::object & f, const bp::object & pxx, bp::object & p, bp::object & c,
-               const double lowf, const double fwhite_lower, const double fwhite_upper,
-               const double tol, const int niter, const double epsilon)
+void fit_noise(const py::object & f, const py::object & pxx, py::object & p,
+    py::object & c, const double lowf, const double fwhite_lower, const double
+    fwhite_upper, const double tol, const int niter, const double epsilon)
 {
     // Get data type
     int dtype = get_dtype(pxx);
@@ -438,35 +454,57 @@ void fit_noise(const bp::object & f, const bp::object & pxx, bp::object & p, bp:
         _fit_noise_buffer<double>(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon);
     }
     else {
-        throw TypeError_exception("Only float32 or float64 arrays are supported.");
+        throw value_exception("Only float32 or float64 arrays are supported.");
     }
 }
 
 
-PYBINDINGS("so3g")
-{
-     bp::def("fit_noise", fit_noise,
-             "fit_noise(f, pxx, p, c, lowf, fwhite_lower, fwhite_upper, tol, niter, epsilon)"
-             "\n"
-             "Fits noise model with white and 1/f components to the PSD of signal. Uses a MLE\n"
-             "method that minimizes a log-likelihood. OMP is used to parallelize across dets (rows)."
-             "\n"
-             "Args:\n"
-             "  f: frequency array (float32/64) with dimensions (nsamps,).\n"
-             "     Should be positive definite and strictly increasing.\n"
-             "  pxx: PSD array (float32/64) with dimensions (ndets, nsamps).\n"
-             "  p: output parameter array (float32/64) with dimensions (ndets, nparams).\n"
-             "     This is modified in place and input values are ignored.\n"
-             "  c: output uncertaintiy array (float32/64) with dimensions (ndets, nparams).\n"
-             "     This is modified in place and input values are ignored.\n"
-             "  lowf: Frequency below which the 1/f noise index and fknee are estimated for initial\n"
-             "        guess passed to least_squares fit (float64).\n"
-             "  fwhite_lower: Lower frequency used to estimate white noise for initial guess passed to\n"
-             "                least_squares fit (float64).  Should be < fwhite_upper and >= lowf.\n"
-             "  fwhite_upper: Upper frequency used to estimate white noise for initial guess passed to\n"
-             "                least_squares fit (float64).  Should be > fwhite_lower and lowf.\n"
-             "  tol: absolute tolerance for minimization (float64).\n"
-             "  niter: total number of iterations to run minimization for (int).\n"
-             "  epsilon: Value to perturb gradients by when calculating uncertainties with the inverse\n"
-             "           Hessian matrix (float64). Affects minimization only.\n");
+void register_fitting_ops(py::module_ & m) {
+    m.def("fit_noise", &fit_noise,
+        py::arg("f"),
+        py::arg("pxx"),
+        py::arg("p"),
+        py::arg("c"),
+        py::arg("lowf"),
+        py::arg("fwhite_lower"),
+        py::arg("fwhite_upper"),
+        py::arg("tol"),
+        py::arg("niter"),
+        py::arg("epsilon"),
+        R"(
+
+        Fits noise model with white and 1/f components to the PSD of signal. Uses a
+        MLE method that minimizes a log-likelihood. OMP is used to parallelize across
+        dets (rows).
+
+        Args:
+            f (array): frequency array (float32/64) with dimensions (nsamps,).
+                Should be positive definite and strictly increasing.
+            pxx (array): PSD array (float32/64) with dimensions (ndets, nsamps).
+            p (array): output parameter array (float32/64) with dimensions
+                (ndets, nparams). This is modified in place and input values are
+                ignored.
+            c (array): output uncertaintiy array (float32/64) with dimensions
+                (ndets, nparams). This is modified in place and input values are
+                ignored.
+            lowf (float): Frequency below which the 1/f noise index and fknee are
+                estimated for initial guess passed to least_squares fit.
+            fwhite_lower (float): Lower frequency used to estimate white noise for
+                initial guess passed to least_squares fit.  Should be < fwhite_upper
+                and >= lowf.
+            fwhite_upper (float): Upper frequency used to estimate white noise for
+                initial guess passed to least_squares fit.  Should be > fwhite_lower
+                and lowf.
+            tol (float): absolute tolerance for minimization.
+            niter (int): total number of iterations to run minimization for.
+            epsilon (float): Value to perturb gradients by when calculating
+                uncertainties with the inverse Hessian matrix. Affects minimization
+                only.
+
+        Returns:
+            None
+
+        )"
+    );
+    return;
 }

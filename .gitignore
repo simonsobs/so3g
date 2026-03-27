@@ -1,6 +1,10 @@
 ## build directory
 build/
 
+## Generated sources
+src/_version.h
+python/_version.py
+
 ## Testing files
 .coverage
 *.g3
@@ -58,3 +62,6 @@ docs/_build
 
 # vim
 *.swp
+
+# vscode
+.vscode
