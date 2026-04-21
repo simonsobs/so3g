@@ -7,7 +7,7 @@ import numpy as np
 
 # Don't require pixell for testing
 try:
-    from pixell import enmap
+    from pixell import enmap, wcsutils
     pixell_found = True
 except ModuleNotFoundError:
     pixell_found = False
@@ -150,6 +150,50 @@ class TestProjEng(unittest.TestCase):
             if interpol == 'nearest':
                 self.assertEqual(counts1.sum(), 0)
 
+    @requires_pixell
+    def test_30_bilin(self):
+        """1-sample single boresight-pointed detector with no coordinate transformation"""
+        # Trivial geometry where pixel coordinate and sky coordinate are the same thing
+        shape = (2,2)
+        wcs   = wcsutils.explicit(crval=[0,0], crpix=[1,1], cdelt=[1,1], ctype=["RA---CAR","DEC--CAR"])
+        # Cases we will consider
+        cases = [
+            # A single sample hitting (0.1, 0.7)
+            np.array([[0.1],[0.7]]),
+            # A single sample with integer coordinates
+            np.array([[1.0],[0.0]]),
+        ]
+        for x, y in cases:
+            whole = np.all(x==np.round(x)) and np.all(y==np.round(y))
+            csl   = proj.CelestialSightLine.for_lonlat(x*DEG, y*DEG)
+            fp    = proj.FocalPlane.from_xieta([0.0],[0.0])
+            asm   = proj.Assembly.attach(csl, fp)
+            dtype = np.float32
+            tod   = np.ones((1,1), dtype)
+            # Expected result for NN and bilin
+            wy    = np.sum(np.round([1-y,y]),1)
+            wx    = np.sum(np.round([1-x,x]),1)
+            targ_nn = wy[:,None]*wx[None,:]
+            wy    = np.sum([1-y,y],1)
+            wx    = np.sum([1-x,x],1)
+            targ_li = wy[:,None]*wx[None,:]
+            # Nearest neighbor untiled
+            p     = proj.Projectionist.for_geom(shape, wcs, interpol="nearest")
+            m_nn  = p.to_map(tod, asm, comps="T")[0]
+            assert np.allclose(m_nn, targ_nn)
+            # Bilinear untiled
+            p     = proj.Projectionist.for_geom(shape, wcs, interpol="bilinear")
+            m_li  = p.to_map(tod, asm, comps="T")[0]
+            assert np.allclose(m_li, targ_li)
+            if whole: assert np.allclose(m_nn, m_li)
+            # Nearest neighbor tiled
+            p     = proj.Projectionist.for_tiled(shape, wcs, (10, 10), interpol="nearest")
+            m_nn  = p.to_map(tod, asm, comps="T")[0][0]
+            assert np.allclose(m_nn, targ_nn)
+            p     = proj.Projectionist.for_tiled(shape, wcs, (10, 10), interpol="bilinear")
+            m_li  = p.to_map(tod, asm, comps="T")[0][0]
+            assert np.allclose(m_li, targ_li)
+            if whole: assert np.allclose(m_nn, m_li)
 
 if __name__ == '__main__':
     unittest.main()

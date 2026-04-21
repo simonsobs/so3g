@@ -51,6 +51,8 @@ inline bool isNone(const bp::object &pyo)
     return (pyo.ptr() == Py_None);
 }
 
+int ifloor(double x) { return int(x)-int(x<0); }
+int iround(double x) { return ifloor(x+0.5); }
 
 // ProjEng template system
 //
@@ -812,6 +814,7 @@ public:
                     double iy0=0., double ix0=0.) {
         naxis[0] = ny;
         naxis[1] = nx;
+        // Note, this y,x order is the opposite of what wcslib uses
         cdelt[0] = dy;
         cdelt[1] = dx;
         crpix[0] = iy0;
@@ -930,12 +933,16 @@ inline int Pixelizor2_Flat<NonTiled, NearestNeighbor>::GetPixels(int i_det, int 
 template<>
 inline int Pixelizor2_Flat<NonTiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     // For bilinear mapmaking we need to visit the four bounding pixels
-    double x  = coords[0] / cdelt[1] + crpix[1] - 1 + 0.5;
-    double y  = coords[1] / cdelt[0] + crpix[0] - 1 + 0.5;
-    int    x1 = int(x)-int(x<0);
-    int    y1 = int(y)-int(y<0);
-    double wx[2] = {x-x1, 1-(x-x1)};
-    double wy[2] = {y-y1, 1-(y-y1)};
+    // 0-based pixel coordinate
+    double x  = coords[0] / cdelt[1] + crpix[1] - 1;
+    double y  = coords[1] / cdelt[0] + crpix[0] - 1;
+    // index of pixel to the left of this point. The pixel to the right of it
+    // will be that number +1
+    int    x1 = ifloor(x);
+    int    y1 = ifloor(y);
+    // Weight of before and after pixels. Sum to 1.
+    double wx[2] = {1-(x-x1), x-x1};
+    double wy[2] = {1-(y-y1), y-y1};
     // Loop through the our cases
     int iout = 0;
     for(int iy = y1; iy < y1+2; iy++) {
@@ -1141,12 +1148,12 @@ inline int Pixelizor2_Flat<Tiled, NearestNeighbor>::GetPixels(int i_det, int i_t
 template<>
 inline int Pixelizor2_Flat<Tiled, Bilinear>::GetPixels(int i_det, int i_time, const double *coords, int pixinds[interp_count][index_count], FSIGNAL pixweights[interp_count]) {
     // For bilinear mapmaking we need to visit the four bounding pixels
-    double x  = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1 + 0.5;
-    double y  = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] - 1 + 0.5;
-    int    x1 = int(x);
-    int    y1 = int(y);
-    double wx[2] = {x-x1, 1-(x-x1)};
-    double wy[2] = {y-y1, 1-(y-y1)};
+    double x  = coords[0] / parent_pix.cdelt[1] + parent_pix.crpix[1] - 1;
+    double y  = coords[1] / parent_pix.cdelt[0] + parent_pix.crpix[0] - 1;
+    int    x1 = ifloor(x);
+    int    y1 = ifloor(y);
+    double wx[2] = {1-(x-x1), x-x1};
+    double wy[2] = {1-(y-y1), y-y1};
     // Loop through the our cases
     int iout = 0;
     for(int iy = y1; iy < y1+2; iy++) {
