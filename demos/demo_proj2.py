@@ -116,16 +116,12 @@ else:
     det_weights[n_det//2] = 0.0  # ... unless we mark it as noisy.
 
 # Then back to map.
-print('setup cuts...', end='\n ... ')
-with Timer():
-    cuts = so3g.proj.RangesMatrix.ones(shape=(24, n_det, n_t))
-
 print('Create timestream...', end='\n ... ')
 with Timer():
-    map1 = pe.to_map(None, ptg, ofs, resp, sig1, det_weights, cuts)
+    map1 = pe.to_map(None, ptg, ofs, resp, sig1, det_weights, None)
 
 # Get the weight map (matrix).
-wmap1 = pe.to_weight_map(None, ptg, ofs, resp, det_weights, cuts)
+wmap1 = pe.to_weight_map(None, ptg, ofs, resp, det_weights, None)
 wmap1[1,0] = wmap1[0,1]  # fill in unpopulated entries...
 wmap1[2,0] = wmap1[0,2]
 wmap1[2,1] = wmap1[1,2]

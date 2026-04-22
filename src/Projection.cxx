@@ -9,8 +9,6 @@ using namespace std;
 #include <assert.h>
 #include <math.h>
 
-#include <chrono>
-
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
@@ -1963,12 +1961,8 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
-    auto start = std::chrono::high_resolution_clock::now();
     auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
-    auto end2 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed2 = end2 - start;
-    std::cout << "Block2: " << elapsed2.count() << " ms\n";
 
     // First loop over serial bunches
     for(int i_bunch = 0; i_bunch < bunches.size(); i_bunch++) {
@@ -2353,23 +2347,23 @@ int _index_count(const T &) { return T::index_count; }
 
 PYBINDINGS("so3g")
 {
-//    EXPORT_PIX(Flat);
-//    EXPORT_PIX(Quat);
+    EXPORT_PIX(Flat);
+    EXPORT_PIX(Quat);
     EXPORT_PIX(CAR);
-//    EXPORT_PIX(CEA);
-//    EXPORT_PIX(ARC);
-//    EXPORT_PIX(SIN);
-//    EXPORT_PIX(TAN);
-//    EXPORT_PIX(ZEA);
-//
-//    EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
-//    EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
-//
-//    EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
-//    EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
-//    EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
-//    EXPORT_ENGINE(ProjEng_HP_T_Tiled);
-//    EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
-//    EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
+    EXPORT_PIX(CEA);
+    EXPORT_PIX(ARC);
+    EXPORT_PIX(SIN);
+    EXPORT_PIX(TAN);
+    EXPORT_PIX(ZEA);
+
+    EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
+    EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
+
+    EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
+    EXPORT_ENGINE(ProjEng_HP_T_Tiled);
+    EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
+    EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
 
 }
