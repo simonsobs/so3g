@@ -35,6 +35,7 @@ class RangesMatrix():
         return 'RangesMatrix(' + ','.join(map(str, self.shape)) + ')'
 
     def __len__(self):
+        #return len(self.ranges)
         return self.shape[0]
 
     def copy(self):
@@ -44,7 +45,7 @@ class RangesMatrix():
     def zeros_like(self):
         return RangesMatrix([x.zeros_like() for x in self.ranges],
                             child_shape=self.shape[1:])
-    
+
     def ones_like(self):
         return RangesMatrix([x.ones_like() for x in self.ranges],
                             child_shape=self.shape[1:])
@@ -53,7 +54,7 @@ class RangesMatrix():
         [x.buffer(buff) for x in self.ranges]
         ## just to make this work like Ranges.buffer()
         return self
-    
+
     def buffered(self, buff):
         out = self.copy()
         [x.buffer(buff) for x in out.ranges]
@@ -93,6 +94,9 @@ class RangesMatrix():
           new_rm = rm[..., :]
 
         """
+        #if isinstance(index, (int, np.int32, np.int64)):
+        #    return self.ranges[index]
+
         if not isinstance(index, tuple):
             index = (index,)
 

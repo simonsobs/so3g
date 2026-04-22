@@ -9,6 +9,8 @@ using namespace std;
 #include <assert.h>
 #include <math.h>
 
+#include <chrono>
+
 #ifdef _OPENMP
 # include <omp.h>
 #endif // ifdef _OPENMP
@@ -1865,6 +1867,7 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     bp::object thread_intervals, int n_det, int n_time,
     std::string arg_name)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     // The first index of the returned object should correspond to
     // (OMP) execution thread; the second index is over detectors.
     // The input object can be any of the following:
@@ -1880,31 +1883,45 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     vector<vector<vector<RangesInt32>>> ivals;
 
     if (isNone(thread_intervals)) {
+        cout << "A\n "; // << RangesInt32::cc_count << "\n";
         // It's None. Generate a single bunch with a single-thread covering all samples
         auto r = RangesInt32(n_time).add_interval(0, n_time);
+        
         vector<vector<RangesInt32>> v(1, vector<RangesInt32>(n_det, r));
+//        cout << "A - " << RangesInt32::cc_count << "\n";
         ivals.push_back(v);
+
     } else if(bp::extract<RangesInt32>(thread_intervals[0]).check()) {
+        cout << "B\n";
         // It's a RangesMatrix (ndet,nranges). Promote to single thread, single bunch
         ivals.push_back(vector<vector<RangesInt32>>(1, extract_ranges<int32_t>(thread_intervals)));
     } else if(bp::extract<RangesInt32>(thread_intervals[0][0]).check()) {
+        cout << "C\n";
         // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to single bunch
+        //const int N = bp::len(thread_intervals);
         vector<vector<RangesInt32>> bunch;
         for (int i=0; i<bp::len(thread_intervals); i++)
+            //bunch[i] = extract_ranges<int32_t>(thread_intervals[i]);
             bunch.push_back(extract_ranges<int32_t>(thread_intervals[i]));
         ivals.push_back(bunch);
     } else if(bp::extract<RangesInt32>(thread_intervals[0][0][0]).check()) {
+        cout << "D\n";
         // It's a full multi-bunch (nbunch,nthread,ndet,nranges) thing.
-        for (int i=0; i<bp::len(thread_intervals); i++) {
-            vector<vector<RangesInt32>> bunch;
-            for (int j=0; j<bp::len(thread_intervals[i]); j++)
-                bunch.push_back(extract_ranges<int32_t>(thread_intervals[i][j]));
+        const int N = bp::len(thread_intervals);
+        for (int i=0; i<N; i++) {
+            const int M = bp::len(thread_intervals[i]);
+            vector<vector<RangesInt32>> bunch(M);
+            for (int j=0; j<M; j++)
+                bunch[j] = extract_ranges<int32_t>(thread_intervals[i][j]);
             ivals.push_back(bunch);
         }
     } else {
         // This should not happen
         assert(false);
     }
+    auto end1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed1 = end1 - start;
+
     // Check that these all have the right shape. Maybe consider a standard
     // for loop instead of foreach to give more useful error messages using
     // the index
@@ -1925,6 +1942,12 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
             }
         }
     }
+
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed2 = end2 - end1;
+    std::cout << "Block1: " << elapsed1.count() << " ms\n";
+    std::cout << "Block2: " << elapsed2.count() << " ms\n";
+
     return ivals;
 }
 
@@ -2343,23 +2366,23 @@ int _index_count(const T &) { return T::index_count; }
 
 PYBINDINGS("so3g")
 {
-    EXPORT_PIX(Flat);
-    EXPORT_PIX(Quat);
+//    EXPORT_PIX(Flat);
+//    EXPORT_PIX(Quat);
     EXPORT_PIX(CAR);
-    EXPORT_PIX(CEA);
-    EXPORT_PIX(ARC);
-    EXPORT_PIX(SIN);
-    EXPORT_PIX(TAN);
-    EXPORT_PIX(ZEA);
-
-    EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
-    EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
-
-    EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
-    EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
-    EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
-    EXPORT_ENGINE(ProjEng_HP_T_Tiled);
-    EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
-    EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
+//    EXPORT_PIX(CEA);
+//    EXPORT_PIX(ARC);
+//    EXPORT_PIX(SIN);
+//    EXPORT_PIX(TAN);
+//    EXPORT_PIX(ZEA);
+//
+//    EXPORT_PRECOMP(ProjEng_Precomp_NonTiled);
+//    EXPORT_PRECOMP(ProjEng_Precomp_Tiled);
+//
+//    EXPORT_ENGINE(ProjEng_HP_T_NonTiled);
+//    EXPORT_ENGINE(ProjEng_HP_QU_NonTiled);
+//    EXPORT_ENGINE(ProjEng_HP_TQU_NonTiled);
+//    EXPORT_ENGINE(ProjEng_HP_T_Tiled);
+//    EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
+//    EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
 
 }
