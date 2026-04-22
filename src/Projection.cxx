@@ -1867,7 +1867,6 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     bp::object thread_intervals, int n_det, int n_time,
     std::string arg_name)
 {
-    auto start = std::chrono::high_resolution_clock::now();
     // The first index of the returned object should correspond to
     // (OMP) execution thread; the second index is over detectors.
     // The input object can be any of the following:
@@ -1883,33 +1882,26 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     vector<vector<vector<RangesInt32>>> ivals;
 
     if (isNone(thread_intervals)) {
-        cout << "A\n "; // << RangesInt32::cc_count << "\n";
         // It's None. Generate a single bunch with a single-thread covering all samples
         auto r = RangesInt32(n_time).add_interval(0, n_time);
-        
         vector<vector<RangesInt32>> v(1, vector<RangesInt32>(n_det, r));
-//        cout << "A - " << RangesInt32::cc_count << "\n";
         ivals.push_back(v);
-
     } else if(bp::extract<RangesInt32>(thread_intervals[0]).check()) {
-        cout << "B\n";
         // It's a RangesMatrix (ndet,nranges). Promote to single thread, single bunch
         ivals.push_back(vector<vector<RangesInt32>>(1, extract_ranges<int32_t>(thread_intervals)));
     } else if(bp::extract<RangesInt32>(thread_intervals[0][0]).check()) {
-        cout << "C\n";
         // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to single bunch
-        const int N = bp::len(thread_intervals);
+        int N = bp::len(thread_intervals);
         vector<vector<RangesInt32>> bunch(N);
         for (int i=0; i<N; i++)
             bunch[i] = extract_ranges<int32_t>(thread_intervals[i]);
         ivals.push_back(bunch);
     } else if(bp::extract<RangesInt32>(thread_intervals[0][0][0]).check()) {
-        cout << "D\n";
         // It's a full multi-bunch (nbunch,nthread,ndet,nranges) thing.
         const int N = bp::len(thread_intervals);
         for (int i=0; i<N; i++) {
-            const int M = bp::len(thread_intervals[i]);
             auto ti_i = thread_intervals[i];
+            int M = bp::len(ti_i);
             vector<vector<RangesInt32>> bunch(M);
             for (int j=0; j<M; j++)
                 bunch[j] = extract_ranges<int32_t>(ti_i[j]);
@@ -1919,9 +1911,6 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
         // This should not happen
         assert(false);
     }
-    auto end1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed1 = end1 - start;
-
     // Check that these all have the right shape. Maybe consider a standard
     // for loop instead of foreach to give more useful error messages using
     // the index
@@ -1942,12 +1931,6 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
             }
         }
     }
-
-    auto end2 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed2 = end2 - end1;
-    std::cout << "Block1: " << elapsed1.count() << " ms\n";
-    std::cout << "Block2: " << elapsed2.count() << " ms\n";
-
     return ivals;
 }
 
@@ -1980,8 +1963,12 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     // For multi-threading, the principle here is that we loop serially
     // over bunches, and then inside each block all threads loop over
     // all detectors in parallel, but the sample ranges are pixel-disjoint.
+    auto start = std::chrono::high_resolution_clock::now();
     auto bunches = derive_ranges(thread_intervals, n_det, n_time,
                                "thread_intervals");
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed2 = end2 - start;
+    std::cout << "Block2: " << elapsed2.count() << " ms\n";
 
     // First loop over serial bunches
     for(int i_bunch = 0; i_bunch < bunches.size(); i_bunch++) {
