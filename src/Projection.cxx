@@ -1898,11 +1898,10 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
     } else if(bp::extract<RangesInt32>(thread_intervals[0][0]).check()) {
         cout << "C\n";
         // It's a per-thread RangesMatrix (nthread,ndet,nranges). Promote to single bunch
-        //const int N = bp::len(thread_intervals);
-        vector<vector<RangesInt32>> bunch;
-        for (int i=0; i<bp::len(thread_intervals); i++)
-            //bunch[i] = extract_ranges<int32_t>(thread_intervals[i]);
-            bunch.push_back(extract_ranges<int32_t>(thread_intervals[i]));
+        const int N = bp::len(thread_intervals);
+        vector<vector<RangesInt32>> bunch(N);
+        for (int i=0; i<N; i++)
+            bunch[i] = extract_ranges<int32_t>(thread_intervals[i]);
         ivals.push_back(bunch);
     } else if(bp::extract<RangesInt32>(thread_intervals[0][0][0]).check()) {
         cout << "D\n";
@@ -1910,9 +1909,10 @@ vector<vector<vector<RangesInt32>>> derive_ranges(
         const int N = bp::len(thread_intervals);
         for (int i=0; i<N; i++) {
             const int M = bp::len(thread_intervals[i]);
+            auto ti_i = thread_intervals[i];
             vector<vector<RangesInt32>> bunch(M);
             for (int j=0; j<M; j++)
-                bunch[j] = extract_ranges<int32_t>(thread_intervals[i][j]);
+                bunch[j] = extract_ranges<int32_t>(ti_i[j]);
             ivals.push_back(bunch);
         }
     } else {
