@@ -35,8 +35,7 @@ class RangesMatrix():
         return 'RangesMatrix(' + ','.join(map(str, self.shape)) + ')'
 
     def __len__(self):
-        #return len(self.ranges)
-        return self.shape[0]
+        return len(self.ranges)
 
     def copy(self):
         return RangesMatrix([x.copy() for x in self.ranges],
@@ -94,8 +93,9 @@ class RangesMatrix():
           new_rm = rm[..., :]
 
         """
-        #if isinstance(index, (int, np.int32, np.int64)):
-        #    return self.ranges[index]
+        # Short-circuit return if this is a simple integer index.
+        if isinstance(index, (int, np.int32, np.int64)):
+            return self.ranges[index]
 
         if not isinstance(index, tuple):
             index = (index,)
