@@ -132,7 +132,7 @@ class RangesMatrix():
                 elif self.shape[0] == x.shape[0]:
                     return self.__class__([r + d for r, d in zip(self.ranges, x)], skip_shape_check=True)
             return self.__class__([r + x for r in self.ranges], skip_shape_check=True)
-        
+
     def __mul__(self, x):
         if isinstance(x, Ranges):
             return self.__class__([d * x for d in self.ranges], skip_shape_check=True)
@@ -251,7 +251,7 @@ class RangesMatrix():
             return r
         return RangesMatrix([RangesMatrix.full(shape[1:], fill_value)
                              for i in range(shape[0])],
-                            child_shape=shape[1:])
+                            child_shape=shape[1:], skip_shape_check=True)
 
     @classmethod
     def zeros(cls, shape):
