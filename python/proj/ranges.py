@@ -35,7 +35,7 @@ class RangesMatrix():
         return 'RangesMatrix(' + ','.join(map(str, self.shape)) + ')'
 
     def __len__(self):
-        return self.shape[0]
+        return len(self.ranges)
 
     def copy(self):
         return RangesMatrix([x.copy() for x in self.ranges],
@@ -44,7 +44,7 @@ class RangesMatrix():
     def zeros_like(self):
         return RangesMatrix([x.zeros_like() for x in self.ranges],
                             child_shape=self.shape[1:])
-    
+
     def ones_like(self):
         return RangesMatrix([x.ones_like() for x in self.ranges],
                             child_shape=self.shape[1:])
@@ -53,7 +53,7 @@ class RangesMatrix():
         [x.buffer(buff) for x in self.ranges]
         ## just to make this work like Ranges.buffer()
         return self
-    
+
     def buffered(self, buff):
         out = self.copy()
         [x.buffer(buff) for x in out.ranges]
@@ -93,6 +93,10 @@ class RangesMatrix():
           new_rm = rm[..., :]
 
         """
+        # Short-circuit return if this is a simple integer index.
+        if isinstance(index, (int, np.int32, np.int64)):
+            return self.ranges[index]
+
         if not isinstance(index, tuple):
             index = (index,)
 
@@ -128,7 +132,7 @@ class RangesMatrix():
                 elif self.shape[0] == x.shape[0]:
                     return self.__class__([r + d for r, d in zip(self.ranges, x)], skip_shape_check=True)
             return self.__class__([r + x for r in self.ranges], skip_shape_check=True)
-        
+
     def __mul__(self, x):
         if isinstance(x, Ranges):
             return self.__class__([d * x for d in self.ranges], skip_shape_check=True)
@@ -247,7 +251,7 @@ class RangesMatrix():
             return r
         return RangesMatrix([RangesMatrix.full(shape[1:], fill_value)
                              for i in range(shape[0])],
-                            child_shape=shape[1:])
+                            child_shape=shape[1:], skip_shape_check=True)
 
     @classmethod
     def zeros(cls, shape):
