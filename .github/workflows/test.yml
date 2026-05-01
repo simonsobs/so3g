@@ -52,6 +52,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0
 
       - name: Set up Conda
         uses: conda-incubator/setup-miniconda@v4
