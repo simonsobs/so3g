@@ -13,15 +13,19 @@
 # Build tools
 compilers
 cmake
+make
 # Compiled dependencies
 libopenblas=*=*openmp*
 libblas=*=*openblas
 openblas=*=*openmp*
-boost
-libflac
 gsl
 netcdf4
+glog
+ceres-solver=*=cpu*
+boost
+libflac
 # Python dependencies
+setuptools
 numpy
 scipy
 astropy
@@ -31,5 +35,5 @@ pytz
 pyaml
 sqlalchemy
 tqdm
-# Eventually we should make a conda package for these:
-# qpoint
+pytest
+qpoint
