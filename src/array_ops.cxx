@@ -271,18 +271,18 @@ void pcut_full_translate_helper(const vector<RangesInt32> & iranges, const vecto
             auto const & irange = iranges[di].segments[ri];
             auto const & orange = oranges[di].segments[ri];
             if(onsamp >= insamp) {
-                for(int64_t osamp = orange.first, oind = ooff; osamp < orange.second; osamp++, oind++) {
-                    int64_t isamp = osamp * insamp / onsamp;
-                    int64_t iind  = ioff + isamp - irange.first;
+                for(size_t osamp = orange.first, oind = ooff; osamp < orange.second; osamp++, oind++) {
+                    size_t isamp = osamp * insamp / onsamp;
+                    size_t iind  = ioff + isamp - irange.first;
                     // Nearest neighbor should be good enough
                     ovals[oind] = ivals[iind];
                 }
             } else {
                 vector<int> ohits(orange.second-orange.first);
                 // Accumulate
-                for(int64_t isamp = irange.first, iind = ioff; isamp < irange.second; isamp++, iind++) {
-                    int64_t osamp = isamp * onsamp / insamp;
-                    int64_t oind  = ooff + osamp - orange.first;
+                for(size_t isamp = irange.first, iind = ioff; isamp < irange.second; isamp++, iind++) {
+                    size_t osamp = isamp * onsamp / insamp;
+                    size_t oind  = ooff + osamp - orange.first;
                     ovals[oind] += ivals[iind];
                     ohits[oind-ooff]++;
                 }
@@ -580,9 +580,9 @@ void test_buffer_wrapper(const bp::object array,
 
 
 template <typename T>
-void _moment(T* data, T* output, int moment, bool central, int64_t start, int64_t stop)
+void _moment(T* data, T* output, int moment, bool central, size_t start, size_t stop)
 {
-    int64_t bsize = stop - start;
+    size_t bsize = stop - start;
     // Could replace the loops with boost accumulators?
     T center = 0.0;
     if(central || moment == 1) {
@@ -610,19 +610,19 @@ void _moment(T* data, T* output, int moment, bool central, int64_t start, int64_
 template <typename T>
 void _block_moment(T* tod_data, T* output, int bsize, int moment, bool central, int ndet, int nsamp, int shift)
 {
-    int64_t nblock = (int64_t)(nsamp - shift + bsize) / (int64_t)bsize; 
+    size_t nblock = (size_t)(nsamp - shift + bsize) / (size_t)bsize; 
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++)
     {
-        int64_t ioff = (int64_t)di * (int64_t)nsamp;
+        size_t ioff = (size_t)di * (size_t)nsamp;
         // do the the pre-shift portion
         if(shift > 0){
             _moment(tod_data, output, moment, central, ioff, ioff+shift);
         }
 
         for(int bi = 0; bi < nblock; bi++) {
-            int64_t start =  (bi * bsize) + shift;
-            int64_t stop = min(start + bsize, (int64_t)nsamp);
+            size_t start =  (bi * bsize) + shift;
+            size_t stop = min(start + bsize, (size_t)nsamp);
             _moment(tod_data, output, moment, central, ioff+start, ioff+stop);
         }
     }
@@ -645,7 +645,7 @@ void block_moment(const bp::object & tod, const bp::object & out, int bsize, int
 }
 
 template <typename T>
-void _minmax(T* data, T* output, int mode, int64_t start, int64_t stop)
+void _minmax(T* data, T* output, int mode, size_t start, size_t stop)
 {
     T val;
     if(mode == 0){ // get the min
@@ -668,19 +668,19 @@ void _minmax(T* data, T* output, int mode, int64_t start, int64_t stop)
 template <typename T>
 void _block_minmax(T* tod_data, T* output, int bsize, int mode, int ndet, int nsamp, int shift)
 {
-    int64_t nblock = (int64_t)(nsamp - shift + bsize) / (int64_t)bsize; 
+    size_t nblock = (size_t)(nsamp - shift + bsize) / (size_t)bsize; 
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++)
     {
-        int64_t ioff = (int64_t)di * (int64_t)nsamp;
+        size_t ioff = (size_t)di * (size_t)nsamp;
         // do the the pre-shift portion
         if(shift > 0){
             _minmax(tod_data, output, mode, ioff, ioff+shift);
         }
 
         for(int bi = 0; bi < nblock; bi++) {
-            int64_t start =  (bi * bsize) + shift;
-            int64_t stop = min(start + bsize, (int64_t)nsamp);
+            size_t start =  (bi * bsize) + shift;
+            size_t stop = min(start + bsize, (size_t)nsamp);
             _minmax(tod_data, output, mode, ioff+start, ioff+stop);
         }
     }
@@ -707,7 +707,7 @@ void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
 {
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++) {
-        int64_t ioff = di*nsamp;
+        size_t ioff = di*nsamp;
         int* det_flag = flag_data + ioff;
         int count = 0;
         for(int si = 0; si < nsamp; si++) {
@@ -750,7 +750,7 @@ void _jumps_thresh_on_mfilt(T* mfilt, int* flag, T* size, int bsize, int shift, 
     // Because s = 0 at the window edges we skip those indices
     # pragma omp parallel for
     for(int di = 0; di < ndet; di++){
-        int64_t ioff = di*nsamp;
+        size_t ioff = di*nsamp;
         for(int si = 0; si < nsamp; si++){
             if(si < shift){
                 flag[ioff+si] = 0;
@@ -783,10 +783,10 @@ void _jumps_matched_filter(T* tod_data, T* output, int bsize, int shift, int nde
     _block_moment(tod_data, output, bsize, 1, 0, ndet, nsamp, shift);
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++) {
-        int64_t ioff = di*nsamp;
+        size_t ioff = di*nsamp;
         T val = 0;
         for(int si = 0; si < nsamp; si++) {
-            int64_t i = ioff + si;
+            size_t i = ioff + si;
             val = val + tod_data[i] - output[i];
             output[i] = val;
         }
@@ -837,9 +837,9 @@ void matched_jumps(const bp::object & tod, const bp::object & out, const bp::obj
     // Now we combine
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++) {
-        int64_t ioff = di*nsamp;
+        size_t ioff = di*nsamp;
         for(int si = 0; si < nsamp; si++) {
-            int64_t i = ioff + si;
+            size_t i = ioff + si;
             output[i] = output[i] || shift_flag[i]; 
         }
     }
@@ -866,7 +866,7 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
 
     #pragma omp parallel for
     for(int di = 0; di < ndet; di++) {
-        int64_t ioff = di*nsamp;
+        size_t ioff = di*nsamp;
         T* det_data = tod_data + ioff;
         T* det_out = output + ioff;
         for(int si = 0; si < nsamp; si++) {
@@ -911,8 +911,8 @@ void subtract_jump_heights(const bp::object & tod, const bp::object & out, const
 
     #pragma omp parallel for
     for(int di = 0; di < ranges.size(); di++) {
-        int64_t start = 0;
-        int64_t stop = 0;
+        size_t start = 0;
+        size_t stop = 0;
         T min_h;
         T max_h;
         T height;
