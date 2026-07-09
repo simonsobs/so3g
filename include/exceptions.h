@@ -1,128 +1,111 @@
 #pragma once
 
-#include <boost/python.hpp>
-#include <exception>
+#include <stdexcept>
+#include <sstream>
 
-// so3g_exception is our internal base class, which defines the
-// interface we use for converting C++ exceptions to python.
+#include <pybind11/pybind11.h>
 
-class so3g_exception : std::exception
+namespace py = pybind11;
+
+
+// Current C++ guidance seems to recommend a "wide" versus "deep"
+// exception hierarchy.  It is also important to not store a string
+// as a member of a custom exception class, since the associated
+// copy constructor must be non-throwing (and copying the member
+// string cannot guarantee that).  Instead, we use std::runtime_error
+// with has a built-in string storage that meets that requirement.
+// We derive all custom exceptions from runtime_error.
+
+class value_exception : public std::runtime_error
 {
 public:
-    std::string text;
-    so3g_exception() {};
-
-    so3g_exception(std::string text) :
-        text{text} {}
-
-    virtual std::string msg_for_python() const throw() {
-        return text;
-    }
+    value_exception(std::string text) : std::runtime_error(text) {}
 };
 
-
-// The base classes here are mapped to specific Python exceptions.
-// They are registered with boost python in exceptions.cxx.  Sure, you
-// can use these directly.  Why not.
-
-class RuntimeError_exception : public so3g_exception {
-    using so3g_exception::so3g_exception;
-};
-class TypeError_exception : public so3g_exception {
-    using so3g_exception::so3g_exception;
-};
-class ValueError_exception : public so3g_exception {
-    using so3g_exception::so3g_exception;
-};
-
-
-// The exceptions below should be used when processing objects with
-// the buffer protocol (probably numpy arrays).
-
-class buffer_exception : public TypeError_exception
+class buffer_exception : public std::runtime_error
 {
 public:
-    std::string var_name;
-    buffer_exception(std::string var_name) : var_name{var_name} {}
-
-    std::string msg_for_python() const throw() {
-        std::ostringstream s;
-        s << "Argument '" << var_name << "' does not expose buffer protocol, "
-            "is not contiguous, or does not export a format.";
-        return s.str();
-    }
+    buffer_exception(std::string var_name) : std::runtime_error(
+        std::string("Argument '") +
+        var_name +
+        std::string("' does not expose buffer protocol, ") +
+        std::string("is not contiguous, or does not export a format.")
+    ) {}
 };
 
-class shape_exception : public RuntimeError_exception
+class shape_exception : public std::runtime_error
 {
 public:
-    std::string var_name;
-    std::string detail;
-    shape_exception(std::string var_name, std::string detail) :
-        var_name{var_name}, detail(detail) {}
-
-    std::string msg_for_python() const throw() {
-        std::ostringstream s;
-        s << "Buffer '" << var_name << "' has incompatible shape: "
-          << detail << ".";
-        return s.str();
-    }
+    shape_exception(
+        std::string var_name, std::string detail
+    ) : std::runtime_error(
+        std::string("Buffer '") +
+        var_name +
+        std::string("' has incompatible shape: ") +
+        detail +
+        std::string(".")
+    ) {}
 };
 
-class dtype_exception : public ValueError_exception
+class dtype_exception : public std::runtime_error
 {
 public:
-    std::string var_name;
-    std::string type_str;
-    dtype_exception(std::string var_name, std::string type_str) :
-        var_name{var_name}, type_str{type_str} {}
-
-    std::string msg_for_python() const throw() {
-        std::ostringstream s;
-        s << "Expected buffer '" << var_name << "' to contain items of type "
-          << type_str << ".";
-        return s.str();
-    }
+    dtype_exception(
+        std::string var_name, std::string type_str
+    ) : std::runtime_error(
+        std::string("Expected buffer '") +
+        var_name +
+        std::string("' to contain items of type ") +
+        type_str +
+        std::string(".")
+    ) {}
 };
 
-class agreement_exception : public RuntimeError_exception
+class agreement_exception : public std::runtime_error
 {
 public:
-    std::string var1, var2, prop;
-    agreement_exception(std::string var1, std::string var2, std::string prop) :
-        var1{var1}, var2{var2}, prop{prop} {}
-
-    std::string msg_for_python() const throw() {
-        std::ostringstream s;
-        s << "Expected buffers '" << var1 << "' and '" << var2 << "' to have "
-          << "the same " << prop << ".";
-        return s.str();
-    }
+    agreement_exception(
+        std::string var1, std::string var2, std::string prop
+    ) : std::runtime_error(
+        std::string("Expected buffers '") +
+        var1 +
+        std::string("' and '") +
+        var2 +
+        std::string("' to have the same ") +
+        prop +
+        std::string(".")
+    ) {}
 };
 
-class tiling_exception : public RuntimeError_exception
+class tiling_exception : public std::runtime_error
 {
 public:
-    int tile_idx;
-    std::string msg;
-    tiling_exception(int tile_idx, std::string msg) :
-        tile_idx{tile_idx}, msg{msg} {}
-
-    std::string msg_for_python() const throw() {
-        std::ostringstream s;
-        s << "Tiling problem (index " << tile_idx << "): " << msg;
-        return s.str();
-    }
+    tiling_exception(
+        int tile_idx, std::string msg
+    ) : std::runtime_error(
+        std::string("Tiling problem (index ") +
+        std::to_string(tile_idx) +
+        std::string("): ") +
+        msg
+    ) {}
 };
 
-class general_agreement_exception : public ValueError_exception
+class alloc_exception : public std::runtime_error
 {
 public:
-    std::string text;
-    general_agreement_exception(std::string text) :
-        text{text} {}
-
-    std::string msg_for_python() const throw() {
-        return text;
-    }
+    alloc_exception(
+        std::string msg
+    ) : std::runtime_error(
+        std::string("Failed allocation: ") +
+        msg
+    ) {}
 };
+
+class general_agreement_exception : public std::runtime_error
+{
+public:
+    general_agreement_exception(std::string text) : std::runtime_error(text) {}
+};
+
+
+void register_exceptions(py::module_ & m);

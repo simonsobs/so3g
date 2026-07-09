@@ -1,8 +1,7 @@
-import so3g
-from . import quat
-
 import numpy as np
 
+from .. import libso3g
+from . import quat
 from .ranges import Ranges, RangesMatrix
 from . import mapthreads
 
@@ -128,7 +127,7 @@ class _ProjectionistBase:
         if not get:
             return projeng_name
         try:
-            projeng_cls = getattr(so3g, projeng_name)
+            projeng_cls = getattr(libso3g, projeng_name)
         except AttributeError:
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
@@ -445,7 +444,7 @@ class _ProjectionistBase:
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
-            assign = so3g.useful_info()['omp_num_threads']
+            assign = libso3g.useful_info()['omp_num_threads']
         if assign > 0:
             group_n = np.array([0 for g in range(assign)])
             group_tiles = [[] for _ in group_n]
@@ -720,7 +719,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         self._q_fp_to_celestial = None
         self.active_tiles = None
         self.proj_name = None
-        self.q_celestial_to_native = quat.quat(1,0,0,0)
+        self.q_celestial_to_native = quat.Quat(1,0,0,0)
         self.interpol = 'nearest'
         self.tiling = None
 
@@ -771,7 +770,7 @@ class ProjectionistHealpix(_ProjectionistBase):
             nActive = len(self.get_active_tiles(assembly)['active_tiles'])
             fsky = nActive / (12 * nside_tile0**2)
             if nThreads is None:
-                nThreads = so3g.useful_info()['omp_num_threads']
+                nThreads = libso3g.useful_info()['omp_num_threads']
             # nside_tile is smallest power of 2 satisfying nTile >= nActivePerThread * nthread / fsky
             self.nside_tile = int(2**np.ceil(0.5 * np.log2(nActivePerThread * nThreads / (12 * fsky))))
             self.nside_tile = min(self.nside_tile, self.nside)
@@ -839,19 +838,29 @@ class ProjectionistHealpix(_ProjectionistBase):
         constructor to define the pixelization.
 
         """
-        if self.active_tiles is not None:
-            active_tiles = list(map(int, self.active_tiles))
-        else:
-            active_tiles = None
-        nside_tile = None
         if self.nside_tile is not None:
             nside_tile = int(self.nside_tile)
+        else:
+            # The nside_tile has not been computed yet.  Pick a value to avoid
+            # errors.
+            nside_tile = 16
 
-        args = (int(self.nside),
+        if self.active_tiles is not None:
+            # The C++ code expects 4 tuple items in this case
+            active_tiles = list(map(int, self.active_tiles))
+            return (
+                int(self.nside),
                 int(self.ordering == 'NEST'),
                 nside_tile,
-                active_tiles)
-        return args
+                active_tiles,
+            )
+        else:
+            # The C++ code expects 3 tuple items in this case
+            return (
+                int(self.nside),
+                int(self.ordering == 'NEST'),
+                nside_tile,
+            )
 
     def _guess_comps(self, map_shape):
         if len(map_shape) != 2:

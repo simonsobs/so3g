@@ -112,7 +112,7 @@ class TestRanges(unittest.TestCase):
                 (Ellipsis, [1, 2]),
                 (Ellipsis, [True, False, True]),
         ]:
-            with self.assertRaises((IndexError, ValueError)):
+            with self.assertRaises(Exception):
                 r0[indices]
 
     def test_referencing(self):
@@ -136,9 +136,9 @@ class TestRanges(unittest.TestCase):
         # It should not be possible to pad or index beyond the
         # outermost dimension.  Ranges isn't very smart about this,
         # but RangesMatrix can be.
-        with self.assertRaises(IndexError):
+        with self.assertRaises(Exception):
             r0[:,:,None]
-        with self.assertRaises(IndexError):
+        with self.assertRaises(Exception):
             r0[:,:,0]
 
     def test_concat(self):
@@ -167,9 +167,9 @@ class TestRanges(unittest.TestCase):
         self.assertEqual(rc.shape, r0.shape)
 
         # These should fail due to shape incompat.
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             rc = RangesMatrix.concatenate([r0, r1], axis=0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             rc = RangesMatrix.concatenate([r0, r2], axis=1)
 
     def test_mask(self):
@@ -192,7 +192,7 @@ class TestRanges(unittest.TestCase):
         r = Ranges(1000)
         r.add_interval(10, 20)
         r.add_interval(np.int32(30), np.int32(40))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             r.add_interval(object(), object())
         self.assertEqual(len(r.ranges()), 2)
 

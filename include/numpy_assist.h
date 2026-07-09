@@ -1,9 +1,16 @@
 #pragma once
 
-#include <boost/python.hpp>
 #include <exception>
+#include <memory>
+#include <vector>
+#include <iostream>
+
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "exceptions.h"
+
+namespace py = pybind11;
 
 
 // check_buffer_type<T>(const Py_buffer &view)
@@ -79,35 +86,6 @@ std::string type_name<double>() {
 }
 
 
-// The numpysafe_extract_int is needed so that objects of type np.int32
-// or np.int64 can be passed in places where we'd otherwise expect an
-// integer.
-
-inline int numpysafe_extract_int(const bp::object obj, const std::string argstr)
-{
-    int result = 0;
-
-    // Try extracting integer directly.
-    bp::extract<int> extractor(obj);
-    if (extractor.check())
-        return extractor();
-
-    // Maybe this is a numpy.int32, or other array scalar, for which
-    // .item() is the way to pull out the int.
-    if (PyObject_HasAttrString(obj.ptr(), "item")) {
-        bp::object result = (obj.attr("item"))();
-        bp::extract<int> extractor(result);
-        if (extractor.check())
-            return extractor();
-    }
-
-    std::string errstr = "Failed to interpret argument \"" + argstr + "\" as int.";
-    PyErr_SetString(PyExc_ValueError, errstr.c_str());
-    bp::throw_error_already_set();
-    return 0;
-}
-
-
 static std::string shape_string(std::vector<int> shape)
 {
     std::ostringstream s;
@@ -153,9 +131,9 @@ public:
     }
 
     // Constructor with no shape or type checking.
-    BufferWrapper(std::string name, const bp::object &src, bool optional)
+    BufferWrapper(std::string name, const py::object &src, bool optional)
         : BufferWrapper() {
-        if (optional && (src.ptr() == Py_None))
+        if (optional && (src.is_none()))
             return;
         if (PyObject_GetBuffer(src.ptr(), view.get(),
                                PyBUF_RECORDS) == -1) {
@@ -165,21 +143,24 @@ public:
     }
 
     // Constructor with shape and type checking.
-    BufferWrapper(std::string name, const bp::object &src, bool optional,
+    BufferWrapper(std::string name, const py::object &src, bool optional,
                   std::vector<int> shape)
         : BufferWrapper(name, src, optional) {
 
         // "optional" items will cause the parent constructor to
         // succeed, but will leave buffer pointer unset.
-        if (view->buf == NULL)
+        if (view->buf == NULL) {
             return;
+        }
 
-        if (!check_buffer_type<T>(*view.get()))
+        if (!check_buffer_type<T>(*(view.get()))) {
             throw dtype_exception(name, type_name<T>());
+        }
 
         std::vector<int> vshape;
-        for (int i=0; i<view->ndim; i++)
+        for (int i=0; i<view->ndim; i++) {
             vshape.push_back(view->shape[i]);
+        }
 
         // Note special value -1 is as in numpy -- matches a single
         // axis.  Special value -2 is treated as an ellipsis -- can be
@@ -232,3 +213,7 @@ public:
 private:
     std::shared_ptr<Py_buffer> view;
 };
+
+
+// Convert an n-dimensional array into a list of array slices.
+py::list list_of_arrays(py::object input);
