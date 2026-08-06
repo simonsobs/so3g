@@ -79,7 +79,7 @@ void nmat_detvecs_apply(const bp::object & ft, const bp::object & bins, const bp
         cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, nvec, nm, ndet, 1.0f, biV, nvec, ft_+b1, nmode, 0.0f, Q, nm);
         // Handle the uncorrelated part
         //#pragma omp parallel for
-        for(int di = 0; di < ndet; di++)
+        for(int64_t di = 0; di < ndet; di++)
             for(int i = b1; i < b2; i++)
                 ft_[di*nmode+i] *= biD[di]/norm;
         // Do ft += s*iV[ndet,nvec] dot Q [nvec,nm]
@@ -247,7 +247,7 @@ int pcut_full_measure_helper(const vector<RangesInt32> & rangemat) {
 template <typename T>
 void pcut_full_tod2vals_helper(const vector<RangesInt32> & rangemat, T * tod, int nsamp, T * vals) {
     int i = 0;
-    for(int di = 0; di < rangemat.size(); di++)
+    for(int64_t di = 0; di < rangemat.size(); di++)
         for (auto const &r: rangemat[di].segments)
             for(int j = r.first; j < r.second; j++, i++)
                 vals[i] = tod[di*nsamp+j];
@@ -255,7 +255,7 @@ void pcut_full_tod2vals_helper(const vector<RangesInt32> & rangemat, T * tod, in
 template <typename T>
 void pcut_full_vals2tod_helper(const vector<RangesInt32> & rangemat, T * tod, int nsamp, T * vals) {
     int i = 0;
-    for(int di = 0; di < rangemat.size(); di++)
+    for(int64_t di = 0; di < rangemat.size(); di++)
         for (auto const &r: rangemat[di].segments)
             for(int j = r.first; j < r.second; j++, i++)
                 tod[di*nsamp+j] = vals[i];
@@ -265,7 +265,7 @@ template <typename T>
 void pcut_full_translate_helper(const vector<RangesInt32> & iranges, const vector<RangesInt32> & oranges, int insamp, T * ivals, int onsamp, T * ovals) {
     // Translate cut degrees of freedom from one sample rate to another.
     // Simple interpolation for upscaling, averaging when downscaling
-    int ioff = 0, ooff = 0;
+    int64_t ioff = 0, ooff = 0;
     for(int di = 0; di < iranges.size(); di++) {
         for(int ri = 0; ri < iranges[di].segments.size(); ri++) {
             auto const & irange = iranges[di].segments[ri];
@@ -306,8 +306,8 @@ int pcut_poly_measure_helper(const vector<RangesInt32> & rangemat, int resolutio
 }
 template <typename T>
 void pcut_poly_tod2vals_helper(const vector<RangesInt32> & rangemat, int resolution, int nmax, T * tod, int nsamp, T * vals) {
-    int i = 0;
-    for(int di = 0; di < rangemat.size(); di++) {
+    int64_t i = 0;
+    for(int64_t di = 0; di < rangemat.size(); di++) {
         for (auto const &r: rangemat[di].segments) {
             int np = get_npoly(r.second-r.first, resolution, nmax);
             if(np <= 1) {
@@ -336,8 +336,8 @@ void pcut_poly_tod2vals_helper(const vector<RangesInt32> & rangemat, int resolut
 }
 template <typename T>
 void pcut_poly_vals2tod_helper(const vector<RangesInt32> & rangemat, int resolution, int nmax, T * tod, int nsamp, T * vals) {
-    int i = 0;
-    for(int di = 0; di < rangemat.size(); di++) {
+    int64_t i = 0;
+    for(int64_t di = 0; di < rangemat.size(); di++) {
         for (auto const &r: rangemat[di].segments) {
             int np = get_npoly(r.second-r.first, resolution, nmax);
             if(np <= 1) {
@@ -366,7 +366,7 @@ void pcut_poly_vals2tod_helper(const vector<RangesInt32> & rangemat, int resolut
 template <typename T>
 void pcut_clear_helper(const vector<RangesInt32> & rangemat, T * tod, int nsamp) {
     #pragma omp parallel for
-    for(int di = 0; di < rangemat.size(); di++)
+    for(int64_t di = 0; di < rangemat.size(); di++)
         for (auto const &r: rangemat[di].segments)
             for(int s = r.first; s < r.second; s++)
                 tod[di*nsamp+s] = 0;
@@ -376,7 +376,7 @@ template <typename T>
 void pcut_poly_translate_helper(const vector<RangesInt32> & iranges, const vector<RangesInt32> & oranges, int resolution, int nmax, int insamp, T * ivals, int onsamp, T * ovals) {
     // Translate cut degrees of freedom from one sample rate to another.
     // Zero-pad poly coeffs if upsampling, truncate if downsampling
-    int ioff = 0, ooff = 0;
+    int64_t ioff = 0, ooff = 0;
     for(int di = 0; di < iranges.size(); di++) {
         for(int ri = 0; ri < iranges[di].segments.size(); ri++) {
             auto const & irange = iranges[di].segments[ri];
@@ -586,7 +586,7 @@ void _moment(T* data, T* output, int moment, bool central, int64_t start, int64_
     // Could replace the loops with boost accumulators?
     T center = 0.0;
     if(central || moment == 1) {
-        for(int si = start; si < stop; si++) {
+        for(int64_t si = start; si < stop; si++) {
             center = center + data[si];
         }
         center = center / bsize;
@@ -596,12 +596,12 @@ void _moment(T* data, T* output, int moment, bool central, int64_t start, int64_
         val = center;
     }
     else {
-        for(int si = start; si < stop; si++) {
+        for(int64_t si = start; si < stop; si++) {
             val = val + pow(data[si] - center, moment);
         }
         val = val / bsize;
     }
-    for(int si = start; si < stop; si++) {
+    for(int64_t si = start; si < stop; si++) {
         output[si] = val;
     }
 
@@ -612,15 +612,15 @@ void _block_moment(T* tod_data, T* output, int bsize, int moment, bool central, 
 {
     int64_t nblock = (int64_t)(nsamp - shift + bsize) / (int64_t)bsize; 
     #pragma omp parallel for
-    for(int di = 0; di < ndet; di++)
+    for(int64_t di = 0; di < ndet; di++)
     {
-        int64_t ioff = (int64_t)di * (int64_t)nsamp;
+        int64_t ioff = di * nsamp;
         // do the the pre-shift portion
         if(shift > 0){
             _moment(tod_data, output, moment, central, ioff, ioff+shift);
         }
 
-        for(int bi = 0; bi < nblock; bi++) {
+        for(int64_t bi = 0; bi < nblock; bi++) {
             int64_t start =  (bi * bsize) + shift;
             int64_t stop = min(start + bsize, (int64_t)nsamp);
             _moment(tod_data, output, moment, central, ioff+start, ioff+stop);
@@ -659,7 +659,7 @@ void _minmax(T* data, T* output, int mode, int64_t start, int64_t stop)
         auto max = std::max_element(data+start, data+stop);
         val = *max - *min;
     }
-    for(int si = start; si < stop; si++) {
+    for(int64_t si = start; si < stop; si++) {
         output[si] = val;
     }
 
@@ -670,15 +670,15 @@ void _block_minmax(T* tod_data, T* output, int bsize, int mode, int ndet, int ns
 {
     int64_t nblock = (int64_t)(nsamp - shift + bsize) / (int64_t)bsize; 
     #pragma omp parallel for
-    for(int di = 0; di < ndet; di++)
+    for(int64_t di = 0; di < ndet; di++)
     {
-        int64_t ioff = (int64_t)di * (int64_t)nsamp;
+        int64_t ioff = di * nsamp;
         // do the the pre-shift portion
         if(shift > 0){
             _minmax(tod_data, output, mode, ioff, ioff+shift);
         }
 
-        for(int bi = 0; bi < nblock; bi++) {
+        for(int64_t bi = 0; bi < nblock; bi++) {
             int64_t start =  (bi * bsize) + shift;
             int64_t stop = min(start + bsize, (int64_t)nsamp);
             _minmax(tod_data, output, mode, ioff+start, ioff+stop);
@@ -706,7 +706,7 @@ void block_minmax(const bp::object & tod, const bp::object & out, int bsize, int
 void _clean_flag(int* flag_data, int width, int ndet, int nsamp)
 {
     #pragma omp parallel for
-    for(int di = 0; di < ndet; di++) {
+    for(int64_t di = 0; di < ndet; di++) {
         int64_t ioff = di*nsamp;
         int* det_flag = flag_data + ioff;
         int count = 0;
@@ -749,7 +749,7 @@ void _jumps_thresh_on_mfilt(T* mfilt, int* flag, T* size, int bsize, int shift, 
     // We use this to kill features smaller than we expect from the min jump size
     // Because s = 0 at the window edges we skip those indices
     # pragma omp parallel for
-    for(int di = 0; di < ndet; di++){
+    for(int64_t di = 0; di < ndet; di++){
         int64_t ioff = di*nsamp;
         for(int si = 0; si < nsamp; si++){
             if(si < shift){
@@ -782,7 +782,7 @@ void _jumps_matched_filter(T* tod_data, T* output, int bsize, int shift, int nde
     // Get the matched filter, this is basically convolving with a step
     _block_moment(tod_data, output, bsize, 1, 0, ndet, nsamp, shift);
     #pragma omp parallel for
-    for(int di = 0; di < ndet; di++) {
+    for(int64_t di = 0; di < ndet; di++) {
         int64_t ioff = di*nsamp;
         T val = 0;
         for(int si = 0; si < nsamp; si++) {
@@ -836,7 +836,7 @@ void matched_jumps(const bp::object & tod, const bp::object & out, const bp::obj
 
     // Now we combine
     #pragma omp parallel for
-    for(int di = 0; di < ndet; di++) {
+    for(int64_t di = 0; di < ndet; di++) {
         int64_t ioff = di*nsamp;
         for(int si = 0; si < nsamp; si++) {
             int64_t i = ioff + si;
@@ -865,7 +865,7 @@ void find_quantized_jumps(const bp::object & tod, const bp::object & out, const 
     T* tol = (T*)tol_buf->buf;
 
     #pragma omp parallel for
-    for(int di = 0; di < ndet; di++) {
+    for(int64_t di = 0; di < ndet; di++) {
         int64_t ioff = di*nsamp;
         T* det_data = tod_data + ioff;
         T* det_out = output + ioff;
@@ -910,7 +910,7 @@ void subtract_jump_heights(const bp::object & tod, const bp::object & out, const
     auto ranges = extract_ranges<int32_t>(jumps);
 
     #pragma omp parallel for
-    for(int di = 0; di < ranges.size(); di++) {
+    for(int64_t di = 0; di < ranges.size(); di++) {
         int64_t start = 0;
         int64_t stop = 0;
         T min_h;
@@ -919,7 +919,7 @@ void subtract_jump_heights(const bp::object & tod, const bp::object & out, const
         T to_sub = 0;
         for (auto const &r: ranges[di].segments) {
             start = di*nsamp + r.first;
-            for(int j = stop; j < start && to_sub != 0; j++) {
+            for(int64_t j = stop; j < start && to_sub != 0; j++) {
                 output[j] = tod_data[j] - to_sub;
             }
             stop = di*nsamp + r.second;
@@ -928,11 +928,11 @@ void subtract_jump_heights(const bp::object & tod, const bp::object & out, const
             // Decide whether this is a negative or positive jump.
             height = (abs(min_h) > abs(max_h)) ? min_h : max_h;
             to_sub = to_sub + height;
-            for(int j = start; j < stop && to_sub != 0; j++) {
+            for(int64_t j = start; j < stop && to_sub != 0; j++) {
                 output[j] = tod_data[j] - to_sub;
             }
         }
-        for(int j = stop; j < di*nsamp + nsamp && to_sub != 0; j++) {
+        for(int64_t j = stop; j < di*nsamp + nsamp && to_sub != 0; j++) {
             output[j] = tod_data[j] - to_sub;
         }
     }
@@ -1018,9 +1018,9 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
             #pragma omp for
             for (int row = 0; row < n_rows; ++row) {
 
-                int y_row_start = row * y_data_stride;
-                int y_row_end = y_row_start + n_x;
-                int y_interp_row_start = row * y_interp_data_stride;
+                int64_t y_row_start = row * y_data_stride;
+                int64_t y_row_end = y_row_start + n_x;
+                int64_t y_interp_row_start = row * y_interp_data_stride;
 
                 T* y_row = y_data + y_row_start;
                 T* y_interp_row = y_interp_data + y_interp_row_start;
@@ -1055,11 +1055,11 @@ void _interp1d(const bp::object & x, const bp::object & y, const bp::object & x_
             gsl_spline* spline = gsl_spline_alloc(interp_type, n_x);
 
             #pragma omp for
-            for (int row = 0; row < n_rows; ++row) {
+            for (int64_t row = 0; row < n_rows; ++row) {
 
-                int y_row_start = row * y_data_stride;
-                int y_row_end = y_row_start + n_x;
-                int y_interp_row_start = row * y_interp_data_stride;
+                int64_t y_row_start = row * y_data_stride;
+                int64_t y_row_end = y_row_start + n_x;
+                int64_t y_interp_row_start = row * y_interp_data_stride;
 
                 // Transform y row to double array for gsl
                 double y_dbl[n_x];
@@ -1132,8 +1132,8 @@ void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
 {
     if (method == "mean") {
         #pragma omp parallel for num_threads(nthreads)
-        for (int i = 0; i < ndets; ++i) {
-            int ioff = i * row_stride;
+        for (int64_t i = 0; i < ndets; ++i) {
+            int64_t ioff = i * row_stride;
 
             T* data_row = data + ioff;
 
@@ -1152,8 +1152,8 @@ void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
     }
     else if (method == "median") {
         #pragma omp parallel for num_threads(nthreads)
-        for (int i = 0; i < ndets; ++i) {
-            int ioff = i * row_stride;
+        for (int64_t i = 0; i < ndets; ++i) {
+            int64_t ioff = i * row_stride;
 
             T* data_row = data + ioff;
 
@@ -1184,8 +1184,8 @@ void _detrend(T* data, const int ndets, const int nsamps, const int row_stride,
         int last_offset = nsamps - ncount;
 
         #pragma omp parallel for num_threads(nthreads)
-        for (int i = 0; i < ndets; ++i) {
-            int ioff = i * row_stride;
+        for (int64_t i = 0; i < ndets; ++i) {
+            int64_t ioff = i * row_stride;
 
             T* data_row = data + ioff;
 
