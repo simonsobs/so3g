@@ -1,11 +1,11 @@
-import so3g
+
 import numpy as np
 
 """Objects will self report as being of type "RangesInt32" rather than
 Ranges.  But let's try to use so3g.proj.Ranges when testing types and
 making new ones and stuff."""
 
-Ranges = so3g.RangesInt32
+from ..libso3g import RangesInt32 as Ranges
 
 
 class RangesMatrix():
@@ -189,7 +189,8 @@ class RangesMatrix():
                         r.extend(item.ranges() + n)
                         n += item.count
                     r = Ranges.from_array(
-                        np.array(r, dtype='int32').reshape((-1, 2)), n)
+                        np.array(r, dtype='int32').reshape((-1, 2)), n
+                    )
                     return r
             return RangesMatrix(ranges, child_shape=items[0].shape[1:])
         return collect(items, axis)

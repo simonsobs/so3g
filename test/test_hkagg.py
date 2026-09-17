@@ -53,7 +53,7 @@ class TestHKSessionHelper(unittest.TestCase):
             f['block_names'].append('main_block')
             w.Process(f)
 
-        w.Flush()
+        w.flush()
         del w
 
         print('Stream closed.\n\n')

@@ -5,6 +5,11 @@
 #include <vector>
 #include <iostream>
 
+#include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
+
 class LookupTable
 {
 public:
@@ -69,3 +74,6 @@ public:
         return get_raw(y/x);
     }
 };
+
+
+void register_so_linterp(py::module_ & m);

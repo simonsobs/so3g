@@ -1,13 +1,13 @@
 #include <assert.h>
 #include <math.h>
 
-#include <pybindings.h>
-#include <container_pybindings.h>
-
 #include "Butterworth.h"
 #include "exceptions.h"
 
 using namespace std;
+
+namespace py = pybind11;
+
 
 BFilterBank::BFilterBank(const BFilterBank& a) {
     // Copy the parameters but reset the accumulators... that's probably evil.
@@ -34,8 +34,8 @@ BFilterBank& BFilterBank::init(int n_chan) {
     return *this;
 }
 
-void BFilterBank::apply_buffer(boost::python::object input,
-                               boost::python::object output)
+void BFilterBank::apply_buffer(py::object input,
+                               py::object output)
 {
     // User wrappers so we can throw exceptions and the view will be
     // released in destructor.
@@ -124,16 +124,20 @@ void BFilterBank::apply_to_float(float *input, float *output, float unit, int n_
 }
 
 
-PYBINDINGS("so3g")
-{
-    bp::class_<BFilterParams>("BFilterParams",
-                              bp::init<int32_t, int32_t, int, int, int>() );
+void register_butterworth(py::module_ & m) {
+    py::class_<BFilterParams>(m, "BFilterParams")
+    .def(py::init<int32_t, int32_t, int, int, int>())
+    .def_readwrite("b0", &BFilterParams::b0)
+    .def_readwrite("b1", &BFilterParams::b1)
+    .def_readwrite("b_bits", &BFilterParams::b_bits)
+    .def_readwrite("p_bits", &BFilterParams::p_bits)
+    .def_readwrite("shift", &BFilterParams::shift);
 
-    bp::class_<BFilterBank>("BFilterBank")
-        .def("add", &BFilterBank::add,
-             bp::return_internal_reference<>() )
-        .def("init", &BFilterBank::init,
-             bp::return_internal_reference<>() )
-        .def("apply", &BFilterBank::apply_buffer);
+    py::class_<BFilterBank>(m, "BFilterBank")
+    .def(py::init<>())
+    .def("add", &BFilterBank::add, py::return_value_policy::reference_internal)
+    .def("init", &BFilterBank::init, py::return_value_policy::reference_internal)
+    .def("apply", &BFilterBank::apply_buffer);
+
+    return;
 }
-

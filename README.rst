@@ -25,79 +25,80 @@ Glue functions and new classes for SO work in the spt3g paradigm.
 Installation from Binary Packages
 ===================================
 
-If you are just "using" `so3g` and not actively modifying the source, simply install the binary wheels from PyPI::
+If you are just "using" `so3g` and not actively modifying the source, simply install
+the binary wheels from PyPI::
 
     pip install so3g
 
 Building from Source
 ======================
 
-When developing the `so3g` code, you will need to build from source.  There are two methods documented here:  (1) using a conda environment to provide python and all compiled dependencies and (2) using a virtualenv for python and OS packages for compiled dependencies.  In both cases, the compiled dependencies include:
+When developing the `so3g` code, you will need to build from source.  There are two
+methods documented here:  (1) using a conda environment to provide python and all
+compiled dependencies and (2) using a virtualenv for python and OS packages for
+compiled dependencies.  In both cases, the compiled dependencies include:
 
 - A C++ compiler supporting the c++17 standard
 
 - BLAS / LAPACK
 
-- Boost (at least version 1.87 for numpy-2 compatibility)
+- Pybind11
 
 - GSL
 
-- libFLAC
+- Ceres Solver / Eigen 3
+
+- CMake + scikit_build_core
 
 Building with Conda Tools
 ----------------------------
 
-This method is the most reliable, since we will be using a self-consistent set of dependencies and the same compilers that were used to build those.  First, ensure that you have a conda base environment that uses the conda-forge channels.  The easiest way to get this is to use the "mini-forge" installer (https://github.com/conda-forge/miniforge).
+This method is the most reliable, since we will be using a self-consistent set
+of dependencies and the same compilers that were used to build those. First,
+ensure that you have a conda base environment that uses the conda-forge
+channels. The easiest way to get this is to use the "mini-forge" installer
+(https://github.com/conda-forge/miniforge).
 
-Once you have the conda "base" environment installed, create a new environment for Simons Observatory work.  We force the python version to 3.12, since the default (3.13) is still missing some of our dependencies::
+Creating the Environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    conda create -n simons python==3.12 # <- Only do this once
+When building within a conda environment, there is some one-time setup to do in order
+to have all dependencies ready.  Once you have the conda "base" environment installed,
+create a new environment for Simons Observatory work.  We force the python version to
+3.13, since the default (3.14) is still missing some of our dependencies::
+
+    conda create -n simons python==3.13
     conda activate simons
 
-Now install all of our dependencies (except for spt3g)::
+Now install all of our dependencies except for spt3g, which is not yet on conda-forge::
 
     conda install --file conda_dev_requirements.txt
 
-Next, choose how to install spt3g.
+Some of the above dependencies (compilers) will not be available until re-activating
+the conda environment::
 
-Bundled SPT3G
+    conda deactivate
+    conda activate simons
+
+Next, install spt3g with pip::
+
+    pip install spt3g
+
+Installing SO3G
 ~~~~~~~~~~~~~~~~~
 
-If you are just testing a quick change, you can use `pip` to install so3g.  This will download a copy of spt3g and bundle it into the the installed package.  The downside is that **every time** you run pip, it will re-build all of spt3g and so3g under the hood with cmake::
+The so3g package now uses scikit_build_core, which runs cmake "under the hood".
+**You should no longer run cmake directly**.  If your dependencies are in place and
+your conda environment is activated, you can install so3g with::
 
-    pip install -vv .
+    pip install -v .
 
-Separate SPT3G
-~~~~~~~~~~~~~~~~~
+If you are actively hacking on so3g, then you can install the package in "editable"
+mode.  This will install symlinks that point back to your build directory.  If you edit
+the source files in this mode, cmake will be triggered to rebuild on the next import of
+so3g.  To install in editable mode run::
 
-If you are going to be developing so3g and repeatedly building it, you probably want to install spt3g once.  See the `instructions from that package <https://github.com/CMB-S4/spt3g_software>`_ to download and install.  When building, you can install into your conda environment like this::
-
-    cd spt3g_software
-    mkdir -p build
-    cd build
-    cmake \
-        -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
-        -DCMAKE_C_COMPILER=${CC} \
-        -DCMAKE_CXX_COMPILER=${CXX} \
-        -DPython_ROOT_DIR=${CONDA_PREFIX} \
-        ..
-    make -j 4 install
-    # Copy the python package into place
-    cp -r ./spt3g ${CONDA_PREFIX}/lib/python3.12/site-packages/
-
-When building `so3g` against a stand-alone version of `spt3g`, you need to use cmake directly::
-
-    cd so3g
-    mkdir -p build
-    cd build
-    cmake \
-        -DCMAKE_INSTALL_PREFIX=${CONDA_PREFIX} \
-        -DCMAKE_C_COMPILER=${CC} \
-        -DCMAKE_CXX_COMPILER=${CXX} \
-        -DPython_ROOT_DIR=${CONDA_PREFIX} \
-        -DBLAS_LIBRARIES='-L${CONDA_PREFIX}/lib -lopenblas -fopenmp' \
-        ..
-    make -j 4 install
+    pip install --no-build-isolation -v -e .
 
 
 Building with OS Packages
@@ -107,39 +108,45 @@ Another option is to use a virtualenv for python packages and use the compilers 
 libraries from your OS to provide so3g dependencies. Install dependencies, for example::
 
     apt install \
-        libboost-all-dev \
         libopenblas-openmp-dev \
-        libflac-dev \
         libgsl-dev \
-        libnetcdf-dev
+        libceres-dev \
+        libeigen3-dev
 
-Then activate your virtualenv. Next you should install to someplace in your library
-search path. Note that the commands below will not work unless you change the install
-prefix to a user-writable directory (or make install with sudo). You should decide where
-you want to install and make sure that the location is in your PATH and
-LD_LIBRARY_PATH::
+**NOTE:  Ubuntu 22.04 (for example) has a version of Ceres that is too old.**  Then
+create and activate a virtualenv.  For example::
 
-    cd spt3g_software
-    mkdir -p build
-    cd build
-    cmake \
-        -DCMAKE_INSTALL_PREFIX=/usr/local \
-        ..
-    make -j 4 install
-    # Copy the python package into place
-    cp -r ./spt3g ${CONDA_PREFIX}/lib/python3.12/site-packages/
+    python3 -m venv ~/env_simons
+    source ~/env_simons/bin/activate
 
-And similarly for so3g::
+Installing SO3G
+~~~~~~~~~~~~~~~~~
 
-    cd so3g
-    mkdir -p build
-    cd build
-    cmake \
-        -DCMAKE_INSTALL_PREFIX=/usr/local \
-        -DBLAS_LIBRARIES='-lopenblas -fopenmp' \
-        ..
-    make -j 4 install
+The so3g package now uses scikit_build_core, which runs cmake "under the hood".
+**You should no longer run cmake directly**.  With your virtualenv activated you can
+install so3g with::
 
+    pip install -v .
+
+If you are actively hacking on so3g, then you can install the package in "editable"
+mode.  This will install symlinks that point back to your build directory.  If you edit
+the source files in this mode, cmake will be triggered to rebuild on the next import of
+so3g.  To install in editable mode run::
+
+    pip install --no-build-isolation -v -e .
+
+Customizing the Build
+-------------------------
+
+Build options can be changed by editing pyproject.toml, or by overriding those same
+options on the command line.  For example, when debugging you might want to use Debug
+mode and turn off compiler optimizations::
+
+    pip install \
+        --no-build-isolation \
+        -Ccmake.build-type=Debug \
+        -Ccmake.args="-DCMAKE_CXX_FLAGS='-O0 -g'" \
+        -v -e .
 
 Testing
 =======
@@ -155,4 +162,4 @@ path to the test directory to the pytest command::
 
 You can run specific tests by calling them directly::
 
-  python3 -m unittest /path/to/so3g/test/test_indexed
+  pytest /path/to/so3g/test/test_indexed.py
