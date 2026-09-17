@@ -32,6 +32,7 @@ setuptools-scm
 numpy
 scipy
 astropy
+pixell
 # FIXME: uncomment once spt3g is on conda-forge
 # spt3g
 matplotlib
