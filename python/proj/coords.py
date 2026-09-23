@@ -441,12 +441,19 @@ class Assembly:
     rigidly to a boresight.  But this abstraction layer could
     facilitate more complex arrangements, eventually.
 
+    Normally the pointing of detector i at sample t is computed as
+    ``Q[t] * fplane.quats[i]``.  If ``det_left`` is True, it is
+    instead computed as ``fplane.quats[i] * Q[t]``.  The latter is
+    used for instrument-centered coordinates, where the (inverse)
+    detector rotation must be applied after the per-sample rotation.
+
     """
-    def __init__(self, collapse=False):
+    def __init__(self, collapse=False, det_left=False):
         self.collapse = collapse
+        self.det_left = det_left
 
     @classmethod
-    def attach(cls, sight_line, fplane):
+    def attach(cls, sight_line, fplane, det_left=False):
         """Create an Assembly based on a CelestialSightLine and a FocalPlane.
 
         Args:
@@ -457,8 +464,11 @@ class Assembly:
             fplane (FocalPlane): The "offsets" of each detector
                 relative to the boresight, and their response to
                 intensity and polarization
+            det_left (bool): If True, the detector quaternions
+                multiply the sight_line quaternions from the left
+                (q_det * q_bore) instead of from the right.
         """
-        self = cls()
+        self = cls(det_left=det_left)
         if isinstance(sight_line, quat.G3VectorQuat):
             self.Q = sight_line
         else:

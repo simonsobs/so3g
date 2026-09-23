@@ -1,6 +1,7 @@
 import unittest
 import itertools
 
+import so3g
 from so3g import proj
 
 import numpy as np
@@ -194,6 +195,69 @@ class TestProjEng(unittest.TestCase):
             m_li  = p.to_map(tod, asm, comps="T")[0][0]
             assert np.allclose(m_li, targ_li)
             if whole: assert np.allclose(m_nn, m_li)
+
+    def test_40_det_left_engine(self):
+        """ProjEng with det_left should compute q_ofs * q_bore."""
+        t, az, el = get_scan()
+        csl = proj.CelestialSightLine.naive_az_el(t[:1000], az[:1000], el[:1000])
+        fp = proj.FocalPlane.from_xieta([0., .1*DEG, -.3*DEG], [0, .1*DEG, .2*DEG],
+                                        [0., 10*DEG, 45*DEG])
+        pe = so3g.ProjEng_Quat_TQU_NonTiled((1, 1, 1., 1., 1., 1.))
+        self.assertFalse(pe.det_left)
+        q_normal = pe.coords(csl.Q, fp.quats, None)
+        pe.det_left = True
+        self.assertTrue(pe.det_left)
+        q_left = pe.coords(csl.Q, fp.quats, None)
+        for i, q in enumerate(fp.quats):
+            np.testing.assert_allclose(np.asarray(q_normal[i]),
+                                       np.asarray(csl.Q * q), atol=1e-12)
+            np.testing.assert_allclose(np.asarray(q_left[i]),
+                                       np.asarray(q * csl.Q), atol=1e-12)
+
+    @requires_pixell
+    def test_41_det_left_projectionist(self):
+        """A det_left Assembly should project like the equivalent
+        explicit per-detector boresight."""
+        scan, asm, (shape, wcs) = get_basics()
+        Q = asm.Q
+        qmid = Q[len(Q)//2]
+        # Detector quats that, applied on the left, give pointing close
+        # to the usual Q * q_det, so that samples land in the map.
+        ofs = [qmid * q * ~qmid for q in asm.fplane.quats]
+        fp_left = proj.FocalPlane(quats=np.array([[q.a, q.b, q.c, q.d] for q in ofs]))
+        asm_left = proj.Assembly.attach(Q, fp_left, det_left=True)
+        refs = [proj.Assembly.attach(q * Q, proj.FocalPlane.boresight())
+                for q in ofs]
+
+        for tiled in [False, True]:
+            if tiled:
+                p = proj.Projectionist.for_tiled(shape, wcs, (50, 50))
+            else:
+                p = proj.Projectionist.for_geom(shape, wcs)
+            pix = p.get_pixels(asm_left)
+            coords = p.get_coords(asm_left)
+            for i, ref in enumerate(refs):
+                pix_ref = p.get_pixels(ref)[0]
+                assert np.any(np.asarray(pix_ref)[:, 0] >= 0)
+                np.testing.assert_array_equal(np.asarray(pix[i]), np.asarray(pix_ref))
+                np.testing.assert_allclose(np.asarray(coords[i]),
+                                           np.asarray(p.get_coords(ref)[0]), atol=1e-10)
+
+        # Round trip through to_map / from_map.
+        p = proj.Projectionist.for_geom(shape, wcs)
+        sig = np.ones((len(ofs), len(Q)), 'float32')
+        m = p.to_map(sig, asm_left, comps='T')
+        m_ref = sum(p.to_map(sig[i:i+1], ref, comps='T') for i, ref in enumerate(refs))
+        np.testing.assert_allclose(m, m_ref)
+        tod = p.from_map(m, asm_left, comps='T')
+        for i, ref in enumerate(refs):
+            np.testing.assert_allclose(tod[i], p.from_map(m, ref, comps='T')[0])
+
+        # Thread assignment should work (domdir falls back to simple).
+        for method in ['simple', 'domdir']:
+            threads = p.assign_threads(asm_left, method=method, n_threads=2)
+            m_thr = p.to_map(sig, asm_left, comps='T', threads=threads)
+            np.testing.assert_allclose(m_thr, m)
 
 if __name__ == '__main__':
     unittest.main()

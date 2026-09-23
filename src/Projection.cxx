@@ -72,6 +72,10 @@ int iround(double x) { return ifloor(x+0.5); }
 //   flat 2-d space) and ProjQuat (where requests for coordinates will
 //   simply return the composed quaternion, without celestial
 //   interpretation).  See Pointer<C> implementation for more details.
+//   By default the boresight and detector quaternions are combined
+//   as q_bore * q_ofs; if the engine's det_left property is set, they
+//   are combined as q_ofs * q_bore instead (this is needed for
+//   instrument-centered coordinates).
 //
 // - P: PixelSys, determining how computed coordinates (in a
 //   projection plane, say) should be turned into pixel indices.  This
@@ -184,6 +188,7 @@ class SpinTQU : public SpinClass<3> {};
 template <typename CoordSys>
 class Pointer {
 public:
+    Pointer(bool det_left=false) : _det_left(det_left) {}
     bool TestInputs(bp::object &map, bp::object &pbore, bp::object &pdet,
                     bp::object &signal, bp::object &det_weights);
     void InitPerDet(int i_det, double *dofs);
@@ -191,10 +196,15 @@ public:
     int TimeCount() { return n_time; }
     void GetCoords(int i_det, int i_time, const double *dofs, double *coords);
 private:
+    quatd GetQdet(int i_time, const double *dofs);
     BufferWrapper<double> _pborebuf;
     BufferWrapper<double> _pdetbuf;
     int n_det;
     int n_time;
+    // If true, the pointing is q_ofs * q_bore rather than q_bore *
+    // q_ofs.  This is used for "instrument-centered" coordinates,
+    // where the per-detector rotation must be applied on the left.
+    bool _det_left;
 };
 
 
@@ -237,13 +247,13 @@ void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
         dofs[ic] = *(double*)(det + _pdetbuf->strides[1] * ic);
 }
 
-// ProjQuat: Not a projection -- returns the quaternion rotation
-// components.
+// Combine the boresight quaternion at i_time with the detector offset
+// quaternion dofs.  Normally this is q_bore * q_ofs; if _det_left is
+// set, it is q_ofs * q_bore.
 
-template <>
+template <typename CoordSys>
 inline
-void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
-                                  const double *dofs, double *coords)
+quatd Pointer<CoordSys>::GetQdet(int i_time, const double *dofs)
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
@@ -254,8 +264,21 @@ void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
     const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
+    if (_det_left)
+        return (*qofs) * (*qbore);
+    return (*qbore) * (*qofs);
+}
+
+// ProjQuat: Not a projection -- returns the quaternion rotation
+// components.
+
+template <>
+inline
+void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
+                                  const double *dofs, double *coords)
+{
     quatd *qdet = reinterpret_cast<quatd*>(coords);
-    *qdet =(*qbore) * (*qofs);
+    *qdet = GetQdet(i_time, dofs);
 }
 
 // ProjFlat: Not a spherical projection -- assumes flat space (as in
@@ -288,16 +311,7 @@ inline
 void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
                                  const double *dofs, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
+    quatd qdet = GetQdet(i_time, dofs);
 
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
@@ -341,16 +355,7 @@ inline
 void Pointer<ProjSIN>::GetCoords(int i_det, int i_time,
                                  const double *dofs, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
+    quatd qdet = GetQdet(i_time, dofs);
 
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
@@ -376,16 +381,7 @@ inline
 void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
                                  const double *dofs, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
+    quatd qdet = GetQdet(i_time, dofs);
 
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
@@ -412,16 +408,7 @@ inline
 void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
                                  const double *dofs, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
+    quatd qdet = GetQdet(i_time, dofs);
 
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
@@ -448,16 +435,7 @@ inline
 void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
                                  const double *dofs, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
+    quatd qdet = GetQdet(i_time, dofs);
 
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
@@ -483,16 +461,7 @@ inline
 void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
                                       const double *dofs, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
+    quatd qdet = GetQdet(i_time, dofs);
 
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
@@ -1321,11 +1290,21 @@ int ProjectionEngine<C,P,S>::comp_count() const {
 }
 
 template<typename C, typename P, typename S>
+bool ProjectionEngine<C,P,S>::get_det_left() const {
+    return _det_left;
+}
+
+template<typename C, typename P, typename S>
+void ProjectionEngine<C,P,S>::set_det_left(bool det_left) {
+    _det_left = det_left;
+}
+
+template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::coords(
     bp::object pbore, bp::object pofs, bp::object coord)
 {
     auto _none = bp::object();
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
 
     int n_det = pointer.DetCount();
@@ -1361,7 +1340,7 @@ bp::object ProjectionEngine<C,P,S>::pixels(
 {
     auto _none = bp::object();
 
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     //_pixelizor.TestInputs(_none, _none, _none, _none, _none);
 
@@ -1401,7 +1380,7 @@ bp::object ProjectionEngine<C,P,S>::pointing_matrix(
 {
     auto _none = bp::object();
 
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     //_pixelizor.TestInputs(_none, _none, _none, _none, _none);
 
@@ -1450,7 +1429,7 @@ bp::object ProjectionEngine<C,P,S>::pixel_ranges(
 {
     auto _none = bp::object();
 
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(map, pbore, pofs, _none, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -1553,7 +1532,7 @@ vector<int> ProjectionEngine<C,P,S>::tile_hits(
 {
     auto _none = bp::object();
 
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -1616,7 +1595,7 @@ bp::object ProjectionEngine<C,P,S>::tile_ranges(
 {
     auto _none = bp::object();
 
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(_none, pbore, pofs, _none, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -1739,7 +1718,7 @@ bp::object ProjectionEngine<C,P,S>::from_map(
     auto _none = bp::object();
 
     // Initialize pointer and _pixelizor.
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(map, pbore, pofs, signal, _none);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -1938,7 +1917,7 @@ bp::object ProjectionEngine<C,P,S>::to_map(
     bp::object signal, bp::object det_weights, bp::object thread_intervals)
 {
     //Initialize it / check inputs.
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(map, pbore, pofs, signal, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -1984,7 +1963,7 @@ bp::object ProjectionEngine<C,P,S>::to_weight_map(
     auto _none = bp::object();
 
     //Initialize it / check inputs.
-    auto pointer = Pointer<C>();
+    auto pointer = Pointer<C>(_det_left);
     pointer.TestInputs(map, pbore, pofs, _none, det_weights);
     int n_det = pointer.DetCount();
     int n_time = pointer.TimeCount();
@@ -2306,6 +2285,8 @@ TYPEDEF_PIX(ZEA)
     bp::class_<CLASSNAME>(STRINGIFY(CLASSNAME), bp::init<bp::object>()) \
     .add_property("index_count", &CLASSNAME::index_count)               \
     .add_property("comp_count", &CLASSNAME::comp_count)                 \
+    .add_property("det_left", &CLASSNAME::get_det_left,                 \
+                  &CLASSNAME::set_det_left)                             \
     .def("coords", &CLASSNAME::coords)                                  \
     .def("pixels", &CLASSNAME::pixels)                                  \
     .def("tile_hits", &CLASSNAME::tile_hits)                            \

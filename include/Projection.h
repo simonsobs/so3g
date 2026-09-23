@@ -63,6 +63,12 @@ public:
     int comp_count() const;
     int index_count() const;
 
+    // If det_left is true, the pointing quaternion for each sample is
+    // computed as q_ofs * q_bore instead of the usual q_bore * q_ofs.
+    bool get_det_left() const;
+    void set_det_left(bool det_left);
+
 private:
     PixelSys _pixelizor;
+    bool _det_left = false;
 };
