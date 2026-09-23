@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <limits>
+#include <stdexcept>
 
 #include "numpy_assist.h"
 
@@ -18,10 +20,23 @@ public:
     T reference;
     vector<pair<T,T>> segments;
 
+    inline void validate_count(int64_t count_) const {
+        if (count_ < 0 || count_ > static_cast<int64_t>(std::numeric_limits<T>::max())) {
+            throw std::overflow_error("Count exceeds the maximum expressible value for type T");
+        }
+    }
+
     // Construction
     Ranges() : count{0}, reference(0) {}
-    Ranges(T count) : count{count}, reference(0) {}
-    Ranges(T count, T reference) : count{count}, reference(reference) {}
+    Ranges(int64_t count_) : reference(0) {
+        validate_count(count_);
+        count = count_;
+    }
+    
+    Ranges(int64_t count_, T reference_) : reference(reference_) {
+        validate_count(count_);
+        count = count_;
+    }
 
     static Ranges<T> from_array(const bp::object &src, const bp::object &count);
 
@@ -45,7 +60,11 @@ public:
 
     Ranges<T> getitem(bp::object indices);
     bp::object shape();
-    void safe_set_count(T count_);
+    void safe_set_count(int64_t count_) {
+        validate_count(count_);
+        count = count_;
+        cleanup();
+    }
 
     // Operators.
     Ranges<T> operator~() const;

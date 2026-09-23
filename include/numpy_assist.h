@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/python.hpp>
+#include <cstdint>
 #include <exception>
 
 #include "exceptions.h"
@@ -108,7 +109,8 @@ inline int numpysafe_extract_int(const bp::object obj, const std::string argstr)
 }
 
 
-static std::string shape_string(std::vector<int> shape)
+template <typename T>
+static std::string shape_string(std::vector<T> shape)
 {
     std::ostringstream s;
     s << "(";
@@ -177,7 +179,7 @@ public:
         if (!check_buffer_type<T>(*view.get()))
             throw dtype_exception(name, type_name<T>());
 
-        std::vector<int> vshape;
+        std::vector<int64_t> vshape;
         for (int i=0; i<view->ndim; i++)
             vshape.push_back(view->shape[i]);
 
@@ -190,13 +192,17 @@ public:
             if (shape[i] == -2) {
                 if (ellipsis_count++) {
                     std::ostringstream s;
-                    s << "Invalid shape specifier " << shape_string(shape) << " (multiple elipses).";
+                    s << "Invalid shape specifier " << shape_string<int>(shape) << " (multiple elipses).";
                     throw shape_exception(name, s.str());
                 }
                 // Ignore 0 or more leading entries.
                 j = vshape.size() - (shape.size() - i) + 1;
             } else if (j >= vshape.size()) {
                 break;
+            } else if (vshape[j] > std::numeric_limits<int>::max()) {
+                std::ostringstream s;
+                s << "Dimension" << i << " is greater than 32 bits in length.";
+                throw shape_exception(name, s.str());
             } else if (shape[i] == -1 || shape[i] == vshape[j]) {
                 // Match.
                 j++;
@@ -206,8 +212,8 @@ public:
         }
         if (i != shape.size() || j != vshape.size()) {
             std::ostringstream s;
-            s << "Expected " << shape_string(shape) << " but got " <<
-                shape_string(vshape) << ".";
+            s << "Expected " << shape_string<int>(shape) << " but got " <<
+                shape_string<int64_t>(vshape) << ".";
             throw shape_exception(name, s.str());
         }
     }

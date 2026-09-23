@@ -259,7 +259,7 @@ Ranges<T> Ranges<T>::from_array(const bp::object &src, const bp::object &count)
         output.segments.push_back(interval_pair<T>(d, d+buf->strides[1]));
         d += buf->strides[0];
     }
-    output.count = numpysafe_extract_int(count, "count");
+    output.safe_set_count(numpysafe_extract_int(count, "count"));
 
     output.cleanup();
     return output;
@@ -603,7 +603,8 @@ static inline Ranges<T> _getitem_(Ranges<T> &src, bp::object indices)
         if (stop > n)
             stop = n;
 
-        auto output = Ranges<T>(stop - start, src.reference - start);
+        int64_t new_count = static_cast<int64_t>(stop) - static_cast<int64_t>(start);
+        auto output = Ranges<T>(new_count, src.reference - start);
         for (auto p: src.segments)
             if (p.second > start && p.first < stop)
                 output.segments.push_back(make_pair(p.first - start, p.second - start));
@@ -623,15 +624,8 @@ Ranges<T> Ranges<T>::getitem(bp::object indices)
 template <typename T>
 bp::object Ranges<T>::shape()
 {
-    vector<T> temp = {count};
+    vector<int64_t> temp = {count};
     return bp::tuple(temp);
-}
-
-template <typename T>
-void Ranges<T>::safe_set_count(T count_)
-{
-    count = count_;
-    cleanup();
 }
 
 
