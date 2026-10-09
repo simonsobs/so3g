@@ -31,6 +31,18 @@ from . import mapthreads
 #
 # The Projectionist caches a vector of Q_NS<FP, which is then simply
 # called "q_native".  This is usually the thing to pass to C++ level.
+#
+# If the Projectionist was created with multiply_det_left=True, the
+# product is instead taken as
+#
+#     q_NS<DC = q_NS<CS Assembly.dets Assembly.Q
+#
+# i.e. the per-detector quaternions multiply the per-sample ones from
+# the left (this is used for instrument-centered coordinates).  In
+# that case Q_NS<CS is applied to the detector quaternions, and the
+# "_DetLeft" ProjEng classes (which reverse the order of
+# multiplication in C++) are used.  These exist only for CAR and
+# HEALPix pixelizations, and only for comps='T'.
 
 
 #: Valid settings for "interpol".  First entry is the default.
@@ -110,6 +122,10 @@ class _ProjectionistBase:
         """Returns an so3g.ProjEng object appropriate for use with the
         configured geometry.
 
+        If self.multiply_det_left is True, the "_DetLeft" engine is
+        returned, which combines boresight and detector quaternions as
+        q_det * q_bore rather than the usual q_bore * q_det.
+
         """
         if proj_name is None: proj_name = self.proj_name
         tile_suffix = 'Tiled' if self.tiling else 'NonTiled'
@@ -124,18 +140,46 @@ class _ProjectionistBase:
         else:
             raise ValueError("ProjEng interpol '%s' not recognized" % str(interpol))
 
-        projeng_name = f'ProjEng_{proj_name}_{comps}_{tile_suffix}{interpol_suffix}'
+        order_suffix = '_DetLeft' if self.multiply_det_left else ''
+        projeng_name = (f'ProjEng_{proj_name}_{comps}_{tile_suffix}'
+                        f'{interpol_suffix}{order_suffix}')
         if not get:
             return projeng_name
         try:
             projeng_cls = getattr(so3g, projeng_name)
         except AttributeError:
+            extra = (' (multiply_det_left is only implemented for CAR and '
+                     'HEALPix, with comps="T")' if self.multiply_det_left else '')
             raise ValueError(f'There is no projector implemented for '
                              f'pixelization "{proj_name}", components '
-                             f'"{comps}" (tried "{projeng_name}").')
+                             f'"{comps}" (tried "{projeng_name}"){extra}.')
         if not instance:
             return projeng_cls
         return projeng_cls(self._get_pixelizor_args())
+
+    def _coords_comps(self):
+        """Components to request for coordinate-only operations (the
+        spin of the engine doesn't affect coordinates or pixels)."""
+        return 'T' if self.multiply_det_left else 'TQU'
+
+    def _get_pointing(self, assembly, use_native=True):
+        """Get the boresight and detector quaternion vectors to pass to
+        a ProjEng, for the provided Assembly.
+
+        Returns (q_bore, q_det).  In the usual case the rotation to
+        native spherical coordinates is applied on the left of the
+        boresight.  If self.multiply_det_left is True, the detector
+        quaternions are the left-most factor, so the rotation to native
+        coordinates is applied to them instead.  If use_native is
+        False, the rotation to native coordinates is not applied at
+        all.
+
+        """
+        if not use_native:
+            return assembly.Q, assembly.fplane.quats
+        if self.multiply_det_left:
+            return assembly.Q, self.q_celestial_to_native * assembly.fplane.quats
+        return self._cache_q_fp_to_native(assembly.Q), assembly.fplane.quats
 
     def _cache_q_fp_to_native(self, q_fp_to_celestial):
         """Get q_fp_to_native for argument q_fp_to_celestial, and cache the
@@ -181,9 +225,9 @@ class _ProjectionistBase:
         See class documentation for description of standard arguments.
 
         """
-        projeng = self.get_ProjEng('TQU')
-        q_native = self._cache_q_fp_to_native(assembly.Q)
-        return projeng.pixels(q_native, assembly.fplane.quats, None)
+        q_bore, q_det = self._get_pointing(assembly)
+        projeng = self.get_ProjEng(self._coords_comps())
+        return projeng.pixels(q_bore, q_det, None)
 
     def get_pointing_matrix(self, assembly):
         """Get the pointing matrix information, which is to say both the pixel
@@ -197,9 +241,9 @@ class _ProjectionistBase:
         See class documentation for description of standard arguments.
 
         """
-        projeng = self.get_ProjEng('TQU')
-        q_native = self._cache_q_fp_to_native(assembly.Q)
-        return projeng.pointing_matrix(q_native, assembly.fplane.quats, assembly.fplane.resps, None, None)
+        q_bore, q_det = self._get_pointing(assembly)
+        projeng = self.get_ProjEng(self._coords_comps())
+        return projeng.pointing_matrix(q_bore, q_det, assembly.fplane.resps, None, None)
 
     def get_coords(self, assembly, use_native=False, output=None):
         """Get the spherical coordinates for the provided pointing Assembly.
@@ -220,12 +264,9 @@ class _ProjectionistBase:
         See class documentation for description of standard arguments.
 
         """
-        projeng = self.get_ProjEng('TQU', 'CAR')
-        if use_native:
-            q_native = self._cache_q_fp_to_native(assembly.Q)
-        else:
-            q_native = assembly.Q
-        return projeng.coords(q_native, assembly.fplane.quats, output)
+        q_bore, q_det = self._get_pointing(assembly, use_native=use_native)
+        projeng = self.get_ProjEng(self._coords_comps(), 'CAR')
+        return projeng.coords(q_bore, q_det, output)
 
     def get_planar(self, assembly, output=None):
         """Get projection plane coordinates for all detectors at all times.
@@ -238,9 +279,9 @@ class _ProjectionistBase:
         angle.
 
         """
-        q_native = self._cache_q_fp_to_native(assembly.Q)
-        projeng = self.get_ProjEng('TQU')
-        return projeng.coords(q_native, assembly.fplane.quats, output)
+        q_bore, q_det = self._get_pointing(assembly)
+        projeng = self.get_ProjEng(self._coords_comps())
+        return projeng.coords(q_bore, q_det, output)
 
     def zeros(self, super_shape):
         """Return a map, filled with zeros, with shape (super_shape,) +
@@ -270,9 +311,9 @@ class _ProjectionistBase:
                              "interest (e.g. comps='TQU').")
         if comps is None:
             comps = self._guess_comps(self._get_map_shape(output))
+        q_bore, q_det = self._get_pointing(assembly)
         projeng = self.get_ProjEng(comps)
-        q_native = self._cache_q_fp_to_native(assembly.Q)
-        map_out = projeng.to_map(output, q_native, assembly.fplane.quats,
+        map_out = projeng.to_map(output, q_bore, q_det,
             assembly.fplane.resps, signal, det_weights, threads)
         return map_out
 
@@ -296,9 +337,9 @@ class _ProjectionistBase:
             shape = self._get_map_shape(output)
             assert(shape[0] == shape[1])
             comps = self._guess_comps(shape[1:])
+        q_bore, q_det = self._get_pointing(assembly)
         projeng = self.get_ProjEng(comps)
-        q_native = self._cache_q_fp_to_native(assembly.Q)
-        map_out = projeng.to_weight_map(output, q_native, assembly.fplane.quats,
+        map_out = projeng.to_weight_map(output, q_bore, q_det,
             assembly.fplane.resps, det_weights, threads)
         return map_out
 
@@ -316,9 +357,9 @@ class _ProjectionistBase:
         """
         if comps is None:
             comps = self._guess_comps(self._get_map_shape(src_map))
+        q_bore, q_det = self._get_pointing(assembly)
         projeng = self.get_ProjEng(comps)
-        q_native = self._cache_q_fp_to_native(assembly.Q)
-        signal_out = projeng.from_map(src_map, q_native, assembly.fplane.quats,
+        signal_out = projeng.from_map(src_map, q_bore, q_det,
             assembly.fplane.resps, signal)
         return signal_out
 
@@ -359,10 +400,15 @@ class _ProjectionistBase:
                              f'expected one of {THREAD_ASSIGNMENT_METHODS}')
         n_threads = mapthreads.get_num_threads(n_threads)
 
+        if method == 'domdir' and self.multiply_det_left:
+            # The domdir algorithm assumes the usual q_bore * q_det
+            # ordering; fall back to the simple algorithm.
+            method = 'simple'
+
         if method == 'simple':
+            q_bore, q_det = self._get_pointing(assembly)
             projeng = self.get_ProjEng('T')
-            q_native = self._cache_q_fp_to_native(assembly.Q)
-            omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.quats, None, n_threads)
+            omp_ivals = projeng.pixel_ranges(q_bore, q_det, None, n_threads)
             return wrap_ivals(omp_ivals)
 
         elif method == 'domdir':
@@ -399,10 +445,10 @@ class _ProjectionistBase:
             to which that pixel should be assigned.
 
         """
+        q_bore, q_det = self._get_pointing(assembly)
         projeng = self.get_ProjEng('T')
-        q_native = self._cache_q_fp_to_native(assembly.Q)
         n_threads = mapthreads.get_num_threads(n_threads)
-        omp_ivals = projeng.pixel_ranges(q_native, assembly.fplane.quats, tmap, n_threads)
+        omp_ivals = projeng.pixel_ranges(q_bore, q_det, tmap, n_threads)
         return wrap_ivals(omp_ivals)
 
     def get_active_tiles(self, assembly, assign=False):
@@ -438,10 +484,10 @@ class _ProjectionistBase:
         """
         if self.tiling is None:
             raise RuntimeError("This Projectionist not set up for Tiled maps.")
+        q_bore, q_det = self._get_pointing(assembly)
         projeng = self.get_ProjEng('T')
-        q_native = self._cache_q_fp_to_native(assembly.Q)
         # This returns a G3VectorInt of length n_tiles giving count of hits per tile.
-        hits = np.array(projeng.tile_hits(q_native, assembly.fplane.quats))
+        hits = np.array(projeng.tile_hits(q_bore, q_det))
         tiles = np.nonzero(hits)[0]
         hits = hits[tiles]
         if assign is True:
@@ -460,7 +506,7 @@ class _ProjectionistBase:
             #     print(f"Warning: Threads poorly balanced. Max/mean hits = {max_ratio}")
 
             # Now paint them into Ranges.
-            R = projeng.tile_ranges(q_native, assembly.fplane.quats, group_tiles)
+            R = projeng.tile_ranges(q_bore, q_det, group_tiles)
             R = wrap_ivals(R)
             return {
                 'active_tiles': list(tiles),
@@ -505,6 +551,13 @@ class Projectionist(_ProjectionistBase):
       interpolate between the four closest pixels. bilinear is
       slower (around 60%) but avoids problems caused by a
       discontinuous model.
+    * ``multiply_det_left``: If True, the detector quaternions multiply
+      the boresight quaternions from the left (q_det * q_bore) instead
+      of from the right (q_bore * q_det).  This is used for
+      instrument-centered coordinates, where the per-detector
+      quaternions hold the (inverse) detector rotation.  It is only
+      implemented for CAR and HEALPix pixelizations, and only for
+      comps='T'.
 
     Attributes:
         naxis: 2-element integer array specifying the map shape (for
@@ -556,6 +609,7 @@ class Projectionist(_ProjectionistBase):
         self.proj_name = None
         self.q_celestial_to_native = None
         self.interpol = INTERPOLS[0]
+        self.multiply_det_left = False
 
         self.naxis = np.array([0, 0])
         self.cdelt = np.array([0., 0.])
@@ -568,7 +622,7 @@ class Projectionist(_ProjectionistBase):
         return _Tiling(self.naxis[::-1], self.tile_shape)
 
     @classmethod
-    def for_geom(cls, shape, wcs, interpol=None):
+    def for_geom(cls, shape, wcs, interpol=None, multiply_det_left=False):
         """Construct a Projectionist for use with the specified "geometry".
 
         The shape and wcs are the core information required to prepare
@@ -603,10 +657,13 @@ class Projectionist(_ProjectionistBase):
             interpol = INTERPOLS[0]
         self.interpol = interpol
 
+        # Order of quaternion multiplication.
+        self.multiply_det_left = multiply_det_left
+
         return self
 
     @classmethod
-    def for_map(cls, emap, wcs=None, interpol=None):
+    def for_map(cls, emap, wcs=None, interpol=None, multiply_det_left=False):
         """Construct a Projectionist for use with maps having the same
         geometry as the provided enmap.
 
@@ -619,7 +676,8 @@ class Projectionist(_ProjectionistBase):
         """
         if wcs is None:
             wcs = emap.wcs
-        return cls.for_geom(emap.shape, wcs, interpol=interpol)
+        return cls.for_geom(emap.shape, wcs, interpol=interpol,
+                            multiply_det_left=multiply_det_left)
 
     @classmethod
     def for_source_at(cls, alpha0, delta0, gamma0=0.,
@@ -639,7 +697,8 @@ class Projectionist(_ProjectionistBase):
         return self
 
     @classmethod
-    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True, interpol=None):
+    def for_tiled(cls, shape, wcs, tile_shape, active_tiles=True, interpol=None,
+                  multiply_det_left=False):
         """Construct a Projectionist for use with the specified geometry
         (shape, wcs), cut into tiles of shape tile_shape.
 
@@ -657,7 +716,8 @@ class Projectionist(_ProjectionistBase):
                 populate on such calls.
 
         """
-        self = cls.for_geom(shape, wcs, interpol=interpol)
+        self = cls.for_geom(shape, wcs, interpol=interpol,
+                            multiply_det_left=multiply_det_left)
         self.tile_shape = np.array(tile_shape, 'int')
         if active_tiles is True:
             self.active_tiles = list(range(self.tiling.tile_count))
@@ -713,6 +773,7 @@ class ProjectionistHealpix(_ProjectionistBase):
                     If 'auto', an appropriate nside_tile will be computed
                     and set on calling :func:`compute_nside_tile`.
         ordering: str, 'NEST' or 'RING'. Only NEST supported for tiled maps.
+        multiply_det_left: bool; see :class:`Projectionist`.
 
     """
     def __init__(self):
@@ -723,13 +784,15 @@ class ProjectionistHealpix(_ProjectionistBase):
         self.q_celestial_to_native = quat.quat(1,0,0,0)
         self.interpol = 'nearest'
         self.tiling = None
+        self.multiply_det_left = False
 
         self.nside = None
         self.nside_tile = None
         self.ordering = 'NEST'  # 'RING' or 'NEST'. Only NEST can be used with tiles
 
     @classmethod
-    def for_healpix(cls, nside, nside_tile=None, active_tiles=None, ordering='NEST', interpol=None):
+    def for_healpix(cls, nside, nside_tile=None, active_tiles=None, ordering='NEST', interpol=None,
+                    multiply_det_left=False):
         """Construct a Projectionist for Healpix maps.
 
         See class documentation for description of standard arguments.
@@ -742,6 +805,7 @@ class ProjectionistHealpix(_ProjectionistBase):
         if interpol is not None and (interpol not in ['nearest', 'nn']):
             raise NotImplementedError("Only 'nearest' interpolation is supported for Healpix")
         self.interpol = 'nearest'
+        self.multiply_det_left = multiply_det_left
 
         self.ordering = ordering
         if ordering not in ['NEST', 'RING']:
@@ -790,12 +854,9 @@ class ProjectionistHealpix(_ProjectionistBase):
         See parent class documentation for full description.
 
         """
-        projeng = self.get_ProjEng('TQU')
-        if use_native:
-            q_native = self._cache_q_fp_to_native(assembly.Q)
-        else:
-            q_native = assembly.Q
-        return projeng.coords(q_native, assembly.fplane.quats, output)
+        q_bore, q_det = self._get_pointing(assembly, use_native=use_native)
+        projeng = self.get_ProjEng(self._coords_comps())
+        return projeng.coords(q_bore, q_det, output)
 
     def from_map(self, src_map, assembly, signal=None, comps=None):
         """De-project from a map, returning a Signal-like object.

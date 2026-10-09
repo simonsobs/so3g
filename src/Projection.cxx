@@ -72,6 +72,11 @@ int iround(double x) { return ifloor(x+0.5); }
 //   flat 2-d space) and ProjQuat (where requests for coordinates will
 //   simply return the composed quaternion, without celestial
 //   interpretation).  See Pointer<C> implementation for more details.
+//   By default the boresight and detector quaternions are combined
+//   as q_bore * q_ofs.  Wrapping the CoordSys as DetLeft<C> (e.g.
+//   DetLeft<ProjCAR>) combines them as q_ofs * q_bore instead, which
+//   is needed for instrument-centered coordinates.  These engines are
+//   exported with a "_DetLeft" suffix, for CAR and HEALPix, T only.
 //
 // - P: PixelSys, determining how computed coordinates (in a
 //   projection plane, say) should be turned into pixel indices.  This
@@ -160,6 +165,32 @@ class ProjSIN;
 class ProjTAN;
 class ProjZEA;
 
+// DetLeft<C>: the same projection as C, but with the boresight and
+// detector quaternions combined as q_ofs * q_bore instead of q_bore *
+// q_ofs.  This is needed for "instrument-centered" coordinates, where
+// the (inverse) detector rotation must be applied after the per-sample
+// rotation.
+template <typename C>
+class DetLeft;
+
+// CoordTraits: the base projection and the multiplication order of a
+// CoordSys.
+template <typename C>
+struct CoordTraits {
+    typedef C Base;
+    static const bool det_left = false;
+};
+template <typename C>
+struct CoordTraits<DetLeft<C>> {
+    typedef C Base;
+    static const bool det_left = true;
+};
+
+// Decode<C>: convert the combined pointing quaternion into the
+// coordinates of projection C.  Specialized for each projection below.
+template <typename C>
+inline void Decode(const quatd &qdet, double *coords);
+
 // State the template<TilingSys> options
 class Tiled;
 class NonTiled;
@@ -191,6 +222,7 @@ public:
     int TimeCount() { return n_time; }
     void GetCoords(int i_det, int i_time, const double *dofs, double *coords);
 private:
+    quatd GetQdet(int i_time, const double *dofs);
     BufferWrapper<double> _pborebuf;
     BufferWrapper<double> _pdetbuf;
     int n_det;
@@ -237,13 +269,13 @@ void Pointer<CoordSys>::InitPerDet(int i_det, double *dofs)
         dofs[ic] = *(double*)(det + _pdetbuf->strides[1] * ic);
 }
 
-// ProjQuat: Not a projection -- returns the quaternion rotation
-// components.
+// Combine the boresight quaternion at i_time with the detector offset
+// quaternion dofs.  Normally this is q_bore * q_ofs; for a
+// DetLeft<C> coordinate system it is q_ofs * q_bore.
 
-template <>
+template <typename CoordSys>
 inline
-void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
-                                  const double *dofs, double *coords)
+quatd Pointer<CoordSys>::GetQdet(int i_time, const double *dofs)
 {
     double _qbore[4];
     for (int ic=0; ic<4; ic++)
@@ -254,8 +286,33 @@ void Pointer<ProjQuat>::GetCoords(int i_det, int i_time,
     // What could possibly go wrong.
     const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
     const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd *qdet = reinterpret_cast<quatd*>(coords);
-    *qdet =(*qbore) * (*qofs);
+    if (CoordTraits<CoordSys>::det_left)
+        return (*qofs) * (*qbore);
+    return (*qbore) * (*qofs);
+}
+
+// Generic GetCoords: combine the quaternions, then decode the result
+// according to the (base) projection.  ProjFlat specializes this.
+
+template <typename CoordSys>
+inline
+void Pointer<CoordSys>::GetCoords(int i_det, int i_time,
+                                  const double *dofs, double *coords)
+{
+    Decode<typename CoordTraits<CoordSys>::Base>(GetQdet(i_time, dofs), coords);
+}
+
+// ProjQuat: Not a projection -- returns the quaternion rotation
+// components.
+
+template <>
+inline
+void Decode<ProjQuat>(const quatd &qdet, double *coords)
+{
+    coords[0] = qdet.R_component_1();
+    coords[1] = qdet.R_component_2();
+    coords[2] = qdet.R_component_3();
+    coords[3] = qdet.R_component_4();
 }
 
 // ProjFlat: Not a spherical projection -- assumes flat space (as in
@@ -285,20 +342,8 @@ void Pointer<ProjFlat>::GetCoords(int i_det, int i_time,
 
 template <>
 inline
-void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
-                                 const double *dofs, double *coords)
+void Decode<ProjARC>(const quatd &qdet, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
-
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
     const double c = qdet.R_component_3();
@@ -338,20 +383,8 @@ void Pointer<ProjARC>::GetCoords(int i_det, int i_time,
 
 template <>
 inline
-void Pointer<ProjSIN>::GetCoords(int i_det, int i_time,
-                                 const double *dofs, double *coords)
+void Decode<ProjSIN>(const quatd &qdet, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
-
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
     const double c = qdet.R_component_3();
@@ -373,20 +406,8 @@ void Pointer<ProjSIN>::GetCoords(int i_det, int i_time,
 
 template <>
 inline
-void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
-                                 const double *dofs, double *coords)
+void Decode<ProjTAN>(const quatd &qdet, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
-
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
     const double c = qdet.R_component_3();
@@ -409,20 +430,8 @@ void Pointer<ProjTAN>::GetCoords(int i_det, int i_time,
 
 template <>
 inline
-void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
-                                 const double *dofs, double *coords)
+void Decode<ProjZEA>(const quatd &qdet, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
-
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
     const double c = qdet.R_component_3();
@@ -445,20 +454,8 @@ void Pointer<ProjZEA>::GetCoords(int i_det, int i_time,
 
 template <>
 inline
-void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
-                                 const double *dofs, double *coords)
+void Decode<ProjCEA>(const quatd &qdet, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
-
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
     const double c = qdet.R_component_3();
@@ -480,20 +477,8 @@ void Pointer<ProjCEA>::GetCoords(int i_det, int i_time,
 
 template <>
 inline
-void Pointer<ProjCAR>::GetCoords(int i_det, int i_time,
-                                      const double *dofs, double *coords)
+void Decode<ProjCAR>(const quatd &qdet, double *coords)
 {
-    double _qbore[4];
-    for (int ic=0; ic<4; ic++)
-        _qbore[ic] = *(double*)((char*)_pborebuf->buf +
-                            _pborebuf->strides[0] * i_time +
-                            _pborebuf->strides[1] * ic);
-
-    // What could possibly go wrong.
-    const quatd *qbore = reinterpret_cast<const quatd*>(_qbore);
-    const quatd *qofs = reinterpret_cast<const quatd*>(dofs);
-    quatd qdet = (*qbore) * (*qofs);
-
     const double a = qdet.R_component_1();
     const double b = qdet.R_component_2();
     const double c = qdet.R_component_3();
@@ -1319,6 +1304,7 @@ template<typename C, typename P, typename S>
 int ProjectionEngine<C,P,S>::comp_count() const {
     return S::comp_count;
 }
+
 
 template<typename C, typename P, typename S>
 bp::object ProjectionEngine<C,P,S>::coords(
@@ -2282,6 +2268,16 @@ typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinT> ProjEng_HP_T_
 typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinQU> ProjEng_HP_QU_Tiled;
 typedef ProjectionEngine<ProjCAR, Pixelizor_Healpix<Tiled>, SpinTQU> ProjEng_HP_TQU_Tiled;
 
+// Engines that multiply the detector quaternion on the left (q_ofs *
+// q_bore), for instrument-centered coordinates.  Only temperature is
+// supported: the polarization angle is not meaningful in this mode.
+typedef ProjectionEngine<DetLeft<ProjCAR>,Pixelizor2_Flat<Tiled>,SpinT> ProjEng_CAR_T_Tiled_DetLeft;
+typedef ProjectionEngine<DetLeft<ProjCAR>,Pixelizor2_Flat<NonTiled>,SpinT> ProjEng_CAR_T_NonTiled_DetLeft;
+typedef ProjectionEngine<DetLeft<ProjCAR>,Pixelizor2_Flat<Tiled,Bilinear>,SpinT> ProjEng_CAR_T_Tiled_Bilinear_DetLeft;
+typedef ProjectionEngine<DetLeft<ProjCAR>,Pixelizor2_Flat<NonTiled,Bilinear>,SpinT> ProjEng_CAR_T_NonTiled_Bilinear_DetLeft;
+typedef ProjectionEngine<DetLeft<ProjCAR>, Pixelizor_Healpix<NonTiled>, SpinT> ProjEng_HP_T_NonTiled_DetLeft;
+typedef ProjectionEngine<DetLeft<ProjCAR>, Pixelizor_Healpix<Tiled>, SpinT> ProjEng_HP_T_Tiled_DetLeft;
+
 #define TYPEDEF_SPIN(PIX, SPIN)                 \
     TYPEDEF_TILING(PIX, SPIN, Tiled)            \
     TYPEDEF_TILING(PIX, SPIN, NonTiled)
@@ -2365,5 +2361,12 @@ PYBINDINGS("so3g")
     EXPORT_ENGINE(ProjEng_HP_T_Tiled);
     EXPORT_ENGINE(ProjEng_HP_QU_Tiled);
     EXPORT_ENGINE(ProjEng_HP_TQU_Tiled);
+
+    EXPORT_ENGINE(ProjEng_CAR_T_Tiled_DetLeft);
+    EXPORT_ENGINE(ProjEng_CAR_T_NonTiled_DetLeft);
+    EXPORT_ENGINE(ProjEng_CAR_T_Tiled_Bilinear_DetLeft);
+    EXPORT_ENGINE(ProjEng_CAR_T_NonTiled_Bilinear_DetLeft);
+    EXPORT_ENGINE(ProjEng_HP_T_NonTiled_DetLeft);
+    EXPORT_ENGINE(ProjEng_HP_T_Tiled_DetLeft);
 
 }
